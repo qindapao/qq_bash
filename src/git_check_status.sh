@@ -50,40 +50,68 @@ for ROOT_DIR in "${ROOT_DIRS[@]}"; do
         if [ -d "$dir/.git" ]; then
             cd "$dir" || continue
 
-            status_msg=""
-            color="$NC"
+            git fetch >/dev/null 2>&1
 
-          # Check for uncommitted changes
-          if ! git diff --quiet || ! git diff --cached --quiet; then
-              status_msg="[Changes not committed]"
-              color="$RED"
-          else
-              git fetch >/dev/null 2>&1
-              LOCAL=$(git rev-parse HEAD 2>/dev/null)
-              REMOTE=$(git rev-parse @{u} 2>/dev/null)
+            repo_dirty=0
 
-              if [ -n "$REMOTE" ] && [ "$LOCAL" != "$REMOTE" ]; then
-                  BASE=$(git merge-base HEAD @{u} 2>/dev/null)
-                  if [ "$LOCAL" = "$BASE" ]; then
-                      status_msg="[Remote lead, needs to be pulled]"
-                      color="$BLUE"
-                  elif [ "$REMOTE" = "$BASE" ]; then
-                      status_msg="[Local lead, needs to be pushed]"
-                      color="$GREEN"
-                  else
-                      status_msg="[Commit history divergence, force push or manual resolution needed]"
-                      color="$BLUE"
-                  fi
-              fi
-          fi
+            # Check for untracked files
+            if [ -n "$(git ls-files --others --exclude-standard)" ]; then
+                echo -e "${RED}$dir [Untracked files present]${NC}"
+                repo_dirty=1
+            fi
 
-          if [ -n "$status_msg" ]; then
-              echo -e "${color}${status_msg} $dir${NC}"
-          else
-              [ "$ONLY_DIRTY" -eq 0 ] && echo "[clean] $dir"
-          fi
+            # Check for unstaged changes
+            if ! git diff --quiet; then
+                echo -e "${RED}$dir [Unstaged changes]${NC}"
+                repo_dirty=1
+            fi
 
-          cd - >/dev/null
+            # Check for changes that have been staged but not committed
+            if ! git diff --cached --quiet; then
+                echo -e "${RED}$dir [Staged but uncommitted changes]${NC}"
+                repo_dirty=1
+            fi
+
+            # Check the remote synchronization status of each branch again
+            for branch in $(git for-each-ref --format='%(refname:short)' refs/heads/); do
+                status_msg=""
+                color="$NC"
+
+                LOCAL=$(git rev-parse "$branch" 2>/dev/null)
+                REMOTE=$(git rev-parse "$branch@{u}" 2>/dev/null)
+
+                if [ -z "$REMOTE" ]; then
+                    status_msg="[No upstream tracking branch]"
+                    color="$RED"
+                elif [ "$LOCAL" != "$REMOTE" ]; then
+                    BASE=$(git merge-base "$branch" "$branch@{u}" 2>/dev/null)
+                    if [ "$LOCAL" = "$BASE" ]; then
+                        status_msg="[Remote ahead, needs pull]"
+                        color="$BLUE"
+                    elif [ "$REMOTE" = "$BASE" ]; then
+                        status_msg="[Local ahead, needs push]"
+                        color="$GREEN"
+                    else
+                        status_msg="[Diverged, manual resolution needed]"
+                        color="$BLUE"
+                    fi
+                fi
+
+                if [ -n "$status_msg" ]; then
+                    repo_dirty=1
+                    echo -e "${color}$dir ${status_msg} ($branch)${NC}"
+                else
+                    [ "$ONLY_DIRTY" -eq 0 ] && echo "[clean] $dir ($branch)"
+                fi
+            done
+
+            # If all branches in the warehouse are clean and only dirty is displayed, 
+            # there will be no output.
+            if [ $repo_dirty -eq 0 ] && [ "$ONLY_DIRTY" -eq 1 ]; then
+                :
+            fi
+
+            cd - >/dev/null
         fi
     done
 done
