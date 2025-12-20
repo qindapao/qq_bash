@@ -12,23 +12,42 @@ SEP=$'\034'
 # - delete leaf key
 # unset -v nested_assoc_tmp["key1${SEP}key2${SEP}key3${SEP}"]
 
+# $?
+# 0: tree
+# 1: leaf
+# 2: key not found
+na_tree_node_type ()
+{
+    :
+}
+
+# $?
+# 0 成功删除
+# 1 键为空
 na_tree_delete ()
 {
     eval -- local -A base_tree=($1)
     local base_key=$2 key
+    local -i is_delete=1
+    [[ -z "$base_key" ]] && return 1
     for key in "${!base_tree[@]}" ; do
         [[ "$key" != "${base_key}"* ]] && {
             REPLY+=" ${key@Q}"
             REPLY+=" ${base_tree[$key]@Q}"
         }
     done
+    return 0
 }
 
+# $?
+# 0 成功获取
+# 1 键为空
 na_tree_get ()
 {
     eval -- local -A base_tree=($1)
     local base_key=$2
     local key sub_key
+    [[ -z "$base_key" ]] && return 1
     for key in "${!base_tree[@]}" ; do
         [[ "$key" == "${base_key}"* ]] && {
             sub_key=${key#"$base_key"}
@@ -38,10 +57,8 @@ na_tree_get ()
             }
         }
     done
+    return 0
 }
-
-na_tree_merge () { _na_tree_add "$@" 'merge' ; }
-na_tree_replace () { _na_tree_add "$@" 'replace' ; }
 
 na_tree_get_len ()
 {
@@ -53,8 +70,30 @@ na_tree_walk ()
     :
 }
 
+na_tree_walk ()
+{
+    local tree_q="$1"
+    eval -- local -A tree=($tree_q)
+    local base_key="$2"
 
-# Key iterator, returns a Q string list of keys
+    local IFS=$'\n'
+    local type_key_tuple key_q key key_type
+
+    for type_key_tuple in ${| na_tree_iter "$tree_q" "$base_key" ;} ; do
+        IFS=' ' ; eval -- set -- $type_key_tuple
+        key_type=$1 key=$2
+        # IFS=$'\n'
+        
+        if [[ "$key_type" == leaf ]] ; then
+            printf "%b => %s\n" "${base_key}${key}${SEP}" "${tree["${base_key}${key}${SEP}"]}" 
+        else
+            na_tree_walk "$tree_q" "${base_key}${key}${SEP}"
+        fi
+    done
+}
+
+# Key iterator, returns a list of
+# (key[Qstring] type[Normal_string])
 # The reason why Q string protection is used is to prevent newline characters
 # from appearing in the key.
 # The caller needs to first set IFS=$'\n' Then do Q string eval reduction when using it
@@ -63,6 +102,8 @@ na_tree_iter ()
     eval -- local -A base_tree=($1)
     local base_key=$2
     local key sub_key
+    local -A seen=()
+    local node_type=''
 
     REPLY=""
     for key in "${!base_tree[@]}"; do
@@ -76,7 +117,12 @@ na_tree_iter ()
             # Just take down one level
             sub_key=${sub_key%%"$SEP"*}
         fi
-        [[ -n "$sub_key" ]] && REPLY+="${REPLY:+$'\n'}${sub_key}"
+
+        [[ -n "$sub_key" ]] && [[ ! -v seen["$sub_key"] ]] && {
+            [[ -v base_tree["${base_key}${sub_key}${SEP}"] ]] && node_type='leaf' || node_type='tree'
+            REPLY+="${REPLY:+$'\n'}${node_type} ${sub_key@Q}"
+            seen[$sub_key]=1
+        }
     done
 }
 
@@ -84,33 +130,25 @@ na_tree_print ()
 {
     local print_name="$1"
     eval -- local -A print_tree=($2)
-    local prefix="${3%$SEP}" indent="$4" key
+    local prefix="$3" indent_cnt="${4:-4}" key
     local -A strip_tree=()
 
-    # Remove the last SEP from all keys. If empty keys are found, delete them.
-    for key in "${!print_tree[@]}" ; do
-        [[ -n "${key%$SEP}" ]] && strip_tree[${key%$SEP}]=${print_tree[$key]}
-    done
-
     echo "${print_name} =>"
-    local -a sorted_keys=("${!strip_tree[@]}")
+    local -a sorted_keys=("${!print_tree[@]}")
     eval -- sorted_keys=($(printf "%s\n" "${sorted_keys[@]@Q}" | sort))
 
-    _na_tree_print "${strip_tree[*]@K}" "${sorted_keys[*]@Q}" "$prefix" "$indent"
+    local new_indent ; printf -v new_indent "%*s" "$indent_cnt" ""
+
+    _na_tree_print "$2" "${sorted_keys[*]@Q}" "$prefix" "$new_indent" "$indent_cnt"
 }
 
-_na_tree_add ()
+na_tree_add ()
 {
     eval -- local -A base_tree=($1)
     eval -- local -A sub_tree=($2)
     local base_key=$3
-    # You can also choose merge
-    local mode=${4:-replace}
 
-    case "$mode" in
-    merge)      REPLY=${base_tree[*]@K} ;;
-    replace)    REPLY=${| na_tree_delete "${base_tree[*]@K}" "$base_key" ;}
-    esac
+    REPLY=${| na_tree_delete "${base_tree[*]@K}" "$base_key" ;}
 
     local sub_key ; for sub_key in "${!sub_tree[@]}" ; do
         : "${base_key}${sub_key}" ; REPLY+=" ${_@Q}"
@@ -118,11 +156,13 @@ _na_tree_add ()
     done
 }
 
+# :TODO: 暂时没有考虑中文的双宽对齐显示
 _na_tree_print ()
 {
     eval -- local -A print_tree=($1)
     eval -- local -a sorted_keys=($2)
     local prefix="$3" indent="$4"
+    local indent_cnt="$5"
     local -A subkeys=()
     local -a subkeys_order=()
     local fullkey rest subkey
@@ -135,12 +175,8 @@ _na_tree_print ()
     for index in "${!sorted_keys[@]}"; do
         fullkey=${sorted_keys[$index]}
         if [[ -z "$prefix" || "$fullkey" == "$prefix"* ]]; then
-            rest="${fullkey#$prefix}"
-            # If there is a level prefix, the remaining part will start with SEP,
-            # remove it
-            [[ "$rest" == "$SEP"* ]] && rest="${rest#$SEP}"
-
-            if [[ "$rest" == *"$SEP"* ]]; then
+            rest=${fullkey#"$prefix"}
+            if [[ "${rest%$SEP}" == *"$SEP"* ]] ; then
                 subkey="${rest%%"$SEP"*}"
                 [[ -z "${subkeys[$subkey]}" ]] && {
                     subkeys["$subkey"]=1
@@ -148,8 +184,14 @@ _na_tree_print ()
                 }
                 rest_tree["$fullkey"]=${print_tree[$fullkey]}
                 rest_sorted_keys+=("$fullkey")
-            elif [[ -n "$rest" ]]; then
-                echo "${indent}${rest} => ${print_tree[$fullkey]}"
+            else
+                rest=${fullkey%"$SEP"}
+                rest=${rest##*"$SEP"}
+                local indent_leaf_value
+                indent_leaf_value=${rest%%$'\n'*}
+                indent_leaf_value=${indent_leaf_value//?/ }
+                indent_leaf_value+="${indent}    "
+                echo "${indent}${rest//$'\n'/$'\n'"$indent"} => ${print_tree[$fullkey]//$'\n'/$'\n'"$indent_leaf_value"}"
             fi
         else
             rest_tree["$fullkey"]=${print_tree[$fullkey]}
@@ -157,54 +199,12 @@ _na_tree_print ()
         fi
     done
 
+    local new_indent ; printf -v new_indent "%*s" "$indent_cnt" ""
     if ((${#subkeys_order[@]})); then
-        local next_prefix
         for subkey in "${subkeys_order[@]}" ; do
-            echo "${indent}${subkey} =>"
-            if [[ -z "$prefix" ]]; then
-                next_prefix="$subkey"
-            else
-                next_prefix="${prefix}${SEP}${subkey}"
-            fi
-            _na_tree_print "${rest_tree[*]@K}" "${rest_sorted_keys[*]@Q}" "$next_prefix" "    ${indent}"
+            echo "${indent}${subkey//$'\n'/$'\n'"$indent"} =>"
+            _na_tree_print "${rest_tree[*]@K}" "${rest_sorted_keys[*]@Q}" "${prefix}${subkey}${SEP}" "${new_indent}${indent}" "$indent_cnt"
         done
     fi
 }
-
-
-
-declare -A nested_assoc_tmp=()
-nested_assoc_tmp["key1${SEP}key2${SEP}key3${SEP}"]="something1"
-nested_assoc_tmp["key1${SEP}key2${SEP}key4${SEP}"]="something2"
-nested_assoc_tmp["key1${SEP}keyx${SEP}"]="something3"
-nested_assoc_tmp["key1${SEP}keyy${SEP}xx${SEP}"]="something4"
-nested_assoc_tmp["keym${SEP}"]="something5"
-
-declare -A sub_tree=()
-sub_tree["sub1${SEP}xx${SEP}"]=1
-sub_tree["sub2${SEP}yy${SEP}"]=2
-sub_tree["su b2${SEP}kk${SEP}"]=3
-sub_tree["su b2${SEP}0${SEP}"]=3
-sub_tree["su b2${SEP}1${SEP}"]=3
-sub_tree["su b2${SEP}2${SEP}"]=3
-sub_tree["su b2${SEP}3${SEP}"]=3
-sub_tree["su b2${SEP}4${SEP}"]=3
-sub_tree["su b2${SEP}5${SEP}"]=3
-sub_tree["su b2${SEP}6${SEP}"]=3
-sub_tree["su b2${SEP}7${SEP}"]=3
-sub_tree["su b2${SEP}8${SEP}"]=3
-sub_tree["su b2${SEP}9${SEP}"]=3
-sub_tree["su b2${SEP}10${SEP}"]=3
-sub_tree["su b2${SEP}11${SEP}"]=3
-
-declare -A plus_tree=()
-eval -- plus_tree=(${| na_tree_replace "${nested_assoc_tmp[*]@K}" "${sub_tree[*]@K}" "key1${SEP}key2${SEP}" ;})
-
-na_tree_print "plus_tree" "${plus_tree[*]@K}" "" "    "
-
-declare -A get_sub_tree=()
-eval -- get_sub_tree=(${| na_tree_get "${plus_tree[*]@K}" "key1${SEP}key2${SEP}" ;})
-
-na_tree_print "get_sub_tree" "${get_sub_tree[*]@K}" "" "    "
-
 
