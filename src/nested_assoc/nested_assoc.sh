@@ -2,6 +2,13 @@
 
 ((_NESTED_ASSOC_IMPORTED++)) && return 0
 
+# :TODO: The efficiency of key polling may not be high. You can consider using
+#   a dictionary tree to optimize it.
+# trie[lev1${SEP}]=(lev2-1${SEP} lev2-2${SEP})
+# trie[lev1${SEP}lev1-1${SEP}]=(lev3${SEP})
+#
+# In fact, I feel that it is not necessary anymore, just use JSON directly.
+#
 # nested assoc sub sep
 # SEP needs to wrap the tail of the key to eliminate ambiguity
 SEP=$'\034'
@@ -12,14 +19,6 @@ NA_RET_ENUM_KEY_IS_NOTFOUND=3
 NA_RET_ENUM_KEY_IS_NULL=8
 NA_RET_ENUM_KEY_UP_LEV_HAVE_LEAF=9
 
-# declare -A nested_assoc_tmp=()
-# - add leaf key(Check for empty keys. Empty keys are not allowed to be inserted.)
-# nested_assoc_tmp["key1${SEP}key2${SEP}key3${SEP}"]="something"
-# - delete leaf key
-# unset -v nested_assoc_tmp["key1${SEP}key2${SEP}key3${SEP}"]
-# 直接操作叶子键前最好先检查下要添加的叶子键如果是子树是不能直接添加的
-
-# $1: 需要获取键Q字符串列表的树变量名
 na_gk ()
 {
     eval -- 'printf "%q " "${!'$1'[@]}"'
@@ -62,9 +61,6 @@ na_tree_delete ()
     return ${NA_RET_ENUM_OK}
 }
 
-# $?
-# 0 成功获取
-# 1 键为空
 na_tree_get ()
 {
     local base_key=$2
@@ -150,7 +146,7 @@ na_tree_print ()
     local prefix="$3" indent_cnt="${4:-4}" key
     local -A strip_tree=()
 
-    echo "${print_name} =>"
+    printf "%s\n" "${print_name} =>"
     local -a sorted_keys=("${!print_tree[@]}")
     eval -- sorted_keys=($(printf "%s\n" "${sorted_keys[@]@Q}" | sort))
 
@@ -221,7 +217,8 @@ na_tree_add_sub ()
     return ${NA_RET_ENUM_OK}
 }
 
-# :TODO: 暂时没有考虑中文的双宽对齐显示
+# :TODO: Double-width aligned display of Chinese has not been considered for
+# the time being.
 _na_tree_print ()
 {
     eval -- local -A print_tree=($1)
@@ -256,7 +253,7 @@ _na_tree_print ()
                 indent_leaf_value=${rest%%$'\n'*}
                 indent_leaf_value=${indent_leaf_value//?/ }
                 indent_leaf_value+="${indent}    "
-                echo "${indent}${rest//$'\n'/$'\n'"$indent"} => ${print_tree[$fullkey]//$'\n'/$'\n'"$indent_leaf_value"}"
+                printf "%s\n" "${indent}${rest//$'\n'/$'\n'"$indent"} => ${print_tree[$fullkey]//$'\n'/$'\n'"$indent_leaf_value"}"
             fi
         else
             rest_tree["$fullkey"]=${print_tree[$fullkey]}
@@ -267,7 +264,7 @@ _na_tree_print ()
     local new_indent ; printf -v new_indent "%*s" "$indent_cnt" ""
     if ((${#subkeys_order[@]})); then
         for subkey in "${subkeys_order[@]}" ; do
-            echo "${indent}${subkey//$'\n'/$'\n'"$indent"} =>"
+            printf "%s\n" "${indent}${subkey//$'\n'/$'\n'"$indent"} =>"
             _na_tree_print "${rest_tree[*]@K}" "${rest_sorted_keys[*]@Q}" "${prefix}${subkey}${SEP}" "${new_indent}${indent}" "$indent_cnt"
         done
     fi
