@@ -75,5 +75,7 @@ test_xx ()
     
 }
 
-test_xx
+na_tree_node_type "${get_sub_tree[*]@K}" "sub1${SEP}"
+echo $?
+
 

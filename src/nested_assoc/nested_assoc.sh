@@ -5,38 +5,60 @@
 # nested assoc sub sep
 # SEP needs to wrap the tail of the key to eliminate ambiguity
 SEP=$'\034'
+NA_RET_ENUM_OK=0
+NA_RET_ENUM_KEY_IS_TREE=1
+NA_RET_ENUM_KEY_IS_LEAF=2
+NA_RET_ENUM_KEY_IS_NOTFOUND=3
+NA_RET_ENUM_KEY_IS_NULL=8
 
 # declare -A nested_assoc_tmp=()
 # - add leaf key(Check for empty keys. Empty keys are not allowed to be inserted.)
 # nested_assoc_tmp["key1${SEP}key2${SEP}key3${SEP}"]="something"
 # - delete leaf key
 # unset -v nested_assoc_tmp["key1${SEP}key2${SEP}key3${SEP}"]
+# 直接操作叶子键前最好先检查下要添加的叶子键如果是子树是不能直接添加的
 
-# $?
-# 0: tree
-# 1: leaf
-# 2: key not found
-na_tree_node_type ()
+# $1: 需要获取键Q字符串列表的树变量名
+na_gk ()
 {
-    :
+    eval -- 'printf "%q " "${!'$1'[@]}"'
 }
 
-# $?
-# 0 成功删除
-# 1 键为空
+na_tree_node_type ()
+{
+    local base_key=$2 key
+    [[ -z "$base_key" ]] && {
+        return ${NA_RET_ENUM_KEY_IS_NULL}
+    }
+
+    eval -- local -A base_tree=($1)
+
+    [[ -v base_tree["$base_key"] ]] && return ${NA_RET_ENUM_KEY_IS_LEAF}
+
+    for key in "${!base_tree[@]}" ; do
+        [[ "$key" == "$base_key"* ]] && return ${NA_RET_ENUM_KEY_IS_TREE}
+    done
+
+    return ${NA_RET_ENUM_KEY_IS_NOTFOUND}
+}
+
 na_tree_delete ()
 {
-    eval -- local -A base_tree=($1)
     local base_key=$2 key
-    local -i is_delete=1
-    [[ -z "$base_key" ]] && return 1
+    [[ -z "$base_key" ]] && {
+        REPLY=$1
+        return ${NA_RET_ENUM_KEY_IS_NULL}
+    }
+    
+    eval -- local -A base_tree=($1)
+    
     for key in "${!base_tree[@]}" ; do
         [[ "$key" != "${base_key}"* ]] && {
             REPLY+=" ${key@Q}"
             REPLY+=" ${base_tree[$key]@Q}"
         }
     done
-    return 0
+    return ${NA_RET_ENUM_OK}
 }
 
 # $?
@@ -44,10 +66,11 @@ na_tree_delete ()
 # 1 键为空
 na_tree_get ()
 {
-    eval -- local -A base_tree=($1)
     local base_key=$2
+    [[ -z "$base_key" ]] && return ${NA_RET_ENUM_KEY_IS_NULL}
     local key sub_key
-    [[ -z "$base_key" ]] && return 1
+    eval -- local -A base_tree=($1)
+    
     for key in "${!base_tree[@]}" ; do
         [[ "$key" == "${base_key}"* ]] && {
             sub_key=${key#"$base_key"}
@@ -57,15 +80,10 @@ na_tree_get ()
             }
         }
     done
-    return 0
+    return ${NA_RET_ENUM_OK}
 }
 
 na_tree_get_len ()
-{
-    :
-}
-
-na_tree_walk ()
 {
     :
 }
@@ -144,9 +162,15 @@ na_tree_print ()
 
 na_tree_add ()
 {
+    local base_key=$3
+
+    [[ -z "$base_key" ]] && {
+        REPLY=$1
+        return ${NA_RET_ENUM_KEY_IS_NULL}
+    }
+
     eval -- local -A base_tree=($1)
     eval -- local -A sub_tree=($2)
-    local base_key=$3
 
     REPLY=${| na_tree_delete "${base_tree[*]@K}" "$base_key" ;}
 
