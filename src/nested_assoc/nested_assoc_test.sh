@@ -49,7 +49,7 @@ geg
 '
 
 declare -A plus_tree=()
-eval -- plus_tree=(${| na_tree_add "${nested_assoc_tmp[*]@K}" "${sub_tree[*]@K}" "key1${SEP}key2${SEP}" ;})
+eval -- plus_tree=(${| na_tree_add_sub "${nested_assoc_tmp[*]@K}" "key1${SEP}key2${SEP}" "${sub_tree[*]@K}" ;})
 
 na_tree_print "nested_assoc_tmp" "${nested_assoc_tmp[*]@K}"
 na_tree_print "nested_assoc_tmp" "${nested_assoc_tmp[*]@K}" "key1${SEP}"
@@ -78,4 +78,24 @@ test_xx ()
 na_tree_node_type "${get_sub_tree[*]@K}" "sub1${SEP}"
 echo $?
 
+declare -A tree=()
+eval -- tree=(${|na_tree_add_leaf "${tree[*]@K}" "key1${SEP}" "var1";})
+eval -- tree=(${|na_tree_add_leaf "${tree[*]@K}" "key2${SEP}" "var2";})
+eval -- tree=(${|na_tree_add_leaf "${tree[*]@K}" "key2${SEP}key-3${SEP}" "var2";})
+eval -- tree=(${|na_tree_add_leaf "${tree[*]@K}" "key3${SEP}key-3${SEP}key4${SEP}" "var234";})
+na_tree_print "tree" "${tree[*]@K}"
+
+declare -A sub_tree2=()
+eval -- sub_tree2=(${|na_tree_add_leaf "${sub_tree2[*]@K}" "key1${SEP}" "var1";})
+eval -- sub_tree2=(${|na_tree_add_leaf "${sub_tree2[*]@K}" "key2${SEP}" "var2";})
+eval -- sub_tree2=(${|na_tree_add_leaf "${sub_tree2[*]@K}" "key2${SEP}key-3${SEP}" "var2";})
+eval -- sub_tree2=(${|na_tree_add_leaf "${sub_tree2[*]@K}" "key3${SEP}key-3${SEP}key4${SEP}" "var234";})
+eval -- tree=(${|na_tree_add_sub "${tree[*]@K}" "key1${SEP}" "${sub_tree2[*]@K}";})
+eval -- tree=(${|na_tree_add_sub "${tree[*]@K}" "key4${SEP}key-3${SEP}" "${sub_tree2[*]@K}";})
+na_tree_print "sub_tree" "${sub_tree2[*]@K}"
+na_tree_print "tree" "${tree[*]@K}"
+
+declare -A my_get_sub_tree=()
+eval -- my_get_sub_tree=(${|na_tree_get "${tree[*]@K}" "key4${SEP}key-3${SEP}";})
+na_tree_print "my_get_sub_tree" "${my_get_sub_tree[*]@K}"
 

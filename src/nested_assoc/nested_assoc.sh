@@ -10,6 +10,7 @@ NA_RET_ENUM_KEY_IS_TREE=1
 NA_RET_ENUM_KEY_IS_LEAF=2
 NA_RET_ENUM_KEY_IS_NOTFOUND=3
 NA_RET_ENUM_KEY_IS_NULL=8
+NA_RET_ENUM_KEY_UP_LEV_HAVE_LEAF=9
 
 # declare -A nested_assoc_tmp=()
 # - add leaf key(Check for empty keys. Empty keys are not allowed to be inserted.)
@@ -97,7 +98,7 @@ na_tree_walk ()
     local IFS=$'\n'
     local type_key_tuple key_q key key_type
 
-    for type_key_tuple in ${| na_tree_iter "$tree_q" "$base_key" ;} ; do
+    for type_key_tuple in ${|na_tree_iter "$tree_q" "$base_key" ;} ; do
         IFS=' ' ; eval -- set -- $type_key_tuple
         key_type=$1 key=$2
         # IFS=$'\n'
@@ -130,8 +131,6 @@ na_tree_iter ()
         else
             [[ "$key" != "$base_key"* ]] && continue
             sub_key=${key#"$base_key"}
-            # Remove the SEP at the beginning
-            [[ "$sub_key" == "$SEP"* ]] && sub_key=${sub_key#"$SEP"}
             # Just take down one level
             sub_key=${sub_key%%"$SEP"*}
         fi
@@ -160,9 +159,9 @@ na_tree_print ()
     _na_tree_print "$2" "${sorted_keys[*]@Q}" "$prefix" "$new_indent" "$indent_cnt"
 }
 
-na_tree_add ()
+na_tree_add_leaf ()
 {
-    local base_key=$3
+    local base_key=$2
 
     [[ -z "$base_key" ]] && {
         REPLY=$1
@@ -170,14 +169,56 @@ na_tree_add ()
     }
 
     eval -- local -A base_tree=($1)
-    eval -- local -A sub_tree=($2)
+    local leaf=$3
 
-    REPLY=${| na_tree_delete "${base_tree[*]@K}" "$base_key" ;}
+    # Check if there are leaves in the superior level
+    local prefix=${base_key%"$SEP"}
+    while [[ "$prefix" == *"$SEP"* ]] ; do
+        local parent="${prefix%$SEP*}$SEP"
+        [[ -v base_tree["$parent"] ]] && {
+            REPLY=$1
+            return ${NA_RET_ENUM_KEY_UP_LEV_HAVE_LEAF}
+        }
+        prefix=${prefix%"$SEP"*}
+    done 
+
+    REPLY=${|na_tree_delete "${base_tree[*]@K}" "$base_key" ;}
+    REPLY+=" ${base_key@Q} ${leaf@Q}"
+
+    return ${NA_RET_ENUM_OK}
+}
+
+na_tree_add_sub ()
+{
+    local base_key=$2
+
+    [[ -z "$base_key" ]] && {
+        REPLY=$1
+        return ${NA_RET_ENUM_KEY_IS_NULL}
+    }
+
+    eval -- local -A base_tree=($1)
+    eval -- local -A sub_tree=($3)
+
+    # Check if there are leaves in the superior level
+    local prefix=${base_key%"$SEP"}
+    while [[ "$prefix" == *"$SEP"* ]] ; do
+        local parent="${prefix%$SEP*}$SEP"
+        [[ -v base_tree["$parent"] ]] && {
+            REPLY=$1
+            return ${NA_RET_ENUM_KEY_UP_LEV_HAVE_LEAF}
+        }
+        prefix=${prefix%"$SEP"*}
+    done 
+
+    REPLY=${|na_tree_delete "${base_tree[*]@K}" "$base_key" ;}
 
     local sub_key ; for sub_key in "${!sub_tree[@]}" ; do
         : "${base_key}${sub_key}" ; REPLY+=" ${_@Q}"
         REPLY+=" ${sub_tree[$sub_key]@Q}"
     done
+
+    return ${NA_RET_ENUM_OK}
 }
 
 # :TODO: 暂时没有考虑中文的双宽对齐显示
