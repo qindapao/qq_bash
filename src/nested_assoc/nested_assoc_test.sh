@@ -49,14 +49,14 @@ geg
 '
 
 declare -A plus_tree=()
-eval -- plus_tree=(${| na_tree_add_sub "${nested_assoc_tmp[*]@K}" "key1${SEP}key2${SEP}" "${sub_tree[*]@K}" ;})
+eval -- plus_tree=(${|na_tree_add_sub "${nested_assoc_tmp[*]@K}" "key1${SEP}key2${SEP}" "${sub_tree[*]@K}";})
 
 na_tree_print "nested_assoc_tmp" "${nested_assoc_tmp[*]@K}"
 na_tree_print "nested_assoc_tmp" "${nested_assoc_tmp[*]@K}" "key1${SEP}"
 na_tree_print "plus_tree" "${plus_tree[*]@K}"
 
 declare -A get_sub_tree=()
-eval -- get_sub_tree=(${| na_tree_get "${plus_tree[*]@K}" "key1${SEP}key2${SEP}" ;})
+eval -- get_sub_tree=(${|na_tree_get "${plus_tree[*]@K}" "key1${SEP}key2${SEP}";})
 
 na_tree_print "get_sub_tree" "${get_sub_tree[*]@K}"
 
