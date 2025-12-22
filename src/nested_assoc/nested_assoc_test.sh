@@ -10,7 +10,7 @@ test_na_tree_iter ()
     local lev1 lev2 lev3 lev4
     local my_type my_key
 
-    for lev1 in ${| na_tree_iter "${plus_tree[*]@K}" ;} ; do
+    for lev1 in ${| na_tree_iter "plus_tree" ;} ; do
         IFS=' ' ; set -- $lev1 ; eval -- my_key=$2 ; my_type=$1
         IFS=$'\n'
         declare -p my_key my_type
@@ -48,20 +48,20 @@ geg
 
 '
 
-declare -A plus_tree=()
-eval -- plus_tree=(${|na_tree_add_sub "${nested_assoc_tmp[*]@K}" "key1${SEP}key2${SEP}" "${sub_tree[*]@K}";})
+eval declare -A plus_tree=("${nested_assoc_tmp[@]@K}")
+na_tree_add_sub "plus_tree" "key1${SEP}key2${SEP}" "sub_tree"
 
 na_tree_print "nested_assoc_tmp" "${nested_assoc_tmp[*]@K}"
 na_tree_print "nested_assoc_tmp" "${nested_assoc_tmp[*]@K}" "key1${SEP}"
 na_tree_print "plus_tree" "${plus_tree[*]@K}"
 
 declare -A get_sub_tree=()
-eval -- get_sub_tree=(${|na_tree_get "${plus_tree[*]@K}" "key1${SEP}key2${SEP}";})
+eval -- get_sub_tree=(${|na_tree_get "plus_tree" "key1${SEP}key2${SEP}";})
 
 na_tree_print "get_sub_tree" "${get_sub_tree[*]@K}"
 
 test_na_tree_iter
-na_tree_walk "${plus_tree[*]@K}"
+na_tree_walk "plus_tree"
 
 test_xx ()
 {
@@ -75,27 +75,27 @@ test_xx ()
     
 }
 
-na_tree_node_type "${get_sub_tree[*]@K}" "sub1${SEP}"
+na_tree_node_type "get_sub_tree" "sub1${SEP}"
 echo $?
 
 declare -A tree=()
-eval -- tree=(${|na_tree_add_leaf "${tree[*]@K}" "key1${SEP}" "var1";})
-eval -- tree=(${|na_tree_add_leaf "${tree[*]@K}" "key2${SEP}" "var2";})
-eval -- tree=(${|na_tree_add_leaf "${tree[*]@K}" "key2${SEP}key-3${SEP}" "var2";})
-eval -- tree=(${|na_tree_add_leaf "${tree[*]@K}" "key3${SEP}key-3${SEP}key4${SEP}" "var234";})
+na_tree_add_leaf "tree" "key1${SEP}" "var1"
+na_tree_add_leaf "tree" "key2${SEP}" "var2"
+na_tree_add_leaf "tree" "key2${SEP}key-3${SEP}" "var2"
+na_tree_add_leaf "tree" "key3${SEP}key-3${SEP}key4${SEP}" "var234"
 na_tree_print "tree" "${tree[*]@K}"
 
 declare -A sub_tree2=()
-eval -- sub_tree2=(${|na_tree_add_leaf "${sub_tree2[*]@K}" "key1${SEP}" "var1";})
-eval -- sub_tree2=(${|na_tree_add_leaf "${sub_tree2[*]@K}" "key2${SEP}" "var2";})
-eval -- sub_tree2=(${|na_tree_add_leaf "${sub_tree2[*]@K}" "key2${SEP}key-3${SEP}" "var2";})
-eval -- sub_tree2=(${|na_tree_add_leaf "${sub_tree2[*]@K}" "key3${SEP}key-3${SEP}key4${SEP}" "var234";})
-eval -- tree=(${|na_tree_add_sub "${tree[*]@K}" "key1${SEP}" "${sub_tree2[*]@K}";})
-eval -- tree=(${|na_tree_add_sub "${tree[*]@K}" "key4${SEP}key-3${SEP}" "${sub_tree2[*]@K}";})
+na_tree_add_leaf "sub_tree2" "key1${SEP}" "var1"
+na_tree_add_leaf "sub_tree2" "key2${SEP}" "var2"
+na_tree_add_leaf "sub_tree2" "key2${SEP}key-3${SEP}" "var2"
+na_tree_add_leaf "sub_tree2" "key3${SEP}key-3${SEP}key4${SEP}" "var234"
+na_tree_add_sub "tree" "key1${SEP}" "sub_tree2"
+na_tree_add_sub "tree" "key4${SEP}key-3${SEP}" "sub_tree2"
 na_tree_print "sub_tree" "${sub_tree2[*]@K}"
 na_tree_print "tree" "${tree[*]@K}"
 
 declare -A my_get_sub_tree=()
-eval -- my_get_sub_tree=(${|na_tree_get "${tree[*]@K}" "key4${SEP}key-3${SEP}";})
+eval -- my_get_sub_tree=(${|na_tree_get "tree" "key4${SEP}key-3${SEP}";})
 na_tree_print "my_get_sub_tree" "${my_get_sub_tree[*]@K}"
 

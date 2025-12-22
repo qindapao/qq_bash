@@ -86,6 +86,8 @@ TRIE_RET_ENUM_KEY_UP_LEV_HAVE_LEAF=9
 # children 甚至可以排序，这样可以模拟数组和字典的嵌套
 
 SEP=$'\034'
+# 如果想要绝对安全可以定义下面的分隔符,防止极端碰撞
+# SEP=$'\034'$'\035'$'\036'$'\037'
 TRIE_ROOT_ID=1
 
 # T[node.type] = "arr" | "obj" | "str" | "number" | "null" | "true" | "false"

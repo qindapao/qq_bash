@@ -2,6 +2,13 @@
 
 ((_NESTED_ASSOC_IMPORTED++)) && return 0
 
+# 变量前缀 na_ 外部用户变量不能以此命名
+
+
+# 当有递归情况发生时:
+# 安全的情况是，引用的始终是用户传进来的变量名。而不能是递归函数自己的变量名
+# 如果是递归函数自己的变量名，那么传递到下层去的时候一定会冲突的。
+
 # :TODO: The efficiency of key polling may not be high. You can consider using
 #   a dictionary tree to optimize it.
 # trie[lev1${SEP}]=(lev2-1${SEP} lev2-2${SEP})
@@ -12,6 +19,8 @@
 # nested assoc sub sep
 # SEP needs to wrap the tail of the key to eliminate ambiguity
 SEP=$'\034'
+# 如果想要绝对安全可以定义下面的分隔符,防止极端碰撞
+# SEP=$'\034'$'\035'$'\036'$'\037'
 NA_RET_ENUM_OK=0
 NA_RET_ENUM_KEY_IS_TREE=1
 NA_RET_ENUM_KEY_IS_LEAF=2
@@ -26,17 +35,17 @@ na_gk ()
 
 na_tree_node_type ()
 {
-    local base_key=$2 key
-    [[ -z "$base_key" ]] && {
+    local na_base_key=$2 na_key
+    [[ -z "$na_base_key" ]] && {
         return ${NA_RET_ENUM_KEY_IS_NULL}
     }
 
-    eval -- local -A base_tree=($1)
+    local -n na_base_tree=$1
 
-    [[ -v base_tree["$base_key"] ]] && return ${NA_RET_ENUM_KEY_IS_LEAF}
+    [[ -v na_base_tree["$na_base_key"] ]] && return ${NA_RET_ENUM_KEY_IS_LEAF}
 
-    for key in "${!base_tree[@]}" ; do
-        [[ "$key" == "$base_key"* ]] && return ${NA_RET_ENUM_KEY_IS_TREE}
+    for na_key in "${!na_base_tree[@]}" ; do
+        [[ "$na_key" == "$na_base_key"* ]] && return ${NA_RET_ENUM_KEY_IS_TREE}
     done
 
     return ${NA_RET_ENUM_KEY_IS_NOTFOUND}
@@ -44,18 +53,15 @@ na_tree_node_type ()
 
 na_tree_delete ()
 {
-    local base_key=$2 key
-    [[ -z "$base_key" ]] && {
-        REPLY=$1
+    local na_base_key=$2 na_key
+    [[ -z "$na_base_key" ]] && {
         return ${NA_RET_ENUM_KEY_IS_NULL}
     }
+    local -n na_base_tree=$1
     
-    eval -- local -A base_tree=($1)
-    
-    for key in "${!base_tree[@]}" ; do
-        [[ "$key" != "${base_key}"* ]] && {
-            REPLY+=" ${key@Q}"
-            REPLY+=" ${base_tree[$key]@Q}"
+    for na_key in "${!na_base_tree[@]}" ; do
+        [[ "$na_key" == "${na_base_key}"* ]] && {
+            unset -v 'na_base_tree["$na_key"]'
         }
     done
     return ${NA_RET_ENUM_OK}
@@ -63,17 +69,17 @@ na_tree_delete ()
 
 na_tree_get ()
 {
-    local base_key=$2
-    [[ -z "$base_key" ]] && return ${NA_RET_ENUM_KEY_IS_NULL}
-    local key sub_key
-    eval -- local -A base_tree=($1)
+    local na_base_key=$2
+    [[ -z "$na_base_key" ]] && return ${NA_RET_ENUM_KEY_IS_NULL}
+    local na_key na_sub_key
+    local -n na_base_tree=$1
     
-    for key in "${!base_tree[@]}" ; do
-        [[ "$key" == "${base_key}"* ]] && {
-            sub_key=${key#"$base_key"}
-            [[ -n "$sub_key" ]] && {
-                REPLY+=" ${sub_key@Q}"
-                REPLY+=" ${base_tree[$key]@Q}"
+    for na_key in "${!na_base_tree[@]}" ; do
+        [[ "$na_key" == "${na_base_key}"* ]] && {
+            na_sub_key=${na_key#"$na_base_key"}
+            [[ -n "$na_sub_key" ]] && {
+                REPLY+=" ${na_sub_key@Q}"
+                REPLY+=" ${na_base_tree[$na_key]@Q}"
             }
         }
     done
@@ -87,22 +93,22 @@ na_tree_get_len ()
 
 na_tree_walk ()
 {
-    local tree_q="$1"
-    eval -- local -A tree=($tree_q)
-    local base_key="$2"
+    local na_base_tree_var=$1
+    local -n na_base_tree=$1
+    local na_base_key="$2"
 
     local IFS=$'\n'
-    local type_key_tuple key_q key key_type
+    local na_type_key_tuple key_q na_key na_key_type
 
-    for type_key_tuple in ${|na_tree_iter "$tree_q" "$base_key" ;} ; do
-        IFS=' ' ; eval -- set -- $type_key_tuple
-        key_type=$1 key=$2
+    for na_type_key_tuple in ${|na_tree_iter "$na_base_tree_var" "$na_base_key" ;} ; do
+        IFS=' ' ; eval -- set -- $na_type_key_tuple
+        na_key_type=$1 na_key=$2
         # IFS=$'\n'
         
-        if [[ "$key_type" == leaf ]] ; then
-            printf "%b => %s\n" "${base_key}${key}${SEP}" "${tree["${base_key}${key}${SEP}"]}" 
+        if [[ "$na_key_type" == leaf ]] ; then
+            printf "%b => %s\n" "${na_base_key}${na_key}${SEP}" "${na_base_tree["${na_base_key}${na_key}${SEP}"]}" 
         else
-            na_tree_walk "$tree_q" "${base_key}${key}${SEP}"
+            na_tree_walk "$na_base_tree_var" "${na_base_key}${na_key}${SEP}"
         fi
     done
 }
@@ -114,27 +120,26 @@ na_tree_walk ()
 # The caller needs to first set IFS=$'\n' Then do Q string eval reduction when using it
 na_tree_iter ()
 {
-    eval -- local -A base_tree=($1)
-    local base_key=$2
-    local key sub_key
-    local -A seen=()
-    local node_type=''
+    local -n na_base_tree=$1
+    local na_base_key=$2
+    local na_key na_sub_key
+    local -A na_seen=()
+    local na_node_type=''
 
-    REPLY=""
-    for key in "${!base_tree[@]}"; do
-        if [[ -z "$base_key" ]]; then
-            sub_key=${key%%"$SEP"*}
+    for na_key in "${!na_base_tree[@]}"; do
+        if [[ -z "$na_base_key" ]]; then
+            na_sub_key=${na_key%%"$SEP"*}
         else
-            [[ "$key" != "$base_key"* ]] && continue
-            sub_key=${key#"$base_key"}
+            [[ "$na_key" != "$na_base_key"* ]] && continue
+            na_sub_key=${na_key#"$na_base_key"}
             # Just take down one level
-            sub_key=${sub_key%%"$SEP"*}
+            na_sub_key=${na_sub_key%%"$SEP"*}
         fi
 
-        [[ -n "$sub_key" ]] && [[ ! -v seen["$sub_key"] ]] && {
-            [[ -v base_tree["${base_key}${sub_key}${SEP}"] ]] && node_type='leaf' || node_type='tree'
-            REPLY+="${REPLY:+$'\n'}${node_type} ${sub_key@Q}"
-            seen[$sub_key]=1
+        [[ -n "$na_sub_key" ]] && [[ ! -v na_seen["$na_sub_key"] ]] && {
+            [[ -v na_base_tree["${na_base_key}${na_sub_key}${SEP}"] ]] && na_node_type='leaf' || na_node_type='tree'
+            REPLY+="${REPLY:+$'\n'}${na_node_type} ${na_sub_key@Q}"
+            na_seen[$na_sub_key]=1
         }
     done
 }
@@ -157,61 +162,56 @@ na_tree_print ()
 
 na_tree_add_leaf ()
 {
-    local base_key=$2
+    local na_base_key=$2
 
-    [[ -z "$base_key" ]] && {
-        REPLY=$1
+    [[ -z "$na_base_key" ]] && {
         return ${NA_RET_ENUM_KEY_IS_NULL}
     }
 
-    eval -- local -A base_tree=($1)
-    local leaf=$3
+    local -n na_base_tree=$1
+    local na_leaf=$3
 
     # Check if there are leaves in the superior level
-    local prefix=${base_key%"$SEP"}
-    while [[ "$prefix" == *"$SEP"* ]] ; do
-        local parent="${prefix%$SEP*}$SEP"
-        [[ -v base_tree["$parent"] ]] && {
-            REPLY=$1
+    local na_prefix=${na_base_key%"$SEP"}
+    while [[ "$na_prefix" == *"$SEP"* ]] ; do
+        local na_parent="${na_prefix%$SEP*}$SEP"
+        [[ -v na_base_tree["$na_parent"] ]] && {
             return ${NA_RET_ENUM_KEY_UP_LEV_HAVE_LEAF}
         }
-        prefix=${prefix%"$SEP"*}
+        na_prefix=${na_prefix%"$SEP"*}
     done 
 
-    REPLY=${|na_tree_delete "${base_tree[*]@K}" "$base_key" ;}
-    REPLY+=" ${base_key@Q} ${leaf@Q}"
+    na_tree_delete "${1}" "$na_base_key"
+    na_base_tree[$na_base_key]=$na_leaf
 
     return ${NA_RET_ENUM_OK}
 }
 
 na_tree_add_sub ()
 {
-    local base_key=$2
+    local na_base_key=$2
 
-    [[ -z "$base_key" ]] && {
-        REPLY=$1
+    [[ -z "$na_base_key" ]] && {
         return ${NA_RET_ENUM_KEY_IS_NULL}
     }
 
-    eval -- local -A base_tree=($1)
-    eval -- local -A sub_tree=($3)
+    local -n na_base_tree=$1
+    local -n na_sub_tree=$3
 
     # Check if there are leaves in the superior level
-    local prefix=${base_key%"$SEP"}
-    while [[ "$prefix" == *"$SEP"* ]] ; do
-        local parent="${prefix%$SEP*}$SEP"
-        [[ -v base_tree["$parent"] ]] && {
-            REPLY=$1
+    local na_prefix=${na_base_key%"$SEP"}
+    while [[ "$na_prefix" == *"$SEP"* ]] ; do
+        local na_parent="${na_prefix%$SEP*}$SEP"
+        [[ -v na_base_tree["$na_parent"] ]] && {
             return ${NA_RET_ENUM_KEY_UP_LEV_HAVE_LEAF}
         }
-        prefix=${prefix%"$SEP"*}
+        na_prefix=${na_prefix%"$SEP"*}
     done 
 
-    REPLY=${|na_tree_delete "${base_tree[*]@K}" "$base_key" ;}
+    na_tree_delete "$1" "$na_base_key"
 
-    local sub_key ; for sub_key in "${!sub_tree[@]}" ; do
-        : "${base_key}${sub_key}" ; REPLY+=" ${_@Q}"
-        REPLY+=" ${sub_tree[$sub_key]@Q}"
+    local na_sub_key ; for na_sub_key in "${!na_sub_tree[@]}" ; do
+        na_base_tree["${na_base_key}${na_sub_key}"]=${na_sub_tree["$na_sub_key"]}
     done
 
     return ${NA_RET_ENUM_OK}
@@ -219,6 +219,7 @@ na_tree_add_sub ()
 
 # :TODO: Double-width aligned display of Chinese has not been considered for
 # the time being.
+
 _na_tree_print ()
 {
     eval -- local -A print_tree=($1)
