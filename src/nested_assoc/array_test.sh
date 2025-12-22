@@ -16,7 +16,7 @@ test_case1 ()
 
     local arr1=("${arr[@]}")
 
-    array_sort arr1 '-gt'
+    array_qsort arr1 '-gt'
     arr2=($(printf "%s\n" "${arr[@]}" | sort -n))
 
     if [[ "${arr1[*]}" == "${arr2[*]}" ]] ; then
@@ -34,7 +34,7 @@ test_case1 ()
     arr[2001]='1  2  3'
     local arr1=("${arr[@]}")
 
-    array_sort arr1 '-gt'
+    array_qsort arr1 '-gt'
     arr2=($(printf "%s\n" "${arr[@]}" | sort -n))
 
     if [[ "${arr1[*]}" == "${arr2[*]}" ]] ; then
@@ -60,7 +60,7 @@ test_case2 ()
 
     local arr1=("${arr[@]}")
 
-    array_sort arr1 '-lt'
+    array_qsort arr1 '-lt'
     arr2=($(printf "%s\n" "${arr[@]}" | sort -rn))
 
     if [[ "${arr1[*]}" == "${arr2[*]}" ]] ; then
@@ -78,7 +78,7 @@ test_case2 ()
     arr[2001]='1  2  3'
     local arr1=("${arr[@]}")
 
-    array_sort arr1 '-lt'
+    array_qsort arr1 '-lt'
     arr2=($(printf "%s\n" "${arr[@]}" | sort -rn))
 
     if [[ "${arr1[*]}" == "${arr2[*]}" ]] ; then
@@ -104,7 +104,7 @@ test_case3 ()
 
     local arr1=("${arr[@]}")
 
-    array_sort arr1 '>'
+    array_qsort arr1 '>'
     arr2=($(printf "%s\n" "${arr[@]}" | sort))
 
     if [[ "${arr1[*]}" == "${arr2[*]}" ]] ; then
@@ -122,7 +122,7 @@ test_case3 ()
     arr[2001]='1  2  3'
     local arr1=("${arr[@]}")
 
-    array_sort arr1 '>'
+    array_qsort arr1 '>'
     arr2=($(printf "%s\n" "${arr[@]}" | sort))
 
     if [[ "${arr1[*]}" == "${arr2[*]}" ]] ; then
@@ -148,7 +148,7 @@ test_case4 ()
 
     local arr1=("${arr[@]}")
 
-    array_sort arr1 '<'
+    array_qsort arr1 '<'
     arr2=($(printf "%s\n" "${arr[@]}" | sort -r))
 
     if [[ "${arr1[*]}" == "${arr2[*]}" ]] ; then
@@ -166,7 +166,7 @@ test_case4 ()
     arr[2001]='1  2  3'
     local arr1=("${arr[@]}")
 
-    array_sort arr1 '<'
+    array_qsort arr1 '<'
     arr2=($(printf "%s\n" "${arr[@]}" | sort -r))
 
     if [[ "${arr1[*]}" == "${arr2[*]}" ]] ; then
@@ -179,8 +179,68 @@ test_case4 ()
     return 0
 }
 
+test_case5 ()
+{
+    local arr=(1 2 3 4 6)
+    local value=5
+    array_sorted_insert arr "$value" '-gt'
+    if [[ "${arr[*]}" == "1 2 3 4 5 6" ]] ; then
+        echo "${FUNCNAME[0]} test pass."
+    else
+        echo "${FUNCNAME[0]} test fail."
+        return 1
+    fi
+    return 0
+}
+
+test_case6 ()
+{
+    local arr=(10 9 7 6 5 4 2 1)
+    local value=2
+    array_sorted_insert arr "$value" '-lt'
+    if [[ "${arr[*]}" == "10 9 7 6 5 4 2 2 1" ]] ; then
+        echo "${FUNCNAME[0]} test pass."
+    else
+        echo "${FUNCNAME[0]} test fail."
+        return 1
+    fi
+    return 0
+}
+
+test_case7 ()
+{
+    local arr=(a b c f g)
+    local value=e
+    array_sorted_insert arr "$value" '>'
+    if [[ "${arr[*]}" == "a b c e f g" ]] ; then
+        echo "${FUNCNAME[0]} test pass."
+    else
+        echo "${FUNCNAME[0]} test fail."
+        return 1
+    fi
+    return 0
+}
+
+test_case8 ()
+{
+    local arr=(g f b a)
+    local value=d
+    array_sorted_insert arr "$value" '<'
+    if [[ "${arr[*]}" == "g f d b a" ]] ; then
+        echo "${FUNCNAME[0]} test pass."
+    else
+        echo "${FUNCNAME[0]} test fail."
+        return 1
+    fi
+    return 0
+}
+
 test_case1 &&
 test_case2 &&
 test_case3 &&
-test_case4
+test_case4 &&
+test_case5 &&
+test_case6 &&
+test_case7 &&
+test_case8
 

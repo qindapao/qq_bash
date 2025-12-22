@@ -1,5 +1,3 @@
-#!/usr/bin/env bash
-
 ((_NESTED_ASSOC_IMPORTED++)) && return 0
 
 # 变量前缀 na_ 外部用户变量不能以此命名

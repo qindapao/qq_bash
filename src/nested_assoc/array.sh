@@ -1,9 +1,69 @@
 ((_ARRAY_IMPORTED++)) && return 0
 
 # a_ as a reserved prefix
+array_sorted_insert ()
+{
+    local -n a_arr=$1
+    local a_value=$2
+    # 默认升序
+    local a_rule=${3:-">"}
 
+    local a_left=0
+    local a_right=${#a_arr[@]}
 
-array_sort()
+    # 二分查找插入位置
+    case "$a_rule" in
+        ">")  # 升序
+            while ((a_left < a_right)); do
+                local a_mid=$(((a_left + a_right) / 2))
+                if [[ "${a_arr[a_mid]}" < "$a_value" ]] ; then
+                    a_left=$((a_mid + 1))
+                else
+                    a_right=$a_mid
+                fi
+            done
+            ;;
+        "<")  # 降序
+            while ((a_left < a_right)); do
+                local a_mid=$(((a_left + a_right) / 2))
+                if [[ "${a_arr[a_mid]}" > "$a_value" ]] ; then
+                    a_left=$((a_mid + 1))
+                else
+                    a_right=$a_mid
+                fi
+            done
+            ;;
+        "-gt")  # 升序
+            while ((a_left < a_right)); do
+                local a_mid=$(((a_left + a_right) / 2))
+                if [[ "${a_arr[a_mid]}" -lt "$a_value" ]] ; then
+                    a_left=$((a_mid + 1))
+                else
+                    a_right=$a_mid
+                fi
+            done
+            ;;
+        "-lt")  # 降序
+            while ((a_left < a_right)); do
+                local a_mid=$(((a_left + a_right) / 2))
+                if [[ "${a_arr[a_mid]}" -gt "$a_value" ]] ; then
+                    a_left=$((a_mid + 1))
+                else
+                    a_right=$a_mid
+                fi
+            done
+            ;;
+        *)
+            echo "Unsupported rule: $a_rule" >&2
+            return 1
+            ;;
+    esac
+
+    # 插入
+    a_arr=("${a_arr[@]:0:$a_left}" "$a_value" "${a_arr[@]:$a_left}")
+}
+
+array_qsort ()
 {
     (($# < 1)) && return 1
     local -n a_arr=$1
