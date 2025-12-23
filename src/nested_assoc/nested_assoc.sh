@@ -248,8 +248,7 @@ _na_tree_print ()
             else
                 rest=${fullkey%"$SEP"}
                 rest=${rest##*"$SEP"}
-                local indent_leaf_value
-                indent_leaf_value=${rest%%$'\n'*}
+                local indent_leaf_value=${rest##*$'\n'}
                 indent_leaf_value=${indent_leaf_value//?/ }
                 indent_leaf_value+="${indent}    "
                 printf "%s\n" "${indent}${rest//$'\n'/$'\n'"$indent"} => ${print_tree[$fullkey]//$'\n'/$'\n'"$indent_leaf_value"}"

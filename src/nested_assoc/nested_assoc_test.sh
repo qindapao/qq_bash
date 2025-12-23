@@ -47,6 +47,13 @@ gege
 geg
 
 '
+sub_tree["su
+b2 b4${SEP}"]='gge
+gege
+
+geg
+
+'
 
 eval declare -A plus_tree=("${nested_assoc_tmp[@]@K}")
 na_tree_add_sub "plus_tree" "key1${SEP}key2${SEP}" "sub_tree"

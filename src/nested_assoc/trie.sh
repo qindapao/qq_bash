@@ -15,15 +15,43 @@ TR_RET_ENUM_KEY_IS_NOTFOUND=3
 TR_RET_ENUM_KEY_IS_NULL=8
 TR_RET_ENUM_KEY_UP_LEV_HAVE_LEAF=9
 
+
+_str_is_decimal_positive_int ()
+{
+    [[ -z "$1" ]] && return 1
+    [[ "$1" == "0" || ( -z "${1//[0-9]/}" && "$1" != 0* ) ]]
+}
+
+_array_is_all_decimal_positive_int ()
+{
+    local item
+    for item in "$@" ; do
+        _str_is_decimal_positive_int "$item" || return 1
+    done
+
+    return 0
+}
+
+# $?
+# 0 全数字
+# 1 包含非数字
 _split_tokens ()
 {
     local tokens_str=$1
     local -a tokens=()
+    local -i all_numeric=0
+    local tk
     while [[ -n "$tokens_str" ]] ; do
-        tokens+=("${tokens_str%%"$S"*}")
+        tk="${tokens_str%%"$S"*}"
+        tokens+=("$tk")
         tokens_str="${tokens_str#*"$S"}"
+        ((all_numeric)) || {
+            _str_is_decimal_positive_int "$tk" || all_numeric=1
+        }
     done
+
     REPLY="${tokens[*]@Q}"
+    return $all_numeric
 }
 
 trie_init ()
@@ -59,7 +87,7 @@ trie_key_is_invalid ()
 
 trie_insert ()
 {
-    local -n tr=$1
+    local -n tr_t=$1
     local tr_full_key=$2
 
     trie_key_is_invalid "$tr_full_key" || return $?
@@ -67,8 +95,8 @@ trie_insert ()
     local tr_value=$3
 
     # If it is a leaf node, update the value directly
-    if [[ -v 'tr["$tr_full_key"]' ]] ; then
-        tr["$tr_full_key"]=$tr_value
+    if [[ -v 'tr_t["$tr_full_key"]' ]] ; then
+        tr_t["$tr_full_key"]=$tr_value
         return ${TR_RET_ENUM_OK}
     fi
 
@@ -78,66 +106,147 @@ trie_insert ()
 
     for tr_token in "${tr_tokens[@]}" ; do
         # The upper layer cannot be leaves
-        [[ -n "${tr[$tr_node.key]}" ]] && {
+        [[ -n "${tr_t[$tr_node.key]}" ]] && {
             return ${TR_RET_ENUM_KEY_UP_LEV_HAVE_LEAF}
         }
 
         tr_child_key="$tr_node.child.$tr_token"
-        tr_child_id="${tr[$tr_child_key]}"
+        tr_child_id="${tr_t[$tr_child_key]}"
 
         # Child node does not exist -> create
         if [[ -z "$tr_child_id" ]] ; then
-            tr_child_id="${tr[max_index]}"
-            ((tr[max_index]++))
-            tr[$tr_child_id]=1
-            tr[$tr_child_id.children]=''
-            tr[$tr_child_id.key]=''
+            tr_child_id="${tr_t[max_index]}"
+            ((tr_t[max_index]++))
+            tr_t[$tr_child_id]=1
+            tr_t[$tr_child_id.children]=''
+            tr_t[$tr_child_id.key]=''
 
-            eval -- local -a tr_children=(${|_split_tokens "${tr[$tr_node.children]}";})
-            if [[ "${tr[$tr_node.children]//"$S"/}${tr_token}" == *[^0-9]* ]] ; then
-                array_sorted_insert tr_children "$tr_token" '>'
-            else
-                array_sorted_insert tr_children "$tr_token" '-gt'
-            fi
+            local tr_children_str tr_children_str_ret
+            tr_children_str=${|_split_tokens "${tr_t[$tr_node.children]}";}
+            tr_children_str_ret=$?
+            eval -- local -a tr_children=($tr_children_str)
+            local tr_sort_sub tr_sort_rule
             
-            printf -v tr[$tr_node.children] "%s$S" "${tr_children[@]}"
-            tr["$tr_child_key"]=$tr_child_id
+            if ((tr_children_str_ret)) ; then
+                # 非数字(字典序插入排序)
+                tr_sort_sub=array_sorted_insert
+                tr_sort_rule='>'
+            else
+                # 数字
+                if _str_is_decimal_positive_int "$tr_token" ; then
+                    # 数字(数字序插入排序)
+                    tr_sort_sub=array_sorted_insert
+                    tr_sort_rule='-gt'
+                else
+                    # 非数字(插入后做字典序快速排序)
+                    tr_sort_sub=array_qsort
+                    tr_sort_rule='>'
+                fi
+            fi
+
+            if [[ "$tr_sort_sub" == "array_sorted_insert" ]] ; then
+                array_sorted_insert tr_children "$tr_token" "$tr_sort_rule"
+            else
+                # 插入后做快速排序
+                tr_children+=("$tr_token")
+                array_qsort tr_children "$tr_sort_rule"
+            fi
+
+            printf -v tr_t[$tr_node.children] "%s$S" "${tr_children[@]}"
+            tr_t["$tr_child_key"]=$tr_child_id
         fi
 
         tr_node=$tr_child_id
     done
 
     # Write leaf key
-    tr[$tr_node.key]=$tr_full_key
-    tr["$tr_full_key"]=$tr_value
+    tr_t[$tr_node.key]=$tr_full_key
+    tr_t["$tr_full_key"]=$tr_value
 
-    return 0
+    return ${TR_RET_ENUM_OK}
 }
 
-trie_dump()
+trie_dump ()
 {
-    local -n tr=$1
-    local tr_node=${2:-$TR_ROOT_ID}
-    local tr_indent=${3:-""}
+    local tr_t_name=$1
+    local -n tr_t=$1
+    local tr_full_key=$2
+    local tr_node
+    tr_node=${|_trie_token_to_node_id "$tr_t_name" "$tr_full_key";} || return $?
+
+    local tr_indent_cnt=${3:-4}
+    local tr_indent ; printf -v tr_indent "%*s" "$tr_indent_cnt" ""
+
+    printf "%s\n" "$tr_t_name"
+    _trie_dump "$tr_t_name" "$tr_node" "$tr_indent_cnt" "$tr_indent"
+}
+
+_trie_dump ()
+{
+    local -n tr_t=$1
+    local tr_node=$2
+    local tr_indent_cnt=$3
+    local tr_indent=$4
+    local tr_indent_new
+    printf -v tr_indent_new "%*s" "$tr_indent_cnt" ""
+    tr_indent_new+="$tr_indent"
 
     # Traverse children
-    eval -- local -a tr_children=(${|_split_tokens "${tr[$tr_node.children]}";})
+    eval -- local -a tr_children=(${|_split_tokens "${tr_t[$tr_node.children]}";})
 
     local tr_token
     for tr_token in "${tr_children[@]}"; do
-        local tr_child_id="${tr[$tr_node.child.$tr_token]}"
+        local tr_child_id="${tr_t[$tr_node.child.$tr_token]}"
 
-        if [[ -n "${tr[$tr_child_id.key]}" ]]; then
-            local tr_key=${tr[$tr_child_id.key]}
-            local tr_value=${tr["$tr_key"]}
+        if [[ -n "${tr_t[$tr_child_id.key]}" ]]; then
+            local tr_key=${tr_t[$tr_child_id.key]}
+            local tr_value=${tr_t["$tr_key"]}
+            # :TODO: Double-width aligned display of Chinese has not been considered for
+            # the time being.
+            local tr_value_indent="${tr_token}(${tr_child_id})"
+            tr_value_indent=${tr_value_indent##*$'\n'}
+            tr_value_indent=${tr_value_indent//?/ }
+            tr_value_indent+="${tr_indent}    "
+
             printf "%s%s(%s) => %s\n" \
-                "$tr_indent" "$tr_token" "$tr_child_id" "$tr_value"
+                "$tr_indent" "${tr_token//$'\n'/$'\n'$tr_indent}" "$tr_child_id" "${tr_value//$'\n'/$'\n'$tr_value_indent}"
         else
-            printf "%s%s(%s)\n" "$tr_indent" "$tr_token" "$tr_child_id"
+            printf "%s%s(%s)\n" "${tr_indent}" "${tr_token//$'\n'/$'\n'$tr_indent}" "$tr_child_id"
         fi
 
-        trie_dump "$1" "$tr_child_id" "    $tr_indent"
+        _trie_dump "$1" "$tr_child_id" "$tr_indent_cnt" "$tr_indent_new"
     done
+}
+
+
+trie_dump_flat ()
+{
+    :
+}
+
+_trie_token_to_node_id ()
+{
+    local -n tr_t=$1
+    local tr_full_key=$2
+
+    [[ -z "$tr_full_key" ]] && {
+        # ROOT
+        REPLY=$TR_ROOT_ID
+        return ${TR_RET_ENUM_OK}
+    }
+
+    trie_key_is_invalid "$tr_full_key" || return $?
+
+    eval -- local -a tr_tokens=(${|_split_tokens "$tr_full_key";})
+    local tr_node=$TR_ROOT_ID tr_token tr_child_id
+    for tr_token in "${tr_tokens[@]}" ; do
+        tr_child_id="${tr_t[$tr_node.child.$tr_token]}"
+        [[ -z "$tr_child_id" ]] && return "$TR_RET_ENUM_KEY_IS_NOTFOUND"
+        tr_node=$tr_child_id
+    done
+
+    REPLY=$tr_node
+    return ${TR_RET_ENUM_OK}
 }
 
 #--------------------------Trie tree-------------------------------------------
@@ -178,7 +287,7 @@ trie_dump()
 #------------------------------------------------------------------------------
 trie_delete() 
 {
-    local -n tr=$1
+    local -n tr_t=$1
     local tr_full_key=$2
 
     trie_key_is_invalid "$tr_full_key" || return $?
@@ -192,7 +301,7 @@ trie_delete()
 
     local tr_token tr_child_id
     for tr_token in "${tr_tokens[@]}"; do
-        tr_child_id="${tr[$tr_node.child.$tr_token]}"
+        tr_child_id="${tr_t[$tr_node.child.$tr_token]}"
         [[ -z "$tr_child_id" ]] && return "$TR_RET_ENUM_KEY_IS_NOTFOUND"
         tr_path_nodes+=("$tr_child_id")
         tr_path_tokens+=("$tr_token")
@@ -204,8 +313,8 @@ trie_delete()
 
     # 3. First delete the value/key attached to the current node
     # (both leaves and intermediate nodes may have key/value)
-    unset -v 'tr["$tr_full_key"]'   # delete value
-    unset -v 'tr["$tr_node.key"]'   # delete key
+    unset -v 'tr_t["$tr_full_key"]'   # delete value
+    unset -v 'tr_t["$tr_node.key"]'   # delete key
 
     # 4. Kill all subtrees rooted at the current node
     #   (even if it is a single leaf)
@@ -216,22 +325,22 @@ trie_delete()
         unset -v 'tr_stack[-1]'
 
         # Get the current node children tr_token list
-        eval -- local -a tr_children=(${|_split_tokens "${tr[$tr_cur.children]}";})
+        eval -- local -a tr_children=(${|_split_tokens "${tr_t[$tr_cur.children]}";})
 
         for tr_tk in "${tr_children[@]}"; do
-            tr_cid="${tr[$tr_cur.child.$tr_tk]}"
+            tr_cid="${tr_t[$tr_cur.child.$tr_tk]}"
             tr_stack+=("$tr_cid")
-            unset -v "tr[$tr_cur.child.$tr_tk]"
+            unset -v "tr_t[$tr_cur.child.$tr_tk]"
         done
 
         # If this node has its own key/value, clear it as well.
-        local tr_key=${tr["$tr_cur.key"]}
-        [[ -n "$tr_key" ]] && unset -v 'tr[$tr_key]'
-        unset -v 'tr["$tr_cur.key"]'
-        unset -v 'tr["$tr_cur.children"]'
+        local tr_key=${tr_t["$tr_cur.key"]}
+        [[ -n "$tr_key" ]] && unset -v 'tr_t[$tr_key]'
+        unset -v 'tr_t["$tr_cur.key"]'
+        unset -v 'tr_t["$tr_cur.children"]'
 
         # Do not delete the root node itself
-        (( tr_cur == TR_ROOT_ID )) || unset -v "tr[$tr_cur]"
+        (( tr_cur == TR_ROOT_ID )) || unset -v "tr_t[$tr_cur]"
     done
 
     # 5. Bottom-up pruning: delete all the intermediate nodes that have no children or keys.
@@ -245,7 +354,10 @@ trie_delete()
         # The child has been deleted in the above DFS.
         # Here we only need to remove it from the parent.
         # 1) from parent.children to remove tr_token
-        eval -- local -a tr_children=(${|_split_tokens "${tr[$tr_parent.children]}";})
+        local tr_children_is_num tr_children_str  tr_children_new_str
+        tr_children_str=${|_split_tokens "${tr_t[$tr_parent.children]}";}
+        tr_children_is_num=$?
+        eval -- local -a tr_children=($tr_children_str)
 
         local -a tr_new=()
         local tr_x
@@ -254,18 +366,28 @@ trie_delete()
         done
 
         if ((${#tr_new[@]} == 0)); then
-            tr[$tr_parent.children]=''
+            tr_t[$tr_parent.children]=''
         else
-            printf -v 'tr[$tr_parent.children]' "%s$S" "${tr_new[@]}"
+            # 判断是否需要重新排序
+            # 1. 删除前全是数字 -> 不用重排
+            # 2. 删除前有非数字
+            #       1. 删除后还是有非数字 -> 不用重排
+            #       2. 删除后变成了全数字 -> 数字序快排
+            ((tr_children_is_num)) &&
+            _array_is_all_decimal_positive_int "${tr_new[@]}" && {
+                array_qsort 'tr_new' '-gt'
+            }
+
+            printf -v 'tr_t[$tr_parent.children]' "%s$S" "${tr_new[@]}"
         fi
 
         # 2) Delete tr_parent.child.$tr_token mapping
-        unset -v 'tr["$tr_parent.child.$tr_token"]'
+        unset -v 'tr_t["$tr_parent.child.$tr_token"]'
 
         # 3) If the parent also has children or a key, it cannot be cut upwards.
         #   In fact, intermediate nodes cannot have keys, only leaf nodes can
         #   have keys, but it can be left here.
-        if [[ -n "${tr[$tr_parent.children]}" || -n "${tr[$tr_parent.key]}" ]] ; then
+        if [[ -n "${tr_t[$tr_parent.children]}" || -n "${tr_t[$tr_parent.key]}" ]] ; then
             break
         fi
 
@@ -273,9 +395,9 @@ trie_delete()
         # children empty + key empty → empty node, can be cut, but keep root
         (( tr_parent == TR_ROOT_ID )) && break
 
-        unset -v 'tr["$tr_parent"]'
-        unset -v 'tr["$tr_parent.children"]'
-        unset -v 'tr["$tr_parent.key"]'
+        unset -v 'tr_t["$tr_parent"]'
+        unset -v 'tr_t["$tr_parent.children"]'
+        unset -v 'tr_t["$tr_parent.key"]'
         # Continue to look up the next level tr_parent
     done
 

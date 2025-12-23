@@ -72,7 +72,7 @@ array_qsort ()
     local -i a_n=${#a_arr[@]}
     ((a_n)) || return 2
 
-    ((a_n>200)) && {
+    ((a_n>100)) && {
         _array_sort_cmd "$1" "$a_rule"
         return $?
     }

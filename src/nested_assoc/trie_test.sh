@@ -47,12 +47,25 @@ eval -- declare -A t=(${|trie_init;})
 trie_insert "t" "lev1-1${S}lev2-1${S}lev3-1${S}" "value1"
 trie_insert "t" "lev1-1${S}lev2-2${S}11${S}" "value11"
 trie_insert "t" "lev1-1${S}lev2-2${S}0${S}" "value0"
+trie_insert "t" "lev1-1${S}lev2-2${S}1${S}" "value0"
+trie_insert "t" "lev1-1${S}lev2-2${S}2${S}" "value0"
+trie_insert "t" "lev1-1${S}lev2-2${S}3${S}" "value0"
+trie_insert "t" "lev1-1${S}lev2-2${S}4${S}" "value0"
 trie_insert "t" "lev1-1${S}lev2-3${S}lev3-1${S}lev4-1${S}" "value10"
 trie_insert "t" "lev1-1${S}lev2-3${S}lev3-1${S}lev4-2${S}" "value10"
 trie_insert "t" "lev1-1${S}lev2-3${S}lev3-1${S}lev4-2${S}" "value10new"
+trie_insert "t" "lev1-1${S}lev2-3${S}lev3-1${S}lev4-x
+gegeg
+gggxxxxxxxx${S}" "value1
+gge
+geggg0new
+"
 
 get_str1=$(printf "%s => %s\n" "${t[@]@k}" | sort)
 trie_dump "t"
+printf "%s => %s\n" "${t[@]@k}" | sort
+exit 0
+
 
 trie_delete "t" "lev1-1${S}lev2-3${S}lev3-1${S}"
 
