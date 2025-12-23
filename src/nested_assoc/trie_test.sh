@@ -114,5 +114,33 @@ test_case1 ()
     return 0
 }
 
-test_case1
+test_case2 ()
+{
+    
+    eval -- local -A t1=(${|trie_init;})
+    trie_insert t1 "a${S}b${S}c${S}" 'c'
+    trie_insert t1 "a${S}b${S}d${S}" 'd'
+    trie_insert t1 "a${S}b${S}0${S}" '0'
+    trie_insert t1 "a${S}b${S}1${S}" '1'
+    trie_insert t1 "a${S}b${S}2${S}" '2'
+    
+    trie_dump t1
+
+    eval -- local -A t2=(${|trie_init;})
+    trie_insert t2 "a${S}b${S}c${S}" 'c'
+    trie_insert t2 "a${S}b${S}d${S}" 'd'
+    trie_insert t2 "a${S}b${S}0${S}" '0'
+    trie_insert t2 "a${S}b${S}1${S}" '1'
+    trie_insert t2 "a${S}b${S}2${S}" '2'
+
+    trie_dump t2
+
+    trie_graft t1 t2 "a${S}m${S}"
+
+    trie_dump t1
+    trie_dump_flat t1
+}
+
+# test_case1 &&
+test_case2
 

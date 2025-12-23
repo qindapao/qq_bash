@@ -1,5 +1,8 @@
 ((_TRIE_IMPORTED++)) && return 0
 
+# :TODO: 当前 trie_insert 和 trie_graft 的语义不一样
+#   trie_insert 不允许破坏原有的树，只能插入合法的叶子，上层路径有叶子不允许
+#   trie_graft 允许破坏，强制插入树，
 . array.sh
 
 # All variable names in the library start with tr_.
@@ -14,6 +17,9 @@ TR_RET_ENUM_KEY_IS_LEAF=2
 TR_RET_ENUM_KEY_IS_NOTFOUND=3
 TR_RET_ENUM_KEY_IS_NULL=8
 TR_RET_ENUM_KEY_UP_LEV_HAVE_LEAF=9
+TR_RET_ENUM_TREE_IS_INVALID=10
+TR_RET_ENUM_TREE_IS_EMPTY=11
+TR_RET_ENUM_TREE_NOT_HAVE_ROOT=12
 
 
 _str_is_decimal_positive_int ()
@@ -67,10 +73,76 @@ trie_init ()
     REPLY=${t[*]@K}
 }
 
+# 校验 subtree 是否是一个最基本的 trie
+_trie_tree_is_valid ()
+{
+    local -n tr_tree=$1
+
+    [[ "${tr_tree@a}" != *A* ]] && {
+        echo "invalid tree: $1 is not an associative array!" >&2
+        return ${TR_RET_ENUM_TREE_IS_INVALID}
+    }
+
+    # 不能是空的
+    ((${#tr_tree[@]})) || {
+        echo "invalid tree: $1 is empty!" >&2
+        return ${TR_RET_ENUM_TREE_IS_EMPTY}
+    }
+
+    # 必须至少包含 root 节点
+    [[ -v tr_tree[$TR_ROOT_ID] ]] || {
+        echo "invalid tree: $1 not have root node!" >&2
+        return ${TR_RET_ENUM_TREE_NOT_HAVE_ROOT}
+    }
+
+    return ${TR_RET_ENUM_OK}
+}
+
 # Subtree mount
+# 不管是叶子还是子树都强制覆盖
+# 复用 trie_insert , 所以说不是最高效的实现版本
+# 是最简单实现
 trie_graft ()
 {
-    :
+    local tr_target_name=$1
+    local -n tr_target=$1
+    local -n tr_sub=$2
+    local tr_prefix=$3
+
+    # 1. 删除 prefix 下的旧子树(包括叶子)
+    trie_delete "$1" "$tr_prefix"
+
+    # 2. 简单检查下子树的合法性
+    _trie_tree_is_valid "$2" || return $?
+
+    # 3. DFS 遍历 subtree, 把所有叶子插入 tr_target
+    eval -- local -a tr_sub_root_children=(${|_split_tokens "${tr_sub[$TR_ROOT_ID.children]}";})
+
+    local -a tr_stack_ids=()
+    local tr_tk tr_cid
+
+    for tr_tk in "${tr_sub_root_children[@]}" ; do
+        tr_cid="${tr_sub["$TR_ROOT_ID.child.$tr_tk"]}"
+        tr_stack_ids+=("$tr_cid")
+    done
+
+    while ((${#tr_stack_ids[@]})) ; do
+        local tr_cur=${tr_stack_ids[-1]}
+        unset -v 'tr_stack_ids[-1]'
+
+        local tr_sub_leaf_full_key="${tr_sub["$tr_cur.key"]}"
+        if [[ -n "$tr_sub_leaf_full_key" ]] ; then
+            trie_insert tr_target "${tr_prefix}${tr_sub_leaf_full_key}" "${tr_sub["$tr_sub_leaf_full_key"]}" || return $?
+        fi
+
+        eval -- local -a tr_children=(${|_split_tokens "${tr_sub[$tr_cur.children]}";})
+        for tr_tk in "${tr_children[@]}" ; do
+            tr_cid="${tr_sub["$tr_cur.child.$tr_tk"]}"
+            tr_stack_ids+=("$tr_cid")
+        done
+    done
+
+    return ${TR_RET_ENUM_OK}
 }
 
 trie_key_is_invalid ()
@@ -312,7 +384,7 @@ _trie_token_to_node_id ()
 #                                                      T[11.key]="lev1-1 lev2-3 lev3-1 lev4-2" 
 #                                                      T[lev1-1 lev2-3 lev3-1 lev4-2]="value10"
 #------------------------------------------------------------------------------
-trie_delete() 
+trie_delete () 
 {
     local -n tr_t=$1
     local tr_full_key=$2
@@ -330,8 +402,9 @@ trie_delete()
     for tr_token in "${tr_tokens[@]}"; do
         tr_child_id="${tr_t[$tr_node.child.$tr_token]}"
         [[ -z "$tr_child_id" ]] && {
-            echo "key is not found!" >&2
-            return "$TR_RET_ENUM_KEY_IS_NOTFOUND"
+            # echo "key is not found!" >&2
+            # 不存在的键直接返回
+            return "$TR_RET_ENUM_OK"
         }
         tr_path_nodes+=("$tr_child_id")
         tr_path_tokens+=("$tr_token")
@@ -505,5 +578,84 @@ trie_get_subtree ()
 
     REPLY=${tr_new[*]@K}
     return ${TR_RET_ENUM_OK}
+}
+
+# Iterate children under prefix
+# Output lines: "leaf token" or "tree token"
+trie_iter ()
+{
+    local -n tr_t=$1
+    local tr_prefix=$2
+
+    # 1. tr_prefix 必须合法
+    trie_key_is_invalid "$tr_prefix" || return $?
+
+    # 2. 找到 tr_prefix 对应的节点 ID
+    local tr_node_id
+    tr_node_id=${|_trie_token_to_node_id "$1" "$tr_prefix";} || return $?
+
+    # 3. 读取 tr_children
+    eval -- local -a tr_children=(${|_split_tokens "${tr_t[$tr_node_id.tr_children]}";})
+
+    local tr_tk tr_child_id tr_type
+
+    for tr_tk in "${tr_children[@]}"; do
+        tr_child_id=${tr_t["$tr_node_id.child.$tr_tk"]}
+
+        if [[ -n "${tr_t[$tr_child_id.key]}" ]]; then
+            tr_type="leaf"
+        else
+            tr_type="tree"
+        fi
+
+        REPLY+="${REPLY:+$'\n'}${tr_type} ${tr_tk@Q}"
+    done
+
+    return ${TR_RET_ENUM_OK}
+}
+
+trie_search ()
+{
+    :
+}
+
+trie_array_push ()
+{
+    :
+}
+
+trie_array_pop ()
+{
+    :
+}
+
+trie_array_shift ()
+{
+    :
+}
+
+trie_array_unshift ()
+{
+    :
+}
+
+trie_array_get ()
+{
+    :
+}
+
+trie_array_set ()
+{
+    :
+}
+
+trie_array_len ()
+{
+    :
+}
+
+trie_array_iter ()
+{
+    :
 }
 
