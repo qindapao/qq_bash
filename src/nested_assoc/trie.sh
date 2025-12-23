@@ -44,18 +44,26 @@ _array_is_all_decimal_positive_int ()
 _split_tokens ()
 {
     local tokens_str=$1
+    local -i is_need_check=${2:-0}
     local -a tokens=()
     local -i all_numeric=0
-    local tk
-    while [[ -n "$tokens_str" ]] ; do
-        tk="${tokens_str%%"$S"*}"
-        tokens+=("$tk")
-        tokens_str="${tokens_str#*"$S"}"
-        ((all_numeric)) || {
-            _str_is_decimal_positive_int "$tk" || all_numeric=1
-        }
-    done
-
+    if ((is_need_check)) ; then
+        local tk
+        while [[ -n "$tokens_str" ]] ; do
+            tk="${tokens_str%%"$S"*}"
+            tokens+=("$tk")
+            tokens_str="${tokens_str#*"$S"}"
+            ((all_numeric)) || {
+                _str_is_decimal_positive_int "$tk" || all_numeric=1
+            }
+        done
+    else
+        while [[ -n "$tokens_str" ]] ; do
+            tokens+=("${tokens_str%%"$S"*}")
+            tokens_str="${tokens_str#*"$S"}"
+        done
+    fi
+    
     REPLY="${tokens[*]@Q}"
     return $all_numeric
 }
@@ -65,8 +73,8 @@ trie_init ()
     local -A t=()
     local j_type=$1
     t[$TR_ROOT_ID]=1
-    t[$TR_ROOT_ID.children]=''
-    t[$TR_ROOT_ID.key]=''
+    # t[$TR_ROOT_ID.children]=''
+    # t[$TR_ROOT_ID.key]=''
 
     # Next available node ID
     t[max_index]=2
@@ -192,11 +200,11 @@ trie_insert ()
             tr_child_id="${tr_t[max_index]}"
             ((tr_t[max_index]++))
             tr_t[$tr_child_id]=1
-            tr_t[$tr_child_id.children]=''
-            tr_t[$tr_child_id.key]=''
+            # tr_t[$tr_child_id.children]=''
+            # tr_t[$tr_child_id.key]=''
 
             local tr_children_str tr_children_str_ret
-            tr_children_str=${|_split_tokens "${tr_t[$tr_node.children]}";}
+            tr_children_str=${|_split_tokens "${tr_t[$tr_node.children]}" "1";}
             tr_children_str_ret=$?
             eval -- local -a tr_children=($tr_children_str)
             local tr_sort_sub tr_sort_rule
@@ -389,6 +397,12 @@ trie_delete ()
     local -n tr_t=$1
     local tr_full_key=$2
 
+    # 空 key 是合法的 只保留 ROOT 节点
+    [[ -z "$tr_full_key" ]] && {
+        eval -- tr_t=(${|trie_init;})
+        return ${TR_RET_ENUM_OK}
+    }
+
     trie_key_is_invalid "$tr_full_key" || return $?
     
     eval -- local -a tr_tokens=(${|_split_tokens "$tr_full_key";})
@@ -458,7 +472,7 @@ trie_delete ()
         # Here we only need to remove it from the parent.
         # 1) from parent.children to remove tr_token
         local tr_children_is_num tr_children_str  tr_children_new_str
-        tr_children_str=${|_split_tokens "${tr_t[$tr_parent.children]}";}
+        tr_children_str=${|_split_tokens "${tr_t[$tr_parent.children]}" "1";}
         tr_children_is_num=$?
         eval -- local -a tr_children=($tr_children_str)
 
@@ -587,15 +601,17 @@ trie_iter ()
     local -n tr_t=$1
     local tr_prefix=$2
 
-    # 1. tr_prefix 必须合法
-    trie_key_is_invalid "$tr_prefix" || return $?
+    # 1. tr_prefix 必须合法或者是 空key(遍历树根)
+    [[ -n "$tr_prefix" ]] && {
+        trie_key_is_invalid "$tr_prefix" || return $?
+    }
 
     # 2. 找到 tr_prefix 对应的节点 ID
     local tr_node_id
     tr_node_id=${|_trie_token_to_node_id "$1" "$tr_prefix";} || return $?
 
     # 3. 读取 tr_children
-    eval -- local -a tr_children=(${|_split_tokens "${tr_t[$tr_node_id.tr_children]}";})
+    eval -- local -a tr_children=(${|_split_tokens "${tr_t[$tr_node_id.children]}";})
 
     local tr_tk tr_child_id tr_type
 
@@ -611,6 +627,120 @@ trie_iter ()
         REPLY+="${REPLY:+$'\n'}${tr_type} ${tr_tk@Q}"
     done
 
+    return ${TR_RET_ENUM_OK}
+}
+
+# 这只是一个范例, 用于演示 trie_walk 的回调函数，处理整棵树
+# callback <type> <token> <full_key> <node_id>
+trie_callback_print ()
+{
+    local type=$1 token=$2 full_key=$3 node_id=$4 parent_id=$5 value=$6
+    full_key="${full_key//"$S"/'.'}"
+    full_key="${full_key%'.'}"
+    echo "type:$type full_key:${full_key} node_id:$node_id parent:$parent_id value:${value}"
+}
+
+trie_walk ()
+{
+    local -n tr_t=$1
+    local tr_prefix=$2
+    local tr_callback=${3:-trie_callback_print}
+
+    local tr_root_id
+    tr_root_id=${|_trie_token_to_node_id "$1" "$tr_prefix";} || return $?
+
+    # 栈：保存 (prefix node_id)
+    local -a tr_stack=()
+    tr_stack+=("$tr_prefix" "$tr_root_id")
+
+    while ((${#tr_stack[@]})); do
+        local tr_node_id=${tr_stack[-1]}
+        unset -v 'tr_stack[-1]'
+        local tr_prefix=${tr_stack[-1]}
+        unset -v 'tr_stack[-1]'
+
+        eval -- local -a tr_children=(${|_split_tokens "${tr_t[$tr_node_id.children]}";})
+        local tr_tk tr_child_id tr_type tr_full_key tr_value
+
+        for tr_tk in "${tr_children[@]}"; do
+            tr_child_id=${tr_t["$tr_node_id.child.$tr_tk"]}
+
+            # 判断 leaf / tree
+            if [[ -n "${tr_t[$tr_child_id.key]}" ]]; then
+                tr_type="leaf"
+                tr_full_key="${tr_t["$tr_child_id.key"]}"
+                tr_value="${tr_t["$tr_full_key"]}"
+            else
+                tr_type="tree"
+                tr_value=''
+                tr_full_key="${tr_prefix}${tr_tk}$S"
+            fi
+            
+            # 调用回调
+            "$tr_callback" "$tr_type" "$tr_tk" "$tr_full_key" "$tr_child_id" "$tr_node_id" "$tr_value"
+
+            # 如果是 tree，压栈继续 DFS
+            if [[ $tr_type == tree ]]; then
+                tr_stack+=("$tr_full_key" "$tr_child_id")
+            fi
+        done
+    done
+}
+
+# 这个函数意义不大，强迫症可以使用，作用是把树内部的ID从1开始重新编号
+# 用于树操作久了后ID很多空洞的情况
+# 但是其实意义不大
+trie_id_rebuild ()
+{
+    local -n tr_old=$1
+    local -a tr_id_list=()
+
+    trie_id_rebuild_collect_ids_callback ()
+    {
+        local type=$1 token=$2 full_key=$3 old_id=$4 parent_old_id=$5 value=$6
+        tr_id_list+=("$old_id")
+    }
+    trie_walk tr_old '' trie_id_rebuild_collect_ids_callback
+    unset -f trie_id_rebuild_collect_ids_callback
+
+    array_qsort tr_id_list '-gt'
+    local -A tr_id_map=()
+    local tr_new_id=$((TR_ROOT_ID+1))
+    local tr_old_id
+    for tr_old_id in "${tr_id_list[@]}" ; do
+        tr_id_map[$tr_old_id]=$tr_new_id
+        ((tr_new_id++))
+    done
+
+    # 单独保存根节点的映射
+    tr_id_map[1]=1
+
+    # 创建一颗新树
+    eval -- local -A tr_new=(${|trie_init;})
+
+    trie_id_rebuild_callback ()
+    {
+        local type=$1 token=$2 full_key=$3 old_id=$4 parent_old_id=$5 value=$6
+
+        local new_id=${tr_id_map[$old_id]}
+        local new_parent_id=${tr_id_map[$parent_old_id]}
+
+        tr_new[$new_id]=1
+        if [[ $type == leaf ]]; then
+            tr_new[$new_id.key]="$full_key"
+            tr_new["$full_key"]="$value"
+        fi
+        tr_new[$new_parent_id.child.$token]="$new_id"
+        tr_new[$new_parent_id.children]+="$token$S"
+    }
+    trie_walk tr_old '' trie_id_rebuild_callback
+    unset -f trie_id_rebuild_callback
+
+    # 更新最大索引
+    tr_new[max_index]=$tr_new_id
+    
+    # 返回新树
+    REPLY=${tr_new[*]@K}
     return ${TR_RET_ENUM_OK}
 }
 
