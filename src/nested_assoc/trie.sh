@@ -79,6 +79,7 @@ trie_key_is_invalid ()
         [[ "$1" == *"$S$S"* ]] ||
         [[ "$1" == "$S" ]] ||
         [[ "$1" != *"$S" ]] ; then
+        echo "key is null or invalid!" >&2
         return $TR_RET_ENUM_KEY_IS_NULL
     else
         return $TR_RET_ENUM_OK
@@ -107,6 +108,7 @@ trie_insert ()
     for tr_token in "${tr_tokens[@]}" ; do
         # The upper layer cannot be leaves
         [[ -n "${tr_t[$tr_node.key]}" ]] && {
+            echo "parent have leaf key!" >&2
             return ${TR_RET_ENUM_KEY_UP_LEV_HAVE_LEAF}
         }
 
@@ -221,7 +223,29 @@ _trie_dump ()
 
 trie_dump_flat ()
 {
-    :
+    local tr_t_name=$1
+    local -n tr_t=$1
+    local tr_indent_cnt=${2:-4}
+    local tr_indent
+    printf -v tr_indent "%*s" "$tr_indent_cnt" ""
+    local tr_indent2="$tr_indent$tr_indent"
+
+    printf "%s\n" "$tr_t_name"
+    local -a tr_keys=("${!tr_t[@]}")
+    array_qsort 'tr_keys' '>'
+
+    local tr_key tr_key_p tr_value_p
+    for tr_key in "${tr_keys[@]}" ; do
+        tr_key_p=${tr_key%"$S"}
+        tr_key_p=${tr_key_p//"$S"/'.'}
+        tr_key_p=${tr_key_p//$'\n'/$'\n'"$tr_indent2"}
+
+        tr_value_p=${tr_t["$tr_key"]%"$S"}
+        tr_value_p=${tr_value_p//"$S"/'.'}
+        tr_value_p=${tr_value_p//$'\n'/$'\n'"$tr_indent2"}
+
+        printf "${tr_indent}%s => %s\n" "$tr_key_p" "$tr_value_p"
+    done
 }
 
 _trie_token_to_node_id ()
@@ -241,7 +265,10 @@ _trie_token_to_node_id ()
     local tr_node=$TR_ROOT_ID tr_token tr_child_id
     for tr_token in "${tr_tokens[@]}" ; do
         tr_child_id="${tr_t[$tr_node.child.$tr_token]}"
-        [[ -z "$tr_child_id" ]] && return "$TR_RET_ENUM_KEY_IS_NOTFOUND"
+        [[ -z "$tr_child_id" ]] && {
+            echo "key is not found!" >&2
+            return "$TR_RET_ENUM_KEY_IS_NOTFOUND"
+        }
         tr_node=$tr_child_id
     done
 
@@ -302,7 +329,10 @@ trie_delete()
     local tr_token tr_child_id
     for tr_token in "${tr_tokens[@]}"; do
         tr_child_id="${tr_t[$tr_node.child.$tr_token]}"
-        [[ -z "$tr_child_id" ]] && return "$TR_RET_ENUM_KEY_IS_NOTFOUND"
+        [[ -z "$tr_child_id" ]] && {
+            echo "key is not found!" >&2
+            return "$TR_RET_ENUM_KEY_IS_NOTFOUND"
+        }
         tr_path_nodes+=("$tr_child_id")
         tr_path_tokens+=("$tr_token")
         tr_node=$tr_child_id
@@ -402,5 +432,78 @@ trie_delete()
     done
 
     return "$TR_RET_ENUM_OK"
+}
+
+trie_get_subtree ()
+{
+    local tr_t_name=$1
+    local -n tr_t=$1
+    local tr_full_key=$2
+
+    # 1. 如果 tr_full_key 为空，直接返回整棵树
+    [[ -z "$tr_full_key" ]] && {
+        REPLY="${tr_t[*]@K}"
+        return ${TR_RET_ENUM_OK}
+    }
+
+    # 2. 判断 tr_full_key 是否合法
+    trie_key_is_invalid "$tr_full_key" || return $?
+
+    # 3. 判断是否是叶子节点，如果是叶子节点，返回错误
+    [[ -v 'tr_t["$tr_full_key"]' ]] && {
+        echo "key is leaf!" >&2
+        return ${TR_RET_ENUM_KEY_IS_LEAF}
+    }
+
+    # 4. 找到 tr_full_key 对应的节点 ID 
+    local tr_node
+    tr_node=${|_trie_token_to_node_id "$tr_t_name" "$tr_full_key";} || return $?
+
+    # 5. 获取该节点的 children (子树的一级节点)
+    eval -- local -a tr_root_children=(${|_split_tokens "${tr_t[$tr_node.children]}";})
+
+    # 6. 创建一颗新树
+    eval -- local -A tr_new=(${|trie_init;})
+
+    # 7. 新树的 children 重置为当前的 tr_root_children
+    printf -v tr_new[$TR_ROOT_ID.children] "%s$S" "${tr_root_children[@]}"
+
+    # 8. 挂接所有的 root children
+    local tr_tk tr_cid
+    local -a tr_stack=()
+    for tr_tk in "${tr_root_children[@]}" ; do
+        tr_cid=${tr_t[$tr_node.child.$tr_tk]}
+        tr_new["$TR_ROOT_ID.child.$tr_tk"]="$tr_cid"
+        tr_stack+=("$tr_cid")
+    done
+
+    # 9. DFS 复制子节点
+    local tr_max_id=1
+    while ((${#tr_stack[@]})) ; do
+        local tr_cur=${tr_stack[-1]}
+        unset -v 'tr_stack[-1]'
+        ((tr_max_id=(tr_cur>tr_max_id)?tr_cur:tr_max_id))
+
+        tr_new[$tr_cur]=1
+        tr_new[$tr_cur.children]=${tr_t[$tr_cur.children]}
+        tr_new[$tr_cur.key]=${tr_t[$tr_cur.key]}
+
+        local tr_key=${tr_t["$tr_cur.key"]}
+        [[ -n "$tr_key" ]] && tr_new["$tr_key"]=${tr_t["$tr_key"]}
+
+        eval -- local -a tr_children=(${|_split_tokens "${tr_t[$tr_cur.children]}";})
+
+        for tr_tk in "${tr_children[@]}" ; do
+            tr_cid="${tr_t["$tr_cur.child.$tr_tk"]}"
+            tr_new["$tr_cur.child.$tr_tk"]="$tr_cid"
+            tr_stack+=("$tr_cid")
+        done
+    done
+
+    # 设置最大的 max_index
+    tr_new[max_index]=$((tr_max_id+1))
+
+    REPLY=${tr_new[*]@K}
+    return ${TR_RET_ENUM_OK}
 }
 

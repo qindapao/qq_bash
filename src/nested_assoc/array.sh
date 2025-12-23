@@ -16,7 +16,7 @@ array_sorted_insert ()
         ">")  # 升序
             while ((a_left < a_right)); do
                 local a_mid=$(((a_left + a_right) / 2))
-                if [[ "${a_arr[a_mid]}" < "$a_value" ]] ; then
+                if [[ "${a_arr[a_mid]@Q}" < "${a_value@Q}" ]] ; then
                     a_left=$((a_mid + 1))
                 else
                     a_right=$a_mid
@@ -26,7 +26,7 @@ array_sorted_insert ()
         "<")  # 降序
             while ((a_left < a_right)); do
                 local a_mid=$(((a_left + a_right) / 2))
-                if [[ "${a_arr[a_mid]}" > "$a_value" ]] ; then
+                if [[ "${a_arr[a_mid]@Q}" > "${a_value@Q}" ]] ; then
                     a_left=$((a_mid + 1))
                 else
                     a_right=$a_mid
@@ -63,6 +63,8 @@ array_sorted_insert ()
     a_arr=("${a_arr[@]:0:$a_left}" "$a_value" "${a_arr[@]:$a_left}")
 }
 
+# 本来排序函数中并不需要序列化成Q字符串，之所以保留是因为 sort 命令需要
+# 是为了让排序算法保持一致
 array_qsort ()
 {
     (($# < 1)) && return 1
