@@ -23,6 +23,7 @@ TR_RET_ENUM_TREE_IS_INVALID=10
 TR_RET_ENUM_TREE_IS_EMPTY=11
 TR_RET_ENUM_TREE_NOT_HAVE_ROOT=12
 
+TR_RET_ENUM_TREE_IS_NOT_SAME=1
 
 _str_is_decimal_positive_int ()
 {
@@ -166,6 +167,16 @@ trie_key_is_invalid ()
     else
         return $TR_RET_ENUM_OK
     fi
+}
+
+trie_inserts ()
+{
+    local tr_t_name=$1
+    shift
+    while (($#)) ; do
+        trie_insert "$tr_t_name" "$1" "$2"
+        shift 2
+    done
 }
 
 trie_insert ()
@@ -574,11 +585,17 @@ trie_get_subtree ()
         ((tr_max_id=(tr_cur>tr_max_id)?tr_cur:tr_max_id))
 
         tr_new[$tr_cur]=1
-        tr_new[$tr_cur.children]=${tr_t[$tr_cur.children]}
-        tr_new[$tr_cur.key]=${tr_t[$tr_cur.key]}
+        if [[ -n "${tr_t[$tr_cur.children]}" ]] ; then
+            tr_new[$tr_cur.children]=${tr_t[$tr_cur.children]}
+        fi
 
+        # 这里的 key 不能直接复制老树的，需要剪掉前缀
         local tr_key=${tr_t["$tr_cur.key"]}
-        [[ -n "$tr_key" ]] && tr_new["$tr_key"]=${tr_t["$tr_key"]}
+        if [[ -n "$tr_key" ]] ; then
+            tr_new[$tr_cur.key]=${tr_key#"$tr_full_key"}
+            local tr_new_key=${tr_new["$tr_cur.key"]}
+            tr_new["$tr_new_key"]=${tr_t["$tr_key"]}
+        fi
 
         local -a "tr_children=(${|_split_tokens "${tr_t[$tr_cur.children]}";})"
 
@@ -744,6 +761,43 @@ trie_id_rebuild ()
     # 返回新树
     REPLY=${tr_new[*]@K}
     return ${TR_RET_ENUM_OK}
+}
+
+trie_equals ()
+{
+    local -n tr_1=$1 tr_2=$2
+    local tr_ok=1
+
+    # 遍历 tr_1，检查 tr_2
+    trie_equals_check_ab ()
+    {
+        local type=$1 full_key=$3 value=$6
+        if [[ $type == leaf ]] ; then
+            [[ -v 'tr_2["$full_key"]' && "${tr_2[$full_key]}" == "$value" ]] ||
+            { tr_ok=0; return; }
+        fi
+    }
+    trie_walk tr_1 '' trie_equals_check_ab
+
+    ((tr_ok)) || {
+        echo "$1 $2 not the same!" >&2
+        return ${TR_RET_ENUM_TREE_IS_NOT_SAME}
+    }
+
+    # 遍历 tr_2，检查 tr_1
+    trie_equals_check_ba () {
+        local type=$1 full_key=$3 value=$6
+        if [[ $type == leaf ]]; then
+            [[ -v 'tr_1["$full_key"]' && "${tr_1[$full_key]}" == "$value" ]] ||
+            { tr_ok=0; return; }
+        fi
+    }
+    trie_walk tr_2 '' trie_equals_check_ba
+
+    ((tr_ok)) && return ${TR_RET_ENUM_OK} || {
+        echo "$1 $2 not the same!" >&2
+        return ${TR_RET_ENUM_TREE_IS_NOT_SAME}
+    }
 }
 
 trie_search ()

@@ -1,5 +1,3 @@
-#!/usr/bin/env bash
-
 ((_TEST_UTILS_IMPORTED++)) && return 0
 
 # as_ 为保留前缀
@@ -25,7 +23,7 @@ echo "=== Running tests from script: $0 ==="
 echo "=== Start time: $(date "+%Y-%m-%d %H:%M:%S") ==="
 
 for fn in ${ compgen -A function | grep "^test_case" | sort;}; do
-    echo ">>> Running $fn"
+    echo "-------- Running $fn ----------"
     "$fn" || exit 1
 done
 '
@@ -130,6 +128,41 @@ assert_array ()
     return ${AS_OK}
 }
 
+diff_two_str_side_by_side ()
+{
+    local str1="$1" str2="$2"
+    local title1="$4" title2="$5"
+    local ret_code=0
+    local max1=$(printf "%s" "$str1" | display_max)
+    local max2=$(printf "%s" "$str2" | display_max)
+    local max=$(( max1 > max2 ? max1 : max2 ))
+    local width=$(( max * 2 + 4 ))
+
+    printf '%.0s-' $(seq 1 "$width") ; echo ""
+    printf "%-*s    %-*s\n" "$max" "$title1" "$max" "$title2"
+    printf '%.0s-' $(seq 1 "$width") ; echo ""
+    diff --minimal --side-by-side --expand-tabs --tabsize=4 --color --width=${width} -y <(printf "%s" "$str1") <(printf "%s" "$str2")
+
+    ret_code=${PIPESTATUS[0]}
+    echo ""
+    return $ret_code
+}
+
+display_max()
+{
+awk '
+	BEGIN {
+		max = 0
+	}
+	{
+		line = $0
+		width = length(line)
+		max = (width > max ? width : max)
+	}
+	END {
+		print max
+	}'
+}
 
 return 0
 
