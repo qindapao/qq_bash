@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
-. array.sh
-
+. ../../src/bashlib/array.sh
+. ../libs/test_utils.sh
 
 test_case1 ()
 {

@@ -99,8 +99,7 @@ na_tree_walk ()
     local na_type_key_tuple key_q na_key na_key_type
 
     for na_type_key_tuple in ${|na_tree_iter "$na_base_tree_var" "$na_base_key" ;} ; do
-        IFS=' ' ; eval -- set -- $na_type_key_tuple
-        na_key_type=$1 na_key=$2
+        eval -- set -- $na_type_key_tuple ; na_key_type=$1 na_key=$2
         # IFS=$'\n'
         
         if [[ "$na_key_type" == leaf ]] ; then
@@ -142,10 +141,10 @@ na_tree_iter ()
     done
 }
 
-na_tree_print ()
+na_tree_dump ()
 {
     local print_name="$1"
-    eval -- local -A print_tree=($2)
+    local -A "print_tree=($2)"
     local prefix="$3" indent_cnt="${4:-4}" key
     local -A strip_tree=()
 
@@ -155,7 +154,7 @@ na_tree_print ()
 
     local new_indent ; printf -v new_indent "%*s" "$indent_cnt" ""
 
-    _na_tree_print "$2" "${sorted_keys[*]@Q}" "$prefix" "$new_indent" "$indent_cnt"
+    _na_tree_dump "$2" "${sorted_keys[*]@Q}" "$prefix" "$new_indent" "$indent_cnt"
 }
 
 na_tree_add_leaf ()
@@ -218,10 +217,10 @@ na_tree_add_sub ()
 # :TODO: Double-width aligned display of Chinese has not been considered for
 # the time being.
 
-_na_tree_print ()
+_na_tree_dump ()
 {
-    eval -- local -A print_tree=($1)
-    eval -- local -a sorted_keys=($2)
+    local -A "print_tree=($1)"
+    local -a "sorted_keys=($2)"
     local prefix="$3" indent="$4"
     local indent_cnt="$5"
     local -A subkeys=()
@@ -263,8 +262,10 @@ _na_tree_print ()
     if ((${#subkeys_order[@]})); then
         for subkey in "${subkeys_order[@]}" ; do
             printf "%s\n" "${indent}${subkey//$'\n'/$'\n'"$indent"} =>"
-            _na_tree_print "${rest_tree[*]@K}" "${rest_sorted_keys[*]@Q}" "${prefix}${subkey}${SEP}" "${new_indent}${indent}" "$indent_cnt"
+            _na_tree_dump "${rest_tree[*]@K}" "${rest_sorted_keys[*]@Q}" "${prefix}${subkey}${SEP}" "${new_indent}${indent}" "$indent_cnt"
         done
     fi
 }
+
+return 0
 

@@ -3,7 +3,9 @@
 # :TODO: 当前 trie_insert 和 trie_graft 的语义不一样
 #   trie_insert 不允许破坏原有的树，只能插入合法的叶子，上层路径有叶子不允许
 #   trie_graft 允许破坏，强制插入树，
-. array.sh
+
+TR_LIBS_DIR=${BASH_SOURCE[0]%/*}
+. "$TR_LIBS_DIR/array.sh"
 
 # All variable names in the library start with tr_.
 # Be careful to avoid external variables.
@@ -124,7 +126,7 @@ trie_graft ()
     _trie_tree_is_valid "$2" || return $?
 
     # 3. DFS 遍历 subtree, 把所有叶子插入 tr_target
-    eval -- local -a tr_sub_root_children=(${|_split_tokens "${tr_sub[$TR_ROOT_ID.children]}";})
+    local -a "tr_sub_root_children=(${|_split_tokens "${tr_sub[$TR_ROOT_ID.children]}";})"
 
     local -a tr_stack_ids=()
     local tr_tk tr_cid
@@ -143,7 +145,7 @@ trie_graft ()
             trie_insert tr_target "${tr_prefix}${tr_sub_leaf_full_key}" "${tr_sub["$tr_sub_leaf_full_key"]}" || return $?
         fi
 
-        eval -- local -a tr_children=(${|_split_tokens "${tr_sub[$tr_cur.children]}";})
+        local -a "tr_children=(${|_split_tokens "${tr_sub[$tr_cur.children]}";})"
         for tr_tk in "${tr_children[@]}" ; do
             tr_cid="${tr_sub["$tr_cur.child.$tr_tk"]}"
             tr_stack_ids+=("$tr_cid")
@@ -182,7 +184,7 @@ trie_insert ()
     fi
 
     local tr_token tr_child_key tr_child_id
-    eval -- local -a tr_tokens=(${|_split_tokens "$tr_full_key";})
+    local -a "tr_tokens=(${|_split_tokens "$tr_full_key";})"
     local tr_node=${TR_ROOT_ID}
 
     for tr_token in "${tr_tokens[@]}" ; do
@@ -206,7 +208,7 @@ trie_insert ()
             local tr_children_str tr_children_str_ret
             tr_children_str=${|_split_tokens "${tr_t[$tr_node.children]}" "1";}
             tr_children_str_ret=$?
-            eval -- local -a tr_children=($tr_children_str)
+            local -a "tr_children=($tr_children_str)"
             local tr_sort_sub tr_sort_rule
             
             if ((tr_children_str_ret)) ; then
@@ -274,7 +276,7 @@ _trie_dump ()
     tr_indent_new+="$tr_indent"
 
     # Traverse children
-    eval -- local -a tr_children=(${|_split_tokens "${tr_t[$tr_node.children]}";})
+    local -a "tr_children=(${|_split_tokens "${tr_t[$tr_node.children]}";})"
 
     local tr_token
     for tr_token in "${tr_children[@]}"; do
@@ -341,7 +343,7 @@ _trie_token_to_node_id ()
 
     trie_key_is_invalid "$tr_full_key" || return $?
 
-    eval -- local -a tr_tokens=(${|_split_tokens "$tr_full_key";})
+    local -a "tr_tokens=(${|_split_tokens "$tr_full_key";})"
     local tr_node=$TR_ROOT_ID tr_token tr_child_id
     for tr_token in "${tr_tokens[@]}" ; do
         tr_child_id="${tr_t[$tr_node.child.$tr_token]}"
@@ -357,7 +359,7 @@ _trie_token_to_node_id ()
 }
 
 #--------------------------Trie tree-------------------------------------------
-# eval -- declare -A t=(${|trie_init;})
+# declare -A "t=(${|trie_init;})"
 # trie_insert "t" "lev1-1${S}lev2-1${S}lev3-1${S}" "value1"
 # trie_insert "t" "lev1-1${S}lev2-2${S}11${S}" "value11"
 # trie_insert "t" "lev1-1${S}lev2-2${S}0${S}" "value0"
@@ -405,7 +407,7 @@ trie_delete ()
 
     trie_key_is_invalid "$tr_full_key" || return $?
     
-    eval -- local -a tr_tokens=(${|_split_tokens "$tr_full_key";})
+    local -a "tr_tokens=(${|_split_tokens "$tr_full_key";})"
 
     # 2. Path search: go all the way from root to the node to be deleted
     local tr_node=$TR_ROOT_ID
@@ -442,12 +444,12 @@ trie_delete ()
         unset -v 'tr_stack[-1]'
 
         # Get the current node children tr_token list
-        eval -- local -a tr_children=(${|_split_tokens "${tr_t[$tr_cur.children]}";})
+        local -a "tr_children=(${|_split_tokens "${tr_t[$tr_cur.children]}";})"
 
         for tr_tk in "${tr_children[@]}"; do
             tr_cid="${tr_t[$tr_cur.child.$tr_tk]}"
             tr_stack+=("$tr_cid")
-            unset -v "tr_t[$tr_cur.child.$tr_tk]"
+            unset -v 'tr_t["$tr_cur.child.$tr_tk"]'
         done
 
         # If this node has its own key/value, clear it as well.
@@ -474,7 +476,7 @@ trie_delete ()
         local tr_children_is_num tr_children_str  tr_children_new_str
         tr_children_str=${|_split_tokens "${tr_t[$tr_parent.children]}" "1";}
         tr_children_is_num=$?
-        eval -- local -a tr_children=($tr_children_str)
+        local -a "tr_children=($tr_children_str)"
 
         local -a tr_new=()
         local tr_x
@@ -547,10 +549,10 @@ trie_get_subtree ()
     tr_node=${|_trie_token_to_node_id "$tr_t_name" "$tr_full_key";} || return $?
 
     # 5. 获取该节点的 children (子树的一级节点)
-    eval -- local -a tr_root_children=(${|_split_tokens "${tr_t[$tr_node.children]}";})
+    local -a "tr_root_children=(${|_split_tokens "${tr_t[$tr_node.children]}";})"
 
     # 6. 创建一颗新树
-    eval -- local -A tr_new=(${|trie_init;})
+    local -A "tr_new=(${|trie_init;})"
 
     # 7. 新树的 children 重置为当前的 tr_root_children
     printf -v tr_new[$TR_ROOT_ID.children] "%s$S" "${tr_root_children[@]}"
@@ -578,7 +580,7 @@ trie_get_subtree ()
         local tr_key=${tr_t["$tr_cur.key"]}
         [[ -n "$tr_key" ]] && tr_new["$tr_key"]=${tr_t["$tr_key"]}
 
-        eval -- local -a tr_children=(${|_split_tokens "${tr_t[$tr_cur.children]}";})
+        local -a "tr_children=(${|_split_tokens "${tr_t[$tr_cur.children]}";})"
 
         for tr_tk in "${tr_children[@]}" ; do
             tr_cid="${tr_t["$tr_cur.child.$tr_tk"]}"
@@ -611,7 +613,7 @@ trie_iter ()
     tr_node_id=${|_trie_token_to_node_id "$1" "$tr_prefix";} || return $?
 
     # 3. 读取 tr_children
-    eval -- local -a tr_children=(${|_split_tokens "${tr_t[$tr_node_id.children]}";})
+    local -a "tr_children=(${|_split_tokens "${tr_t[$tr_node_id.children]}";})"
 
     local tr_tk tr_child_id tr_type
 
@@ -637,7 +639,7 @@ trie_callback_print ()
     local type=$1 token=$2 full_key=$3 node_id=$4 parent_id=$5 value=$6
     full_key="${full_key//"$S"/'.'}"
     full_key="${full_key%'.'}"
-    echo "type:$type full_key:${full_key} node_id:$node_id parent:$parent_id value:${value}"
+    printf "%s\n" "type:$type full_key:${full_key} node_id:$node_id parent:$parent_id value:${value}"
 }
 
 trie_walk ()
@@ -659,7 +661,7 @@ trie_walk ()
         local tr_prefix=${tr_stack[-1]}
         unset -v 'tr_stack[-1]'
 
-        eval -- local -a tr_children=(${|_split_tokens "${tr_t[$tr_node_id.children]}";})
+        local -a "tr_children=(${|_split_tokens "${tr_t[$tr_node_id.children]}";})"
         local tr_tk tr_child_id tr_type tr_full_key tr_value
 
         for tr_tk in "${tr_children[@]}"; do
@@ -713,10 +715,10 @@ trie_id_rebuild ()
     done
 
     # 单独保存根节点的映射
-    tr_id_map[1]=1
+    tr_id_map[$TR_ROOT_ID]=1
 
     # 创建一颗新树
-    eval -- local -A tr_new=(${|trie_init;})
+    local -A "tr_new=(${|trie_init;})"
 
     trie_id_rebuild_callback ()
     {
@@ -788,4 +790,6 @@ trie_array_iter ()
 {
     :
 }
+
+return 0
 

@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 
-. nested_assoc.sh
-
+. ../../src/bashlib/nested_assoc.sh
 
 test_na_tree_iter ()
 {
@@ -58,14 +57,14 @@ geg
 eval declare -A plus_tree=("${nested_assoc_tmp[@]@K}")
 na_tree_add_sub "plus_tree" "key1${SEP}key2${SEP}" "sub_tree"
 
-na_tree_print "nested_assoc_tmp" "${nested_assoc_tmp[*]@K}"
-na_tree_print "nested_assoc_tmp" "${nested_assoc_tmp[*]@K}" "key1${SEP}"
-na_tree_print "plus_tree" "${plus_tree[*]@K}"
+na_tree_dump "nested_assoc_tmp" "${nested_assoc_tmp[*]@K}"
+na_tree_dump "nested_assoc_tmp" "${nested_assoc_tmp[*]@K}" "key1${SEP}"
+na_tree_dump "plus_tree" "${plus_tree[*]@K}"
 
 declare -A get_sub_tree=()
 eval -- get_sub_tree=(${|na_tree_get "plus_tree" "key1${SEP}key2${SEP}";})
 
-na_tree_print "get_sub_tree" "${get_sub_tree[*]@K}"
+na_tree_dump "get_sub_tree" "${get_sub_tree[*]@K}"
 
 test_na_tree_iter
 na_tree_walk "plus_tree"
@@ -90,7 +89,7 @@ na_tree_add_leaf "tree" "key1${SEP}" "var1"
 na_tree_add_leaf "tree" "key2${SEP}" "var2"
 na_tree_add_leaf "tree" "key2${SEP}key-3${SEP}" "var2"
 na_tree_add_leaf "tree" "key3${SEP}key-3${SEP}key4${SEP}" "var234"
-na_tree_print "tree" "${tree[*]@K}"
+na_tree_dump "tree" "${tree[*]@K}"
 
 declare -A sub_tree2=()
 na_tree_add_leaf "sub_tree2" "key1${SEP}" "var1"
@@ -99,10 +98,10 @@ na_tree_add_leaf "sub_tree2" "key2${SEP}key-3${SEP}" "var2"
 na_tree_add_leaf "sub_tree2" "key3${SEP}key-3${SEP}key4${SEP}" "var234"
 na_tree_add_sub "tree" "key1${SEP}" "sub_tree2"
 na_tree_add_sub "tree" "key4${SEP}key-3${SEP}" "sub_tree2"
-na_tree_print "sub_tree" "${sub_tree2[*]@K}"
-na_tree_print "tree" "${tree[*]@K}"
+na_tree_dump "sub_tree" "${sub_tree2[*]@K}"
+na_tree_dump "tree" "${tree[*]@K}"
 
 declare -A my_get_sub_tree=()
 eval -- my_get_sub_tree=(${|na_tree_get "tree" "key4${SEP}key-3${SEP}";})
-na_tree_print "my_get_sub_tree" "${my_get_sub_tree[*]@K}"
+na_tree_dump "my_get_sub_tree" "${my_get_sub_tree[*]@K}"
 
