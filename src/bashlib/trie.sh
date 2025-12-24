@@ -1,8 +1,9 @@
 ((_TRIE_IMPORTED++)) && return 0
 
-# :TODO: 当前 trie_insert 和 trie_graft 的语义不一样
-#   trie_insert 不允许破坏原有的树，只能插入合法的叶子，上层路径有叶子不允许
-#   trie_graft 允许破坏，强制插入树，
+# :TODO: Currently the semantics of trie_insert and trie_graft are different
+#   trie_insert It is not allowed to destroy the original tree. Only legal
+#       leaves can be inserted. Leaves in the upper path are not allowed.
+#   trie_graft Allow destruction, force tree insertion
 
 TR_LIBS_DIR=${BASH_SOURCE[0]%/*}
 . "$TR_LIBS_DIR/array.sh"
@@ -42,8 +43,8 @@ _array_is_all_decimal_positive_int ()
 }
 
 # $?
-# 0 全数字
-# 1 包含非数字
+# 0 all digital
+# 1 Contains non-digits
 _split_tokens ()
 {
     local tokens_str=$1
@@ -84,7 +85,7 @@ trie_init ()
     REPLY=${t[*]@K}
 }
 
-# 校验 subtree 是否是一个最基本的 trie
+# Verify whether the subtree is a basic trie
 _trie_tree_is_valid ()
 {
     local -n tr_tree=$1
@@ -94,13 +95,11 @@ _trie_tree_is_valid ()
         return ${TR_RET_ENUM_TREE_IS_INVALID}
     }
 
-    # 不能是空的
     ((${#tr_tree[@]})) || {
         echo "invalid tree: $1 is empty!" >&2
         return ${TR_RET_ENUM_TREE_IS_EMPTY}
     }
 
-    # 必须至少包含 root 节点
     [[ -v tr_tree[$TR_ROOT_ID] ]] || {
         echo "invalid tree: $1 not have root node!" >&2
         return ${TR_RET_ENUM_TREE_NOT_HAVE_ROOT}
@@ -110,9 +109,8 @@ _trie_tree_is_valid ()
 }
 
 # Subtree mount
-# 不管是叶子还是子树都强制覆盖
-# 复用 trie_insert , 所以说不是最高效的实现版本
-# 是最简单实现
+# Reuse trie_insert, so it is not the most efficient implementation version
+# is the simplest implementation
 trie_graft ()
 {
     local tr_target_name=$1
@@ -120,13 +118,13 @@ trie_graft ()
     local -n tr_sub=$2
     local tr_prefix=$3
 
-    # 1. 删除 prefix 下的旧子树(包括叶子)
+    # 1. Delete the old subtree (including leaves) under prefix
     trie_delete "$1" "$tr_prefix"
 
-    # 2. 简单检查下子树的合法性
+    # 2. Simply check the legality of the subtree
     _trie_tree_is_valid "$2" || return $?
 
-    # 3. DFS 遍历 subtree, 把所有叶子插入 tr_target
+    # 3. DFS traverses the subtree and inserts all leaves into tr_target
     local -a "tr_sub_root_children=(${|_split_tokens "${tr_sub[$TR_ROOT_ID.children]}";})"
 
     local -a tr_stack_ids=()
@@ -223,17 +221,17 @@ trie_insert ()
             local tr_sort_sub tr_sort_rule
             
             if ((tr_children_str_ret)) ; then
-                # 非数字(字典序插入排序)
+                # Non-numeric (lexicographic insertion sort)
                 tr_sort_sub=array_sorted_insert
                 tr_sort_rule='>'
             else
-                # 数字
+                # number
                 if _str_is_decimal_positive_int "$tr_token" ; then
-                    # 数字(数字序插入排序)
+                    # Numbers (numeric insertion sort)
                     tr_sort_sub=array_sorted_insert
                     tr_sort_rule='-gt'
                 else
-                    # 非数字(插入后做字典序快速排序)
+                    # Non-numeric (lexicographic quick sort after insertion)
                     tr_sort_sub=array_qsort
                     tr_sort_rule='>'
                 fi
@@ -242,7 +240,7 @@ trie_insert ()
             if [[ "$tr_sort_sub" == "array_sorted_insert" ]] ; then
                 array_sorted_insert tr_children "$tr_token" "$tr_sort_rule"
             else
-                # 插入后做快速排序
+                # Quick sort after insertion
                 tr_children+=("$tr_token")
                 array_qsort tr_children "$tr_sort_rule"
             fi
@@ -410,7 +408,7 @@ trie_delete ()
     local -n tr_t=$1
     local tr_full_key=$2
 
-    # 空 key 是合法的 只保留 ROOT 节点
+    # Empty key is legal. Only ROOT nodes are reserved.
     [[ -z "$tr_full_key" ]] && {
         eval -- tr_t=(${|trie_init;})
         return ${TR_RET_ENUM_OK}
@@ -430,7 +428,7 @@ trie_delete ()
         tr_child_id="${tr_t[$tr_node.child.$tr_token]}"
         [[ -z "$tr_child_id" ]] && {
             # echo "key is not found!" >&2
-            # 不存在的键直接返回
+            # Keys that do not exist are returned directly.
             return "$TR_RET_ENUM_OK"
         }
         tr_path_nodes+=("$tr_child_id")
@@ -496,13 +494,13 @@ trie_delete ()
         done
 
         if ((${#tr_new[@]} == 0)); then
-            tr_t[$tr_parent.children]=''
+            unset -v 'tr_t[$tr_parent.children]'
         else
-            # 判断是否需要重新排序
-            # 1. 删除前全是数字 -> 不用重排
-            # 2. 删除前有非数字
-            #       1. 删除后还是有非数字 -> 不用重排
-            #       2. 删除后变成了全数字 -> 数字序快排
+            # Determine whether reordering is needed
+            # 1. All numbers before deletion -> No need to rearrange
+            # 2. There are non-digits before deletion
+            #       1. There are still non-digits after deletion -> No need to rearrange
+            #       2. After deletion, it becomes all numbers -> Quick sort in numerical order
             ((tr_children_is_num)) &&
             _array_is_all_decimal_positive_int "${tr_new[@]}" && {
                 array_qsort 'tr_new' '-gt'
@@ -540,35 +538,35 @@ trie_get_subtree ()
     local -n tr_t=$1
     local tr_full_key=$2
 
-    # 1. 如果 tr_full_key 为空，直接返回整棵树
+    # 1. If tr_full_key is empty, return the entire tree directly
     [[ -z "$tr_full_key" ]] && {
         REPLY="${tr_t[*]@K}"
         return ${TR_RET_ENUM_OK}
     }
 
-    # 2. 判断 tr_full_key 是否合法
+    # 2. Determine whether tr_full_key is legal
     trie_key_is_invalid "$tr_full_key" || return $?
 
-    # 3. 判断是否是叶子节点，如果是叶子节点，返回错误
+    # 3. Determine whether it is a leaf node. If it is a leaf node, return an error.
     [[ -v 'tr_t["$tr_full_key"]' ]] && {
         echo "key is leaf!" >&2
         return ${TR_RET_ENUM_KEY_IS_LEAF}
     }
 
-    # 4. 找到 tr_full_key 对应的节点 ID 
+    # 4. Find the node ID corresponding to tr_full_key
     local tr_node
     tr_node=${|_trie_token_to_node_id "$tr_t_name" "$tr_full_key";} || return $?
 
-    # 5. 获取该节点的 children (子树的一级节点)
+    # 5. Get the children of the node (the first-level node of the subtree)
     local -a "tr_root_children=(${|_split_tokens "${tr_t[$tr_node.children]}";})"
 
-    # 6. 创建一颗新树
+    # 6. Create a new tree
     local -A "tr_new=(${|trie_init;})"
 
-    # 7. 新树的 children 重置为当前的 tr_root_children
+    # 7. The children of the new tree are reset to the current tr_root_children
     printf -v tr_new[$TR_ROOT_ID.children] "%s$S" "${tr_root_children[@]}"
 
-    # 8. 挂接所有的 root children
+    # 8. Mount all root children
     local tr_tk tr_cid
     local -a tr_stack=()
     for tr_tk in "${tr_root_children[@]}" ; do
@@ -577,7 +575,7 @@ trie_get_subtree ()
         tr_stack+=("$tr_cid")
     done
 
-    # 9. DFS 复制子节点
+    # 9. DFS copy child node
     local tr_max_id=1
     while ((${#tr_stack[@]})) ; do
         local tr_cur=${tr_stack[-1]}
@@ -589,7 +587,8 @@ trie_get_subtree ()
             tr_new[$tr_cur.children]=${tr_t[$tr_cur.children]}
         fi
 
-        # 这里的 key 不能直接复制老树的，需要剪掉前缀
+        # The key here cannot be copied directly from the old tree, and 
+        # the prefix needs to be cut off.
         local tr_key=${tr_t["$tr_cur.key"]}
         if [[ -n "$tr_key" ]] ; then
             tr_new[$tr_cur.key]=${tr_key#"$tr_full_key"}
@@ -606,7 +605,6 @@ trie_get_subtree ()
         done
     done
 
-    # 设置最大的 max_index
     tr_new[max_index]=$((tr_max_id+1))
 
     REPLY=${tr_new[*]@K}
@@ -620,16 +618,13 @@ trie_iter ()
     local -n tr_t=$1
     local tr_prefix=$2
 
-    # 1. tr_prefix 必须合法或者是 空key(遍历树根)
     [[ -n "$tr_prefix" ]] && {
         trie_key_is_invalid "$tr_prefix" || return $?
     }
 
-    # 2. 找到 tr_prefix 对应的节点 ID
     local tr_node_id
     tr_node_id=${|_trie_token_to_node_id "$1" "$tr_prefix";} || return $?
 
-    # 3. 读取 tr_children
     local -a "tr_children=(${|_split_tokens "${tr_t[$tr_node_id.children]}";})"
 
     local tr_tk tr_child_id tr_type
@@ -649,8 +644,9 @@ trie_iter ()
     return ${TR_RET_ENUM_OK}
 }
 
-# 这只是一个范例, 用于演示 trie_walk 的回调函数，处理整棵树
-# callback <type> <token> <full_key> <node_id>
+# This is just an example to demonstrate the callback function of trie_walk,
+# processing the entire tree
+# callback <type> <token> <full_key> <node_id> <parent_id> <value>
 trie_callback_print ()
 {
     local type=$1 token=$2 full_key=$3 node_id=$4 parent_id=$5 value=$6
@@ -668,7 +664,7 @@ trie_walk ()
     local tr_root_id
     tr_root_id=${|_trie_token_to_node_id "$1" "$tr_prefix";} || return $?
 
-    # 栈：保存 (prefix node_id)
+    # stack: save (prefix node_id)
     local -a tr_stack=()
     tr_stack+=("$tr_prefix" "$tr_root_id")
 
@@ -684,7 +680,6 @@ trie_walk ()
         for tr_tk in "${tr_children[@]}"; do
             tr_child_id=${tr_t["$tr_node_id.child.$tr_tk"]}
 
-            # 判断 leaf / tree
             if [[ -n "${tr_t[$tr_child_id.key]}" ]]; then
                 tr_type="leaf"
                 tr_full_key="${tr_t["$tr_child_id.key"]}"
@@ -695,10 +690,8 @@ trie_walk ()
                 tr_full_key="${tr_prefix}${tr_tk}$S"
             fi
             
-            # 调用回调
             "$tr_callback" "$tr_type" "$tr_tk" "$tr_full_key" "$tr_child_id" "$tr_node_id" "$tr_value"
 
-            # 如果是 tree，压栈继续 DFS
             if [[ $tr_type == tree ]]; then
                 tr_stack+=("$tr_full_key" "$tr_child_id")
             fi
@@ -706,9 +699,6 @@ trie_walk ()
     done
 }
 
-# 这个函数意义不大，强迫症可以使用，作用是把树内部的ID从1开始重新编号
-# 用于树操作久了后ID很多空洞的情况
-# 但是其实意义不大
 trie_id_rebuild ()
 {
     local -n tr_old=$1
@@ -731,10 +721,8 @@ trie_id_rebuild ()
         ((tr_new_id++))
     done
 
-    # 单独保存根节点的映射
     tr_id_map[$TR_ROOT_ID]=1
 
-    # 创建一颗新树
     local -A "tr_new=(${|trie_init;})"
 
     trie_id_rebuild_callback ()
@@ -755,10 +743,8 @@ trie_id_rebuild ()
     trie_walk tr_old '' trie_id_rebuild_callback
     unset -f trie_id_rebuild_callback
 
-    # 更新最大索引
     tr_new[max_index]=$tr_new_id
     
-    # 返回新树
     REPLY=${tr_new[*]@K}
     return ${TR_RET_ENUM_OK}
 }
@@ -768,7 +754,7 @@ trie_equals ()
     local -n tr_1=$1 tr_2=$2
     local tr_ok=1
 
-    # 遍历 tr_1，检查 tr_2
+    # Iterate over tr_1, check tr_2
     trie_equals_check_ab ()
     {
         local type=$1 full_key=$3 value=$6
@@ -784,7 +770,7 @@ trie_equals ()
         return ${TR_RET_ENUM_TREE_IS_NOT_SAME}
     }
 
-    # 遍历 tr_2，检查 tr_1
+    # Traverse tr_2, check tr_1
     trie_equals_check_ba () {
         local type=$1 full_key=$3 value=$6
         if [[ $type == leaf ]]; then

@@ -5,15 +5,15 @@ array_sorted_insert ()
 {
     local -n a_arr=$1
     local a_value=$2
-    # 默认升序
+    # Default ascending order
     local a_rule=${3:-">"}
 
     local a_left=0
     local a_right=${#a_arr[@]}
 
-    # 二分查找插入位置
+    # Binary search insertion position
     case "$a_rule" in
-        ">")  # 升序
+        ">")  # Ascending order
             while ((a_left < a_right)); do
                 local a_mid=$(((a_left + a_right) / 2))
                 if [[ "${a_arr[a_mid]@Q}" < "${a_value@Q}" ]] ; then
@@ -23,7 +23,7 @@ array_sorted_insert ()
                 fi
             done
             ;;
-        "<")  # 降序
+        "<")  # descending order
             while ((a_left < a_right)); do
                 local a_mid=$(((a_left + a_right) / 2))
                 if [[ "${a_arr[a_mid]@Q}" > "${a_value@Q}" ]] ; then
@@ -33,7 +33,7 @@ array_sorted_insert ()
                 fi
             done
             ;;
-        "-gt")  # 升序
+        "-gt")  # Ascending order
             while ((a_left < a_right)); do
                 local a_mid=$(((a_left + a_right) / 2))
                 if [[ "${a_arr[a_mid]}" -lt "$a_value" ]] ; then
@@ -43,7 +43,7 @@ array_sorted_insert ()
                 fi
             done
             ;;
-        "-lt")  # 降序
+        "-lt")  # descending order
             while ((a_left < a_right)); do
                 local a_mid=$(((a_left + a_right) / 2))
                 if [[ "${a_arr[a_mid]}" -gt "$a_value" ]] ; then
@@ -59,12 +59,12 @@ array_sorted_insert ()
             ;;
     esac
 
-    # 插入
     a_arr=("${a_arr[@]:0:$a_left}" "$a_value" "${a_arr[@]:$a_left}")
 }
 
-# 本来排序函数中并不需要序列化成Q字符串，之所以保留是因为 sort 命令需要
-# 是为了让排序算法保持一致
+# Originally, the sorting function does not need to be serialized into a Q
+# string. The reason why it is retained is because the sort command requires
+# is to keep the sorting algorithm consistent
 array_qsort ()
 {
     (($# < 1)) && return 1

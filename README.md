@@ -1,31 +1,33 @@
 
 # qq_bash
 
-一个个人的 bash 库
+A personal bash library
 
-## 运行测试
+## Run tests
 
-进入项目的根目录下直接执行 `test.sh` 脚本即可。
+Enter the root directory of the project and directly execute the `test.sh` script.
 
 ## API
 
 ### trie
 
-bash 中模拟的前缀字典树，提供了下列函数。
+To simulate a prefix dictionary tree in `BASH`, it can be used as a nested array
+or associative array. The function of the array has not been fully implemented
+yet, and the following functions are provided.
 
-- trie_init 初始化一颗树
-- trie_graft 把一棵树挂接到另外一颗树上
-- trie_inserts 批量插入树根节点
-- trie_insert 插入一个树根节点
-- trie_dump 树状打印一棵树
-- trie_dump_flat 扁平打印一棵树
-- trie_delete 删除一个节点和它的所有子节点
-- trie_get_subtree 获取一个节点下的子树
-- trie_iter 树单层迭代
-- trie_walk 遍历一棵树，并且可以传入回调函数
-- trie_callback_print trie_walk 的默认回调
-- trie_id_rebuild 重建一棵树的ID，树清洗
-- trie_equals 比较两颗树是否相等
+- trie_init Initialize a tree
+- trie_graft Hook one tree to another tree
+- trie_inserts Insert tree leaf nodes in batches
+- trie_insert Insert a tree leaf node
+- trie_dump tree print
+- trie_dump_flat Flat print of a tree
+- trie_delete Delete a node and all its child nodes
+- trie_get_subtree Get the subtree under a node
+- trie_iter Tree single level iteration
+- trie_walk Traverse a tree and can pass in a callback function
+- trie_callback_print Default callback for trie_walk
+- trie_id_rebuild Reconstructing a tree's ID, tree cleaning
+- trie_equals Compare two trees for equality
 
 #### trie_init
 #### trie_insert
