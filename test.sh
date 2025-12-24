@@ -28,7 +28,7 @@ exec_all_test_case ()
     local file_name
     for file_name in ** ; do
         [[ "$file_name" == *'/'test_*'.sh' ]] &&
-        [[ "$file_name" != *'/test_utils.sh' ]] &&
+        [[ "$file_name" != *'libs/'*'.sh' ]] &&
         [[ "$file_name" == *'.sh' ]] && {
             all_files+=("${file_name}")
         }
