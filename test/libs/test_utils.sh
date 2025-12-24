@@ -19,7 +19,7 @@ geg
 
 
 AS_RUN_TEST_CASES='
-echo "=== Running tests from script: $0 ==="
+echo "=================== Running tests from script: $0 ========================="
 echo "=== Start time: $(date "+%Y-%m-%d %H:%M:%S") ==="
 
 for fn in ${ compgen -A function | grep "^test_case" | sort;}; do
