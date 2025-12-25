@@ -1,12 +1,12 @@
 ((_TEST_UTILS_IMPORTED++)) && return 0
 
-# as_ 为保留前缀
+# as_ to reserve the prefix
 AS_OK=0
 AS_FAIL=1
 AS_NORMAL_CHARS=({a..z} {A..Z} {0..9})
 AS_NORMAL_CHARS_LEN=${#AS_NORMAL_CHARS[@]}
 
-# 用于测试的复杂关联数组
+# Complex associative array for testing
 readonly -A AS_DICT_TEMP=(
     ["(xx:yy)"]="6" ["xxx->xxx->xxx->xx:xx.x-/dev/fd/61-/dev/fd/60"]="1"
     ["xxx xxx->xxx->xxx->xx:xx.x-/dev/fd/61-/dev/fd/60"]="1"
@@ -29,9 +29,10 @@ done
 '
 
 
-# 函数还原后会导致行号等调用栈混乱，慎用
-# extdebug 也救不了(只是说 declare -F 可以获取元信息)
-# 有什么魔法方法可以让函数恢复元数据的？
+# After the function is restored, the call stack such as line numbers will be
+# confused. Use with caution.
+# extdebug It can't be saved (it's just that declare -F can get meta information)
+# Is there any magic way to make the function restore metadata?
 save_func ()
 {
     declare -F "$1" && {
@@ -41,8 +42,8 @@ save_func ()
     return 1
 }
 
-# 1: 成功
-# 0: 失败
+# 1: success
+# 0: fail
 log_test ()
 {
     local status=$1 num=$2
@@ -54,12 +55,14 @@ log_test ()
     fi
 }
 
+# RANDOM 16
+# SRANDOM 32
 rand_str ()
 {
     local len=${1:-40}
     local i
     for ((i=0; i<len; i++)); do
-        REPLY+="${AS_NORMAL_CHARS[RANDOM % AS_NORMAL_CHARS_LEN]}"
+        REPLY+="${AS_NORMAL_CHARS[SRANDOM % AS_NORMAL_CHARS_LEN]}"
     done
 }
 
@@ -70,7 +73,6 @@ assert_array ()
         return ${AS_FAIL}
     fi
 
-    # 如果参数任意一个为空都失败
     local _assert_array_param=''
     for _assert_array_param in "${@}" ; do
         if [[ -z "$_assert_array_param" ]] ; then
@@ -87,37 +89,31 @@ assert_array ()
     while (($#)) ; do
         local -n as_second="${1}"
 
-        # 判断元素数量
         if [[ "${#as_first[@]}" != "${#as_second[@]}" ]] ; then
             return ${AS_FAIL}
         fi
 
-        # 判断类型(防止只读变量的影响)
+        # Determine type (prevent the influence of read-only variables)
         if [[ "${as_first@a}" != "$as_type" && "${as_first@a}" != "${as_type}r" ]] ||
             [[ "${as_second@a}" != "$as_type" && "${as_second@a}" != "${as_type}r" ]] ; then
             return ${AS_FAIL}
         fi
 
         for as_index in "${!as_second[@]}" ; do
-            # 判断索引
             if [[ ! -v 'as_first[$as_index]' ]] ; then
-                return ${AS_FAIL}1
+                return ${AS_FAIL}
             fi
 
-            # 判断值
             if [[ "${as_first["$as_index"]}" != "${as_second["$as_index"]}" ]] ; then
                 return ${AS_FAIL}
             fi
         done
 
-        # 双向判断
         for as_index in "${!as_first[@]}" ; do
-            # 判断索引
             if [[ ! -v 'as_second[$as_index]' ]] ; then
                 return ${AS_FAIL}
             fi
 
-            # 判断值
             if [[ "${as_first["$as_index"]}" != "${as_second["$as_index"]}" ]] ; then
                 return ${AS_FAIL}
             fi

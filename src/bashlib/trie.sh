@@ -169,11 +169,9 @@ trie_key_is_invalid ()
 
 trie_inserts ()
 {
-    local tr_t_name=$1
-    shift
-    while (($#)) ; do
-        trie_insert "$tr_t_name" "$1" "$2"
-        shift 2
+    set -- "${@:2}" "$1"
+    while (($#>1)) ; do
+        trie_insert "${!#}" "$1" "$2" ; shift 2
     done
 }
 
