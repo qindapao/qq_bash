@@ -14,11 +14,6 @@ trie
         这样可以方便传参
     trie_id_rebuild
         更加复杂的树的验证
-    trie_dump
-        直接 ${ trie_dump tree;} 捕捉标准输出有个小问题是末尾的换行会被吃掉。
-        所以 REPLY 变量同步更新？支持 ${|trie_dump tree;} 捕捉方式？
-        trie_dump_flat 也有类似的问题
-        如果只是打印看输出，其实这个问题不大。
     如果节点数量膨胀得太厉害。可以考虑把 child 的 id 一起压缩到 children 里面。并且取消
     节点ID存在标记。ID的作用是可以快速判断节点是否存在，可能有用。
     当前这样的优势是结构清晰，索引速度快，排序 children 也比较方便，但是有点浪费空间。

@@ -367,7 +367,8 @@ test_case7 ()
     5 => 1
     5.key => a.b.x => value2
     4 => 1
-    4.key => a.b.c => value1'
+    4.key => a.b.c => value1
+    max_index => 16'
    
     local str2_spec='mytree
     2 => 1
@@ -407,7 +408,8 @@ test_case7 ()
     5 => 1
     5.key => a.b.x => value2
     4 => 1
-    4.key => a.b.c => value1'
+    4.key => a.b.c => value1
+    max_index => 16'
 
     if [[ "$get_str1" == "$str1_spec" ]] &&
         [[ "$get_str2" == "$str2_spec" ]] ; then
@@ -445,7 +447,7 @@ g5" \
     local dump_str3=${ trie_dump mytree '' 4 $((2#01));}
     local dump_str4=${ trie_dump mytree '' 4 $((2#00));}
     local dump_str5=${ trie_dump mytree '' 4 $((2#11));}
-    
+
     local dump_spec1='mytree
     a(2)
         b(3)
@@ -466,7 +468,8 @@ g5" \
             2(10) => value6
             3(11) => value7
             4(12) => value8
-            5(13) => value9'
+            5(13) => value9
+    max_index => 14'
     local dump_spec2='mytree
     a
         b
@@ -487,7 +490,8 @@ g5" \
             2 => value6
             3 => value7
             4 => value8
-            5 => value9'
+            5 => value9
+    max_index => 14'
     local dump_spec3='mytree
     a(2)
         b(3)
@@ -504,7 +508,8 @@ g5" \
             2(10) => 
             3(11) => 
             4(12) => 
-            5(13) => '
+            5(13) => 
+    max_index => 14'
     local dump_spec4='mytree
     a
         b
@@ -521,7 +526,8 @@ g5" \
             2 => 
             3 => 
             4 => 
-            5 => '
+            5 => 
+    max_index => 14'
     local dump_spec5='mytree
     a(2)
         b(3)
@@ -542,7 +548,8 @@ g5" \
             2(10) => value6
             3(11) => value7
             4(12) => value8
-            5(13) => value9'
+            5(13) => value9
+    max_index => 14'
     if [[ "$dump_str1" == "$dump_spec1" ]] &&
         [[ "$dump_str2" == "$dump_spec2" ]] &&
         [[ "$dump_str3" == "$dump_spec3" ]] &&

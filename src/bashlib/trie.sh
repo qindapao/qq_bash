@@ -277,6 +277,7 @@ trie_dump ()
     printf "%s\n" "$tr_t_name"
     _trie_dump  "$tr_t_name" "$tr_node" "$tr_indent_cnt" "$tr_indent" \
                 "$tr_id_need_print" "$tr_value_need_print"
+    printf "${tr_indent}max_index => %s\n" "${tr_t[max_index]}"
 }
 
 _trie_dump ()
@@ -396,6 +397,8 @@ trie_dump_flat ()
             done
         fi
     done
+
+    printf "${tr_indent}max_index => %s\n" "${tr_t[max_index]}"
 }
 
 _trie_token_to_node_id ()
