@@ -109,7 +109,7 @@ test_case4 ()
     fi
 }
 
-eval -- "$AS_RUN_TEST_CASES"
+eval -- "${|AS_RUN_TEST_CASES;}"
 
 
 

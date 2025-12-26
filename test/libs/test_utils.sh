@@ -1,10 +1,13 @@
 ((_TEST_UTILS_IMPORTED++)) && return 0
 
+. ../../src/bashlib/var.sh
+
 # as_ to reserve the prefix
 AS_OK=0
 AS_FAIL=1
 AS_NORMAL_CHARS=({a..z} {A..Z} {0..9})
 AS_NORMAL_CHARS_LEN=${#AS_NORMAL_CHARS[@]}
+AS_TESTCASE_FUNC_HEAD=test_case
 
 # Complex associative array for testing
 readonly -A AS_DICT_TEMP=(
@@ -16,18 +19,6 @@ geg
 "]=" gge geg(xx)[ggel
 
 ]ggeeg")
-
-
-AS_RUN_TEST_CASES='
-echo "=================== Running tests from script: $0 ========================="
-echo "=== Start time: $(date "+%Y-%m-%d %H:%M:%S") ==="
-
-for fn in ${ compgen -A function | grep "^test_case" | sort;}; do
-    echo "-------- Running $fn ----------"
-    "$fn" || exit 1
-done
-'
-
 
 # After the function is restored, the call stack such as line numbers will be
 # confused. Use with caution.
@@ -158,6 +149,33 @@ awk '
 	END {
 		print max
 	}'
+}
+
+# step test one case
+step_test ()
+{
+    local -A "run_case_set=(
+        ${|var_params_to_set "$AS_TESTCASE_FUNC_HEAD" "$@";})"
+    
+    local fns=(${ compgen -A function;})
+    local fn ; for fn in "${fns[@]}" ; do
+        [[ -v 'run_case_set["$fn"]' ]] || {
+            [[ "$fn" == "$AS_TESTCASE_FUNC_HEAD"* ]] && unset -f "$fn"
+        }
+    done
+}
+
+AS_RUN_TEST_CASES ()
+{
+    REPLY='
+echo "=================== Running tests from script: $0 ========================="
+echo "=== Start time: $(date "+%Y-%m-%d %H:%M:%S") ==="
+
+for fn in ${ compgen -A function | grep "^'$AS_TESTCASE_FUNC_HEAD'" | sort;}; do
+    echo "-------- Running $fn ----------"
+    "$fn" || exit 1
+done
+'
 }
 
 return 0

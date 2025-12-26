@@ -262,14 +262,21 @@ trie_dump ()
     local tr_t_name=$1
     local -n tr_t=$1
     local tr_full_key=$2
+    # bit0: id is need to print
+    # bit1: value is need to print
+    local tr_indent_cnt=${3:-4}
+    local tr_print_mask=${4:-$((2#11))}
+    local tr_id_bit=0 tr_value_bit=1
+    local tr_id_need_print=$(((tr_print_mask>>tr_id_bit)&1))
+    local tr_value_need_print=$(((tr_print_mask>>tr_value_bit)&1))
     local tr_node
     tr_node=${|_trie_token_to_node_id "$tr_t_name" "$tr_full_key";} || return $?
 
-    local tr_indent_cnt=${3:-4}
     local tr_indent ; printf -v tr_indent "%*s" "$tr_indent_cnt" ""
 
     printf "%s\n" "$tr_t_name"
-    _trie_dump "$tr_t_name" "$tr_node" "$tr_indent_cnt" "$tr_indent"
+    _trie_dump  "$tr_t_name" "$tr_node" "$tr_indent_cnt" "$tr_indent" \
+                "$tr_id_need_print" "$tr_value_need_print"
 }
 
 _trie_dump ()
@@ -278,6 +285,8 @@ _trie_dump ()
     local tr_node=$2
     local tr_indent_cnt=$3
     local tr_indent=$4
+    local tr_id_need_print=$5
+    local tr_value_need_print=$6
     local tr_indent_new
     printf -v tr_indent_new "%*s" "$tr_indent_cnt" ""
     tr_indent_new+="$tr_indent"
@@ -288,52 +297,104 @@ _trie_dump ()
     local tr_token
     for tr_token in "${tr_children[@]}"; do
         local tr_child_id="${tr_t[$tr_node.child.$tr_token]}"
+        local tr_child_id_p='' tr_value_p=''
+        ((tr_id_need_print)) && tr_child_id_p="($tr_child_id)"
 
         if [[ -n "${tr_t[$tr_child_id.key]}" ]]; then
             local tr_key=${tr_t[$tr_child_id.key]}
             local tr_value=${tr_t["$tr_key"]}
             # :TODO: Double-width aligned display of Chinese has not been considered for
             # the time being.
-            local tr_value_indent="${tr_token}(${tr_child_id})"
-            tr_value_indent=${tr_value_indent##*$'\n'}
-            tr_value_indent=${tr_value_indent//?/ }
-            tr_value_indent+="${tr_indent}    "
+            ((tr_value_need_print)) && {
+                local tr_value_indent="${tr_token}"
+                ((tr_id_need_print)) && tr_value_indent+="(${tr_child_id})"
+                tr_value_indent=${tr_value_indent##*$'\n'}
+                tr_value_indent=${tr_value_indent//?/ }
+                tr_value_indent+="${tr_indent}    "
+                tr_value_p="${tr_value//$'\n'/$'\n'$tr_value_indent}"
+            }
 
-            printf "%s%s(%s) => %s\n" \
-                "$tr_indent" "${tr_token//$'\n'/$'\n'$tr_indent}" "$tr_child_id" "${tr_value//$'\n'/$'\n'$tr_value_indent}"
+            printf "%s%s%s => %s\n" \
+                "$tr_indent" "${tr_token//$'\n'/$'\n'$tr_indent}" "$tr_child_id_p" "$tr_value_p"
         else
-            printf "%s%s(%s)\n" "${tr_indent}" "${tr_token//$'\n'/$'\n'$tr_indent}" "$tr_child_id"
+            printf "%s%s%s\n" "${tr_indent}" "${tr_token//$'\n'/$'\n'$tr_indent}" "$tr_child_id_p"
         fi
 
-        _trie_dump "$1" "$tr_child_id" "$tr_indent_cnt" "$tr_indent_new"
+        _trie_dump "$1" "$tr_child_id" "$tr_indent_cnt" "$tr_indent_new" "$tr_id_need_print" "$tr_value_need_print"
     done
 }
 
+_trie_sep_to_dot ()
+{
+    local tr_sep_str=$1 tr_indent=$2
+    REPLY=${tr_sep_str%"$S"}
+    REPLY=${REPLY//"$S"/'.'}
+    REPLY=${REPLY//$'\n'/$'\n'"$tr_indent"}
+}
+
+_trie_dump_flat_node()
+{
+    local -n tr_t=$1
+    local tr_node_id=$2
+    local tr_indent=$3
+    local tr_indent2=$4
+
+    printf  "${tr_indent}%s => 1\n" "$tr_node_id"
+
+    if [[ -n "${tr_t[$tr_node_id.key]}" ]]; then
+        local tr_full_key="${tr_t[$tr_node_id.key]}"
+        local tr_value="${tr_t[$tr_full_key]}"
+
+        printf  "${tr_indent}%s.key => %s => %s\n" \
+                "$tr_node_id" \
+                "${|_trie_sep_to_dot "$tr_full_key" "$tr_indent2";}" \
+                "${|_trie_sep_to_dot "$tr_value" "$tr_indent2";}"
+    else
+        local -a "tr_sub_tokens=(${|_split_tokens "${tr_t[$tr_node_id.children]}";})"
+
+        printf  "${tr_indent}%s.children => %s\n" \
+                "$tr_node_id" \
+                "${|_trie_sep_to_dot "${tr_t[$tr_node_id.children]}" "$tr_indent2";}"
+
+        local tr_sub_token
+        for tr_sub_token in "${tr_sub_tokens[@]}"; do
+            printf  "${tr_indent}%s.child.${tr_sub_token} => %s\n" \
+                    "$tr_node_id" \
+                    "${tr_t[$tr_node_id.child.$tr_sub_token]}"
+        done
+    fi
+}
 
 trie_dump_flat ()
 {
     local tr_t_name=$1
     local -n tr_t=$1
-    local tr_indent_cnt=${2:-4}
+    local tr_prefix=$2
+    local tr_indent_cnt=${3:-4}
     local tr_indent
     printf -v tr_indent "%*s" "$tr_indent_cnt" ""
     local tr_indent2="$tr_indent$tr_indent"
 
     printf "%s\n" "$tr_t_name"
-    local -a tr_keys=("${!tr_t[@]}")
-    array_qsort 'tr_keys' '>'
+    
+    local tr_root_id
+    tr_root_id=${|_trie_token_to_node_id "$1" "$tr_prefix";} || return $?
 
-    local tr_key tr_key_p tr_value_p
-    for tr_key in "${tr_keys[@]}" ; do
-        tr_key_p=${tr_key%"$S"}
-        tr_key_p=${tr_key_p//"$S"/'.'}
-        tr_key_p=${tr_key_p//$'\n'/$'\n'"$tr_indent2"}
+    # stack: save (prefix node_id)
+    local -a tr_stack=()
+    tr_stack+=("$tr_root_id")
 
-        tr_value_p=${tr_t["$tr_key"]%"$S"}
-        tr_value_p=${tr_value_p//"$S"/'.'}
-        tr_value_p=${tr_value_p//$'\n'/$'\n'"$tr_indent2"}
+    while ((${#tr_stack[@]})); do
+        local tr_node_id=${tr_stack[-1]}
+        unset -v 'tr_stack[-1]'
 
-        printf "${tr_indent}%s => %s\n" "$tr_key_p" "$tr_value_p"
+        _trie_dump_flat_node "$tr_t_name" "$tr_node_id" "$tr_indent" "$tr_indent2"
+        if [[ -z "${tr_t[$tr_node_id.key]}" ]]; then
+            local -a "tr_children=(${|_split_tokens "${tr_t[$tr_node_id.children]}";})"
+            local tr_tk ; for tr_tk in "${tr_children[@]}"; do
+                tr_stack+=("${tr_t[$tr_node_id.child.$tr_tk]}")
+            done
+        fi
     done
 }
 

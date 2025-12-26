@@ -137,5 +137,5 @@ test_case4 ()
     return 0
 }
 
-eval -- "$AS_RUN_TEST_CASES"
+eval -- "${|AS_RUN_TEST_CASES;}"
 

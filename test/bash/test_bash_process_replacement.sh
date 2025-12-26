@@ -56,7 +56,7 @@ test_case2 ()
     fi
 }
 
-eval -- "$AS_RUN_TEST_CASES"
+eval -- "${|AS_RUN_TEST_CASES;}"
 
 
 

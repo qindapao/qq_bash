@@ -304,15 +304,258 @@ test_case6 ()
     else
         log_test 0 4 ; return 1
     fi
-
 }
 
-# unset -f test_case1
-# unset -f test_case2
-# unset -f test_case3
-# unset -f test_case4
-# unset -f test_case5
-# unset -f test_case6
+# trie_dump_flat
+test_case7 ()
+{
+    local -A "mytree=(${|trie_init;})"
+    trie_inserts mytree "a${S}b${S}c$S" 'value1' \
+                        "a${S}b${S}x$S" 'value2' \
+                        "a${S}m$S" 'value3' \
+                        "a${S}k${S}0$S" 'value4' \
+                        "a${S}k${S}1$S" 'value5' \
+                        "a${S}k${S}2$S" 'value6' \
+                        "a${S}k${S}3$S" 'value7' \
+                        "a${S}k${S}4${S}key1$S" 'value8' \
+                        "a${S}k${S}4${S}key2$S" 'value9' \
+                        "b${S}" 'value10'
+    
+    local get_str1=${ trie_dump_flat 'mytree';}
+    local get_str2=${ trie_dump_flat 'mytree' "a${S}";}
+    local str1_spec='mytree
+    1 => 1
+    1.children => a.b
+    1.child.a => 2
+    1.child.b => 15
+    15 => 1
+    15.key => b => value10
+    2 => 1
+    2.children => b.k.m
+    2.child.b => 3
+    2.child.k => 7
+    2.child.m => 6
+    6 => 1
+    6.key => a.m => value3
+    7 => 1
+    7.children => 0.1.2.3.4
+    7.child.0 => 8
+    7.child.1 => 9
+    7.child.2 => 10
+    7.child.3 => 11
+    7.child.4 => 12
+    12 => 1
+    12.children => key1.key2
+    12.child.key1 => 13
+    12.child.key2 => 14
+    14 => 1
+    14.key => a.k.4.key2 => value9
+    13 => 1
+    13.key => a.k.4.key1 => value8
+    11 => 1
+    11.key => a.k.3 => value7
+    10 => 1
+    10.key => a.k.2 => value6
+    9 => 1
+    9.key => a.k.1 => value5
+    8 => 1
+    8.key => a.k.0 => value4
+    3 => 1
+    3.children => c.x
+    3.child.c => 4
+    3.child.x => 5
+    5 => 1
+    5.key => a.b.x => value2
+    4 => 1
+    4.key => a.b.c => value1'
+   
+    local str2_spec='mytree
+    2 => 1
+    2.children => b.k.m
+    2.child.b => 3
+    2.child.k => 7
+    2.child.m => 6
+    6 => 1
+    6.key => a.m => value3
+    7 => 1
+    7.children => 0.1.2.3.4
+    7.child.0 => 8
+    7.child.1 => 9
+    7.child.2 => 10
+    7.child.3 => 11
+    7.child.4 => 12
+    12 => 1
+    12.children => key1.key2
+    12.child.key1 => 13
+    12.child.key2 => 14
+    14 => 1
+    14.key => a.k.4.key2 => value9
+    13 => 1
+    13.key => a.k.4.key1 => value8
+    11 => 1
+    11.key => a.k.3 => value7
+    10 => 1
+    10.key => a.k.2 => value6
+    9 => 1
+    9.key => a.k.1 => value5
+    8 => 1
+    8.key => a.k.0 => value4
+    3 => 1
+    3.children => c.x
+    3.child.c => 4
+    3.child.x => 5
+    5 => 1
+    5.key => a.b.x => value2
+    4 => 1
+    4.key => a.b.c => value1'
 
-eval -- "$AS_RUN_TEST_CASES"
+    if [[ "$get_str1" == "$str1_spec" ]] &&
+        [[ "$get_str2" == "$str2_spec" ]] ; then
+        log_test 1 1
+    else
+        log_test 0 1 ; return 1
+    fi
+    
+    return 0
+}
+
+# trie_dump
+test_case8 ()
+{
+    local -A "mytree=(${|trie_init;})"
+    trie_inserts mytree "a${S}b${S}c${S}" "value1" \
+                        "a${S}b${S}e
+gege
+${S}" "value2" \
+                        "a${S}b${S}f${S}" "valgege
+gege
+ue3" \
+                        "a${S}c${S}0${S}" "value4" \
+                        "a${S}c${S}1
+ge
+geg${S}" "value
+gege
+g5" \
+                        "a${S}c${S}2${S}" "value6" \
+                        "a${S}c${S}3${S}" "value7" \
+                        "a${S}c${S}4${S}" "value8" \
+                        "a${S}c${S}5${S}" "value9"
+    local dump_str1=${ trie_dump mytree;}
+    local dump_str2=${ trie_dump mytree '' 4 $((2#10));}
+    local dump_str3=${ trie_dump mytree '' 4 $((2#01));}
+    local dump_str4=${ trie_dump mytree '' 4 $((2#00));}
+    local dump_str5=${ trie_dump mytree '' 4 $((2#11));}
+    
+    local dump_spec1='mytree
+    a(2)
+        b(3)
+            e
+            gege
+            (5) => value2
+            c(4) => value1
+            f(6) => valgege
+                    gege
+                    ue3
+        c(7)
+            1
+            ge
+            geg(9) => value
+                      gege
+                      g5
+            0(8) => value4
+            2(10) => value6
+            3(11) => value7
+            4(12) => value8
+            5(13) => value9'
+    local dump_spec2='mytree
+    a
+        b
+            e
+            gege
+             => value2
+            c => value1
+            f => valgege
+                 gege
+                 ue3
+        c
+            1
+            ge
+            geg => value
+                   gege
+                   g5
+            0 => value4
+            2 => value6
+            3 => value7
+            4 => value8
+            5 => value9'
+    local dump_spec3='mytree
+    a(2)
+        b(3)
+            e
+            gege
+            (5) => 
+            c(4) => 
+            f(6) => 
+        c(7)
+            1
+            ge
+            geg(9) => 
+            0(8) => 
+            2(10) => 
+            3(11) => 
+            4(12) => 
+            5(13) => '
+    local dump_spec4='mytree
+    a
+        b
+            e
+            gege
+             => 
+            c => 
+            f => 
+        c
+            1
+            ge
+            geg => 
+            0 => 
+            2 => 
+            3 => 
+            4 => 
+            5 => '
+    local dump_spec5='mytree
+    a(2)
+        b(3)
+            e
+            gege
+            (5) => value2
+            c(4) => value1
+            f(6) => valgege
+                    gege
+                    ue3
+        c(7)
+            1
+            ge
+            geg(9) => value
+                      gege
+                      g5
+            0(8) => value4
+            2(10) => value6
+            3(11) => value7
+            4(12) => value8
+            5(13) => value9'
+    if [[ "$dump_str1" == "$dump_spec1" ]] &&
+        [[ "$dump_str2" == "$dump_spec2" ]] &&
+        [[ "$dump_str3" == "$dump_spec3" ]] &&
+        [[ "$dump_str4" == "$dump_spec4" ]] &&
+        [[ "$dump_str5" == "$dump_spec5" ]] ; then
+        log_test 1 1
+    else
+        log_test 0 1 ; return 1
+    fi
+    
+    return 0
+}
+
+# step_test 8
+eval -- "${|AS_RUN_TEST_CASES;}"
 
