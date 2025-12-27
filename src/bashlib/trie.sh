@@ -683,7 +683,9 @@ trie_get_subtree ()
 }
 
 # Iterate children under prefix
-# Output lines: "leaf token" or "tree token"
+#           token type value node
+# default     1    1     0    0
+# bit         0    1     2    3
 trie_iter ()
 {
     local -n tr_t=$1
