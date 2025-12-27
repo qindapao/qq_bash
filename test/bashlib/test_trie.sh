@@ -323,6 +323,9 @@ test_case7 ()
     
     local get_str1=${ trie_dump_flat 'mytree';}
     local get_str2=${ trie_dump_flat 'mytree' "a${S}";}
+    local get_str3=${ trie_dump_flat 'mytree' "a$S" 4 $((2#0));}
+    local get_str4=${ trie_dump_flat 'mytree' "a$S" 4 $((2#1));}
+
     local str1_spec='mytree
     1 => 1
     1.children => a.b
@@ -411,8 +414,51 @@ test_case7 ()
     4.key => a.b.c => value1
     max_index => 16'
 
-    if [[ "$get_str1" == "$str1_spec" ]] &&
-        [[ "$get_str2" == "$str2_spec" ]] ; then
+    local str3_spec='mytree
+    2 => 1
+    2.children => b.k.m
+    2.child.b => 3
+    2.child.k => 7
+    2.child.m => 6
+    6 => 1
+    6.key => a.m => 
+    7 => 1
+    7.children => 0.1.2.3.4
+    7.child.0 => 8
+    7.child.1 => 9
+    7.child.2 => 10
+    7.child.3 => 11
+    7.child.4 => 12
+    12 => 1
+    12.children => key1.key2
+    12.child.key1 => 13
+    12.child.key2 => 14
+    14 => 1
+    14.key => a.k.4.key2 => 
+    13 => 1
+    13.key => a.k.4.key1 => 
+    11 => 1
+    11.key => a.k.3 => 
+    10 => 1
+    10.key => a.k.2 => 
+    9 => 1
+    9.key => a.k.1 => 
+    8 => 1
+    8.key => a.k.0 => 
+    3 => 1
+    3.children => c.x
+    3.child.c => 4
+    3.child.x => 5
+    5 => 1
+    5.key => a.b.x => 
+    4 => 1
+    4.key => a.b.c => 
+    max_index => 16'
+
+    if  [[ "$get_str1" == "$str1_spec" ]] &&
+        [[ "$get_str2" == "$str2_spec" ]] &&
+        [[ "$get_str3" == "$str3_spec" ]] &&
+        [[ "$get_str4" == "$str2_spec" ]] ; then
         log_test 1 1
     else
         log_test 0 1 ; return 1

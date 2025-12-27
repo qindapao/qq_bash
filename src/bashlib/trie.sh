@@ -7,6 +7,7 @@
 
 TR_LIBS_DIR=${BASH_SOURCE[0]%/*}
 . "$TR_LIBS_DIR/array.sh"
+. "$TR_LIBS_DIR/var.sh"
 
 # All variable names in the library start with tr_.
 # Be careful to avoid external variables.
@@ -339,17 +340,19 @@ _trie_dump_flat_node()
     local tr_node_id=$2
     local tr_indent=$3
     local tr_indent2=$4
+    local tr_print_value=$5
 
     printf  "${tr_indent}%s => 1\n" "$tr_node_id"
 
     if [[ -n "${tr_t[$tr_node_id.key]}" ]]; then
         local tr_full_key="${tr_t[$tr_node_id.key]}"
         local tr_value="${tr_t[$tr_full_key]}"
-
+        local tr_value_p=''
+        ((tr_print_value)) && tr_value_p=${|_trie_sep_to_dot "$tr_value" "$tr_indent2";}
         printf  "${tr_indent}%s.key => %s => %s\n" \
                 "$tr_node_id" \
                 "${|_trie_sep_to_dot "$tr_full_key" "$tr_indent2";}" \
-                "${|_trie_sep_to_dot "$tr_value" "$tr_indent2";}"
+                "$tr_value_p"
     else
         local -a "tr_sub_tokens=(${|_split_tokens "${tr_t[$tr_node_id.children]}";})"
 
@@ -372,6 +375,11 @@ trie_dump_flat ()
     local -n tr_t=$1
     local tr_prefix=$2
     local tr_indent_cnt=${3:-4}
+    local tr_bitmap=${4:-1}
+    local tr_value_bit=0
+
+    local tr_print_value=$((( tr_bitmap >> tr_value_bit ) & 1))
+
     local tr_indent
     printf -v tr_indent "%*s" "$tr_indent_cnt" ""
     local tr_indent2="$tr_indent$tr_indent"
@@ -389,7 +397,9 @@ trie_dump_flat ()
         local tr_node_id=${tr_stack[-1]}
         unset -v 'tr_stack[-1]'
 
-        _trie_dump_flat_node "$tr_t_name" "$tr_node_id" "$tr_indent" "$tr_indent2"
+        _trie_dump_flat_node    "$tr_t_name" "$tr_node_id" \
+                                "$tr_indent" "$tr_indent2" \
+                                "$tr_print_value"
         if [[ -z "${tr_t[$tr_node_id.key]}" ]]; then
             local -a "tr_children=(${|_split_tokens "${tr_t[$tr_node_id.children]}";})"
             local tr_tk ; for tr_tk in "${tr_children[@]}"; do
@@ -439,19 +449,19 @@ _trie_token_to_node_id ()
 #              T[1]=1                
 #              T[1.children]="lev1-1"
 #              T[1.child.lev1-1]=2   <----ROOT
-#              T[1.key]=""           
+#                                    
 # T[2]=1                              
 # T[2.children]="lev2-1 lev2-2 lev2-3"
 # T[2.child.lev2-1]=3                     .-----------------------------------.
 # T[2.child.lev2-2]=5                 <---+-lev1-1(2)                         |
 # T[2.child.lev2-3]=8                     |     lev2-1(3)                     |
-# T[2.key]=""                             |         lev3-1(4) => value1       |
+#                                         |         lev3-1(4) => value1       |
 #                                         |     lev2-2(5)                     |    T[10]=1                                 
-#                                         |         0(7) => value0     .---------->T[10.children]=""                       
-#        T[8]=1                           |         11(6) => value11   |      |    T[10.key]="lev1-1 lev2-3 lev3-1 lev4-1" 
-#        T[8.children]="lev3-1"  <--------+-----lev2-3(8)              |      |    T[lev1-1 lev2-3 lev3-1 lev4-1]="value10"
+#                                         |         0(7) => value0     .---------->T[10.key]="lev1-1 lev2-3 lev3-1 lev4-1" 
+#        T[8]=1                           |         11(6) => value11   |      |    T[lev1-1 lev2-3 lev3-1 lev4-1]="value10"
+#        T[8.children]="lev3-1"  <--------+-----lev2-3(8)              |      |                                            
 #        T[8.child.lev3-1]=9            .-+---------lev3-1(9)          |      |
-#        T[8.key]=""                    | |             lev4-1(10) => value10 |
+#                                       | |             lev4-1(10) => value10 |
 #                                       | |             lev4-2(11) => value10 |
 #                                       | |                            |      |
 #                                       | |                            |      |
@@ -459,9 +469,8 @@ _trie_token_to_node_id ()
 #        T[9.children]="lev4-1 lev4-2"  |                              |
 #        T[9.child.lev4-1]=10         <-'                              |
 #        T[9.child.lev4-2]=11                                          |
-#        T[9.key]=""                                                   v
+#                                                                      v
 #                                                      T[11]=1                                 
-#                                                      T[11.children]=""                       
 #                                                      T[11.key]="lev1-1 lev2-3 lev3-1 lev4-2" 
 #                                                      T[lev1-1 lev2-3 lev3-1 lev4-2]="value10"
 #------------------------------------------------------------------------------
@@ -679,6 +688,13 @@ trie_iter ()
 {
     local -n tr_t=$1
     local tr_prefix=$2
+    local -i tr_is_iter_{token,type,value,node}=0
+    local tr_iter_bitmap=${3:-$((2#0011))}         
+    var_bitmap_unpack   "$tr_iter_bitmap" \
+                        "tr_is_iter_token:0" \
+                        "tr_is_iter_type:1" \
+                        "tr_is_iter_value:2" \
+                        "tr_is_iter_node:3"
 
     [[ -n "$tr_prefix" ]] && {
         trie_key_is_invalid "$tr_prefix" || return $?
@@ -689,18 +705,28 @@ trie_iter ()
 
     local -a "tr_children=(${|_split_tokens "${tr_t[$tr_node_id.children]}";})"
 
-    local tr_tk tr_child_id tr_type
+    local tr_tk tr_child_id tr_type tr_value tr_key
+    local tr_tk_p tr_type_p tr_value_p tr_node_p
 
     for tr_tk in "${tr_children[@]}"; do
         tr_child_id=${tr_t["$tr_node_id.child.$tr_tk"]}
+        tr_key="${tr_t["$tr_child_id.key"]}"
+        tr_value=''
 
-        if [[ -n "${tr_t[$tr_child_id.key]}" ]]; then
+        if [[ -n "$tr_key" ]]; then
             tr_type="leaf"
+            ((tr_is_iter_value)) && tr_value=${tr_t["$tr_key"]}
         else
             tr_type="tree"
         fi
 
-        REPLY+="${REPLY:+$'\n'}${tr_type} ${tr_tk@Q}"
+        ((tr_is_iter_token)) && tr_tk_p=${tr_tk@Q} || tr_tk_p=''
+        ((tr_is_iter_type)) && tr_type_p=${tr_type@Q} || tr_type_p=''
+        ((tr_is_iter_value)) && tr_value_p=${tr_value@Q} || tr_value_p=''
+        ((tr_is_iter_node)) && tr_node_p=${tr_child_id@Q} || tr_node_p=''
+
+        #                      token      type         value         node
+        REPLY+="${REPLY:+$'\n'}${tr_tk_p} ${tr_type_p} ${tr_value_p} ${tr_node_p}"
     done
 
     return ${TR_RET_ENUM_OK}
