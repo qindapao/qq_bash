@@ -137,5 +137,26 @@ test_case4 ()
     return 0
 }
 
+test_case5 ()
+{
+    local my_var="中文字文符"
+    local get_var=${my_var#中}
+    local get_var2=${my_var##*字}
+    local get_var3=${my_var%?}
+    local get_var4=${my_var%符}
+    local get_var5=${my_var%%文*}
+    if  [[ "$get_var" == '文字文符' ]] &&
+        [[ "$get_var2" == '文符' ]] &&
+        [[ "$get_var3" == '中文字文' ]] &&
+        [[ "$get_var4" == '中文字文' ]] &&
+        [[ "$get_var5" == '中' ]] ; then
+        log_test 1 1
+    else
+        log_test 0 1 ; return 1
+    fi
+    
+    return 0
+}
+
 eval -- "${|AS_RUN_TEST_CASES;}"
 

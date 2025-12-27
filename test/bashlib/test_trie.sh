@@ -186,35 +186,68 @@ test_case4 ()
 ${S}中文2$S" '2
 gege
 geg'
+    trie_insert t1 "c${S}k$S" 'value2 xx 3'
+    trie_insert t1 "c${S}k 78$S" 'valuex yy 3'
 
     trie_dump t1
 
     local OLD_IFS="$IFS"
     local IFS=$'\n'
-    local tuple type token
+    local tuple type token value node
 
     local -a get_arr=()
     local -a expect_arr=(
-        [0]="leaf" [1]="1"
-        [2]="leaf" [3]="1xx1"
-        [4]="leaf" [5]="4"
-        [6]="leaf" [7]="5"
-        [8]="leaf" [9]="a中文 budv不对2"
-        [10]="leaf" [11]="d  g3"
-        [12]="tree" [13]=$'bgege\n    gege\n')
+        [0]="1" [1]="leaf"
+        [2]="1xx1" [3]="leaf"
+        [4]="4" [5]="leaf"
+        [6]="5" [7]="leaf"
+        [8]="a中文 budv不对2" [9]="leaf"
+        [10]="d  g3" [11]="leaf"
+        [12]=$'bgege\n    gege\n' [13]="tree"
+        [14]="k" [15]="leaf"
+        [16]="k 78" [17]="leaf"
+
+        [18]=$'bgege\n    gege\n' [19]="tree" [20]="" [21]="14"
+        [22]="k" [23]="leaf" [24]="value2 xx 3" [25]="16"
+        [26]="k 78" [27]="leaf" [28]="valuex yy 3" [29]="17"
+        
+        [30]=$'bgege\n    gege\n' [31]="tree" [32]=""
+        [33]="k" [34]="leaf" [35]="value2 xx 3"
+        [36]="k 78" [37]="leaf" [38]="valuex yy 3"
+        
+        [39]=$'bgege\n    gege\n' [40]="tree" [41]="14"
+        [42]="k" [43]="leaf" [44]="16"
+        [45]="k 78" [46]="leaf" [47]="17")
+
 
     for tuple in ${|trie_iter t1 "a${S}b${S}";} ; do
         eval -- set -- $tuple
-        type=$1 token=$2
-        get_arr+=("$type")
-        get_arr+=("$token")
+        token=$1 type=$2 
+        get_arr+=("$token" "$type")
     done
 
     for tuple in ${|trie_iter t1 "c$S";} ; do
         eval -- set -- $tuple
-        type=$1 token=$2
-        get_arr+=("$type")
-        get_arr+=("$token")
+        token=$1 type=$2
+        get_arr+=("$token" "$type")
+    done
+
+    for tuple in ${|trie_iter t1 "c$S" $((2#1111));} ; do
+        eval -- set -- $tuple
+        token=$1 type=$2 value=$3 node=$4
+        get_arr+=("$token" "$type" "$value" "$node")
+    done
+
+    for tuple in ${|trie_iter t1 "c$S" $((2#0111));} ; do
+        eval -- set -- $tuple
+        token=$1 type=$2 value=$3
+        get_arr+=("$token" "$type" "$value")
+    done
+
+    for tuple in ${|trie_iter t1 "c$S" $((2#1011));} ; do
+        eval -- set -- $tuple
+        token=$1 type=$2 node=$3
+        get_arr+=("$token" "$type" "$node")
     done
 
     if assert_array 'a' get_arr expect_arr ; then
