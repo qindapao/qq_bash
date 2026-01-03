@@ -21,7 +21,6 @@ test_case1 ()
 
     eval -- local -A k=(${k_temp[*]@K})
     local -A "k=(${k_temp[*]@K})"
-    declare -p k
 
     tmp_key=("xxx xxx->xxx->xxx->xx:xx.x->(xxx:xx)->(xxxxx:xxxx)")
     if [[ -v 'k[${tmp_key[cnt]}]' ]] ; then
@@ -44,6 +43,38 @@ test_case1 ()
     unset -v 'k["$tmp_key"]'
 
     return
+}
+
+# unset complex keys of associative arrays
+test_case2 ()
+{
+    local -A assoc
+    local var='gge
+geg()
+xxx xxx->xxx->xxx->xx:xx.x->(xxx:xx)->(xxxxx:xxxx)
+'
+    assoc[$var]=1
+    local -A assoc_spec1=([$'gge\ngeg()\nxxx xxx->xxx->xxx->xx:xx.x->(xxx:xx)->(xxxxx:xxxx)\n']="1" )
+    local -A assoc_spec2=()
+    if assert_array 'A' assoc assoc_spec1 ; then
+        log_test 1 1
+    else
+        log_test 0 1 ; return 1
+    fi
+
+    if [[ -v 'assoc[$var]' ]] ; then
+        log_test 1 2
+    else
+        log_test 0 2 ; return 1
+    fi
+
+    unset -v 'assoc[$var]'
+    if assert_array 'A' assoc assoc_spec2 ; then
+        log_test 1 3
+    else
+        log_test 0 3 ; return 1
+    fi
+    return 0
 }
 
 eval -- "${|AS_RUN_TEST_CASES;}"

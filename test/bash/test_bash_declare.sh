@@ -109,7 +109,40 @@ test_case4 ()
     fi
 }
 
+test_case5 ()
+{
+    echo "test_case5 ret----------"
+    local a=1 b=2
+    local -n c=a d=b
+    local all_var_info=$(local)
+    local all_var_spec=$'declare -- a="1"\ndeclare -- b="2"\ndeclare -n c="a"\ndeclare -n d="b"'
+    if [[ "$all_var_info" == "$all_var_spec" ]] ; then
+        log_test 1 1
+    else
+        log_test 0 1 ; return 1
+    fi
+
+    return 0
+}
+
+test_case6 ()
+{
+    echo "test_case6 ret----------"
+    local a=1 b=2
+    local -n c=a d=b
+    # The reason why the local command here does not print anything is that the
+    # syntax of ${ cmd;} and ${|cmd;} is equivalent to creating an anonymous
+    # function to execute the command. Since the current local command here
+    # does not print for the new function.
+    local all_var_info=${ local;}
+    if [[ -z "$all_var_info" ]] ; then
+        log_test 1 1
+    else
+        log_test 0 1 ; return 1
+    fi
+
+    return 0
+}
+
 eval -- "${|AS_RUN_TEST_CASES;}"
-
-
 

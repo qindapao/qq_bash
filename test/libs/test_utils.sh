@@ -18,7 +18,8 @@ readonly -A AS_DICT_TEMP=(
 geg 
 "]=" gge geg(xx)[ggel
 
-]ggeeg")
+]ggeeg"
+    ["]"]="strange")
 
 # After the function is restored, the call stack such as line numbers will be
 # confused. Use with caution.
@@ -118,7 +119,7 @@ assert_array ()
 diff_two_str_side_by_side ()
 {
     local str1="$1" str2="$2"
-    local title1="$4" title2="$5"
+    local title1="$3" title2="$4"
     local ret_code=0
     local max1=$(printf "%s" "$str1" | display_max)
     local max2=$(printf "%s" "$str2" | display_max)

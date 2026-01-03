@@ -79,5 +79,7 @@ var_bitmap_unpack ()
     done
 }
 
+var_is_associative_array () { [[ "${!1@a}" == *A* ]] ; }
+
 return 0
 

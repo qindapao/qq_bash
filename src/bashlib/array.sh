@@ -1,6 +1,7 @@
 ((_ARRAY_IMPORTED++)) && return 0
 
 # a_ as a reserved prefix
+# Q string wrapping is no longer used
 array_sorted_insert ()
 {
     local -n a_arr=$1
@@ -16,7 +17,7 @@ array_sorted_insert ()
         ">")  # Ascending order
             while ((a_left < a_right)); do
                 local a_mid=$(((a_left + a_right) / 2))
-                if [[ "${a_arr[a_mid]@Q}" < "${a_value@Q}" ]] ; then
+                if [[ "${a_arr[a_mid]}" < "${a_value}" ]] ; then
                     a_left=$((a_mid + 1))
                 else
                     a_right=$a_mid
@@ -26,7 +27,7 @@ array_sorted_insert ()
         "<")  # descending order
             while ((a_left < a_right)); do
                 local a_mid=$(((a_left + a_right) / 2))
-                if [[ "${a_arr[a_mid]@Q}" > "${a_value@Q}" ]] ; then
+                if [[ "${a_arr[a_mid]}" > "${a_value}" ]] ; then
                     a_left=$((a_mid + 1))
                 else
                     a_right=$a_mid
@@ -36,7 +37,7 @@ array_sorted_insert ()
         "-gt")  # Ascending order
             while ((a_left < a_right)); do
                 local a_mid=$(((a_left + a_right) / 2))
-                if [[ "${a_arr[a_mid]}" -lt "$a_value" ]] ; then
+                if (( a_arr[a_mid] < a_value )) ; then
                     a_left=$((a_mid + 1))
                 else
                     a_right=$a_mid
@@ -46,7 +47,7 @@ array_sorted_insert ()
         "-lt")  # descending order
             while ((a_left < a_right)); do
                 local a_mid=$(((a_left + a_right) / 2))
-                if [[ "${a_arr[a_mid]}" -gt "$a_value" ]] ; then
+                if (( a_arr[a_mid] > a_value )) ; then
                     a_left=$((a_mid + 1))
                 else
                     a_right=$a_mid
@@ -173,6 +174,52 @@ _array_sort_cmd ()
     esac
 }
 
-return 0
+array_delete_element ()
+{
+    local delete_element=$1
+    local -a new_array=()
+    local item ; for item in "${@:2}" ; do
+        [[ "$item" != "$delete_element" ]] && new_array+=("$item")
+    done
+    REPLY=${new_array[*]@Q}
+}
 
+array_index ()
+{
+    local element=$1 item
+    local -i index=0
+    for item in "${@:2}" ; do
+        [[ "$element" == "$item" ]] && { REPLY=$index ; return ; }
+        ((index++))
+    done
+    REPLY=-1
+}
+
+# # "a" is a subset of "b"
+# local -a 'a=({0..5})' 'b=({0..10})'
+# isSubset a b
+# echo $? # true
+
+_array_is_subset ()
+{
+    local a=$1 b=$2 i="item_$1$2"
+
+    REPLY='
+        ((${'$a'@a} == ${'$b'@a})) || return 1
+        ((${#'$a'[@]} <= ${#'$b'[@]})) || return 1
+
+        local '$i'
+        for '$i' in "${!'$a'[@]}" ; do
+            [[ -v '\'''$b'["$'$i'"]'\'' && "${'$a'[$'$i']}" == "${'$b'[$'$i']}" ]] || return 1
+        done
+
+        return 0'
+}
+
+array_is_subset ()
+{
+    eval -- "${|_array_is_subset $1 $2;}"
+}
+
+return 0
 
