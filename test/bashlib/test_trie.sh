@@ -642,6 +642,34 @@ g5" \
     return 0
 }
 
-# step_test 8
+test_case9 ()
+{
+    local str_test="{key 1}$S[index 1]$S<id 1>$S"
+    local get_tokens
+    get_tokens=${|_split_tokens "$str_test";}
+    local ret=$?
+    local -a "tokens=($get_tokens)"
+    local tokens_spec1=('{key 1}' '[index 1]' '<id 1>')
+    if [[ "$ret" == '0' ]] &&
+        assert_array 'a' tokens tokens_spec1 ; then
+        log_test 1 1
+    else
+        log_test 0 1 ; return 1
+    fi
+
+    local str_test="{key 1$S[index 1]$S<id 1>$S"
+    local get_tokens
+    get_tokens=${|_split_tokens "$str_test";}
+    local ret=$?
+    if [[ "$ret" == "$TR_RET_ENUM_KEY_IS_INVALID" ]] ; then
+        log_test 1 2
+    else
+        log_test 0 2 ; return 1
+    fi
+
+    return 0
+}
+
+step_test 9
 eval -- "${|AS_RUN_TEST_CASES;}"
 

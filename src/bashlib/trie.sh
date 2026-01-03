@@ -19,13 +19,30 @@ readonly TR_RET_ENUM_OK=0
 readonly TR_RET_ENUM_KEY_IS_TREE=1
 readonly TR_RET_ENUM_KEY_IS_LEAF=2
 readonly TR_RET_ENUM_KEY_IS_NOTFOUND=3
+readonly TR_RET_ENUM_KEY_IS_INVALID=4
 readonly TR_RET_ENUM_KEY_IS_NULL=8
-readonly TR_RET_ENUM_KEY_UP_LEV_HAVE_LEAF=9
+readonly TR_RET_ENUM_KEY_UP_LEV_TYPE_MISMATCH=9
 readonly TR_RET_ENUM_TREE_IS_INVALID=10
 readonly TR_RET_ENUM_TREE_IS_EMPTY=11
 readonly TR_RET_ENUM_TREE_NOT_HAVE_ROOT=12
 
-TR_RET_ENUM_TREE_IS_NOT_SAME=1
+readonly TR_RET_ENUM_TREE_IS_NOT_SAME=1
+
+readonly TR_TYPE_OBJ=1
+readonly TR_TYPE_ARR=2
+readonly TR_TYPE_NULL=3
+readonly TR_TYPE_TRUE=4
+readonly TR_TYPE_FALSE=5
+readonly TR_TYPE_NUM=6
+readonly TR_TYPE_STR=7
+
+readonly TR_VALUE_NULL="null$S"
+readonly TR_VALUE_TRUE="true$S"
+readonly TR_VALUE_FALSE="false$S"
+
+
+
+
 
 _str_is_decimal_positive_int ()
 {
@@ -43,41 +60,35 @@ _array_is_all_decimal_positive_int ()
     return 0
 }
 
-# $?
-# 0 all digital
-# 1 Contains non-digits
 _split_tokens ()
 {
     local tokens_str=$1
-    local -i is_need_check=${2:-0}
     local -a tokens=()
-    local -i all_numeric=0
-    if ((is_need_check)) ; then
-        local tk
-        while [[ -n "$tokens_str" ]] ; do
-            tk="${tokens_str%%"$S"*}"
-            tokens+=("$tk")
-            tokens_str="${tokens_str#*"$S"}"
-            ((all_numeric)) || {
-                _str_is_decimal_positive_int "$tk" || all_numeric=1
-            }
-        done
-    else
-        while [[ -n "$tokens_str" ]] ; do
-            tokens+=("${tokens_str%%"$S"*}")
-            tokens_str="${tokens_str#*"$S"}"
-        done
-    fi
+    local token
+
+    while [[ -n "$tokens_str" ]] ; do
+        token=${tokens_str%%"$S"*}
+        ((${#token}<=2)) && return $TR_RET_ENUM_KEY_IS_INVALID
+        case "${token:0:1}${token: -1}" in
+        '{}'|'[]'|'<>') :   ;;
+        *)  echo "key:$1 is invalid!" >&2
+            return $TR_RET_ENUM_KEY_IS_INVALID
+            ;;
+        esac
+        tokens+=("$token")
+
+        tokens_str="${tokens_str#*"$S"}"
+    done
     
     REPLY="${tokens[*]@Q}"
-    return $all_numeric
+    return $TR_RET_ENUM_OK
 }
 
 trie_init ()
 {
     local -A t=()
-    local j_type=$1
     t[$TR_ROOT_ID]=1
+    t[$TR_ROOT_ID.type]=$1
     # t[$TR_ROOT_ID.children]=''
     # t[$TR_ROOT_ID.key]=''
 
@@ -180,6 +191,7 @@ trie_insert ()
 {
     local -n tr_t=$1
     local tr_full_key=$2
+    local tr_real_full_key
 
     trie_key_is_invalid "$tr_full_key" || return $?
 
@@ -191,17 +203,69 @@ trie_insert ()
         return ${TR_RET_ENUM_OK}
     fi
 
-    local tr_token tr_child_key tr_child_id
-    local -a "tr_tokens=(${|_split_tokens "$tr_full_key";})"
+    local tr_token tr_child_key tr_child_id tr_tokens_str
+    tr_tokens_str=${|_split_tokens "$tr_full_key";} || return $?
+    local -a "tr_tokens=($tr_tokens_str)"
     local tr_node=${TR_ROOT_ID}
 
     for tr_token in "${tr_tokens[@]}" ; do
-        # The upper layer cannot be leaves
-        [[ -n "${tr_t[$tr_node.key]}" ]] && {
-            echo "parent have leaf key!" >&2
-            return ${TR_RET_ENUM_KEY_UP_LEV_HAVE_LEAF}
-        }
+        local tr_key="${tr_t[$tr_node.key]}"
+        local -i tr_is_array=0
+        case "${tr_token:0:1}${tr_token: -1}" in
+        '{}') 
+            # 上一层必须是 null 或者 obj 或者什么都没有
+            if [[ "${tr_t[$tr_node.type]}" == "$TR_TYPE_OBJ" ]] ; then
+                :
+            elif [[ -n "$tr_key" ]] && [[ "${tr_t[$tr_key]}" == "$TR_TYPE_NULL" ]] ; then
+                # 变成路径 空 obj
+                unset -v 'tr_t[$tr_node.key]'
+                unset -v 'tr_t[$tr_key]'
+                tr_t[$tr_node.type]=$TR_TYPE_OBJ
+            else
+                echo "token:${tr_token} is not obj or null." >&2
+                return $TR_RET_ENUM_KEY_UP_LEV_TYPE_MISMATCH
+            fi
+            ;;
+        '[]')
+            tr_is_array=1
+            # 上一层必须是 null 或者 array
+            # 上一层是 null 就创建一个 空数组 路径节点
+            if [[ -n "$tr_key" ]] && [[ "${tr_t[$tr_key]}" == "$TR_TYPE_NULL" ]] ; then
+                unset -v 'tr_t[$tr_node.key]'
+                unset -v 'tr_t[$tr_key]'
+                tr_t[$tr_node.type]=$TR_TYPE_ARR
+            fi
 
+            [[ "${tr_t[$tr_node.type]}" != "$TR_TYPE_ARR" ]] && {
+                echo "token:${tr_token} is not array." >&2
+                return $TR_RET_ENUM_KEY_UP_LEV_TYPE_MISMATCH
+            }
+
+            # 填充不全的 null 节点并且更新 tr_token
+            local -a "tr_array=(${|_split_tokens "${tr_t[$tr_node.children]}";})"
+            local -i tr_i
+            for((tr_i=${#tr_array[@]};tr_i<${tr_token:1:-1};tr_i++)) ; do
+                local tr_new_id=${tr_t[max_index]}
+                tr_t[$tr_new_id]=1
+                tr_t[$tr_new_id.key]=
+            done
+            tr_token=
+            ;;
+        '<>')
+            tr_is_array=1
+            # 上一层必须是数组并且要存在元素
+            if [[ "${tr_t[$tr_node.type]}" != "$TR_TYPE_ARR" ]] ; then
+                echo "token:${tr_token} up layer is not array." >&2
+                return $TR_RET_ENUM_KEY_UP_LEV_TYPE_MISMATCH
+            fi
+
+            if [[ -z "${tr_t[$tr_node.child.$tr_token]}" ]] ; then
+                echo "token:${tr_token} is not exist." >&2
+                return $TR_RET_ENUM_KEY_UP_LEV_TYPE_MISMATCH
+            fi
+            ;;
+        esac
+            
         tr_child_key="$tr_node.child.$tr_token"
         tr_child_id="${tr_t[$tr_child_key]}"
 
