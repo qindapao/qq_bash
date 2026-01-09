@@ -11,7 +11,6 @@ test_case1 ()
     {
         local -A "t1=(${|trie_init "$TR_TYPE_OBJ";})"
         local -A t1_init_spec=(
-            [1]=1
             [1.type]=1
             [max_index]=2
             )
@@ -23,11 +22,9 @@ test_case1 ()
 
         trie_insert t1 "{key1}$S" "value1"
         local -A t1_insert_spec=(
-            [1]=1
             [1.type]=1
             [1.children]="{key1}$S"
             ["1.child.{key1}"]=2
-            [2]=1
             ["{key1}$S"]=value1
             [2.key]="{key1}$S"
             [max_index]=3
@@ -585,6 +582,34 @@ test_case10 ()
     return 0
 }
 
-# step_test 10
+# test trie_get_tree
+test_case11 ()
+{
+    local -A "t1=(${|trie_init "$TR_TYPE_OBJ";})"
+    trie_inserts t1 "{a}$S{b}$S" "1" \
+                    "{a}$S{c}$S" "2" \
+                    "{a}$S{m}$S[0]$S[2]$S" "2" \
+                    "{a}$S{k}$S{key2}$S[2]$S" "4" \
+                    "{b}$S{x}$S" "3" \
+                    "{b}$S{y}$S" "3"
+
+    local -A "t2=(${|trie_get_tree t1 "{a}$S";})"
+
+    local -A "t2_spec=(${|trie_init "$TR_TYPE_OBJ";})"
+    trie_inserts t2_spec    "{b}$S" "1" \
+                            "{c}$S" "2" \
+                            "{m}$S[0]$S[2]$S" "2" \
+                            "{k}$S{key2}$S[2]$S" "4"
+
+    if trie_equals t2 t2_spec ; then
+        log_test 1 1
+    else
+        log_test 0 1 ; return 1
+    fi
+
+    return 0
+}
+
+# step_test 11
 eval -- "${|AS_RUN_TEST_CASES;}"
 

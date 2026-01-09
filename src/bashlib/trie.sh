@@ -14,8 +14,8 @@
 # But usually $'\034' is enough.
 # Be careful not to change this value casually, as it may affect the re-import of the variable.
 # The semantics will change after importing
-readonly S=$'\034\035\036\037'
-# readonly S=$'\034'
+# readonly S=$'\034\035\036\037'
+readonly S=$'\034'
 readonly TR_ROOT_ID=1
 readonly TR_RET_ENUM_OK=0
 readonly TR_RET_ENUM_KEY_IS_TREE=1
@@ -178,7 +178,7 @@ _negative_token_to_positive ()
 trie_init ()
 {
     local -A t=()
-    t[$TR_ROOT_ID]=1
+    # t[$TR_ROOT_ID]=1
     t[$TR_ROOT_ID.type]=${1:-"$TR_TYPE_OBJ"}
     # t[$TR_ROOT_ID.children]=''
     # t[$TR_ROOT_ID.key]=''
@@ -233,11 +233,9 @@ _tokens_insert_to_overwrite ()
 trie_graft ()
 {
     local tr_target_name=$1
-    local tr_sub_name=$3
-    local -n tr_target=$1
-    local -n tr_sub=$3
     # If tr_prefix contains '()', it can only be used for the first time
     local tr_graft_prefix=$2
+    local tr_sub_name=$3
     local tr_graft_is_first_insert=1
     local tr_graft_start_token_id=${TR_ROOT_ID}
     local tr_graft_start_path_token=""
@@ -396,6 +394,18 @@ trie_insert ()
 
     local tr_node=${tr_start_node_id}
 
+    # 记录创建的中间节点的 ID 键, 需要全部删除
+    local -a tr_tmp_node_ids=()
+
+    _trie_insert_delete_tmp_node_ids ()
+    {
+        local tr_tmp_node
+
+        for tr_tmp_node in "${tr_tmp_node_ids[@]}" ; do
+            unset -v 'tr_t[$tr_tmp_node]'
+        done
+    }
+
     for tr_token in "${tr_tokens[@]}" ; do
         local tr_key="${tr_t[$tr_node.key]}"
         local -i tr_array_index=-1
@@ -418,6 +428,7 @@ trie_insert ()
                 tr_t[$tr_node.type]=$TR_TYPE_OBJ
             else
                 die "node:${tr_node}(token:${tr_token}) is not obj or null."
+                _trie_insert_delete_tmp_node_ids
                 return $TR_RET_ENUM_KEY_UP_LEV_TYPE_MISMATCH
             fi
             ;;
@@ -437,6 +448,7 @@ trie_insert ()
 
             [[ "${tr_t[$tr_node.type]}" != "$TR_TYPE_ARR" ]] && {
                 die "node:${tr_node}(token:${tr_token}) up layer is not array or null."
+                _trie_insert_delete_tmp_node_ids
                 return $TR_RET_ENUM_KEY_UP_LEV_TYPE_MISMATCH
             }
 
@@ -445,11 +457,16 @@ trie_insert ()
             local -i tr_i tr_array_len=${#tr_array[@]}
             local -a tr_add_token=()
             
-            tr_token=${|_negative_token_to_positive "$tr_token" "$tr_array_len" "$tr_node";} || return $?
+            local tr_token_ret
+            tr_token=${|_negative_token_to_positive "$tr_token" "$tr_array_len" "$tr_node";} ; tr_token_ret=$?
+            ((tr_token_ret)) && {
+                _trie_insert_delete_tmp_node_ids
+                return $tr_token_ret
+            }
 
             for((tr_i=tr_array_len;tr_i<${tr_token:1:-1};tr_i++)) ; do
                 local tr_new_id=${tr_t[max_index]} ; ((tr_t[max_index]++))
-                tr_t[$tr_new_id]=1
+                # tr_t[$tr_new_id]=1
                 tr_t[$tr_new_id.key]="$tr_path_key<$tr_new_id>$S"
                 tr_t["$tr_path_key<$tr_new_id>$S"]="$TR_VALUE_NULL"
                 # Attach parent node children
@@ -477,11 +494,13 @@ trie_insert ()
             # The previous level must be an array and elements must exist
             if [[ "${tr_t[$tr_node.type]}" != "$TR_TYPE_ARR" ]] ; then
                 die "node:${tr_node}(token:${tr_token}) up layer is not array."
+                _trie_insert_delete_tmp_node_ids
                 return $TR_RET_ENUM_KEY_UP_LEV_TYPE_MISMATCH
             fi
 
             if [[ -z "${tr_t[$tr_node.child.$tr_token]}" ]] ; then
                 die "node:${tr_node}(token:${tr_token}) is not exist."
+                _trie_insert_delete_tmp_node_ids
                 return $TR_RET_ENUM_KEY_UP_LEV_TYPE_MISMATCH
             fi
             ;;
@@ -494,6 +513,7 @@ trie_insert ()
         if [[ -z "$tr_child_id" ]] ; then
             tr_child_id="${tr_t[max_index]}" ; ((tr_t[max_index]++))
             tr_t[$tr_child_id]=1
+            tr_tmp_node_ids+=("$tr_child_id")
             # tr_t[$tr_child_id.children]=''
             # tr_t[$tr_child_id.key]=''
 
@@ -526,6 +546,7 @@ trie_insert ()
     # and the leaf is not allowed to be inserted.
     [[ -n "${tr_t[$tr_node.children]}" ]] && {
         die "node:${tr_node}(token:${tr_token}) have children."
+        _trie_insert_delete_tmp_node_ids
         return $TR_RET_ENUM_KEY_UP_LEV_TYPE_MISMATCH
     }
 
@@ -535,12 +556,14 @@ trie_insert ()
     if  [[ "${tr_t[$tr_node.type]}" == "$TR_TYPE_OBJ" ]] &&
         [[ "$tr_value" != "$TR_VALUE_NULL_OBJ" ]] ; then
         die "node:${tr_node}(token:${tr_token}) is null obj,but insert is not."
+        _trie_insert_delete_tmp_node_ids
         return $TR_RET_ENUM_KEY_UP_LEV_TYPE_MISMATCH
     fi
 
     if  [[ "${tr_t[$tr_node.type]}" == "$TR_TYPE_ARR" ]] &&
         [[ "$tr_value" != "$TR_VALUE_NULL_ARR" ]] ; then
         die "node:${tr_node}(token:${tr_token}) is null array,but insert is not."
+        _trie_insert_delete_tmp_node_ids
         return $TR_RET_ENUM_KEY_UP_LEV_TYPE_MISMATCH
     fi
 
@@ -553,6 +576,7 @@ trie_insert ()
             tr_t["$tr_path_key"]=$tr_value
             # 返回节点 ID
             REPLY=$tr_node
+            _trie_insert_delete_tmp_node_ids
             return $TR_RET_ENUM_OK
     esac
 
@@ -564,6 +588,7 @@ trie_insert ()
     [[ -n "$tr_key" ]] && unset -v 'tr_t[$tr_key]'
     tr_t[$tr_node.type]="$tr_new_type"
     REPLY=$tr_node
+    _trie_insert_delete_tmp_node_ids
     return $TR_RET_ENUM_OK
 }
 
@@ -820,7 +845,7 @@ trie_delete ()
         unset -v 'tr_t["$tr_cur.type"]'
 
         # Do not delete the root node itself
-        unset -v "tr_t[$tr_cur]"
+        # unset -v "tr_t[$tr_cur]"
     done
 
     # Update the children of the upper node
@@ -923,7 +948,7 @@ trie_get_tree ()
         unset -v 'tr_stack[-1]'
         ((tr_max_id=(tr_cur>tr_max_id)?tr_cur:tr_max_id))
 
-        tr_new[$tr_cur]=1
+        # tr_new[$tr_cur]=1
         [[ -n "${tr_t[$tr_cur.children]}" ]] && tr_new[$tr_cur.children]=${tr_t[$tr_cur.children]}
         [[ -n "${tr_t[$tr_cur.type]}" ]] && tr_new[$tr_cur.type]=${tr_t[$tr_cur.type]}
 
@@ -1195,7 +1220,7 @@ trie_id_rebuild ()
         local new_id=${tr_id_map[$old_id]}
         local new_parent_id=${tr_id_map[$parent_old_id]}
 
-        tr_new[$new_id]=1
+        # tr_new[$new_id]=1
         
         # write type tag
         case "$type" in
@@ -1453,7 +1478,6 @@ trie_to_flat_assoc () { trie_layer_get_flat 'obj' "$@" ; }
 # Hooks have no deletion semantics, but writes to flat layers do
 trie_flat_to_tree ()
 {
-    local -n tr_t=$1
     local tr_prefix=$2
     local -n tr_array=$3
     ((${#tr_array[@]})) || return $TR_FLAT_ASSOC_NULL
