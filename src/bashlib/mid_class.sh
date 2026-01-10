@@ -12,10 +12,10 @@ setup_mid_class ()
     local tr_value2=$4
     local tr_cnt_demo=$5
 
-    trie_insert "$tr_self" "{SELF}$S" "$tr_my_obj_name"
-    trie_insert "$tr_self" "{P1}$S" "$tr_value1"
-    trie_insert "$tr_self" "{P2}$S" "$tr_value2"
-    trie_insert "$tr_self" "{CNT}$S" "$tr_cnt_demo"
+    trie_insert "$tr_self" "{SELF}$X" "$tr_my_obj_name"
+    trie_insert "$tr_self" "{P1}$X" "$tr_value1"
+    trie_insert "$tr_self" "{P2}$X" "$tr_value2"
+    trie_insert "$tr_self" "{CNT}$X" "$tr_cnt_demo"
 }
 
 new_mid_class ()
@@ -45,17 +45,22 @@ cut_plus_mid_class ()
 {
     local -n tr_self=$1
 
-    ${tr_self[{SUPER}$S{${FUNCNAME[0]}}$S]}
+    ${tr_self[{SUPER}$X{${FUNCNAME[0]}}$X]}
 
-    local tr_cnt=${|trie_get_leaf "$1" "{CNT}$S";}
+    local tr_cnt=${|trie_get_leaf "$1" "{CNT}$X";}
     ((tr_cnt++))
-    tr_self[{CNT}$S]=$tr_cnt
+    tr_self[{CNT}$X]=$tr_cnt
 }
 
 haha_mid_class ()
 {
     local tr_self=$1
     echo "$tr_self, Hello world!"
+}
+
+special_mid_mid_class ()
+{
+    :
 }
 
 return 0

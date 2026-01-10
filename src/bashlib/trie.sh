@@ -14,8 +14,8 @@
 # But usually $'\034' is enough.
 # Be careful not to change this value casually, as it may affect the re-import of the variable.
 # The semantics will change after importing
-# readonly S=$'\034\035\036\037'
-readonly S=$'\034'
+# readonly X=$'\034\035\036\037'
+readonly X=$'\034'
 readonly TR_ROOT_ID=1
 readonly TR_RET_ENUM_OK=0
 readonly TR_RET_ENUM_KEY_IS_TREE=1
@@ -46,11 +46,11 @@ readonly TR_NODE_KIND_LEAF_NULL=6
 readonly TR_NODE_KIND_UNKNOWN=7
 
 # Value types (only for writing and printing)
-readonly TR_VALUE_NULL="null$S"
-readonly TR_VALUE_TRUE="true$S"
-readonly TR_VALUE_FALSE="false$S"
-readonly TR_VALUE_NULL_OBJ="{}$S"
-readonly TR_VALUE_NULL_ARR="[]$S"
+readonly TR_VALUE_NULL="null$X"
+readonly TR_VALUE_TRUE="true$X"
+readonly TR_VALUE_FALSE="false$X"
+readonly TR_VALUE_NULL_OBJ="{}$X"
+readonly TR_VALUE_NULL_ARR="[]$X"
 
 # Flat layer judgment
 readonly TR_FLAT_IS_MATCH=0
@@ -89,7 +89,7 @@ _split_tokens ()
     local token
 
     while [[ -n "$tokens_str" ]] ; do
-        token=${tokens_str%%"$S"*}
+        token=${tokens_str%%"$X"*}
         ((${#token}<=2)) && return $TR_RET_ENUM_KEY_IS_INVALID
         case "${token:0:1}${token: -1}" in
         '()')
@@ -116,7 +116,7 @@ _split_tokens ()
         esac
         tokens+=("$token")
 
-        tokens_str="${tokens_str#*"$S"}"
+        tokens_str="${tokens_str#*"$X"}"
     done
     
     REPLY="${tokens[*]@Q}"
@@ -218,12 +218,12 @@ _tokens_insert_to_overwrite ()
     local -a tokens=()
     local token
     while [[ -n "$tokens_str" ]] ; do
-        token=${tokens_str%%"$S"*}
+        token=${tokens_str%%"$X"*}
         [[ "${token:0:1}" == '(' ]] && token="[${token:1:-1}]"
         tokens+=("$token")
-        tokens_str="${tokens_str#*"$S"}"
+        tokens_str="${tokens_str#*"$X"}"
     done
-    printf -v REPLY "%s$S" "${tokens[@]}"
+    printf -v REPLY "%s$X" "${tokens[@]}"
     return $TR_RET_ENUM_OK
 }
 
@@ -279,10 +279,10 @@ trie_graft ()
 
 trie_key_is_invalid ()
 {
-    if [[ "$1" == "$S"* ]] ||
-        [[ "$1" == *"$S$S"* ]] ||
-        [[ "$1" == "$S" ]] ||
-        [[ "$1" != *"$S" ]] ; then
+    if [[ "$1" == "$X"* ]] ||
+        [[ "$1" == *"$X$X"* ]] ||
+        [[ "$1" == "$X" ]] ||
+        [[ "$1" != *"$X" ]] ; then
         die "key is null or invalid!"
         return $TR_RET_ENUM_KEY_IS_NULL
     else
@@ -291,9 +291,9 @@ trie_key_is_invalid ()
 }
 
 # Insert with public prefix
-# trie_inserts t1 "{prefix1}$S{prefix2}$S" "[0]$S" "array_value1" \
-#                                          "[1]$S" "array_value2" \
-#                                          "[2]$S" "array_value3"
+# trie_inserts t1 "{prefix1}$X{prefix2}$X" "[0]$X" "array_value1" \
+#                                          "[1]$X" "array_value2" \
+#                                          "[2]$X" "array_value3"
 
 trie_qinserts ()
 {
@@ -367,7 +367,7 @@ trie_insert ()
     if [[ -n "$tr_path_key" ]] ; then
         trie_key_is_invalid "$tr_path_key" || return $?
 
-        [[ "$tr_path_key" == *"]$S"* || "$tr_path_key" == *")$S"* ]] && {
+        [[ "$tr_path_key" == *"]$X"* || "$tr_path_key" == *")$X"* ]] && {
             die "path key:${tr_path_key} is not physical key."
             return $TR_RET_ENUM_KEY_IS_INVALID
         }
@@ -469,8 +469,8 @@ trie_insert ()
             for((tr_i=tr_array_len;tr_i<${tr_token:1:-1};tr_i++)) ; do
                 local tr_new_id=${tr_t[max_index]} ; ((tr_t[max_index]++))
                 # tr_t[$tr_new_id]=1
-                tr_t[$tr_new_id.key]="$tr_path_key<$tr_new_id>$S"
-                tr_t["$tr_path_key<$tr_new_id>$S"]="$TR_VALUE_NULL"
+                tr_t[$tr_new_id.key]="$tr_path_key<$tr_new_id>$X"
+                tr_t["$tr_path_key<$tr_new_id>$X"]="$TR_VALUE_NULL"
                 # Attach parent node children
                 tr_t["$tr_node.child.<$tr_new_id>"]=$tr_new_id
                 tr_add_token+=("<$tr_new_id>")
@@ -481,7 +481,7 @@ trie_insert ()
             if ((${#tr_add_token[@]})) ; then
                 # Populate the parent node's children list
                 tr_array=("${tr_array[@]:0:tr_array_len}" "${tr_add_token[@]}" "${tr_array[@]:tr_array_len}")
-                printf -v 'tr_t[$tr_node.children]' "%s$S" "${tr_array[@]}"
+                printf -v 'tr_t[$tr_node.children]' "%s$X" "${tr_array[@]}"
                 tr_token="<${tr_t[max_index]}>"
             else
                 tr_token="${tr_array[tr_array_index]}"
@@ -532,12 +532,12 @@ trie_insert ()
                 array_sorted_insert tr_children "$tr_token" '<'
             fi
 
-            printf -v tr_t[$tr_node.children] "%s$S" "${tr_children[@]}"
+            printf -v tr_t[$tr_node.children] "%s$X" "${tr_children[@]}"
             tr_t["$tr_child_key"]=$tr_child_id
         fi
 
         tr_node=$tr_child_id
-        tr_path_key+="$tr_token$S"
+        tr_path_key+="$tr_token$X"
     done
 
     # Write leaf key
@@ -712,7 +712,7 @@ _trie_token_to_node_id ()
     [[ -z "$tr_full_key" ]] && {
         # ROOT
         [[ -n "${tr_t[$TR_ROOT_ID.children]}" ]] && {
-            tr_child_cnt=${|str_count "${tr_t[$TR_ROOT_ID.children]}" "$S";}
+            tr_child_cnt=${|str_count "${tr_t[$TR_ROOT_ID.children]}" "$X";}
         }
         tr_node_info=(
             [node_id]="$TR_ROOT_ID"
@@ -752,12 +752,12 @@ _trie_token_to_node_id ()
             return "$TR_RET_ENUM_KEY_IS_NOTFOUND"
         }
         tr_node=$tr_child_id
-        tr_real_full_key+="$tr_token$S"
-        tr_index_full_key+="$tr_token_index$S"
+        tr_real_full_key+="$tr_token$X"
+        tr_index_full_key+="$tr_token_index$X"
     done
 
     [[ -n "${tr_t[$tr_node.children]}" ]] && {
-        tr_child_cnt=${|str_count "${tr_t[$tr_node.children]}" "$S";}
+        tr_child_cnt=${|str_count "${tr_t[$tr_node.children]}" "$X";}
     }
 
     local tr_key=${tr_t[$tr_node.key]} tr_value=''
@@ -812,7 +812,7 @@ trie_delete ()
         tr_node=$tr_child_id
     done
 
-    printf -v tr_full_key "%s$S" "${tr_path_tokens[@]:1}"
+    printf -v tr_full_key "%s$X" "${tr_path_tokens[@]:1}"
 
     # At this time, tr_node is the node corresponding to tr_full_key
     # (it can be a leaf or an intermediate node)
@@ -857,7 +857,7 @@ trie_delete ()
     local -a "tr_children=(${|_split_tokens "${tr_t[$tr_parent.children]}";})"
     array_delete_first_e tr_children "$tr_token"
     if ((${#tr_children[@]})) ; then
-        printf -v 'tr_t[$tr_parent.children]' "%s$S" "${tr_children[@]}"
+        printf -v 'tr_t[$tr_parent.children]' "%s$X" "${tr_children[@]}"
     else
         unset -v 'tr_t[$tr_parent.children]'
     fi
@@ -933,7 +933,7 @@ trie_get_tree ()
     ((${#tr_root_children[@]})) || { REPLY=${tr_new[*]@K} ; return ${TR_RET_ENUM_OK} ; }
     
     # 7. The children of the new tree are reset to the current tr_root_children
-    printf -v tr_new[$TR_ROOT_ID.children] "%s$S" "${tr_root_children[@]}"
+    printf -v tr_new[$TR_ROOT_ID.children] "%s$X" "${tr_root_children[@]}"
 
     # 8. Mount all root children
     local tr_tk tr_cid
@@ -1061,10 +1061,10 @@ trie_callback_print ()
 {
     local node_kind=$1         # leaf / leaf_null / obj / obj_empty / arr / arr_empty
     local index_token=$2       # "{k}" or "[0]"
-    local index_full_key=$3    # "{a}$S[0]$S{b}$S"
+    local index_full_key=$3    # "{a}$X[0]$X{b}$X"
     local value=$4             # only meaningful for leaf/leaf_null
     local physical_token=$5    # Internal tokens like "<123>" (if needed)
-    local physical_full_key=$6 # "{a}$S<12>$S<56>$S"
+    local physical_full_key=$6 # "{a}$X<12>$X<56>$X"
     local node_id=$7
     local parent_id=$8
     local printf_info
@@ -1165,8 +1165,8 @@ trie_walk ()
 
             tr_index_token=$tr_tk
             [[ "${tr_tk:0:1}" == '<' ]] && tr_index_token="[$tr_index]"
-            tr_index_full_key="$tr_index_prefix$tr_index_token$S"
-            tr_physical_full_key="$tr_physical_prefix$tr_tk$S"
+            tr_index_full_key="$tr_index_prefix$tr_index_token$X"
+            tr_physical_full_key="$tr_physical_prefix$tr_tk$X"
 
             "$tr_callback"  "$tr_node_kind" \
                             "$tr_index_token" \
@@ -1241,10 +1241,10 @@ trie_id_rebuild ()
         if _str_is_decimal_positive_int "$index_token" ; then
             # Update new token
             tr_new["$new_parent_id.child.<$new_id>"]="$new_id"
-            tr_new[$new_parent_id.children]+="<$new_id>$S"
+            tr_new[$new_parent_id.children]+="<$new_id>$X"
         else
             tr_new[$new_parent_id.child.$token]="$new_id"
-            tr_new[$new_parent_id.children]+="$token$S"
+            tr_new[$new_parent_id.children]+="$token$X"
         fi
     }
     trie_walk $1 '' trie_id_rebuild_callback
@@ -1282,7 +1282,7 @@ trie_equals ()
     trie_equals_check_ab ()
     {
         local kind=$1 index_full_key=$3 value=$4
-        tr_trie_equals_1_check["$index_full_key"]="$kind$S$value$S"
+        tr_trie_equals_1_check["$index_full_key"]="$kind$X$value$X"
 
         return $TR_RET_ENUM_OK
     }
@@ -1294,7 +1294,7 @@ trie_equals ()
     {
         local kind=$1 index_full_key=$3 value=$4
 
-        tr_trie_equals_2_check["$index_full_key"]="$kind$S$value$S"
+        tr_trie_equals_2_check["$index_full_key"]="$kind$X$value$X"
 
         return $TR_RET_ENUM_OK
     }
@@ -1343,7 +1343,7 @@ _trie_array_next_key ()
 
     case "$tr_node_info_ret" in
     $TR_RET_ENUM_KEY_IS_NOTFOUND)
-        [[ "$tr_mode" == 'push' ]] && REPLY="$tr_up_key[0]$S" || REPLY="$tr_up_key(0)$S"
+        [[ "$tr_mode" == 'push' ]] && REPLY="$tr_up_key[0]$X" || REPLY="$tr_up_key(0)$X"
         ;;
     $TR_RET_ENUM_OK)
         # Get the up node type
@@ -1352,9 +1352,9 @@ _trie_array_next_key ()
             [[ "${tr_node_info[value]}" == "$TR_VALUE_NULL" ]] ; then
             tr_child_cnt=${tr_node_info[child_cnt]}
             if [[ "$tr_mode" == 'push' ]] ; then
-                REPLY="${tr_node_info[physical_full_key]}[$tr_child_cnt]$S"
+                REPLY="${tr_node_info[physical_full_key]}[$tr_child_cnt]$X"
             else
-                REPLY="${tr_node_info[physical_full_key]}(0)$S"
+                REPLY="${tr_node_info[physical_full_key]}(0)$X"
             fi
         else
             die "node:${tr_node_info[node_id]} type is not array or null."
@@ -1487,7 +1487,7 @@ trie_flat_to_tree ()
 
     [[ "${tr_array@a}" == *A* ]] && tr_array_is_assoc=1
 
-    [[ "$tr_prefix" == *")$S"* ]] || {
+    [[ "$tr_prefix" == *")$X"* ]] || {
         trie_delete "$1" "$tr_prefix" || return $?
     }
 
@@ -1495,9 +1495,9 @@ trie_flat_to_tree ()
     local -a tr_params=()
     for tr_index in "${!tr_array[@]}" ; do
         if ((tr_array_is_assoc)) ; then
-            tr_params+=("{$tr_index}$S" "${tr_array[$tr_index]}")
+            tr_params+=("{$tr_index}$X" "${tr_array[$tr_index]}")
         else
-            tr_params+=("[$tr_index]$S" "${tr_array[$tr_index]}")
+            tr_params+=("[$tr_index]$X" "${tr_array[$tr_index]}")
         fi
     done
 
@@ -1533,7 +1533,7 @@ _trie_flat_insert ()
     [[ "${tr_array@a}" == *A* ]] && tr_is_assoc=1
     
     for tr_index in "${!tr_array[@]}" ; do
-        ((tr_is_assoc)) && tr_token="{$tr_index}$S" || tr_token="[$tr_index]$S"
+        ((tr_is_assoc)) && tr_token="{$tr_index}$X" || tr_token="[$tr_index]$X"
         tr_params+=("$tr_token" "${tr_array[$tr_index]}")
     done
 

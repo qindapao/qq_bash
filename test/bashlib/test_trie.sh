@@ -20,13 +20,13 @@ test_case1 ()
             log_test 0 1 ;return 1
         fi
 
-        trie_insert t1 "{key1}$S" "value1"
+        trie_insert t1 "{key1}$X" "value1"
         local -A t1_insert_spec=(
             [1.type]=1
-            [1.children]="{key1}$S"
+            [1.children]="{key1}$X"
             ["1.child.{key1}"]=2
-            ["{key1}$S"]=value1
-            [2.key]="{key1}$S"
+            ["{key1}$X"]=value1
+            [2.key]="{key1}$X"
             [max_index]=3
             )
 
@@ -44,56 +44,56 @@ test_case1 ()
     test_case1_inner2 ()
     {
         local -A "t1=(${|trie_init "$TR_TYPE_OBJ";})"
-        trie_inserts t1 "{key1}$S[2]$S[2]$S" "key1_2_2"                \
-                        "{key1}$S[1]$S[1]$S" "null0_change"            \
-                        "{key1}$S[3]$S[2]$S" "new_value"               \
-                        "{key1}$S[3]$S[0]$S" "$TR_VALUE_NULL_OBJ"      \
-                        "{key1}$S[3]$S[0]$S{x3}$S" "1.11"              \
-                        "{key1}$S[3]$S[1]$S" "$TR_VALUE_NULL_ARR"      \
-                        "{key1}$S[3]$S[1]$S[5]$S" "$TR_VALUE_NULL_OBJ" \
-                        "{key1}$S[3]$S[1]$S[5]$S{key11}$S" "xx1"       \
-                        "{key1}$S[3]$S[1]$S[5]$S{key1}$S" "xx2"        \
-                        "{key1}$S[3]$S[1]$S[5]$S{c}$S" "c"             \
-                        "{key1}$S[3]$S[1]$S[5]$S{b}$S" "c"             \
-                        "{key1}$S[3]$S[1]$S[5]$S{a}$S" "c"             \
-                        "{key1}$S[3]$S[1]$S[5]$S{m}$S" "c"             \
-                        "{key1}$S[3]$S[1]$S[5]$S{key2}$S" "c"          \
-                        "{key1}$S[3]$S[1]$S[5]$S{key3}$S" "c"          \
-                        "{key1}$S[3]$S[3]$S" "$TR_VALUE_NULL_OBJ"      \
-                        "{key1}$S[3]$S[4]$S" "$TR_VALUE_NULL_ARR"      \
-                        "{key1}$S[3]$S[5]$S" "$TR_VALUE_NULL_OBJ"      \
-                        "{key1}$S[3]$S[6]$S" "$TR_VALUE_NULL_OBJ"      \
-                        "{key1}$S[3]$S[7]$S" "$TR_VALUE_NULL_OBJ"      \
-                        "{key1}$S[3]$S[-4]$S" "$TR_VALUE_NULL_ARR"     \
-                        "{key2}${ohter_lev1}$S" "$TR_VALUE_NULL_OBJ"
+        trie_inserts t1 "{key1}$X[2]$X[2]$X" "key1_2_2"                \
+                        "{key1}$X[1]$X[1]$X" "null0_change"            \
+                        "{key1}$X[3]$X[2]$X" "new_value"               \
+                        "{key1}$X[3]$X[0]$X" "$TR_VALUE_NULL_OBJ"      \
+                        "{key1}$X[3]$X[0]$X{x3}$X" "1.11"              \
+                        "{key1}$X[3]$X[1]$X" "$TR_VALUE_NULL_ARR"      \
+                        "{key1}$X[3]$X[1]$X[5]$X" "$TR_VALUE_NULL_OBJ" \
+                        "{key1}$X[3]$X[1]$X[5]$X{key11}$X" "xx1"       \
+                        "{key1}$X[3]$X[1]$X[5]$X{key1}$X" "xx2"        \
+                        "{key1}$X[3]$X[1]$X[5]$X{c}$X" "c"             \
+                        "{key1}$X[3]$X[1]$X[5]$X{b}$X" "c"             \
+                        "{key1}$X[3]$X[1]$X[5]$X{a}$X" "c"             \
+                        "{key1}$X[3]$X[1]$X[5]$X{m}$X" "c"             \
+                        "{key1}$X[3]$X[1]$X[5]$X{key2}$X" "c"          \
+                        "{key1}$X[3]$X[1]$X[5]$X{key3}$X" "c"          \
+                        "{key1}$X[3]$X[3]$X" "$TR_VALUE_NULL_OBJ"      \
+                        "{key1}$X[3]$X[4]$X" "$TR_VALUE_NULL_ARR"      \
+                        "{key1}$X[3]$X[5]$X" "$TR_VALUE_NULL_OBJ"      \
+                        "{key1}$X[3]$X[6]$X" "$TR_VALUE_NULL_OBJ"      \
+                        "{key1}$X[3]$X[7]$X" "$TR_VALUE_NULL_OBJ"      \
+                        "{key1}$X[3]$X[-4]$X" "$TR_VALUE_NULL_ARR"     \
+                        "{key2}${ohter_lev1}$X" "$TR_VALUE_NULL_OBJ"
 
         local str1="${ trie_dump t1 "" 4 $((2#011));}"
-        trie_delete t1 "{key1}$S[2]$S"
+        trie_delete t1 "{key1}$X[2]$X"
         local str2="${ trie_dump t1 "" 4 $((2#011));}"
         diff_two_str_side_by_side "$str1" "$str2" "t1" "t1_delete"
         
         local -A "t2=(${|trie_init "$TR_TYPE_OBJ";})"
-        trie_inserts t2 "{key1}$S[1]$S[1]$S" "null0_change"            \
-                        "{key1}$S[2]$S[2]$S" "new_value"               \
-                        "{key1}$S[2]$S[0]$S" "$TR_VALUE_NULL_OBJ"      \
-                        "{key1}$S[2]$S[0]$S{x3}$S" "1.11"              \
-                        "{key1}$S[2]$S[1]$S" "$TR_VALUE_NULL_ARR"      \
-                        "{key1}$S[2]$S[1]$S[5]$S" "$TR_VALUE_NULL_OBJ" \
-                        "{key1}$S[2]$S[1]$S[5]$S{key11}$S" "xx1"       \
-                        "{key1}$S[2]$S[1]$S[5]$S{key1}$S" "xx2"        \
-                        "{key1}$S[2]$S[1]$S[5]$S{c}$S" "c"             \
-                        "{key1}$S[2]$S[1]$S[5]$S{b}$S" "c"             \
-                        "{key1}$S[2]$S[1]$S[5]$S{a}$S" "c"             \
-                        "{key1}$S[2]$S[1]$S[5]$S{m}$S" "c"             \
-                        "{key1}$S[2]$S[1]$S[5]$S{key2}$S" "c"          \
-                        "{key1}$S[2]$S[1]$S[5]$S{key3}$S" "c"          \
-                        "{key1}$S[2]$S[3]$S" "$TR_VALUE_NULL_OBJ"      \
-                        "{key1}$S[2]$S[4]$S" "$TR_VALUE_NULL_ARR"      \
-                        "{key1}$S[2]$S[5]$S" "$TR_VALUE_NULL_OBJ"      \
-                        "{key1}$S[2]$S[6]$S" "$TR_VALUE_NULL_OBJ"      \
-                        "{key1}$S[2]$S[7]$S" "$TR_VALUE_NULL_OBJ"      \
-                        "{key1}$S[2]$S[-4]$S" "$TR_VALUE_NULL_ARR"     \
-                        "{key2}${ohter_lev1}$S" "$TR_VALUE_NULL_OBJ"
+        trie_inserts t2 "{key1}$X[1]$X[1]$X" "null0_change"            \
+                        "{key1}$X[2]$X[2]$X" "new_value"               \
+                        "{key1}$X[2]$X[0]$X" "$TR_VALUE_NULL_OBJ"      \
+                        "{key1}$X[2]$X[0]$X{x3}$X" "1.11"              \
+                        "{key1}$X[2]$X[1]$X" "$TR_VALUE_NULL_ARR"      \
+                        "{key1}$X[2]$X[1]$X[5]$X" "$TR_VALUE_NULL_OBJ" \
+                        "{key1}$X[2]$X[1]$X[5]$X{key11}$X" "xx1"       \
+                        "{key1}$X[2]$X[1]$X[5]$X{key1}$X" "xx2"        \
+                        "{key1}$X[2]$X[1]$X[5]$X{c}$X" "c"             \
+                        "{key1}$X[2]$X[1]$X[5]$X{b}$X" "c"             \
+                        "{key1}$X[2]$X[1]$X[5]$X{a}$X" "c"             \
+                        "{key1}$X[2]$X[1]$X[5]$X{m}$X" "c"             \
+                        "{key1}$X[2]$X[1]$X[5]$X{key2}$X" "c"          \
+                        "{key1}$X[2]$X[1]$X[5]$X{key3}$X" "c"          \
+                        "{key1}$X[2]$X[3]$X" "$TR_VALUE_NULL_OBJ"      \
+                        "{key1}$X[2]$X[4]$X" "$TR_VALUE_NULL_ARR"      \
+                        "{key1}$X[2]$X[5]$X" "$TR_VALUE_NULL_OBJ"      \
+                        "{key1}$X[2]$X[6]$X" "$TR_VALUE_NULL_OBJ"      \
+                        "{key1}$X[2]$X[7]$X" "$TR_VALUE_NULL_OBJ"      \
+                        "{key1}$X[2]$X[-4]$X" "$TR_VALUE_NULL_ARR"     \
+                        "{key2}${ohter_lev1}$X" "$TR_VALUE_NULL_OBJ"
 
         # trie_dump t2 "" 4 $((2#111));
         if trie_equals t1 t2 ; then
@@ -109,18 +109,18 @@ test_case1 ()
     {
         local -A "t1=(${|trie_init "$TR_TYPE_OBJ";})"
 
-        trie_inserts t1 "{a}$S{b}$S{c}$S" "1" \
-                        "{a}$S{b}$S{c1}$S" "2" \
-                        "{a}$S{b}$S{c2}$S" "$TR_VALUE_NULL_OBJ" \
-                        "{a}$S{b}$S{c3}$S" "$TR_VALUE_NULL_ARR" \
-                        "{a}$S{c}$S[4]$S" "$TR_VALUE_NULL"
+        trie_inserts t1 "{a}$X{b}$X{c}$X" "1" \
+                        "{a}$X{b}$X{c1}$X" "2" \
+                        "{a}$X{b}$X{c2}$X" "$TR_VALUE_NULL_OBJ" \
+                        "{a}$X{b}$X{c3}$X" "$TR_VALUE_NULL_ARR" \
+                        "{a}$X{c}$X[4]$X" "$TR_VALUE_NULL"
 
         local -A "t2=(${|trie_init "$TR_TYPE_ARR";})"
 
-        trie_inserts t2 "[0]$S(4)$S{c}$S" "t2_1" \
-                        "[0]$S(2)$S{c1}$S" "t2_2"
+        trie_inserts t2 "[0]$X(4)$X{c}$X" "t2_1" \
+                        "[0]$X(2)$X{c1}$X" "t2_2"
 
-        local my_graft_id=${|trie_graft t1 "{a}$S{c}$S[4]$S" t2;}
+        local my_graft_id=${|trie_graft t1 "{a}$X{c}$X[4]$X" t2;}
 
         if [[ "$my_graft_id" == '13' ]] ; then
             log_test 1 1
@@ -128,20 +128,20 @@ test_case1 ()
             log_test 0 1 ; return 1
         fi
 
-        local abc ; abc=${|trie_get_leaf t1 "{a}$S{c}$S[4]$S[0]$S[2]$S{c1}$S";}
-        trie_insert t1 "{a}$S{c}$S[4]$S[0]$S[2]$S{c1}$S" "18.2"
-        local abc ; abc=${|trie_get_leaf t1 "{a}$S{c}$S[4]$S[0]$S[2]$S{c1}$S";}
-        trie_insert t1 "{a}$S{c}$S[4]$S[0]$S[0]$S" "18.2"
-        trie_insert t1 "{a}$S{c}$S[5]$S" "$TR_VALUE_NULL_ARR"
-        trie_insert t1 "{a}$S{c}$S[5]$S[0]$S" "xx_1"
+        local abc ; abc=${|trie_get_leaf t1 "{a}$X{c}$X[4]$X[0]$X[2]$X{c1}$X";}
+        trie_insert t1 "{a}$X{c}$X[4]$X[0]$X[2]$X{c1}$X" "18.2"
+        local abc ; abc=${|trie_get_leaf t1 "{a}$X{c}$X[4]$X[0]$X[2]$X{c1}$X";}
+        trie_insert t1 "{a}$X{c}$X[4]$X[0]$X[0]$X" "18.2"
+        trie_insert t1 "{a}$X{c}$X[5]$X" "$TR_VALUE_NULL_ARR"
+        trie_insert t1 "{a}$X{c}$X[5]$X[0]$X" "xx_1"
 
-        trie_delete t1 "{a}$S{b}$S"
+        trie_delete t1 "{a}$X{b}$X"
 
         local -A "t1_rebuild=(${|trie_id_rebuild t1;})"
 
 
-        trie_insert t1 "{a}$S{m}$S" "$TR_VALUE_NULL_OBJ"
-        trie_insert t1_rebuild "{a}$S{m}$S" "$TR_VALUE_NULL_OBJ"
+        trie_insert t1 "{a}$X{m}$X" "$TR_VALUE_NULL_OBJ"
+        trie_insert t1_rebuild "{a}$X{m}$X" "$TR_VALUE_NULL_OBJ"
         
         if trie_equals t1 t1_rebuild ; then
             log_test 1 2
@@ -156,16 +156,16 @@ test_case1 ()
     {
         local -A "t1=(${|trie_init "$TR_TYPE_OBJ";})"
 
-        trie_inserts t1 "{a 1}$S{b}$S{c}$S" "1" \
-                        "{a 1}$S{b}$S{c1}$S" "2" \
-                        "{a 1}$S{b}$S{c2}$S" "$TR_VALUE_NULL_OBJ" \
-                        "{a 1}$S{b}$S{c3}$S" "$TR_VALUE_NULL_ARR" \
-                        "{a 1}$S{c}$S[4]$S" "xx"
+        trie_inserts t1 "{a 1}$X{b}$X{c}$X" "1" \
+                        "{a 1}$X{b}$X{c1}$X" "2" \
+                        "{a 1}$X{b}$X{c2}$X" "$TR_VALUE_NULL_OBJ" \
+                        "{a 1}$X{b}$X{c3}$X" "$TR_VALUE_NULL_ARR" \
+                        "{a 1}$X{c}$X[4]$X" "xx"
         trie_dump t1
         local tuple
         local old_ifs=$IFS ; local IFS=$'\n'
         local -a get_info=()
-        for tuple in ${|trie_iter t1 "{a 1}$S{c}$S" $((2#11111));} ; do
+        for tuple in ${|trie_iter t1 "{a 1}$X{c}$X" $((2#11111));} ; do
             IFS=$old_ifs ; eval -- set -- $tuple
             get_info+=("$@")
         done
@@ -196,19 +196,19 @@ test_case2 ()
     local -A "t1=(${|trie_init "$TR_TYPE_OBJ";})"
     local -A "t2=(${|trie_init "$TR_TYPE_OBJ";})"
     
-    trie_inserts t1 "{a}$S{b}$S{c}$S" "1" \
-                    "{a}$S{m}$S" "$TR_VALUE_NULL"
+    trie_inserts t1 "{a}$X{b}$X{c}$X" "1" \
+                    "{a}$X{m}$X" "$TR_VALUE_NULL"
 
-    trie_inserts t2 "{a1}$S{b}$S{c}$S" "1" \
-                    "{b}$S{m}$S[5]$S" "$TR_VALUE_NULL"
+    trie_inserts t2 "{a1}$X{b}$X{c}$X" "1" \
+                    "{b}$X{m}$X[5]$X" "$TR_VALUE_NULL"
 
-    trie_graft t1 "{x}$S" t2
+    trie_graft t1 "{x}$X" t2
 
     local -A "t1_spec=(${|trie_init "$TR_TYPE_OBJ";})"
-    trie_inserts t1_spec    "{a}$S{b}$S{c}$S" "1" \
-                            "{a}$S{m}$S" "$TR_VALUE_NULL" \
-                            "{x}$S{a1}$S{b}$S{c}$S" "1" \
-                            "{x}$S{b}$S{m}$S[5]$S" "$TR_VALUE_NULL"
+    trie_inserts t1_spec    "{a}$X{b}$X{c}$X" "1" \
+                            "{a}$X{m}$X" "$TR_VALUE_NULL" \
+                            "{x}$X{a1}$X{b}$X{c}$X" "1" \
+                            "{x}$X{b}$X{m}$X[5]$X" "$TR_VALUE_NULL"
 
     if trie_equals t1 t1_spec ; then
         log_test 1 1
@@ -222,40 +222,40 @@ test_case2 ()
 test_case3 ()
 {
     local -A "t1=(${|trie_init "$TR_TYPE_OBJ";})"
-    trie_inserts t1     "{a}$S{b}$S{c}$S" "1" \
-                        "{a}$S{m}$S" "$TR_VALUE_NULL" \
-                        "{x}$S{a1}$S{b}$S{c}$S" "1" \
-                        "{x}$S{b}$S{m}$S[5]$S" "$TR_VALUE_NULL"
+    trie_inserts t1     "{a}$X{b}$X{c}$X" "1" \
+                        "{a}$X{m}$X" "$TR_VALUE_NULL" \
+                        "{x}$X{a1}$X{b}$X{c}$X" "1" \
+                        "{x}$X{b}$X{m}$X[5]$X" "$TR_VALUE_NULL"
 
     trie_dump t1
-    trie_push_leaf t1 "{a}$S{beee}$S" 'x'
-    trie_push_leaf t1 "{a}$S{beee}$S" 'y'
-    trie_push_leaf t1 "{a}$S{beee}$S" "$TR_VALUE_NULL_ARR"
-    trie_push_leaf t1 "{a}$S{beee}$S" "$TR_VALUE_NULL"
-    trie_push_leaf t1 "{a}$S{beee}$S" "$TR_VALUE_NULL_OBJ"
+    trie_push_leaf t1 "{a}$X{beee}$X" 'x'
+    trie_push_leaf t1 "{a}$X{beee}$X" 'y'
+    trie_push_leaf t1 "{a}$X{beee}$X" "$TR_VALUE_NULL_ARR"
+    trie_push_leaf t1 "{a}$X{beee}$X" "$TR_VALUE_NULL"
+    trie_push_leaf t1 "{a}$X{beee}$X" "$TR_VALUE_NULL_OBJ"
 
-    trie_insert t1 "{a}$S{m}$S" "$TR_VALUE_NULL_ARR"
-    trie_push_leaf t1 "{a}$S{m}$S" "x"
+    trie_insert t1 "{a}$X{m}$X" "$TR_VALUE_NULL_ARR"
+    trie_push_leaf t1 "{a}$X{m}$X" "x"
 
     local -A "t1_spec=(${|trie_init "$TR_TYPE_OBJ";})"
-    trie_inserts t1_spec "{a}$S{b}$S{c}$S" 1 \
-                        "{a}$S{beee}$S[0]$S" x \
-                        "{a}$S{beee}$S[1]$S" y \
-                        "{a}$S{beee}$S[2]$S" "$TR_VALUE_NULL_ARR" \
-                        "{a}$S{beee}$S[3]$S" "$TR_VALUE_NULL" \
-                        "{a}$S{beee}$S[4]$S" "$TR_VALUE_NULL_OBJ" \
-                        "{a}$S{m}$S[0]$S" x \
-                        "{x}$S{a1}$S{b}$S{c}$S" 1 \
-                        "{x}$S{b}$S{m}$S[9]$S" "$TR_VALUE_NULL" \
-                        "{x}$S{b}$S{m}$S[0]$S" "4" \
-                        "{x}$S{b}$S{m}$S[1]$S" "3" \
-                        "{x}$S{b}$S{m}$S[2]$S" "2" \
-                        "{x}$S{b}$S{m}$S[3]$S" "1"
+    trie_inserts t1_spec "{a}$X{b}$X{c}$X" 1 \
+                        "{a}$X{beee}$X[0]$X" x \
+                        "{a}$X{beee}$X[1]$X" y \
+                        "{a}$X{beee}$X[2]$X" "$TR_VALUE_NULL_ARR" \
+                        "{a}$X{beee}$X[3]$X" "$TR_VALUE_NULL" \
+                        "{a}$X{beee}$X[4]$X" "$TR_VALUE_NULL_OBJ" \
+                        "{a}$X{m}$X[0]$X" x \
+                        "{x}$X{a1}$X{b}$X{c}$X" 1 \
+                        "{x}$X{b}$X{m}$X[9]$X" "$TR_VALUE_NULL" \
+                        "{x}$X{b}$X{m}$X[0]$X" "4" \
+                        "{x}$X{b}$X{m}$X[1]$X" "3" \
+                        "{x}$X{b}$X{m}$X[2]$X" "2" \
+                        "{x}$X{b}$X{m}$X[3]$X" "1"
 
-    trie_unshift_leaf t1 "{x}$S{b}$S{m}$S" "1"
-    trie_unshift_leaf t1 "{x}$S{b}$S{m}$S" "2"
-    trie_unshift_leaf t1 "{x}$S{b}$S{m}$S" "3"
-    trie_unshift_leaf t1 "{x}$S{b}$S{m}$S" "4"
+    trie_unshift_leaf t1 "{x}$X{b}$X{m}$X" "1"
+    trie_unshift_leaf t1 "{x}$X{b}$X{m}$X" "2"
+    trie_unshift_leaf t1 "{x}$X{b}$X{m}$X" "3"
+    trie_unshift_leaf t1 "{x}$X{b}$X{m}$X" "4"
 
     if trie_equals t1 t1_spec ; then
         log_test 1 1
@@ -269,34 +269,34 @@ test_case3 ()
 test_case4 ()
 {
     local -A "t1=(${|trie_init "$TR_TYPE_OBJ";})"
-    trie_inserts t1     "{a}$S{b}$S{c}$S" "1" \
-                        "{a}$S{m}$S" "$TR_VALUE_NULL" \
-                        "{x}$S{a1}$S{b}$S{c}$S" "1" \
-                        "{x}$S{b}$S{m}$S[5]$S" "$TR_VALUE_NULL"
+    trie_inserts t1     "{a}$X{b}$X{c}$X" "1" \
+                        "{a}$X{m}$X" "$TR_VALUE_NULL" \
+                        "{x}$X{a1}$X{b}$X{c}$X" "1" \
+                        "{x}$X{b}$X{m}$X[5]$X" "$TR_VALUE_NULL"
 
     local -A "t2=(${|trie_init "$TR_TYPE_OBJ";})"
-    trie_inserts t2     "{a}$S{b}$S{c}$S" "1" \
-                        "{a}$S{m}$S" "$TR_VALUE_NULL" \
-                        "{mxx}$S{a1}$S{b}$S{c}$S" "1" \
-                        "{x}$S{b}$S{m}$S[5]$S" "$TR_VALUE_NULL"
+    trie_inserts t2     "{a}$X{b}$X{c}$X" "1" \
+                        "{a}$X{m}$X" "$TR_VALUE_NULL" \
+                        "{mxx}$X{a1}$X{b}$X{c}$X" "1" \
+                        "{x}$X{b}$X{m}$X[5]$X" "$TR_VALUE_NULL"
 
-    trie_push_tree t1 "{a}$S{x}$S{b}$S{m}$S" t2
+    trie_push_tree t1 "{a}$X{x}$X{b}$X{m}$X" t2
     
     local -A "t1_spec=(${|trie_init "$TR_TYPE_OBJ";})"
-    trie_inserts t1_spec "{a}$S{b}$S{c}$S" "1" \
-                        "{a}$S{m}$S" "$TR_VALUE_NULL" \
-                        "{x}$S{a1}$S{b}$S{c}$S" "1" \
-                        "{x}$S{b}$S{m}$S[5]$S" "$TR_VALUE_NULL" \
-                        "{a}$S{x}$S{b}$S{m}$S[1]$S{a}$S{b}$S{c}$S" "1" \
-                        "{a}$S{x}$S{b}$S{m}$S[1]$S{a}$S{m}$S" "$TR_VALUE_NULL" \
-                        "{a}$S{x}$S{b}$S{m}$S[1]$S{mxx}$S{a1}$S{b}$S{c}$S" "1" \
-                        "{a}$S{x}$S{b}$S{m}$S[1]$S{x}$S{b}$S{m}$S[5]$S" "$TR_VALUE_NULL" \
-                        "{a}$S{x}$S{b}$S{m}$S[0]$S{new}$S" "new_value"
+    trie_inserts t1_spec "{a}$X{b}$X{c}$X" "1" \
+                        "{a}$X{m}$X" "$TR_VALUE_NULL" \
+                        "{x}$X{a1}$X{b}$X{c}$X" "1" \
+                        "{x}$X{b}$X{m}$X[5]$X" "$TR_VALUE_NULL" \
+                        "{a}$X{x}$X{b}$X{m}$X[1]$X{a}$X{b}$X{c}$X" "1" \
+                        "{a}$X{x}$X{b}$X{m}$X[1]$X{a}$X{m}$X" "$TR_VALUE_NULL" \
+                        "{a}$X{x}$X{b}$X{m}$X[1]$X{mxx}$X{a1}$X{b}$X{c}$X" "1" \
+                        "{a}$X{x}$X{b}$X{m}$X[1]$X{x}$X{b}$X{m}$X[5]$X" "$TR_VALUE_NULL" \
+                        "{a}$X{x}$X{b}$X{m}$X[0]$X{new}$X" "new_value"
 
 
     local -A "t3=(${|trie_init "$TR_TYPE_OBJ";})"
-    trie_insert t3 "{new}$S" "new_value"
-    trie_unshift_tree t1 "{a}$S{x}$S{b}$S{m}$S" t3
+    trie_insert t3 "{new}$X" "new_value"
+    trie_unshift_tree t1 "{a}$X{x}$X{b}$X{m}$X" t3
 
     if trie_equals t1 t1_spec ; then
         log_test 1 1
@@ -310,20 +310,20 @@ test_case4 ()
 test_case5 ()
 {
     local -A "t1=(${|trie_init "$TR_TYPE_OBJ";})"
-    trie_inserts t1     "{a}$S" "1"                    \
-                        "{b}$S" "101.3$S"              \
-                        "{c}$S" "101.3"                \
-                        "{d}$S" "${TR_VALUE_TRUE}"     \
-                        "{e}$S" "${TR_VALUE_FALSE}"    \
-                        "{f}$S" "${TR_VALUE_NULL_ARR}" \
-                        "{g}$S" "${TR_VALUE_NULL_OBJ}" \
-                        "{h}$S" "${TR_VALUE_NULL}"     \
-                        "{i}$S" "null"                 \
-                        "{j}$S" $'xxx\n  \n yyy'
+    trie_inserts t1     "{a}$X" "1"                    \
+                        "{b}$X" "101.3$X"              \
+                        "{c}$X" "101.3"                \
+                        "{d}$X" "${TR_VALUE_TRUE}"     \
+                        "{e}$X" "${TR_VALUE_FALSE}"    \
+                        "{f}$X" "${TR_VALUE_NULL_ARR}" \
+                        "{g}$X" "${TR_VALUE_NULL_OBJ}" \
+                        "{h}$X" "${TR_VALUE_NULL}"     \
+                        "{i}$X" "null"                 \
+                        "{j}$X" $'xxx\n  \n yyy'
     local flat_1 flat_1_ret
     local -A flat_1_spec=(
         [a]=1
-        [b]="101.3$S"
+        [b]="101.3$X"
         [c]="101.3"
         [d]="${TR_VALUE_TRUE}"
         [e]="${TR_VALUE_FALSE}"
@@ -352,16 +352,16 @@ test_case5 ()
 test_case6 ()
 {
     local -A "t1=(${|trie_init "$TR_TYPE_ARR";})"
-    trie_inserts t1     "[10]$S" "1"                    \
-                        "[14]$S" "101.3$S"              \
-                        "[16]$S" "101.3"                \
-                        "[17]$S" "${TR_VALUE_TRUE}"     \
-                        "[18]$S" "${TR_VALUE_FALSE}"    \
-                        "[19]$S" "${TR_VALUE_NULL_ARR}" \
-                        "[20]$S" "${TR_VALUE_NULL_OBJ}" \
-                        "[21]$S" "${TR_VALUE_NULL}"     \
-                        "[22]$S" "null"                 \
-                        "[23]$S" "xxx"
+    trie_inserts t1     "[10]$X" "1"                    \
+                        "[14]$X" "101.3$X"              \
+                        "[16]$X" "101.3"                \
+                        "[17]$X" "${TR_VALUE_TRUE}"     \
+                        "[18]$X" "${TR_VALUE_FALSE}"    \
+                        "[19]$X" "${TR_VALUE_NULL_ARR}" \
+                        "[20]$X" "${TR_VALUE_NULL_OBJ}" \
+                        "[21]$X" "${TR_VALUE_NULL}"     \
+                        "[22]$X" "null"                 \
+                        "[23]$X" "xxx"
     local flat_1 flat_1_ret
     local -a flat_1_spec=(
         "${TR_VALUE_NULL}"
@@ -378,7 +378,7 @@ test_case6 ()
         "${TR_VALUE_NULL}"
         "${TR_VALUE_NULL}"
         "${TR_VALUE_NULL}"
-        "101.3$S"
+        "101.3$X"
         "${TR_VALUE_NULL}"
         "101.3"
         "${TR_VALUE_TRUE}"
@@ -409,24 +409,24 @@ test_case6 ()
 test_case7 ()
 {
     local -A "t1=(${|trie_init "$TR_TYPE_OBJ";})"
-    trie_inserts t1     "{x}$S{a}$S" "1"                    \
-                        "{x}$S{b}$S" "101.3$S"              \
-                        "{x}$S{c}$S" "101.3"                \
-                        "{x}$S{d}$S" "${TR_VALUE_TRUE}"     \
-                        "{y}$S{e}$S" "${TR_VALUE_FALSE}"    \
-                        "{y}$S{f}$S" "${TR_VALUE_NULL_ARR}" \
-                        "{y}$S{g}$S" "${TR_VALUE_NULL_OBJ}" \
-                        "{y}$S{h}$S" "${TR_VALUE_NULL}"     \
-                        "{y}$S{i}$S" "null"                 \
-                        "{y}$S{j}$S" "xxx"
+    trie_inserts t1     "{x}$X{a}$X" "1"                    \
+                        "{x}$X{b}$X" "101.3$X"              \
+                        "{x}$X{c}$X" "101.3"                \
+                        "{x}$X{d}$X" "${TR_VALUE_TRUE}"     \
+                        "{y}$X{e}$X" "${TR_VALUE_FALSE}"    \
+                        "{y}$X{f}$X" "${TR_VALUE_NULL_ARR}" \
+                        "{y}$X{g}$X" "${TR_VALUE_NULL_OBJ}" \
+                        "{y}$X{h}$X" "${TR_VALUE_NULL}"     \
+                        "{y}$X{i}$X" "null"                 \
+                        "{y}$X{j}$X" "xxx"
     local flat_1 flat_1_ret
     local -A flat_1_spec=(
         [a]=1
-        [b]="101.3$S"
+        [b]="101.3$X"
         [c]="101.3"
         [d]="${TR_VALUE_TRUE}"
         )
-    if flat_1=${|trie_to_flat_assoc t1 "{x}$S";} ; then
+    if flat_1=${|trie_to_flat_assoc t1 "{x}$X";} ; then
         local -A "flat_1=($flat_1)"
     fi
 
@@ -448,20 +448,20 @@ test_case8 ()
     local -A "t1=(${|trie_init "$TR_TYPE_ARR";})"
     local -A "t2=(${|trie_init "$TR_TYPE_ARR";})"
 
-    local xxk=${|trie_inserts t2     "[0]$S[10]$S" "1"   \
-                    "[0]$S[14]$S" "101.3$S"              \
-                    "[1]$S[16]$S" "101.3"                \
-                    "[1]$S[17]$S" "${TR_VALUE_TRUE}"     \
-                    "[1]$S[18]$S" "${TR_VALUE_FALSE}"    \
-                    "[1]$S[19]$S" "${TR_VALUE_NULL_ARR}" \
-                    "[1]$S[20]$S" "${TR_VALUE_NULL_OBJ}" \
-                    "[1]$S[21]$S" "${TR_VALUE_NULL}"     \
-                    "[1]$S[22]$S" "null"                 \
-                    "[1]$S[23]$S" "xxx";}
+    local xxk=${|trie_inserts t2     "[0]$X[10]$X" "1"   \
+                    "[0]$X[14]$X" "101.3$X"              \
+                    "[1]$X[16]$X" "101.3"                \
+                    "[1]$X[17]$X" "${TR_VALUE_TRUE}"     \
+                    "[1]$X[18]$X" "${TR_VALUE_FALSE}"    \
+                    "[1]$X[19]$X" "${TR_VALUE_NULL_ARR}" \
+                    "[1]$X[20]$X" "${TR_VALUE_NULL_OBJ}" \
+                    "[1]$X[21]$X" "${TR_VALUE_NULL}"     \
+                    "[1]$X[22]$X" "null"                 \
+                    "[1]$X[23]$X" "xxx";}
 
-    local xxy=${|trie_qinserts t1 leaves "[0]$S" \
-                "[10]$S" "1"                     \
-                "[14]$S" "101.3$S" ;}
+    local xxy=${|trie_qinserts t1 leaves "[0]$X" \
+                "[10]$X" "1"                     \
+                "[14]$X" "101.3$X" ;}
 
     if [[ "$xxy" == '13 17' && "$xxk" == '13 17 35 36 37 38 39 40 41 42' ]] ; then
         log_test 1 1
@@ -469,15 +469,15 @@ test_case8 ()
         log_test 0 1 ; return 1
     fi
 
-    local xxy=${|trie_qinserts t1 leaves "[1]$S" \
-                "[16]$S" "101.3"                 \
-                "[17]$S" "${TR_VALUE_TRUE}"      \
-                "[18]$S" "${TR_VALUE_FALSE}"     \
-                "[19]$S" "${TR_VALUE_NULL_ARR}"  \
-                "[20]$S" "${TR_VALUE_NULL_OBJ}"  \
-                "[21]$S" "${TR_VALUE_NULL}"      \
-                "[22]$S" "null"                  \
-                "[23]$S" "xxx" ;}
+    local xxy=${|trie_qinserts t1 leaves "[1]$X" \
+                "[16]$X" "101.3"                 \
+                "[17]$X" "${TR_VALUE_TRUE}"      \
+                "[18]$X" "${TR_VALUE_FALSE}"     \
+                "[19]$X" "${TR_VALUE_NULL_ARR}"  \
+                "[20]$X" "${TR_VALUE_NULL_OBJ}"  \
+                "[21]$X" "${TR_VALUE_NULL}"      \
+                "[22]$X" "null"                  \
+                "[23]$X" "xxx" ;}
 
     if [[ "$xxy" == '35 36 37 38 39 40 41 42' ]] ; then
         log_test 1 2
@@ -507,7 +507,7 @@ test_case8 ()
         "${TR_VALUE_NULL}"
         "${TR_VALUE_NULL}"
         "${TR_VALUE_NULL}"
-        "101.3$S"
+        "101.3$X"
         )
 
     if flat_1=${|trie_to_flat_array t1 '' 2;} ; then
@@ -530,22 +530,22 @@ test_case8 ()
 test_case9 ()
 {
     local -A "t1=(${|trie_init "$TR_TYPE_ARR";})"
-    trie_insert t1 "[0]$S{b}$S" "xx"
-    trie_insert t1 "[1]$S{c}$S" "yy"
+    trie_insert t1 "[0]$X{b}$X" "xx"
+    trie_insert t1 "[1]$X{c}$X" "yy"
 
     local -a my_arr=("a 1" "b 2" "$TR_VALUE_NULL" "$TR_VALUE_NULL_OBJ" "$TR_VALUE_NULL_ARR")
     my_arr[10]=5
-    local node_id=${|trie_flat_to_tree t1 "[0]$S{b}$S" my_arr;}
+    local node_id=${|trie_flat_to_tree t1 "[0]$X{b}$X" my_arr;}
 
     local -A "t2=(${|trie_init "$TR_TYPE_ARR";})"
-    trie_insert t2 "[0]$S{b}$S" "$TR_VALUE_NULL"
-    trie_insert t2 "[1]$S{c}$S" "yy"
-    trie_insert t2 "[0]$S{b}$S[0]$S" "a 1"
-    trie_insert t2 "[0]$S{b}$S[1]$S" "b 2"
-    trie_insert t2 "[0]$S{b}$S[2]$S" "$TR_VALUE_NULL"
-    trie_insert t2 "[0]$S{b}$S[3]$S" "$TR_VALUE_NULL_OBJ"
-    trie_insert t2 "[0]$S{b}$S[4]$S" "$TR_VALUE_NULL_ARR"
-    trie_insert t2 "[0]$S{b}$S[10]$S" "5"
+    trie_insert t2 "[0]$X{b}$X" "$TR_VALUE_NULL"
+    trie_insert t2 "[1]$X{c}$X" "yy"
+    trie_insert t2 "[0]$X{b}$X[0]$X" "a 1"
+    trie_insert t2 "[0]$X{b}$X[1]$X" "b 2"
+    trie_insert t2 "[0]$X{b}$X[2]$X" "$TR_VALUE_NULL"
+    trie_insert t2 "[0]$X{b}$X[3]$X" "$TR_VALUE_NULL_OBJ"
+    trie_insert t2 "[0]$X{b}$X[4]$X" "$TR_VALUE_NULL_ARR"
+    trie_insert t2 "[0]$X{b}$X[10]$X" "5"
 
     if trie_equals t1 t2 &&
        [[ "$node_id" == "6" ]] ; then
@@ -560,17 +560,17 @@ test_case9 ()
 test_case10 ()
 {
     local -A "t1=(${|trie_init "$TR_TYPE_ARR";})"
-    trie_insert t1 "[0]$S{b}$S" "xx"
-    trie_insert t1 "[1]$S{c}$S" "yy"
+    trie_insert t1 "[0]$X{b}$X" "xx"
+    trie_insert t1 "[1]$X{c}$X" "yy"
 
     local -A my_arr=(['key 1']='value 1' [key2]="$TR_VALUE_NULL_ARR")
-    local node_id=${|trie_flat_to_tree t1 "(0)$S{b}$S" my_arr;}
+    local node_id=${|trie_flat_to_tree t1 "(0)$X{b}$X" my_arr;}
 
     local -A "t2=(${|trie_init "$TR_TYPE_ARR";})"
-    trie_insert t2 "[0]$S{b}$S{key 1}$S" "value 1"
-    trie_insert t2 "[0]$S{b}$S{key2}$S" "$TR_VALUE_NULL_ARR"
-    trie_insert t2 "(1)$S{c}$S" "yy"
-    trie_insert t2 "(1)$S{b}$S" "xx"
+    trie_insert t2 "[0]$X{b}$X{key 1}$X" "value 1"
+    trie_insert t2 "[0]$X{b}$X{key2}$X" "$TR_VALUE_NULL_ARR"
+    trie_insert t2 "(1)$X{c}$X" "yy"
+    trie_insert t2 "(1)$X{b}$X" "xx"
     
     if [[ "$node_id" == 7 ]] &&
         trie_equals t1 t2 ; then
@@ -586,20 +586,20 @@ test_case10 ()
 test_case11 ()
 {
     local -A "t1=(${|trie_init "$TR_TYPE_OBJ";})"
-    trie_inserts t1 "{a}$S{b}$S" "1" \
-                    "{a}$S{c}$S" "2" \
-                    "{a}$S{m}$S[0]$S[2]$S" "2" \
-                    "{a}$S{k}$S{key2}$S[2]$S" "4" \
-                    "{b}$S{x}$S" "3" \
-                    "{b}$S{y}$S" "3"
+    trie_inserts t1 "{a}$X{b}$X" "1" \
+                    "{a}$X{c}$X" "2" \
+                    "{a}$X{m}$X[0]$X[2]$X" "2" \
+                    "{a}$X{k}$X{key2}$X[2]$X" "4" \
+                    "{b}$X{x}$X" "3" \
+                    "{b}$X{y}$X" "3"
 
-    local -A "t2=(${|trie_get_tree t1 "{a}$S";})"
+    local -A "t2=(${|trie_get_tree t1 "{a}$X";})"
 
     local -A "t2_spec=(${|trie_init "$TR_TYPE_OBJ";})"
-    trie_inserts t2_spec    "{b}$S" "1" \
-                            "{c}$S" "2" \
-                            "{m}$S[0]$S[2]$S" "2" \
-                            "{k}$S{key2}$S[2]$S" "4"
+    trie_inserts t2_spec    "{b}$X" "1" \
+                            "{c}$X" "2" \
+                            "{m}$X[0]$X[2]$X" "2" \
+                            "{k}$X{key2}$X[2]$X" "4"
 
     if trie_equals t2 t2_spec ; then
         log_test 1 1
@@ -617,8 +617,8 @@ test_case12 ()
 
     local sp=$'\ngeg geg\n ge\ng  ge  '
     trie_qinserts   t1 leaves '' \
-                    "{a}$S" $'geg\ngee\n  gg\n ' \
-                    "{$sp}$S" $'2333\n geg\ngge  '
+                    "{a}$X" $'geg\ngee\n  gg\n ' \
+                    "{$sp}$X" $'2333\n geg\ngge  '
     local old_ifs=$IFS IFS=$'\n' tuple
     local -a get_params=()
     for tuple in ${|trie_iter t1 '' $((2#11111));} ; do
@@ -662,32 +662,32 @@ test_case13 ()
     trie_unshift_flat t1 '' null_arr 
     trie_unshift_flat t1 '' null_arr 
 
-    trie_push_flat t1 "[2]$S{key1}$S{key2}$S" arr1
-    trie_unshift_flat t1 "[2]$S{key1}$S{key2}$S" obj1
-    trie_unshift_flat t1 "[2]$S{key1}$S{key2}$S" obj1
-    trie_unshift_flat t1 "[2]$S{key1}$S{key2}$S" obj1
-    trie_unshift_flat t1 "[2]$S{key1}$S{key2}$S" obj1
-    trie_unshift_flat t1 "[2]$S{key1}$S{key2}$S" obj1
-    trie_unshift_flat t1 "[2]$S{key1}$S{key2}$S" obj1
-    trie_push_flat t1 "[2]$S{key1}$S{key2}$S" arr1
-    trie_push_flat t1 "[2]$S{key1}$S{key2}$S" arr1
-    trie_push_flat t1 "[2]$S{key1}$S{key2}$S" arr1
-    trie_push_flat t1 "[2]$S{key1}$S{key2}$S" arr1
+    trie_push_flat t1 "[2]$X{key1}$X{key2}$X" arr1
+    trie_unshift_flat t1 "[2]$X{key1}$X{key2}$X" obj1
+    trie_unshift_flat t1 "[2]$X{key1}$X{key2}$X" obj1
+    trie_unshift_flat t1 "[2]$X{key1}$X{key2}$X" obj1
+    trie_unshift_flat t1 "[2]$X{key1}$X{key2}$X" obj1
+    trie_unshift_flat t1 "[2]$X{key1}$X{key2}$X" obj1
+    trie_unshift_flat t1 "[2]$X{key1}$X{key2}$X" obj1
+    trie_push_flat t1 "[2]$X{key1}$X{key2}$X" arr1
+    trie_push_flat t1 "[2]$X{key1}$X{key2}$X" arr1
+    trie_push_flat t1 "[2]$X{key1}$X{key2}$X" arr1
+    trie_push_flat t1 "[2]$X{key1}$X{key2}$X" arr1
 
-    trie_qinserts t1 common "[2]$S{key2}$S{key3}$S" \
-                "{key1}$S" "vgege" \
-                "{key2}$S" "vgege" \
-                "{key3}$S" "vgege" \
-                "{key4}$S" "vgege" \
-                "{key5}$S" "vgege" \
-                "{key6}$S" "vgege"
+    trie_qinserts t1 common "[2]$X{key2}$X{key3}$X" \
+                "{key1}$X" "vgege" \
+                "{key2}$X" "vgege" \
+                "{key3}$X" "vgege" \
+                "{key4}$X" "vgege" \
+                "{key5}$X" "vgege" \
+                "{key6}$X" "vgege"
 
-    trie_delete t1 "[2]$S{key1}$S{key2}$S[3]$S"
-    trie_delete t1 "[2]$S{key1}$S{key2}$S[4]$S"
-    trie_delete t1 "[2]$S{key1}$S{key2}$S[5]$S"
-    trie_delete t1 "[2]$S{key1}$S{key2}$S[6]$S"
+    trie_delete t1 "[2]$X{key1}$X{key2}$X[3]$X"
+    trie_delete t1 "[2]$X{key1}$X{key2}$X[4]$X"
+    trie_delete t1 "[2]$X{key1}$X{key2}$X[5]$X"
+    trie_delete t1 "[2]$X{key1}$X{key2}$X[6]$X"
 
-    trie_delete t1 "[2]$S{key2}$S"
+    trie_delete t1 "[2]$X{key2}$X"
 
     local -A "t1_rebuild=(${|trie_id_rebuild t1;})"
 

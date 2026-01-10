@@ -22,24 +22,22 @@
 # the object can be stuffed back into the large object.
 
 # demo_tree
-#     {BASE}(3) => mid_class
-#     {CLASS}(2) => my_class
-#     {FN}(8)
-#         {cut_plus}(9) => cut_plus_my_class demo_tree
-#         {haha}(15) => haha_mid_class demo_tree
-#         {print_self}(12) => print_self_base_class demo_tree
-#     {PROP}(4)
-#         {CNT}(7) => 10
-#         {P1}(5) => yy
-#         {P2}(6) => 5
-#     {SUPER}(10)
-#         {cut_plus_base_class}(11) => :
-#         {cut_plus_mid_class}(14) => cut_plus_base_class demo_tree
-#         {cut_plus_my_class}(17) => cut_plus_mid_class demo_tree
-#         {haha_mid_class}(16) => :
+#     {print_self}(12) => print_self_base_class demo_tree
+#     {haha}(10) => haha_mid_class demo_tree
+#     {cut_plus}(7) => cut_plus_my_class demo_tree
+#     {SUPER}(8)
 #         {print_self_base_class}(13) => :
-#     max_index => 18
-
+#         {haha_mid_class}(15) => haha_base_class demo_tree
+#         {haha_base_class}(11) => :
+#         {cut_plus_my_class}(16) => cut_plus_mid_class demo_tree
+#         {cut_plus_mid_class}(14) => cut_plus_base_class demo_tree
+#         {cut_plus_base_class}(9) => :
+#     {SELF}(2) => demo_tree
+#     {P2}(4) => 5
+#     {P1}(3) => yy
+#     {CNT}(5) => 10
+#     {CLASS}(6) => my_class -> mid_class -> base_class
+#     max_index => 17
 
 . "${BASH_SOURCE[0]%/*}/trie.sh"
 . "${BASH_SOURCE[0]%/*}/meta.sh"
@@ -53,10 +51,10 @@ setup_my_class ()
     local tr_value2=$4
     local tr_cnt_demo=$5
 
-    trie_insert "$tr_self" "{SELF}$S" "$tr_my_obj_name"
-    trie_insert "$tr_self" "{P1}$S" "$tr_value1"
-    trie_insert "$tr_self" "{P2}$S" "$tr_value2"
-    trie_insert "$tr_self" "{CNT}$S" "$tr_cnt_demo"
+    trie_insert "$tr_self" "{SELF}$X" "$tr_my_obj_name"
+    trie_insert "$tr_self" "{P1}$X" "$tr_value1"
+    trie_insert "$tr_self" "{P2}$X" "$tr_value2"
+    trie_insert "$tr_self" "{CNT}$X" "$tr_cnt_demo"
 }
 
 new_my_class ()
@@ -87,11 +85,16 @@ cut_plus_my_class ()
 {
     local -n tr_self=$1
 
-    ${tr_self[{SUPER}$S{${FUNCNAME[0]}}$S]}
+    ${tr_self[{SUPER}$X{${FUNCNAME[0]}}$X]}
     
-    local tr_cnt=${|trie_get_leaf "$1" "{CNT}$S";}
+    local tr_cnt=${|trie_get_leaf "$1" "{CNT}$X";}
     ((tr_cnt++))
-    tr_self[{CNT}$S]=$tr_cnt
+    tr_self[{CNT}$X]=$tr_cnt
+}
+
+special_my_my_class ()
+{
+    :
 }
 
 return 0

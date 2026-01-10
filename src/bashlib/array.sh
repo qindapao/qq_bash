@@ -12,6 +12,9 @@ array_sorted_insert ()
     local a_left=0
     local a_right=${#a_arr[@]}
     # Sort lexicographically in ASCII
+    # LC_ALL
+    # LC_xxx(LC_COLLATE LC_CTYPE ...)
+    # LANG
     local LC_ALL=C
 
     # Binary search insertion position
@@ -70,6 +73,7 @@ array_sorted_insert ()
 # is to keep the sorting algorithm consistent
 array_qsort ()
 {
+    local LC_ALL=C
     (($# < 1)) && return 1
     local -n a_arr=$1
     local a_rule=${2:-">"}
