@@ -10,6 +10,9 @@
 # so it is best to give up.
 # alias ${obj_name}.cut_plus="cut_plus_my_class ${obj_name}"
 # Unalias management of aliases is also very troublesome.
+# Use case to distinguish methods and properties
+# All caps: can only be attributes
+# All lowercase: can only be methods
 bless ()
 {
     local tr_class=$1
@@ -22,6 +25,7 @@ bless ()
     tr_class_chain="${tr_class}${tr_class_chain:+ -> }${tr_class_chain}"
 
     trie_insert "$tr_obj" "{CLASS}$S" "$tr_class_chain"
+
     local tr_fn_name ; for tr_fn_name in ${ compgen -A function;} ; do
         case "$tr_fn_name" in
         new_${tr_class}|bless_${tr_class}|setup_${tr_class}) : ;;
@@ -29,9 +33,9 @@ bless ()
         #SUPER: The parent tr_class method corresponding to each subclass method
         *_${tr_class})
             local tr_key=${tr_fn_name%"_$tr_class"}
-            local tr_super=${|trie_get_leaf "$tr_obj" "{FN}$S{$tr_key}$S" 2>/dev/null;}
+            local tr_super=${|trie_get_leaf "$tr_obj" "{$tr_key}$S" 2>/dev/null;}
 
-            trie_insert "$tr_obj" "{FN}$S{$tr_key}$S" "$tr_fn_name $tr_obj_name"
+            trie_insert "$tr_obj" "{$tr_key}$S" "$tr_fn_name $tr_obj_name"
             trie_insert "$tr_obj" "{SUPER}$S{$tr_fn_name}$S" "${tr_super:-:}"
             ;;
         esac
@@ -50,17 +54,30 @@ rebind_self ()
         tr_self[{SELF}$S]=$tr_new_name
         # Trie tree atomic traversal, the class method cannot be called here
         # because the binding variable name is incorrect!
-        local IFS=$'\n' ; local tr_top_lev tr_tuple
-        local tr_iter=$'FN\nSUPER'
-        for tr_top_lev in $tr_iter ; do
-            for tr_tuple in ${|trie_iter "$tr_new_name" "{$tr_top_lev}$S" $((2#1001));} ; do
-                # This is a literal representation of an array and is 
-                # not affected by IFS word segmentation.
-                local -a "tr_tuple=($tr_tuple)"
+        local IFS=$'\n' ; local tr_tuple
+        for tr_tuple in ${|trie_iter "$tr_new_name" "" $((2#1001));} ; do
+            echo "xx"
+            # This is a literal representation of an array and is 
+            # not affected by IFS word segmentation.
+            local -a "tr_tuple=($tr_tuple)"
+
+            # Because lowercase always comes first, if encounter an uppercase,
+            # break to speed up
+            # Only lowercase letters are method names.
+            if [[ "${tr_tuple[0]}" == "${tr_tuple[0],,}" ]] ; then
                 [[ "${tr_tuple[1]}" == ':' ]] || {
-                    tr_self[{$tr_top_lev}$S${tr_tuple[0]}$S]="${tr_tuple[1]%' '*} $tr_new_name"
+                    tr_self[${tr_tuple[0]}$S]="${tr_tuple[1]%' '*} $tr_new_name"
                 }
-            done
+            else
+                break
+            fi
+        done
+
+        for tr_tuple in ${|trie_iter "$tr_new_name" "{SUPER}$S" $((2#1001));} ; do
+            local -a "tr_tuple=($tr_tuple)"
+            [[ "${tr_tuple[1]}" == ':' ]] || {
+                tr_self[{SUPER}$S${tr_tuple[0]}$S]="${tr_tuple[1]%' '*} $tr_new_name"
+            }
         done
     }
 }

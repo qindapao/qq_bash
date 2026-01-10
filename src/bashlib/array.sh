@@ -11,6 +11,8 @@ array_sorted_insert ()
 
     local a_left=0
     local a_right=${#a_arr[@]}
+    # Sort lexicographically in ASCII
+    local LC_ALL=C
 
     # Binary search insertion position
     case "$a_rule" in

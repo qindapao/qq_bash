@@ -315,9 +315,7 @@ trie_qinserts ()
 
     # The first insertion uses the original KEY
     tr_insert_id=${|trie_insert "$tr_t_name" "$tr_common_prefix${tr_insert_kv[0]}" "${tr_insert_kv[1]}";} || return $?
-    if [[ "$tr_return_mode" == 'leaves' ]] ; then
-        REPLY+="${REPLY:+ }${tr_insert_id}"
-    fi
+    [[ "$tr_return_mode" == 'leaves' ]] && REPLY+="${REPLY:+ }${tr_insert_id}"
 
     # The subsequent insertion prefix uses the physical key and brings the node id for acceleration.
     local tr_k_index=2 tr_v_index=3
@@ -334,9 +332,7 @@ trie_qinserts ()
                                     "${tr_insert_kv[tr_v_index]}" \
                                     "$tr_common_id" \
                                     "$tr_common_prefix";} || return $?
-        if [[ "$tr_return_mode" == 'leaves' ]] ; then
-            REPLY+="${REPLY:+ }${tr_insert_id}"
-        fi
+        [[ "$tr_return_mode" == 'leaves' ]] && REPLY+="${REPLY:+ }${tr_insert_id}"
     done
 
     return $TR_RET_ENUM_OK
@@ -532,7 +528,8 @@ trie_insert ()
                     tr_children[$tr_array_index]="$tr_token"
                 fi
             else
-                array_sorted_insert tr_children "$tr_token" '>'
+                # Descending ASCII lexicographic order
+                array_sorted_insert tr_children "$tr_token" '<'
             fi
 
             printf -v tr_t[$tr_node.children] "%s$S" "${tr_children[@]}"

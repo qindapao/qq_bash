@@ -626,13 +626,17 @@ test_case12 ()
         get_params+=("${tuple[@]}")
     done
     local -a param_spec=(
-        [0]=$'{\ngeg geg\n ge\ng  ge  }'
+        [5]=$'{\ngeg geg\n ge\ng  ge  }'
+        [6]="5"
+        [7]=$'{\ngeg geg\n ge\ng  ge  }'
+        [8]=$'2333\n geg\ngge  '
+        [9]="3"
+        [0]="{a}"
         [1]="5"
-        [2]=$'{\ngeg geg\n ge\ng  ge  }'
-        [3]=$'2333\n geg\ngge  '
-        [4]="3"
-        [5]="{a}"
-        [6]="5" [7]="{a}" [8]=$'geg\ngee\n  gg\n ' [9]="2")
+        [2]="{a}"
+        [3]=$'geg\ngee\n  gg\n '
+        [4]="2"
+        )
 
     if assert_array a get_params param_spec ; then
         log_test 1 1
@@ -643,7 +647,60 @@ test_case12 ()
     return 0
 }
 
+test_case13 ()
+{
+    
+    local -A "t1=(${|trie_init "$TR_TYPE_ARR";})"
+    local -a null_arr=()
+    local -A null_obj=()
+    local -a arr1=("a 1" "b 2")
+    local -A obj1=(["a 1"]="c 3" ["b 2"]="d 4")
 
-# step_test 12
+    trie_push_flat t1 '' null_obj 
+
+    trie_push_flat t1 '' null_obj 
+    trie_unshift_flat t1 '' null_arr 
+    trie_unshift_flat t1 '' null_arr 
+
+    trie_push_flat t1 "[2]$S{key1}$S{key2}$S" arr1
+    trie_unshift_flat t1 "[2]$S{key1}$S{key2}$S" obj1
+    trie_unshift_flat t1 "[2]$S{key1}$S{key2}$S" obj1
+    trie_unshift_flat t1 "[2]$S{key1}$S{key2}$S" obj1
+    trie_unshift_flat t1 "[2]$S{key1}$S{key2}$S" obj1
+    trie_unshift_flat t1 "[2]$S{key1}$S{key2}$S" obj1
+    trie_unshift_flat t1 "[2]$S{key1}$S{key2}$S" obj1
+    trie_push_flat t1 "[2]$S{key1}$S{key2}$S" arr1
+    trie_push_flat t1 "[2]$S{key1}$S{key2}$S" arr1
+    trie_push_flat t1 "[2]$S{key1}$S{key2}$S" arr1
+    trie_push_flat t1 "[2]$S{key1}$S{key2}$S" arr1
+
+    trie_qinserts t1 common "[2]$S{key2}$S{key3}$S" \
+                "{key1}$S" "vgege" \
+                "{key2}$S" "vgege" \
+                "{key3}$S" "vgege" \
+                "{key4}$S" "vgege" \
+                "{key5}$S" "vgege" \
+                "{key6}$S" "vgege"
+
+    trie_delete t1 "[2]$S{key1}$S{key2}$S[3]$S"
+    trie_delete t1 "[2]$S{key1}$S{key2}$S[4]$S"
+    trie_delete t1 "[2]$S{key1}$S{key2}$S[5]$S"
+    trie_delete t1 "[2]$S{key1}$S{key2}$S[6]$S"
+
+    trie_delete t1 "[2]$S{key2}$S"
+
+    local -A "t1_rebuild=(${|trie_id_rebuild t1;})"
+
+    if trie_equals t1 t1_rebuild ; then
+        log_test 1 1
+    else
+        log_test 0 1 ; return 1
+    fi
+
+    return 0
+}
+
+
+# step_test 13
 eval -- "${|AS_RUN_TEST_CASES;}"
 
