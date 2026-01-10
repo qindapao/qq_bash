@@ -45,7 +45,6 @@ rebind_self ()
 {
     local -n tr_self=$1
     local tr_new_name=$1
-    local tr_phy_token tr_value
 
     [[ "${tr_self[{SELF}$S]}" != "$tr_new_name" ]] && {
         tr_self[{SELF}$S]=$tr_new_name
@@ -54,10 +53,12 @@ rebind_self ()
         local IFS=$'\n' ; local tr_top_lev tr_tuple
         local tr_iter=$'FN\nSUPER'
         for tr_top_lev in $tr_iter ; do
-             for tr_tuple in ${|trie_iter "$tr_new_name" "{$tr_top_lev}$S" $((2#1001));} ; do
-                eval -- set -- $tr_tuple ; tr_phy_token=$1 tr_value=$2
-                [[ "$tr_value" == ':' ]] || {
-                    tr_self[{$tr_top_lev}$S${tr_phy_token}$S]="${tr_value%' '*} $tr_new_name"
+            for tr_tuple in ${|trie_iter "$tr_new_name" "{$tr_top_lev}$S" $((2#1001));} ; do
+                # This is a literal representation of an array and is 
+                # not affected by IFS word segmentation.
+                local -a "tr_tuple=($tr_tuple)"
+                [[ "${tr_tuple[1]}" == ':' ]] || {
+                    tr_self[{$tr_top_lev}$S${tr_tuple[0]}$S]="${tr_tuple[1]%' '*} $tr_new_name"
                 }
             done
         done
@@ -75,5 +76,4 @@ die ()
 }
 
 return 0
-
 

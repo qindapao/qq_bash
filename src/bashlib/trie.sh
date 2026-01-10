@@ -305,6 +305,12 @@ trie_qinserts ()
     local -a tr_insert_kv=("${@}")
     local tr_insert_id
 
+    # If the number of parameters is 1, it means only writing a single value, not a key
+    ((${#tr_insert_kv[@]}==1)) && {
+        REPLY=${|trie_insert "$tr_t_name" "$tr_common_prefix" "${tr_insert_kv[0]}";}
+        return $?
+    }
+
     ((${#tr_insert_kv[@]}<2)) && return $TR_RET_ENUM_OK
 
     # The first insertion uses the original KEY
@@ -394,7 +400,7 @@ trie_insert ()
 
     local tr_node=${tr_start_node_id}
 
-    # 记录创建的中间节点的 ID 键, 需要全部删除
+    # Record the ID key of the created intermediate node, all need to be deleted
     local -a tr_tmp_node_ids=()
 
     _trie_insert_delete_tmp_node_ids ()
@@ -852,9 +858,9 @@ trie_delete ()
     local tr_parent=${tr_path_nodes[-2]}
     tr_token=${tr_path_tokens[-1]}
     local -a "tr_children=(${|_split_tokens "${tr_t[$tr_parent.children]}";})"
-    local -a "tr_new=(${|array_delete_element "$tr_token" "${tr_children[@]}";})"
-    if ((${#tr_new[@]})) ; then
-        printf -v 'tr_t[$tr_parent.children]' "%s$S" "${tr_new[@]}"
+    array_delete_first_e tr_children "$tr_token"
+    if ((${#tr_children[@]})) ; then
+        printf -v 'tr_t[$tr_parent.children]' "%s$S" "${tr_children[@]}"
     else
         unset -v 'tr_t[$tr_parent.children]'
     fi
@@ -1244,7 +1250,7 @@ trie_id_rebuild ()
             tr_new[$new_parent_id.children]+="$token$S"
         fi
     }
-    trie_walk tr_old '' trie_id_rebuild_callback
+    trie_walk $1 '' trie_id_rebuild_callback
 
     tr_new[max_index]=$tr_new_id
     
@@ -1433,7 +1439,7 @@ trie_layer_get_flat ()
     fi
 
     # Object or array to determine whether the child has children (non-flat)
-    local IFS=$'\n' tr_tuple
+    local tr_old_ifs=$IFS IFS=$'\n' tr_tuple 
     case "${tr_t[$tr_node_id.type]}" in
     $TR_TYPE_ARR)
         [[ "$tr_expect" == 'arr' ]] || {
@@ -1442,7 +1448,7 @@ trie_layer_get_flat ()
         }
         local -a tr_plat_arr=()
         for tr_tuple in ${|trie_iter "$2" '' $((2#11111)) "$tr_node_id";} ; do
-            IFS=' ' ; local -a "tr_tuple=($tr_tuple)"
+            IFS=$tr_old_ifs ; local -a "tr_tuple=($tr_tuple)"
             trie_layer_child_is_flat "${tr_tuple[1]}" || {
                 die "node id:${tr_node_id} flat type not match."
                 return $TR_FLAT_IS_NOT_MATCH
@@ -1458,7 +1464,7 @@ trie_layer_get_flat ()
         }
         local -A tr_plat_arr=()
         for tr_tuple in ${|trie_iter "$2" '' $((2#11111)) "$tr_node_id";} ; do
-            IFS=' ' ; local -a "tr_tuple=($tr_tuple)"
+            IFS=$tr_old_ifs ; local -a "tr_tuple=($tr_tuple)"
             trie_layer_child_is_flat "${tr_tuple[1]}" || {
                 die "node id:${tr_node_id} flat type not match."
                 return $TR_FLAT_IS_NOT_MATCH
@@ -1480,8 +1486,9 @@ trie_flat_to_tree ()
 {
     local tr_prefix=$2
     local -n tr_array=$3
-    ((${#tr_array[@]})) || return $TR_FLAT_ASSOC_NULL
-    
+    local -i tr_array_is_assoc=0
+
+    [[ "${tr_array@a}" == *A* ]] && tr_array_is_assoc=1
 
     [[ "$tr_prefix" == *")$S"* ]] || {
         trie_delete "$1" "$tr_prefix" || return $?
@@ -1490,12 +1497,21 @@ trie_flat_to_tree ()
     local tr_index
     local -a tr_params=()
     for tr_index in "${!tr_array[@]}" ; do
-        if [[ "${tr_array@a}" == *A* ]] ; then
+        if ((tr_array_is_assoc)) ; then
             tr_params+=("{$tr_index}$S" "${tr_array[$tr_index]}")
         else
             tr_params+=("[$tr_index]$S" "${tr_array[$tr_index]}")
         fi
     done
+
+    ((${#tr_params[@]})) || {
+        if ((tr_array_is_assoc)) ; then
+            tr_params=("$TR_VALUE_NULL_OBJ")
+        else
+            tr_params=("$TR_VALUE_NULL_ARR")
+        fi
+    }
+
     REPLY=${|trie_qinserts "$1" common "$tr_prefix" "${tr_params[@]}";}
 }
 
@@ -1505,6 +1521,38 @@ trie_search ()
 {
     :
 }
+
+
+_trie_flat_insert ()
+{
+    local tr_next_key
+    tr_next_key=${|_trie_array_next_key "$1" "$2" "$3";} || return $?
+
+    local -a tr_params=()
+    local tr_index tr_token
+    local -i tr_is_assoc=0
+    local -n tr_array=$4
+
+    [[ "${tr_array@a}" == *A* ]] && tr_is_assoc=1
+    
+    for tr_index in "${!tr_array[@]}" ; do
+        ((tr_is_assoc)) && tr_token="{$tr_index}$S" || tr_token="[$tr_index]$S"
+        tr_params+=("$tr_token" "${tr_array[$tr_index]}")
+    done
+
+    ((${#tr_array[@]})) || {
+        if ((tr_is_assoc)) ; then
+            tr_params=("$TR_VALUE_NULL_OBJ")
+        else
+            tr_params=("$TR_VALUE_NULL_ARR")
+        fi
+    }
+
+    REPLY=${|trie_qinserts "$1" common "$tr_next_key" "${tr_params[@]}";}
+}
+
+trie_push_flat () { _trie_flat_insert "$1" "$2" push "$3" ; }
+trie_unshift_flat () { _trie_flat_insert "$1" "$2" unshift "$3" ; }
 
 return 0
 

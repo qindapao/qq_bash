@@ -174,15 +174,45 @@ _array_sort_cmd ()
     esac
 }
 
-array_delete_element ()
+_array_delete_first_e ()
 {
-    local delete_element=$1
-    local -a new_array=()
-    local item ; for item in "${@:2}" ; do
-        [[ "$item" != "$delete_element" ]] && new_array+=("$item")
+    local a=$1 i="i_$1"
+    REPLY='
+
+    local '$i'
+    for '$i' in "${!'$a'[@]}" ; do
+        [[ "$2" == "${'$a'[$'$i']}" ]] && {
+            unset -v '\'''$a'[$'$i']'\''
+            return 0
+        }
     done
-    REPLY=${new_array[*]@Q}
+    '
 }
+
+array_delete_first_e ()
+{
+    eval -- "${|_array_delete_first_e "$@";}"
+}
+
+_array_delete_e ()
+{
+    local a=$1 i="i_$1"
+    REPLY='
+
+    local '$i'
+    for '$i' in "${!'$a'[@]}" ; do
+        [[ "$2" == "${'$a'[$'$i']}" ]] && {
+            unset -v '\'''$a'[$'$i']'\''
+        }
+    done
+    '
+}
+
+array_delete_e ()
+{
+    eval -- "${|_array_delete_e "$@";}"
+}
+
 
 array_index ()
 {
@@ -195,11 +225,11 @@ array_index ()
     REPLY=-1
 }
 
+
 # # "a" is a subset of "b"
 # local -a 'a=({0..5})' 'b=({0..10})'
 # isSubset a b
 # echo $? # true
-
 _array_is_subset ()
 {
     local a=$1 b=$2 i="item_$1$2"
@@ -216,10 +246,33 @@ _array_is_subset ()
         return 0'
 }
 
+# The writing method of dividing it into two functions is actually faster
+# than writing it directly into one function!
+# The reason is that the expansion rules of eval are simpler when
+# written as two functions separately.
 array_is_subset ()
 {
-    eval -- "${|_array_is_subset $1 $2;}"
+    eval -- "${|_array_is_subset "$@";}"
 }
+
+# array_is_subset ()
+# {
+#     eval -- "${|
+#     local a=$1 b=$2 i="item_$1$2"
+#     REPLY='
+#
+#     [[ ${'$a'@a} == ${'$b'@a} ]] || return 1
+#     ((${#'$a'[@]} <= ${#'$b'[@]})) || return 1
+#
+#     local '$i'
+#     for '$i' in "${!'$a'[@]}" ; do
+#         [[ -v '\'''$b'["$'$i'"]'\'' && "${'$a'[$'$i']}" == "${'$b'[$'$i']}" ]] || return 1
+#     done
+#
+#     return 0
+#
+#     ';}"
+# }
 
 return 0
 

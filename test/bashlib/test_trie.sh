@@ -610,6 +610,40 @@ test_case11 ()
     return 0
 }
 
-# step_test 11
+test_case12 ()
+{
+
+    local -A "t1=(${|trie_init "$TR_TYPE_OBJ";})"
+
+    local sp=$'\ngeg geg\n ge\ng  ge  '
+    trie_qinserts   t1 leaves '' \
+                    "{a}$S" $'geg\ngee\n  gg\n ' \
+                    "{$sp}$S" $'2333\n geg\ngge  '
+    local old_ifs=$IFS IFS=$'\n' tuple
+    local -a get_params=()
+    for tuple in ${|trie_iter t1 '' $((2#11111));} ; do
+        IFS=$old_ifs ; local -a "tuple=($tuple)"
+        get_params+=("${tuple[@]}")
+    done
+    local -a param_spec=(
+        [0]=$'{\ngeg geg\n ge\ng  ge  }'
+        [1]="5"
+        [2]=$'{\ngeg geg\n ge\ng  ge  }'
+        [3]=$'2333\n geg\ngge  '
+        [4]="3"
+        [5]="{a}"
+        [6]="5" [7]="{a}" [8]=$'geg\ngee\n  gg\n ' [9]="2")
+
+    if assert_array a get_params param_spec ; then
+        log_test 1 1
+    else
+        log_test 0 1 ; return 1
+    fi
+    
+    return 0
+}
+
+
+# step_test 12
 eval -- "${|AS_RUN_TEST_CASES;}"
 

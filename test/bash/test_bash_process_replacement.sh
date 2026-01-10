@@ -54,7 +54,32 @@ test_case2 ()
     else
         log_test 0 1 ; return 1
     fi
+
+    return 0
 }
+
+test_case3 ()
+{
+    local a="123 44 "
+    local b=$'gege\nggge geg\ngeg \tge '
+    
+    test_case3_inner ()
+    {
+        local a=$1 b=$2
+        REPLY="${a@Q} ${b@Q}"
+    }
+
+    local -a "c=(${|test_case3_inner "$a" "$b";})"
+    local -a spec_c=("$a" "$b")
+    if assert_array a c spec_c ; then
+        log_test 1 1
+    else
+        log_test 0 1 ; return 1
+    fi
+
+    return 0
+}
+
 
 eval -- "${|AS_RUN_TEST_CASES;}"
 

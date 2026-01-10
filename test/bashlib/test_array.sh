@@ -235,21 +235,6 @@ test_case8 ()
     return 0
 }
 
-test_case9 ()
-{
-    local -a arr_xx=(1 2 3 4 3 5 6)
-    local -a arr_spec=(1 2 4 5 6)
-    local -a "new_arr=(${|array_delete_element "3" "${arr_xx[@]}";})"
-    if assert_array 'a' new_arr arr_spec ; then
-        log_test 1 1
-    else
-        log_test 0 1 ; return 1
-
-    fi
-
-    return 0
-}
-
 test_case10 ()
 {
     local x=(1 2 3 4)
@@ -284,7 +269,43 @@ test_case10 ()
 
 }
 
-# step_test 10
+test_case11 ()
+{
+    local -
+    # set -x
+    local a=(1 2 "a 3" 4 5 "a 3" 6)
+    local e="a 3"
+    array_delete_first_e a "$e"
+    local a_spec=(
+    1 2 
+    [3]=4
+    5 "a 3" 6)
+
+    if assert_array a a a_spec ; then
+        log_test 1 1
+    else
+        log_test 0 1 ; return 1
+    fi
+
+    local a=(1 2 "a 3" 4 5 "a 3" 6)
+    array_delete_e a "$e"
+    local a_spec=(
+    1 2 
+    [3]=4
+    5
+    [6]=6)
+
+    if assert_array a a a_spec ; then
+        log_test 1 2
+    else
+        log_test 0 2 ; return 1
+    fi
+
+    return 0
+}
+
+
+# step_test 11
 
 eval -- "${|AS_RUN_TEST_CASES;}"
 
