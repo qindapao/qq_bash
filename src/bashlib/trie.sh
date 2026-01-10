@@ -17,7 +17,9 @@
 # readonly X=$'\034\035\036\037'
 readonly X=$'\034'
 readonly TR_ROOT_ID=1
+
 readonly TR_RET_ENUM_OK=0
+
 readonly TR_RET_ENUM_KEY_IS_TREE=1
 readonly TR_RET_ENUM_KEY_IS_LEAF=2
 readonly TR_RET_ENUM_KEY_IS_NOTFOUND=3
@@ -26,6 +28,8 @@ readonly TR_RET_ENUM_KEY_OUT_OF_INDEX=5
 readonly TR_RET_ENUM_KEY_IS_NOT_LEAF=6
 readonly TR_RET_ENUM_KEY_IS_NULL=8
 readonly TR_RET_ENUM_KEY_UP_LEV_TYPE_MISMATCH=9
+readonly TR_RET_ENUM_KEY_CHILD_CNT_IS_ZERO=13
+
 readonly TR_RET_ENUM_TREE_IS_INVALID=10
 readonly TR_RET_ENUM_TREE_IS_EMPTY=11
 readonly TR_RET_ENUM_TREE_NOT_HAVE_ROOT=12
@@ -1331,7 +1335,7 @@ _trie_array_next_key ()
 {
     local tr_name=$1
     local tr_up_key=$2
-    # push/unshift
+    # push/unshift/pop/shift
     local tr_mode=$3
     local tr_child_cnt
 
@@ -1343,7 +1347,13 @@ _trie_array_next_key ()
 
     case "$tr_node_info_ret" in
     $TR_RET_ENUM_KEY_IS_NOTFOUND)
-        [[ "$tr_mode" == 'push' ]] && REPLY="$tr_up_key[0]$X" || REPLY="$tr_up_key(0)$X"
+        case "$tr_mode" in
+        push)   REPLY="$tr_up_key[0]$X" ;;
+        unshift)
+                REPLY="$tr_up_key(0)$X" ;;
+        pop|shift)
+                return $tr_node_info_ret ;;
+        esac
         ;;
     $TR_RET_ENUM_OK)
         # Get the up node type
@@ -1351,11 +1361,20 @@ _trie_array_next_key ()
         if  [[ "${tr_node_info[type]}" == "$TR_TYPE_ARR" ]] ||
             [[ "${tr_node_info[value]}" == "$TR_VALUE_NULL" ]] ; then
             tr_child_cnt=${tr_node_info[child_cnt]}
-            if [[ "$tr_mode" == 'push' ]] ; then
-                REPLY="${tr_node_info[physical_full_key]}[$tr_child_cnt]$X"
-            else
-                REPLY="${tr_node_info[physical_full_key]}(0)$X"
-            fi
+            case "$tr_mode" in
+            push)   REPLY="${tr_node_info[physical_full_key]}[$tr_child_cnt]$X" ;;
+            unshift)
+                    REPLY="${tr_node_info[physical_full_key]}(0)$X" ;;
+            pop|shift)    
+                # First check if the child is empty
+                ((tr_child_cnt)) || {
+                    die "node:${tr_node_info[node_id]} child cnt is 0."
+                    return $TR_RET_ENUM_KEY_CHILD_CNT_IS_ZERO
+                }
+                ;;&
+            pop)    REPLY="${tr_node_info[physical_full_key]}[$((tr_child_cnt-1))]$X" ;;
+            shift)  REPLY="${tr_node_info[physical_full_key]}[0]$X" ;;
+            esac
         else
             die "node:${tr_node_info[node_id]} type is not array or null."
             return $TR_RET_ENUM_KEY_UP_LEV_TYPE_MISMATCH
@@ -1370,10 +1389,9 @@ _trie_array_next_key ()
 }
 
 # Pushing empty leaves and empty arrays is OK
-_trie_array_write()
+_trie_array_write ()
 {
-    local tr_name=$1
-    local tr_up_key=$2
+    local tr_name=$1 tr_up_key=$2
     local tr_mode=$3      # push / unshift
     local tr_write=$4     # leaf / tree
     local tr_value=$5     # leaf value or subtree name
@@ -1382,26 +1400,57 @@ _trie_array_write()
     tr_next_key=${|_trie_array_next_key "$tr_name" "$tr_up_key" "$tr_mode";} || return $?
 
     case "$tr_write" in
-    leaf)
-        trie_insert "$tr_name" "$tr_next_key" "$tr_value"
-        ;;
-    tree)
-        trie_graft "$tr_name" "$tr_next_key" "$tr_value"
-        ;;
+    leaf)   trie_insert "$tr_name" "$tr_next_key" "$tr_value" ;;
+    tree)   trie_graft "$tr_name" "$tr_next_key" "$tr_value" ;;
     esac
 }
 
+# The return values of leaf and tree are the return values of insert and graft
 trie_push_leaf () { _trie_array_write "$1" "$2" push leaf "$3" ; }
 trie_push_tree () { _trie_array_write "$1" "$2" push tree "$3" ; }
 trie_unshift_leaf () { _trie_array_write "$1" "$2" unshift leaf "$3" ; }
 trie_unshift_tree () { _trie_array_write "$1" "$2" unshift tree "$3" ; }
 
-# These two functions are not implemented because trie_get_leaf trie_get_tree
-# just uses negative index or positive index and then deletes it.
-# :TODO: It’s better to implement it and maintain the integrity of the library.
-# Priority reduced
-trie_pop () { : ; }
-trie_shift () { : ; }
+_trie_array_get ()
+{
+    local tr_name=$1 tr_up_key=$2
+    local tr_mode=$3      # pop / shift
+    local tr_read=$4      # leaf / tree
+
+    local tr_next_key
+    tr_next_key=${|_trie_array_next_key "$tr_name" "$tr_up_key" "$tr_mode";} || return $?
+
+    case "$tr_read" in
+    leaf)   trie_get_leaf "$tr_name" "$tr_next_key" ;;
+    tree)   trie_get_tree "$tr_name" "$tr_next_key" ;;
+    esac
+}
+
+trie_pop_leaf ()
+{
+    # REPLY It will be rewritten directly in the sub-function. The explicit
+    # assignment here is just for higher readability.
+    REPLY=${|_trie_array_get "$1" "$2" pop leaf;} || return $?
+    trie_delete "$1" "$2[-1]$X"
+}
+
+trie_pop_tree ()
+{
+    REPLY=${|_trie_array_get "$1" "$2" pop tree;} || return $?
+    trie_delete "$1" "$2[-1]$X"
+}
+
+trie_shift_leaf ()
+{ 
+    REPLY=${|_trie_array_get "$1" "$2" shift leaf;} || return $?
+    trie_delete "$1" "$2[0]$X"
+}
+
+trie_shift_tree ()
+{
+    REPLY=${|_trie_array_get "$1" "$2" shift tree;} || return $?
+    trie_delete "$1" "$2[0]$X"
+}
 
 trie_layer_get_flat ()
 {
@@ -1478,6 +1527,30 @@ trie_layer_get_flat ()
 trie_to_flat_array () { trie_layer_get_flat 'arr' "$@" ; }
 trie_to_flat_assoc () { trie_layer_get_flat 'obj' "$@" ; }
 
+trie_pop_to_flat_array ()
+{
+    REPLY=${|trie_to_flat_array "$1" "$2[-1]$X";} || return $?
+    trie_delete "$1" "$2[-1]$X"
+}
+
+trie_pop_to_flat_assoc ()
+{
+    REPLY=${|trie_to_flat_assoc "$1" "$2[-1]$X";} || return $?
+    trie_delete "$1" "$2[-1]$X"
+}
+
+trie_shift_to_flat_array ()
+{
+    REPLY=${|trie_to_flat_array "$1" "$2[0]$X";} || return $?
+    trie_delete "$1" "$2[0]$X"
+}
+
+trie_shift_to_flat_assoc ()
+{
+    REPLY=${|trie_to_flat_assoc "$1" "$2[0]$X";} || return $?
+    trie_delete "$1" "$2[0]$X"
+}
+
 # Hooks have no deletion semantics, but writes to flat layers do
 trie_flat_to_tree ()
 {
@@ -1512,12 +1585,8 @@ trie_flat_to_tree ()
     REPLY=${|trie_qinserts "$1" common "$tr_prefix" "${tr_params[@]}";}
 }
 
-# :TODO: and JSON serialization and deserialization, priority: medium
-
-trie_search ()
-{
-    :
-}
+# Not implemented, users can define it themselves through trie_walk
+trie_search () { : ; }
 
 
 _trie_flat_insert ()

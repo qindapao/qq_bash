@@ -700,7 +700,72 @@ test_case13 ()
     return 0
 }
 
+# pop/shift
+test_case14 ()
+{
+    local -A "t1=(${|trie_init "$TR_TYPE_ARR";})"
 
-# step_test 13
+    trie_inserts t1 "[0]$X{b}$X" "value1" \
+                    "[1]$X{c}$X" "value2" \
+                    "[2]$X{x}$X" "value3" \
+                    "[3]$X{y}$X" "value4" \
+                    "[4]$X{z}$X" "value5" \
+                    "[5]$X[3]$X" "value5"
+
+    local -A "get_tree=(${|trie_shift_tree t1 '';})"
+
+
+    local -A "get_tree_spec=(${|trie_init "$TR_TYPE_OBJ";})"
+    trie_insert get_tree_spec "{b}$X" 'value1'
+
+    local -A "t1_spec=(${|trie_init "$TR_TYPE_ARR";})"
+    trie_inserts t1_spec \
+                "[0]$X{c}$X" "value2" \
+                "[1]$X{x}$X" "value3" \
+                "[2]$X{y}$X" "value4" \
+                "[3]$X{z}$X" "value5" \
+                "[4]$X[3]$X" "value5"
+
+    if  trie_equals get_tree get_tree_spec &&
+        trie_equals t1 t1_spec ; then
+        log_test 1 1
+    else
+        log_test 0 1 ; return 1
+    fi
+    
+    return 0
+}
+
+test_case15 ()
+{
+    local -A "t1=(${|trie_init "$TR_TYPE_ARR";})"
+
+    trie_inserts t1 "[0]$X{b}$X" "value1" \
+                    "[0]$X{aage}$X" "value2" \
+                    "[1]$X{c}$X" "value2" \
+                    "[1]$X{c1}$X" "value1" \
+                    "[1]$X{c2}$X" "valuec" \
+                    "[2]$X{x}$X" "value3" \
+                    "[3]$X{y}$X" "value4" \
+                    "[4]$X{z}$X" "value5" \
+                    "[5]$X[3]$X" "value5"
+
+    local -a "arr=(${|trie_pop_to_flat_array t1;})"
+    local -A "obj=(${|trie_shift_to_flat_assoc t1;})"
+
+    local -a arr_spec=([0]=$'null\034' [1]=$'null\034' [2]=$'null\034' [3]="value5")
+    local -A obj_spec=([b]="value1" [aage]="value2" )    
+
+    if  assert_array a arr arr_spec &&
+        assert_array A obj obj_spec ; then
+        log_test 1 1
+    else
+        log_test 0 1 ; return 1
+    fi
+
+    return 0
+}
+
+# step_test 15
 eval -- "${|AS_RUN_TEST_CASES;}"
 
