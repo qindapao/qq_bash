@@ -144,5 +144,32 @@ test_case6 ()
     return 0
 }
 
+test_case7 ()
+{
+    test_case7_inner ()
+    {
+        local IFS=$'\n'
+        if [[ "$IFS" = $'\n' ]] ; then
+            log_test 1 1
+        else
+            log_test 0 1 ; return 1
+        fi
+
+        return 0
+    }
+
+    local old_ifs=$IFS
+    test_case7_inner
+    test_case7_inner
+
+    if [[ "$IFS" = "$old_ifs" ]] ; then
+        log_test 1 2
+    else
+        log_test 0 2 ; return 1
+    fi
+    
+    return 0
+}
+
 eval -- "${|AS_RUN_TEST_CASES;}"
 

@@ -2,8 +2,18 @@
 
 . ../libs/test_utils.sh
 
+# 命令管道退出时候需要清除,但是协程不用
+cleanup() {
+    rm -f /tmp/fifo_in /tmp/fifo_out
+}
+
+trap cleanup EXIT INT TERM HUP
+
+
+# Named pipes are slower than coroutines
 test_case1 ()
 {
+    local old_dir=$PWD
     cd /tmp
 
     rm -f fifo_in fifo_out
@@ -50,6 +60,8 @@ test_case1 ()
     read line <&4
     echo "awk returned: $line"
     }
+
+    cd $old_dir
 }
 
 test_case2 ()
@@ -117,6 +129,14 @@ test_case2 ()
         read all <&"${AWKPROC[0]}"
         echo "awk returned: $all"
     }
+
+    # 取了名字的协程ID保存在 名字_PID 中
+    # 最近的一次在 COPROC_PID 中
+    echo "AWKPROC:$AWKPROC_PID"
+    # 关闭协程
+    exec {AWKPROC[1]}>&-
+    wait "$AWKPROC_PID"
+    
 }
 
 test_case3 ()
