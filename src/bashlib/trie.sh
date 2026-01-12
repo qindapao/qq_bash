@@ -1700,7 +1700,7 @@ trie_from_json ()
     local tr_bjson_keys="${@:2}"
 
     local -A "tr_assoc=(${ printf "%s" "$tr_json_str" | \
-        gobolt json -m r -t txt -k stdin -F trie -P -- "${tr_bjson_keys[@]}";})"
+        gobolt json -m r -t txt -k stdin -F trie -x "$X" -P -- "${tr_bjson_keys[@]}";})"
 
     printf "%s" "$tr_json_str" | gobolt json -m r -t type \
         -k stdin -P -- "${tr_bjson_keys[@]}"

@@ -753,7 +753,7 @@ test_case15 ()
     local -a "arr=(${|trie_pop_to_flat_array t1;})"
     local -A "obj=(${|trie_shift_to_flat_assoc t1;})"
 
-    local -a arr_spec=([0]=$'null\034' [1]=$'null\034' [2]=$'null\034' [3]="value5")
+    local -a arr_spec=([0]=$'null'$X [1]=$'null'$X [2]=$'null'$X [3]="value5")
     local -A obj_spec=([b]="value1" [aage]="value2" )    
 
     if  assert_array a arr arr_spec &&
@@ -784,6 +784,12 @@ test_case16 ()
                     "[1]$X{c6}$X" "$TR_VALUE_TRUE" \
                     "[1]$X{c7}$X" "$TR_VALUE_FALSE" \
                     "[1]$X{c8}$X" "strwxx" \
+                    "[1]$X{gge中国ge}$X[0]$X" "null" \
+                    "[1]$X{gge中国ge}$X[1]$X" "$TR_VALUE_NULL" \
+                    "[1]$X{gge中国ge}$X[2]$X" "$TR_VALUE_TRUE" \
+                    "[1]$X{gge中国ge}$X[3]$X" "1010$X" \
+                    "[1]$X{gge中国ge}$X[4]$X" "1010.22" \
+                    "[1]$X{gge中国ge}$X[5]$X" "gegege" \
                     "[2]$X{x}$X" "value3" \
                     "[3]$X{y}$X" "value4" \
                     "[4]$X{z}$X" "value5" \
@@ -814,7 +820,15 @@ test_case16 ()
         "c6": true,
         "c7": false,
         "c8": "strwxx",
-        "gge\ngege g\n \t gegge": "\ngege geg\ngg  ee"
+        "gge\ngege g\n \t gegge": "\ngege geg\ngg  ee",
+        "gge中国ge": [
+            "null",
+            null,
+            true,
+            1010,
+            "1010.22",
+            "gegege"
+        ]
     },
     {
         "x": "value3"
@@ -833,16 +847,22 @@ test_case16 ()
     ]
 ]'
     
+    # echo "t1_json"
+    # printf "%s\n" "$t1_json"
+
+    # echo "json_spec"
+    # printf "%s\n" "$json_spec"
+
     if [[ "$t1_json" == "$json_spec" ]] ; then
         log_test 1 1
     else
         log_test 0 1 ; return 1
     fi
 
-    trie_from_json "$json_spec"
-
     local -A "my_recover_tree1=(${|trie_from_json "$json_spec";})"
     local -A "my_recover_tree2=(${|trie_from_json "$json_spec" 0;})"
+
+    # cat -A <(trie_dump my_recover_tree1)
 
     if  trie_equals my_recover_tree1 t1 &&
         trie_equals my_recover_tree2 t2 ; then
