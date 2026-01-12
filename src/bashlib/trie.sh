@@ -26,15 +26,18 @@ readonly TR_RET_ENUM_KEY_IS_NOTFOUND=3
 readonly TR_RET_ENUM_KEY_IS_INVALID=4
 readonly TR_RET_ENUM_KEY_OUT_OF_INDEX=5
 readonly TR_RET_ENUM_KEY_IS_NOT_LEAF=6
-readonly TR_RET_ENUM_KEY_IS_NULL=8
-readonly TR_RET_ENUM_KEY_UP_LEV_TYPE_MISMATCH=9
-readonly TR_RET_ENUM_KEY_CHILD_CNT_IS_ZERO=13
+readonly TR_RET_ENUM_KEY_IS_NULL=7
+readonly TR_RET_ENUM_KEY_UP_LEV_TYPE_MISMATCH=8
+readonly TR_RET_ENUM_KEY_CHILD_CNT_IS_ZERO=9
+readonly TR_RET_ENUM_KEY_OTHER_TOOL_NOT_INSTALLED=10
+readonly TR_RET_ENUM_KEY_BJSON_TYPE_INVALID=11
+readonly TR_RET_ENUM_KEY_BJSON_TYPE_OBJ=12
+readonly TR_RET_ENUM_KEY_BJSON_TYPE_ARR=13
 
-readonly TR_RET_ENUM_TREE_IS_INVALID=10
-readonly TR_RET_ENUM_TREE_IS_EMPTY=11
-readonly TR_RET_ENUM_TREE_NOT_HAVE_ROOT=12
-
-readonly TR_RET_ENUM_TREE_IS_NOT_SAME=1
+readonly TR_RET_ENUM_TREE_IS_INVALID=50
+readonly TR_RET_ENUM_TREE_IS_EMPTY=51
+readonly TR_RET_ENUM_TREE_NOT_HAVE_ROOT=52
+readonly TR_RET_ENUM_TREE_IS_NOT_SAME=53
 
 # type field (dedicated to container identification)
 readonly TR_TYPE_OBJ=1
@@ -62,6 +65,15 @@ readonly TR_FLAT_IS_NOT_MATCH=1
 readonly TR_FLAT_ARRAY_NULL=2
 readonly TR_FLAT_ASSOC_NULL=3
 
+# gobolt JSON Object type return value
+readonly TR_GOBOLT_JSONTYPENULL=1
+readonly TR_GOBOLT_JSONTYPETRUE=2
+readonly TR_GOBOLT_JSONTYPEFALSE=3
+readonly TR_GOBOLT_JSONTYPENUMBER=4
+readonly TR_GOBOLT_JSONTYPESTRING=5
+readonly TR_GOBOLT_JSONTYPEARRAY=6
+readonly TR_GOBOLT_JSONTYPEOBJECT=7
+readonly TR_GOBOLT_JSONTYPEUNKNOWN=8
 
 _str_is_decimal_positive_int ()
 {
@@ -1619,6 +1631,99 @@ _trie_flat_insert ()
 
 trie_push_flat () { _trie_flat_insert "$1" "$2" push "$3" ; }
 trie_unshift_flat () { _trie_flat_insert "$1" "$2" unshift "$3" ; }
+
+# This function is very slow and not suitable for high-frequency
+# scenarios.
+trie_to_json ()
+{
+    local tr_name=$1
+    local -n tr_t=$1
+    local tr_full_key=$2
+    local tr_jstr
+
+    command -v gobolt &>/dev/null || {
+        die "gobolt tool is not installed."
+        return $TR_RET_ENUM_KEY_OTHER_TOOL_NOT_INSTALLED
+    }
+
+    [[ -z "${tr_t[$TR_ROOT_ID.children]}" ]] && {
+        case "${tr_t[$TR_ROOT_ID.type]}" in
+        $TR_TYPE_OBJ)   REPLY='{}' ; return $TR_RET_ENUM_OK ;;
+        $TR_TYPE_ARR)   REPLY='[]' ; return $TR_RET_ENUM_OK ;;
+        *)  return $TR_RET_ENUM_TREE_NOT_HAVE_ROOT  ;;
+        esac
+    }
+
+    trie_to_json_callback ()
+    {
+        local node_kind=$1
+        local index_full_key=$3 value=$4
+        local -a "tokens=(${|_split_tokens "$index_full_key";})"
+        local -a bjson_params=()
+        local token
+        local write_jstr_param='-j'
+
+        case "$node_kind" in
+        $TR_NODE_KIND_LEAF)
+            case "$value" in
+            $TR_VALUE_TRUE) value='true'   ;;
+            $TR_VALUE_FALSE) value='false' ;;
+            *"$X")  value=${value%"$X"}    ;;
+            *) write_jstr_param='-s'       ;;
+            esac
+            ;;
+        $TR_NODE_KIND_LEAF_NULL) value='null' ;;
+        $TR_NODE_KIND_ARR_EMPTY) value='[]'   ;;
+        $TR_NODE_KIND_OBJ_EMPTY) value='{}'   ;;
+        *)  return $TR_RET_ENUM_OK            ;;
+        esac
+
+        for token in "${tokens[@]}" ; do
+            case "$token" in
+            '{'*'}') bjson_params+=(":${token:1:-1}")   ;;
+            '['*']') bjson_params+=("${token:1:-1}")    ;;
+            esac
+        done
+        
+        tr_jstr=${ printf "%s" "$tr_jstr" | \
+            gobolt json -m w -k stdin "$write_jstr_param" "$value" \
+            -P -- "${bjson_params[@]}";}
+    }
+
+    trie_walk "$tr_name" "$tr_full_key" trie_to_json_callback || return $?
+    REPLY=$tr_jstr
+}
+
+trie_from_json ()
+{
+    local tr_json_str=$1
+    local tr_bjson_keys="${@:2}"
+
+    local -A "tr_assoc=(${ printf "%s" "$tr_json_str" | \
+        gobolt json -m r -t txt -k stdin -F trie -P -- "${tr_bjson_keys[@]}";})"
+
+    printf "%s" "$tr_json_str" | gobolt json -m r -t type \
+        -k stdin -P -- "${tr_bjson_keys[@]}"
+    case "$?" in
+    $TR_GOBOLT_JSONTYPEARRAY)
+        local -A "tr_init_tree=(${|trie_init "$TR_TYPE_ARR";})" ;;
+    $TR_GOBOLT_JSONTYPEOBJECT)
+        local -A "tr_init_tree=(${|trie_init "$TR_TYPE_OBJ";})" ;;
+    *)
+        die "bjson key:${tr_bjson_keys[*]} type is known."
+        return $TR_RET_ENUM_KEY_BJSON_TYPE_INVALID
+        ;;
+    esac
+
+    local tr_key
+    for tr_key in "${!tr_assoc[@]}" ; do
+        trie_insert tr_init_tree "$tr_key" "${tr_assoc[$tr_key]}"
+    done
+    
+    # trie_dump tr_init_tree
+
+    REPLY=${tr_init_tree[*]@K}
+}
 
 return 0
 

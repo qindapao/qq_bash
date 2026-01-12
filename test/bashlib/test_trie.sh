@@ -766,6 +766,97 @@ test_case15 ()
     return 0
 }
 
-# step_test 15
+test_case16 ()
+{
+    local -A "t1=(${|trie_init "$TR_TYPE_ARR";})"
+
+    local special_str1=$'gge\ngege g\n \t gegge'
+    local special_str2=$'\ngege geg\ngg  ee'
+
+    trie_inserts t1 "[0]$X{b}$X" "value1" \
+                    "[0]$X{aage}$X" "value2" \
+                    "[1]$X{$special_str1}$X" "$special_str2" \
+                    "[1]$X{c1}$X" "$TR_VALUE_NULL_OBJ" \
+                    "[1]$X{c2}$X" "$TR_VALUE_NULL_ARR" \
+                    "[1]$X{c3}$X" "$TR_VALUE_NULL" \
+                    "[1]$X{c4}$X" "190.22$X" \
+                    "[1]$X{c5}$X" "190.23" \
+                    "[1]$X{c6}$X" "$TR_VALUE_TRUE" \
+                    "[1]$X{c7}$X" "$TR_VALUE_FALSE" \
+                    "[1]$X{c8}$X" "strwxx" \
+                    "[2]$X{x}$X" "value3" \
+                    "[3]$X{y}$X" "value4" \
+                    "[4]$X{z}$X" "value5" \
+                    "[5]$X[3]$X" "value5"
+
+    local -A "t2=(${|trie_init "$TR_TYPE_OBJ";})"
+    trie_inserts t2 "{b}$X" "value1" \
+                    "{aage}$X" "value2"
+
+
+    # echo "${t1[5.children]}"
+
+    local t1_json
+    t1_json=${|trie_to_json t1;}
+
+
+    local json_spec='[
+    {
+        "aage": "value2",
+        "b": "value1"
+    },
+    {
+        "c1": {},
+        "c2": [],
+        "c3": null,
+        "c4": 190.22,
+        "c5": "190.23",
+        "c6": true,
+        "c7": false,
+        "c8": "strwxx",
+        "gge\ngege g\n \t gegge": "\ngege geg\ngg  ee"
+    },
+    {
+        "x": "value3"
+    },
+    {
+        "y": "value4"
+    },
+    {
+        "z": "value5"
+    },
+    [
+        null,
+        null,
+        null,
+        "value5"
+    ]
+]'
+    
+    if [[ "$t1_json" == "$json_spec" ]] ; then
+        log_test 1 1
+    else
+        log_test 0 1 ; return 1
+    fi
+
+    trie_from_json "$json_spec"
+
+    local -A "my_recover_tree1=(${|trie_from_json "$json_spec";})"
+    local -A "my_recover_tree2=(${|trie_from_json "$json_spec" 0;})"
+
+    if  trie_equals my_recover_tree1 t1 &&
+        trie_equals my_recover_tree2 t2 ; then
+        log_test 1 2
+    else
+        log_test 0 2 ; return 1
+    fi
+
+
+    
+    return 0
+}
+
+
+# step_test 16
 eval -- "${|AS_RUN_TEST_CASES;}"
 

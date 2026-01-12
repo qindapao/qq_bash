@@ -319,15 +319,43 @@ test_case12 ()
         )
     local -a sort_arr=()
     local -a spec_arr=(
-        "{CLASS}"
-        "{CNT}"
-        "{cut_plus}"
-        "{haha}"
-        "{P1}"
-        "{P2}"
         "{print_self}"
-        "{SELF}"
+        "{haha}"
+        "{cut_plus}"
         "{SUPER}"
+        "{SELF}"
+        "{P2}"
+        "{P1}"
+        "{CNT}"
+        "{CLASS}"
+    )
+
+    local item
+    for item in "${ori_arr[@]}" ; do
+        array_sorted_insert sort_arr "$item" '<'
+    done
+
+    if assert_array a sort_arr spec_arr ; then
+        log_test 1 1
+    else
+        log_test 0 1 ; return 1
+    fi
+
+    return 0
+}
+
+test_case13 ()
+{
+    local -a ori_arr=(
+        "c"
+        "c2"
+        "c1"
+        )
+    local -a sort_arr=()
+    local -a spec_arr=(
+        "c2"
+        "c1"
+        "c"
         )
 
     local item
@@ -335,11 +363,16 @@ test_case12 ()
         array_sorted_insert sort_arr "$item" '<'
     done
 
-    printf "%s\n" "${sort_arr[@]}"
+    if assert_array a sort_arr spec_arr ; then
+        log_test 1 1
+    else
+        log_test 0 1 ; return 1
+    fi
 
+    return 0
 }
 
-# step_test 12
+# step_test 12 13
 
 eval -- "${|AS_RUN_TEST_CASES;}"
 

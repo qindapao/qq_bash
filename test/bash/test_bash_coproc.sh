@@ -165,6 +165,98 @@ test_case3 ()
     done
 }
 
+# 通过\0来传送完整的字符串
+
+test_case4 ()
+{
+    # 因为是常驻链接所以只能在主块中写代码，不能写END块
+    # 因为 END 块只有在程序需要退出的时候才会执行的
+    # 协程适合处理小数据，如果数据本身太大，那么通过管道发送回Bash的开销也
+    # 会比较大,mapfile 也不会让速度更快
+    #
+    # 所有频繁的交互还是有用协程，但是大数据的低频交互还是用命令替换比较好
+
+    local SI=$'\034'
+
+    coproc AWKPROC {
+        awk '
+            # join 函数：把数组 a 从索引 s 到 e 用 sep 拼成一个字符串
+            function join(a, s, e, sep,    out, i) {
+                if (s > e) return ""
+                out = a[s]
+                for (i = s + 1; i <= e; i++) out = out sep a[i]
+                return out
+            }
+
+            BEGIN {
+            RS = "\0"
+            MY_SEP = "\034"
+            }
+            {
+            n = split($0, parts, MY_SEP)
+            out = ""
+            for (i=1; i<=n ; i++) {
+                out = out MY_SEP "got: " parts[i]
+            }
+
+            printf("%s\0", out)
+            fflush()
+            }
+        '
+    }
+
+    local my_arr=() i
+    for i in {0..1000} ; do
+        my_arr+=("${|rand_str;}$SI")
+    done
+
+    echo "str build end."
+
+    local other=${my_arr[*]}
+
+    result=()
+
+    # 其实直接命令替换的速度反而是最快的
+    time my_str=${
+        awk '
+            # join 函数：把数组 a 从索引 s 到 e 用 sep 拼成一个字符串
+            function join(a, s, e, sep,    out, i) {
+                if (s > e) return ""
+                out = a[s]
+                for (i = s + 1; i <= e; i++) out = out sep a[i]
+                return out
+            }
+
+            BEGIN {
+            RS = "\0"
+            MY_SEP = "\034"
+            }
+            {
+            n = split($0, parts, MY_SEP)
+            out = ""
+            for (i=1; i<=n ; i++) {
+                out = out MY_SEP "got: " parts[i]
+            }
+
+            printf("%s", out)
+            fflush()
+            }
+        ' <<<"$other";}
+    echo "${#my_str}"
+
+    echo 1_in
+    printf '%s\0' "$other" >&"${AWKPROC[1]}"
+    echo 1_out
+    time IFS=$'\034' read -r -d $'\0' -a result -u "${AWKPROC[0]}"
+
+    echo 2_in
+    printf '%s\0' "$other" >&"${AWKPROC[1]}"
+    echo 2_out
+    time IFS=$'\034' read -r -d $'\0' -a result -u "${AWKPROC[0]}"
+    
+    echo "result: ${#result[@]}"
+}
+
 
 eval -- "${|AS_RUN_TEST_CASES;}"
 
