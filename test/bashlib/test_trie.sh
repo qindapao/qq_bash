@@ -780,7 +780,7 @@ test_case16 ()
                     "[1]$X{c2}$X" "$TR_VALUE_NULL_ARR" \
                     "[1]$X{c3}$X" "$TR_VALUE_NULL" \
                     "[1]$X{c4}$X" "190.22$X" \
-                    "[1]$X{c5}$X" "190.23" \
+                    "[1]$X{c5*[]@!{}}$X" "190.23*[]@!{}" \
                     "[1]$X{c6}$X" "$TR_VALUE_TRUE" \
                     "[1]$X{c7}$X" "$TR_VALUE_FALSE" \
                     "[1]$X{c8}$X" "strwxx" \
@@ -805,6 +805,11 @@ test_case16 ()
     local t1_json
     t1_json=${|trie_to_json t1;}
 
+    local t1_json_slow
+    t1_json_slow=${|trie_to_json_slow t1;}
+
+    # cat -A <(printf "%s" "$t1_json_slow")
+    # cat -A <(printf "%s" "$t1_json")
 
     local json_spec='[
     {
@@ -816,7 +821,7 @@ test_case16 ()
         "c2": [],
         "c3": null,
         "c4": 190.22,
-        "c5": "190.23",
+        "c5*[]@!{}": "190.23*[]@!{}",
         "c6": true,
         "c7": false,
         "c8": "strwxx",
@@ -853,7 +858,7 @@ test_case16 ()
     # echo "json_spec"
     # printf "%s\n" "$json_spec"
 
-    if [[ "$t1_json" == "$json_spec" ]] ; then
+    if [[ "$t1_json" == "$json_spec" ]] && [[ "$t1_json" == "$t1_json_slow" ]] ; then
         log_test 1 1
     else
         log_test 0 1 ; return 1

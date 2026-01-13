@@ -26,9 +26,31 @@
 重构方案，阶段三(可选):
     - full_key 可以考虑移除，这样可以减少节点数量，可以通过动态路径拼接获得 full_key，不需要用 key 来存储，不过现阶段可以暂时保留。
         移除后索引稍微麻烦点，先阶段保留。
-    - 如果节点数量膨胀得太厉害。可以考虑把 child 的 id 一起压缩到 children 里面。
-        当前这样的优势是结构清晰，索引速度快，排序 children 也比较方便，但是有点浪费空间。
-        如果取消掉 child ，那么 children 的拆分就会比较复杂了，可能会浪费时间。
+    - 如果节点数量膨胀得太厉害。可以考虑把 child 的 id 一起压缩到 children_ids 里面。
+        原来的 children 还是保存 child token 的列表，但是 children_ids 里面是一个序列化后的关联数组
+        保存的是每个 child token 对应的ID
+        这样不管有多少个孩子，就只需要两个键: children 和 children_ids, 不需要一堆 child 键，只是序列化和反序列化增加
+        了运行时间，但是可以显著减少节点数量
+
+        unset -v children_ids_map children_ids children
+        X=$'\034'
+        token1="{key1}"
+        token2="{key2}"
+        children="{$token1}$X{$token2}$X"
+
+        declare -A children_ids_map=([{$token1}]=234 [{$token2}]=456)
+        children_ids=${children_ids_map[*]@K}
+
+
+        declare -A "children_ids_map=($children_ids)"
+
+        declare -p children_ids_map
+        declare -p children_ids
+        declare -p children
+    
+        children 索引也可以考虑直接序列化一个数组进去。不用使用token来分割。因为token分割函数中判断合法性会浪费时间。
+        但是使用token分割的优势也有。可以使用字符串的索引查找来找到index，就是 ble.sh 中的 last-index-of 类似的方法。
+
 
 array
     普通数组的交集、合集、差集的方法，关联数组如果当成集合使用也可以做
@@ -37,3 +59,25 @@ test.sh
     测试失败的脚本名字和用例名字，还有子用例名字都应该要收集起来在最后的地方呈现给用户。
     方便回查问题。
 
+trie.sh
+    性能优化
+        *. 从 children 数组中找 token 的数字索引不需要先把它转换成数组然后再找，可以考虑使用类似下面
+            这种方法，效率非常高
+            https://github.com/akinomyoga/ble.sh/blob/master/src/util.sh
+            ## @fn ble/string#last-index-of text needle [n]
+            ##   @param[in] text
+            ##   @param[in] needle
+            ##   @param[in] n
+            ##     この引数を指定したとき n 番目の一致を検索します。
+            ##   @var[out] ret
+            function ble/string#last-index-of {
+              local haystack=$1 needle=$2 count=${3:-1}
+              ble/string#repeat '"$needle"*' "$count"; local pattern=$ret
+              builtin eval "local transformed=\${haystack%$pattern}"
+              if [[ $transformed == "$haystack" ]]; then
+                ret=-1
+              else
+                ret=${#transformed}
+              fi
+              ((ret>=0))
+            }

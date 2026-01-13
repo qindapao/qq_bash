@@ -5,9 +5,18 @@
 . "${BASH_SOURCE[0]%/*}/str.sh"
 . "${BASH_SOURCE[0]%/*}/meta.sh"
 
+# ================================================================================
+# Importantly, if you want to save trie data, it is recommended to directly
+# serialize it into JSON standard format(trie_to_json), and then convert JSON
+# into trie(trie_from_json) before use. Because the implementation details inside
+# the tree may change, If directly `declare -p tree` saves it to a file and reuses
+# it through the source method. If the implementation details of the tree change,
+# it will cause failure.
 # All variable names in the library start with tr_.
 # Be careful to avoid external variables.
 # tr_
+# ================================================================================
+
 
 
 # If you want more powerful anti-collision capabilities, you can set it as follows
@@ -75,26 +84,31 @@ readonly TR_GOBOLT_JSONTYPEARRAY=6
 readonly TR_GOBOLT_JSONTYPEOBJECT=7
 readonly TR_GOBOLT_JSONTYPEUNKNOWN=8
 
-_str_is_decimal_positive_int ()
+# $1: The value of the string that needs to be converted
+# $2: Variable name saved after conversion
+trie_bjson_key_escape ()
 {
-    [[ -z "$1" ]] && return 1
-    [[ "$1" == "0" || ( -z "${1//[0-9]/}" && "$1" != 0* ) ]]
-}
+    local -n bjsonKeyEscapeR_ekey="$2"
 
-_str_is_decimal_int ()
-{
-    [[ "${1:0:1}" == "-" ]] && set -- "${1:1}"
-    _str_is_decimal_positive_int "$1"
-}
+    bjsonKeyEscapeR_ekey="$1"
 
-_array_is_all_decimal_positive_int ()
-{
-    local item
-    for item in "$@" ; do
-        _str_is_decimal_positive_int "$item" || return 1
-    done
+    if ((${#bjsonKeyEscapeR_ekey}>6666)) ; then
+        bjsonKeyEscapeR_ekey=$(printf "%s" "$bjsonKeyEscapeR_ekey" | gobolt json -m e -k stdin)
+        bjsonKeyEscapeR_ekey=${bjsonKeyEscapeR_ekey%?}
+    else
+        local bjsonKeyEscapeR_is_patsub_replacement_on=0
+        shopt -q patsub_replacement || {
+            shopt -s patsub_replacement
+            bjsonKeyEscapeR_is_patsub_replacement_on=1
+        }
 
-    return 0
+        # 5.2 patsub_replacement
+        bjsonKeyEscapeR_ekey=${bjsonKeyEscapeR_ekey//[][\\.*?|@#]/\\&}
+        bjsonKeyEscapeR_ekey=${bjsonKeyEscapeR_ekey//'{'/'\{'}
+        bjsonKeyEscapeR_ekey=${bjsonKeyEscapeR_ekey//'}'/'\}'}
+        bjsonKeyEscapeR_ekey=${bjsonKeyEscapeR_ekey//'!'/'\!'}
+        ((bjsonKeyEscapeR_is_patsub_replacement_on)) && shopt -u patsub_replacement
+    fi
 }
 
 _split_tokens ()
@@ -114,13 +128,13 @@ _split_tokens ()
                 die "now are not in insertion semantics. key:$1 is invalid!"
                 return $TR_RET_ENUM_KEY_IS_INVALID
             }
-            _str_is_decimal_positive_int "${token:1:-1}" || {
+            str_is_decimal_positive_int "${token:1:-1}" || {
                 die "key:$1 is invalid!"
                 return $TR_RET_ENUM_KEY_IS_INVALID
             }
             ;;
         '[]')
-            _str_is_decimal_int "${token:1:-1}" || {
+            str_is_decimal_int "${token:1:-1}" || {
                 die "key:$1 is invalid!"
                 return $TR_RET_ENUM_KEY_IS_INVALID
             }
@@ -404,7 +418,7 @@ trie_insert ()
     # Here tr_full_key needs to remove the tr_path_key prefix and start traversing
     tr_tokens_str=${tr_full_key#"$tr_path_key"}
     [[ -n "$tr_path_key" && "$tr_tokens_str" == "$tr_full_key" ]] && {
-        echo "path_key:${tr_path_key} is not part of full key:${tr_full_key}." >&2
+        die "path_key:${tr_path_key} is not part of full key:${tr_full_key}."
         return $TR_RET_ENUM_KEY_IS_INVALID
     }
     tr_tokens_str=${|_split_tokens "$tr_tokens_str" 1;} || return $?
@@ -889,7 +903,7 @@ trie_get_leaf ()
     local tr_full_key=$2
 
     [[ -z "$tr_full_key" ]] && {
-        echo "key is null."
+        die "key is null."
         return $TR_RET_ENUM_KEY_IS_NULL
     }
     local tr_node_info
@@ -1254,7 +1268,7 @@ trie_id_rebuild ()
         esac
 
         # If the parent is an array, special handling is required.
-        if _str_is_decimal_positive_int "$index_token" ; then
+        if str_is_decimal_positive_int "$index_token" ; then
             # Update new token
             tr_new["$new_parent_id.child.<$new_id>"]="$new_id"
             tr_new[$new_parent_id.children]+="<$new_id>$X"
@@ -1632,9 +1646,8 @@ _trie_flat_insert ()
 trie_push_flat () { _trie_flat_insert "$1" "$2" push "$3" ; }
 trie_unshift_flat () { _trie_flat_insert "$1" "$2" unshift "$3" ; }
 
-# This function is very slow and not suitable for high-frequency
-# scenarios.
-trie_to_json ()
+# This function is very slow and is only used for verification.
+trie_to_json_slow ()
 {
     local tr_name=$1
     local -n tr_t=$1
@@ -1654,7 +1667,7 @@ trie_to_json ()
         esac
     }
 
-    trie_to_json_callback ()
+    trie_to_json_slow_callback ()
     {
         local node_kind=$1
         local index_full_key=$3 value=$4
@@ -1687,11 +1700,88 @@ trie_to_json ()
         
         tr_jstr=${ printf "%s" "$tr_jstr" | \
             gobolt json -m w -k stdin "$write_jstr_param" "$value" \
-            -P -- "${bjson_params[@]}";}
+            -P -- "${bjson_params[@]}";} || return $?
+        return $TR_RET_ENUM_OK
+    }
+
+    trie_walk "$tr_name" "$tr_full_key" trie_to_json_slow_callback || return $?
+    REPLY=$tr_jstr
+}
+
+trie_to_json ()
+{
+    local tr_name=$1
+    local -n tr_t=$1
+    local tr_full_key=$2
+    local -a tr_gobolt_params=()
+
+    command -v gobolt &>/dev/null || {
+        die "gobolt tool is not installed."
+        return $TR_RET_ENUM_KEY_OTHER_TOOL_NOT_INSTALLED
+    }
+
+    [[ -z "${tr_t[$TR_ROOT_ID.children]}" ]] && {
+        case "${tr_t[$TR_ROOT_ID.type]}" in
+        $TR_TYPE_OBJ)   REPLY='{}' ; return $TR_RET_ENUM_OK ;;
+        $TR_TYPE_ARR)   REPLY='[]' ; return $TR_RET_ENUM_OK ;;
+        *)  return $TR_RET_ENUM_TREE_NOT_HAVE_ROOT  ;;
+        esac
+    }
+
+    trie_to_json_callback ()
+    {
+        local node_kind=$1
+        local index_full_key=$3 value=$4
+        local -a "tokens=(${|_split_tokens "$index_full_key";})"
+        local -a bjson_params=()
+        local token
+
+        case "$node_kind" in
+        $TR_NODE_KIND_LEAF)
+            case "$value" in
+            $TR_VALUE_TRUE)     value='j:true'        ;;
+            $TR_VALUE_FALSE)    value='j:false'       ;;
+            *"$X")              value=j:${value%"$X"} ;;
+            *)                  value=s:${value}      ;;
+            esac
+            ;;
+        $TR_NODE_KIND_LEAF_NULL) value='j:null' ;;
+        $TR_NODE_KIND_ARR_EMPTY) value='j:[]'   ;;
+        $TR_NODE_KIND_OBJ_EMPTY) value='j:{}'   ;;
+        *)  return $TR_RET_ENUM_OK            ;;
+        esac
+
+        for token in "${tokens[@]}" ; do
+            case "$token" in
+            '{'*'}')
+                trie_bjson_key_escape "${token:1:-1}" token
+                if ((${#bjson_params[@]})) ; then
+                    bjson_params+=(".:$token")
+                else
+                    bjson_params+=(":$token")
+                fi
+                ;;
+            '['*']')
+                if ((${#bjson_params[@]})) ; then
+                    bjson_params+=(".${token:1:-1}")
+                else
+                    bjson_params+=("${token:1:-1}")
+                fi
+                ;;
+            esac
+        done
+
+        printf -v 'tr_gobolt_params[${#tr_gobolt_params[@]}]' "%s" "${bjson_params[@]}"
+        tr_gobolt_params+=("$value")
+
+        return $TR_RET_ENUM_OK
     }
 
     trie_walk "$tr_name" "$tr_full_key" trie_to_json_callback || return $?
-    REPLY=$tr_jstr
+
+    # printf "%s\n" "${tr_gobolt_params[@]}"
+
+    REPLY=${ printf '' | gobolt json -m w -k stdin -s '' -M -- "${tr_gobolt_params[@]}";}
 }
 
 trie_from_json ()
@@ -1699,12 +1789,16 @@ trie_from_json ()
     local tr_json_str=$1
     local tr_bjson_keys="${@:2}"
 
-    local -A "tr_assoc=(${ printf "%s" "$tr_json_str" | \
-        gobolt json -m r -t txt -k stdin -F trie -x "$X" -P -- "${tr_bjson_keys[@]}";})"
+    command -v gobolt &>/dev/null || {
+        die "gobolt tool is not installed."
+        return $TR_RET_ENUM_KEY_OTHER_TOOL_NOT_INSTALLED
+    }
 
-    printf "%s" "$tr_json_str" | gobolt json -m r -t type \
-        -k stdin -P -- "${tr_bjson_keys[@]}"
+    local tr_assoc ; tr_assoc=${ printf "%s" "$tr_json_str" | \
+        gobolt json -m r -t txt -k stdin -F trie -x "$X" -P -- "${tr_bjson_keys[@]}";}
     case "$?" in
+    $TR_GOBOLT_JSONTYPEARRAY|$TR_GOBOLT_JSONTYPEOBJECT)
+        local -A "tr_assoc=($tr_assoc)" ;;&
     $TR_GOBOLT_JSONTYPEARRAY)
         local -A "tr_init_tree=(${|trie_init "$TR_TYPE_ARR";})" ;;
     $TR_GOBOLT_JSONTYPEOBJECT)

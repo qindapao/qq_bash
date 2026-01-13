@@ -1,5 +1,24 @@
 ((_ARRAY_IMPORTED++)) && return 0
 
+
+# If you need to create an empty array, you can use the following method to
+# obtain it through prototype slicing
+# If the prototype is not enough, expand it first, which is faster than
+# directly creating an empty array.
+# https://github.com/akinomyoga/ble.sh/blob/master/src/util.sh
+# _ble_array_prototype=()
+# function ble/array#reserve-prototype {
+#   local n=$1 i
+#   for ((i=${#_ble_array_prototype[@]};i<n;i++)); do
+#     _ble_array_prototype[i]=
+#   done
+# }
+# arr=("${_ble_array_prototype[@]::n}")
+# replace
+# for ((i=0;i<n;i++)); do arr[i]=; done
+# 
+
+
 # a_ as a reserved prefix
 # Q string wrapping is no longer used
 array_sorted_insert ()
