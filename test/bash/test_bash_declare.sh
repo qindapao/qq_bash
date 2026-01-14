@@ -171,5 +171,109 @@ test_case7 ()
     return 0
 }
 
+# localvar_inherit
+# 让内层函数作用域的变量继承外层作用域的属性和值
+# 内层函数不要污染外层函数的变量
+# 但又希望它能安全地“遮蔽”外层变量而不破坏类型
+# 但是一般情况下这个选项对普通用户的意义不大
+# 不要轻易打开，会发生更多的未知行为
+test_case8 ()
+{
+    local localvar_inherit_on=0
+
+    shopt -q localvar_inherit &>/dev/null || {
+        shopt -s localvar_inherit
+        localvar_inherit_on=1
+    }
+
+    test_case8_outer ()
+    {
+        local -a arr=(1 2 3)
+        test_case8_inner
+        local arr_spec=(1 2 3)
+
+        if assert_array a arr arr_spec ; then
+            log_test 1 1
+        else
+            log_test 0 1 ; return 1
+        fi
+    }
+
+    test_case8_inner ()
+    {
+        local arr
+        arr[0]=5
+        local arr_spec=(5 2 3)
+        if assert_array a arr arr_spec ; then
+            log_test 1 1
+        else
+            log_test 0 1 ; return 1
+        fi
+
+        return 0
+    }
+    
+    test_case8_outer
+
+    ((localvar_inherit_on)) && shopt -u localvar_inherit
+}
+
+# localvar_unset 
+# 这个选项开启后的作用是
+# test_case_inner3 这里下层函数调用 unset 并不会在 test_case_inner3 里面
+# 马上移除这个 var, 所以 var=value3 并不会影响到 test_case_inner2
+#
+# 如果不开这个选项，那么 test_case_inner3 中的 var 被直接移除
+# test_case_inne2 中的 var 被赋值为 value3
+test_case9 ()
+{
+    local localvar_unset_on=0
+
+    shopt -q localvar_unset &>/dev/null || {
+        shopt -s localvar_unset
+        localvar_unset_on=1
+    }
+
+    test_case9_unset() { unset "$@" ; }
+
+    test_case_inner1 ()
+    {
+        local var=value1
+        test_case_inner2 var
+        var_print+="$var"
+    }
+
+    test_case_inner2 ()
+    {
+        local var=value2
+        test_case_inner3 var
+        var_print+="$var"
+    }
+    
+    test_case_inner3 ()
+    {
+        local var
+        test_case9_unset "$@"
+        var=value3
+    }
+
+    local var_print=
+    local var=valueout
+    test_case_inner1
+    var_print+="$var"
+
+    ((localvar_unset_on)) && shopt -u localvar_unset
+
+    if [[ "$var_print" == "value2value1valueout" ]] ; then
+        log_test 1 1
+    else
+        log_test 0 1 ; return 1
+    fi
+
+    return 0
+}
+
+# step_test 9
+
 eval -- "${|AS_RUN_TEST_CASES;}"
 
