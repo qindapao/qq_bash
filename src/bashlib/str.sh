@@ -51,6 +51,40 @@ str_is_decimal_int ()
     str_is_decimal_positive_int "$1"
 }
 
+# $1: str
+# $2: sep
+str_split ()
+{
+    local str=$1 sep=$2
+    local -a ret_arr=()
+    local part=
+
+    [[ -z "$sep" ]] && {
+        local i
+        for ((i=0; i<${#str}; i++)); do
+            ret_arr+=("${str:i:1}")
+        done
+        REPLY=${ret_arr[*]@Q}
+        return
+    }
+
+    [[ $str == *$'\034'* ]] || {
+        local - ; set -f
+        local old_ifs=$IFS IFS=$'\034'
+        ret_arr=(${str//"$sep"/"$IFS"})
+        IFS=$old_ifs ; REPLY=${ret_arr[*]@Q}
+        return
+    }
+
+    while [[ $str == *"$sep"* ]]; do
+        part=${str%%"$sep"*}
+        ret_arr+=("$part")
+        str=${str#*"$sep"}
+    done
+    [[ -n "$str" ]] && ret_arr+=("$str")
+
+    REPLY=${ret_arr[*]@Q}
+}
 
 return 0
 

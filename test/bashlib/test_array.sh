@@ -5,182 +5,6 @@
 
 test_case1 ()
 {
-    local arr=()
-    local -i i
-    for ((i=0; i<150; i++)); do
-        local tmp=$((RANDOM % 10000))
-        arr[i++]=$tmp
-        arr[i++]=$tmp
-        arr[i]=$tmp
-    done
-
-    local arr1=("${arr[@]}")
-
-    array_qsort arr1 '-gt'
-    arr2=($(printf "%s\n" "${arr[@]}" | sort -n))
-
-    if [[ "${arr1[*]}" == "${arr2[*]}" ]] ; then
-        echo "${FUNCNAME[0]} test pass."
-    else
-        echo "${FUNCNAME[0]} test fail."
-        return 1
-    fi
-
-    local arr=()
-    for ((i=0; i<2000; i++)); do
-        arr[i]=$((RANDOM % 10000))
-    done
-    arr[2000]="x  y  z"
-    arr[2001]='1  2  3'
-    local arr1=("${arr[@]}")
-
-    array_qsort arr1 '-gt'
-    arr2=($(printf "%s\n" "${arr[@]}" | sort -n))
-
-    if [[ "${arr1[*]}" == "${arr2[*]}" ]] ; then
-        echo "${FUNCNAME[0]} test pass."
-    else
-        echo "${FUNCNAME[0]} test fail."
-        return 1
-    fi
-
-    return 0
-}
-
-test_case2 ()
-{
-    local arr=()
-    local -i i
-    for ((i=0; i<150; i++)); do
-        local tmp=$((RANDOM % 10000))
-        arr[i++]=$tmp
-        arr[i++]=$tmp
-        arr[i]=$tmp
-    done
-
-    local arr1=("${arr[@]}")
-
-    array_qsort arr1 '-lt'
-    arr2=($(printf "%s\n" "${arr[@]}" | sort -rn))
-
-    if [[ "${arr1[*]}" == "${arr2[*]}" ]] ; then
-        echo "${FUNCNAME[0]} test pass."
-    else
-        echo "${FUNCNAME[0]} test fail."
-        return 1
-    fi
-
-    local arr=()
-    for ((i=0; i<2000; i++)); do
-        arr[i]=$((RANDOM % 10000))
-    done
-    arr[2000]="x  y  z"
-    arr[2001]='1  2  3'
-    local arr1=("${arr[@]}")
-
-    array_qsort arr1 '-lt'
-    arr2=($(printf "%s\n" "${arr[@]}" | sort -rn))
-
-    if [[ "${arr1[*]}" == "${arr2[*]}" ]] ; then
-        echo "${FUNCNAME[0]} test pass."
-    else
-        echo "${FUNCNAME[0]} test fail."
-        return 1
-    fi
-
-    return 0
-}
-
-test_case3 ()
-{
-    local arr=()
-    local -i i
-    for ((i=0; i<150; i++)); do
-        local tmp=$((RANDOM % 10000))
-        arr[i++]=$tmp
-        arr[i++]=$tmp
-        arr[i]=$tmp
-    done
-
-    local arr1=("${arr[@]}")
-
-    array_qsort arr1 '>'
-    arr2=($(printf "%s\n" "${arr[@]}" | sort))
-
-    if [[ "${arr1[*]}" == "${arr2[*]}" ]] ; then
-        echo "${FUNCNAME[0]} test pass."
-    else
-        echo "${FUNCNAME[0]} test fail."
-        return 1
-    fi
-
-    local arr=()
-    for ((i=0; i<2000; i++)); do
-        arr[i]=$((RANDOM % 10000))
-    done
-    arr[2000]="x  y  z"
-    arr[2001]='1  2  3'
-    local arr1=("${arr[@]}")
-
-    array_qsort arr1 '>'
-    arr2=($(printf "%s\n" "${arr[@]}" | sort))
-
-    if [[ "${arr1[*]}" == "${arr2[*]}" ]] ; then
-        echo "${FUNCNAME[0]} test pass."
-    else
-        echo "${FUNCNAME[0]} test fail."
-        return 1
-    fi
-
-    return 0
-}
-
-test_case4 ()
-{
-    local arr=()
-    local -i i
-    for ((i=0; i<150; i++)); do
-        local tmp=$((RANDOM % 10000))
-        arr[i++]=$tmp
-        arr[i++]=$tmp
-        arr[i]=$tmp
-    done
-
-    local arr1=("${arr[@]}")
-
-    array_qsort arr1 '<'
-    arr2=($(printf "%s\n" "${arr[@]}" | sort -r))
-
-    if [[ "${arr1[*]}" == "${arr2[*]}" ]] ; then
-        echo "${FUNCNAME[0]} test pass."
-    else
-        echo "${FUNCNAME[0]} test fail."
-        return 1
-    fi
-
-    local arr=()
-    for ((i=0; i<2000; i++)); do
-        arr[i]=$((RANDOM % 10000))
-    done
-    arr[2000]="x  y  z"
-    arr[2001]='1  2  3'
-    local arr1=("${arr[@]}")
-
-    array_qsort arr1 '<'
-    arr2=($(printf "%s\n" "${arr[@]}" | sort -r))
-
-    if [[ "${arr1[*]}" == "${arr2[*]}" ]] ; then
-        echo "${FUNCNAME[0]} test pass."
-    else
-        echo "${FUNCNAME[0]} test fail."
-        return 1
-    fi
-
-    return 0
-}
-
-test_case5 ()
-{
     local arr=(1 2 3 4 6)
     local value=5
     array_sorted_insert arr "$value" '-gt'
@@ -193,7 +17,7 @@ test_case5 ()
     return 0
 }
 
-test_case6 ()
+test_case2 ()
 {
     local arr=(10 9 7 6 5 4 2 1)
     local value=2
@@ -207,7 +31,7 @@ test_case6 ()
     return 0
 }
 
-test_case7 ()
+test_case3 ()
 {
     local arr=(a b c f g)
     local value=e
@@ -221,7 +45,7 @@ test_case7 ()
     return 0
 }
 
-test_case8 ()
+test_case4 ()
 {
     local arr=(g f b a)
     local value=d
@@ -235,7 +59,7 @@ test_case8 ()
     return 0
 }
 
-test_case10 ()
+test_case5 ()
 {
     local x=(1 2 3 4)
     local y=(1 2 3 4 5 6)
@@ -269,7 +93,7 @@ test_case10 ()
 
 }
 
-test_case11 ()
+test_case6 ()
 {
     local -
     # set -x
@@ -304,7 +128,7 @@ test_case11 ()
     return 0
 }
 
-test_case12 ()
+test_case7 ()
 {
     local -a ori_arr=(
         "{CLASS}"
@@ -344,7 +168,7 @@ test_case12 ()
     return 0
 }
 
-test_case13 ()
+test_case8 ()
 {
     local -a ori_arr=(
         "c"
@@ -372,7 +196,29 @@ test_case13 ()
     return 0
 }
 
-# step_test 12 13
+test_case9 ()
+{
+    local a1=()
+    local str1=''
+    local str2='x b'
+    local a2=('a 2 c  ' '1 2 3 ' 'degeg' '中文')
+
+    local join1=${|array_join a1 "str1";}
+    local join2=${|array_join a1 "str2";}
+    local join3=${|array_join a2 "$str1";}
+    local join4=${|array_join a2 "$str2";}
+
+    if [[ "$join1" == '' ]] &&
+        [[ "$join2" == '' ]] &&
+        [[ "$join3" == 'a 2 c  1 2 3 degeg中文' ]] &&
+        [[ "$join4" == 'a 2 c  x b1 2 3 x bdegegx b中文' ]] ; then
+        log_test 1 1
+    else
+        log_test 0 1 ; return 1
+    fi
+
+    return 0
+}
 
 eval -- "${|AS_RUN_TEST_CASES;}"
 
