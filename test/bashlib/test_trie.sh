@@ -23,7 +23,7 @@ test_case1 ()
         trie_insert t1 "{key1}$X" "value1"
         local -A t1_insert_spec=(
             [1.type]=1
-            [1.children]="{key1}$X"
+            [1.children]="'{key1}'"
             ["1.child.{key1}"]=2
             ["{key1}$X"]=value1
             [2.key]="{key1}$X"

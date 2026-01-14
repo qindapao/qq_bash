@@ -159,7 +159,7 @@ tr_resolve_index_token ()
     local -n tr_t=$1
     local tr_token=$2 tr_node=$3
     if [[ "${tr_token:0:1}${tr_token: -1}" == '[]' ]] ; then
-        local -a "tr_child_ids=(${|_split_tokens "${tr_t[$tr_node.children]}";})"
+        local -a "tr_child_ids=(${tr_t[$tr_node.children]})"
         tr_token=${|_negative_token_to_positive "$tr_token" "${#tr_child_ids[@]}" "$tr_node";} || return $?
         tr_token=${tr_child_ids[${tr_token:1:-1}]}
     fi
@@ -173,7 +173,7 @@ tr_resolve_physical_token ()
     local tr_token=$2 tr_node=$3
 
     if [[ "${tr_token:0:1}${tr_token: -1}" == '<>' ]] ; then
-        local -a "tr_child_ids=(${|_split_tokens "${tr_t[$tr_node.children]}";})"
+        local -a "tr_child_ids=(${tr_t[$tr_node.children]})"
         local -i tr_index=${|array_index "${tr_token}" ${tr_child_ids[@]};}
         ((tr_index==-1)) && {
             die "node:${tr_node}(token:${tr_token}) can not find index."
@@ -485,7 +485,7 @@ trie_insert ()
             }
 
             # Fill incomplete null nodes and update tr_token
-            local -a "tr_array=(${|_split_tokens "${tr_t[$tr_node.children]}";})"
+            local -a "tr_array=(${tr_t[$tr_node.children]})"
             local -i tr_i tr_array_len=${#tr_array[@]}
             local -a tr_add_token=()
             
@@ -511,7 +511,7 @@ trie_insert ()
             if ((${#tr_add_token[@]})) ; then
                 # Populate the parent node's children list
                 tr_array=("${tr_array[@]:0:tr_array_len}" "${tr_add_token[@]}" "${tr_array[@]:tr_array_len}")
-                printf -v 'tr_t[$tr_node.children]' "%s$X" "${tr_array[@]}"
+                tr_t[$tr_node.children]=${tr_array[*]@Q}
                 tr_token="<${tr_t[max_index]}>"
             else
                 tr_token="${tr_array[tr_array_index]}"
@@ -549,7 +549,7 @@ trie_insert ()
             # tr_t[$tr_child_id.children]=''
             # tr_t[$tr_child_id.key]=''
 
-            local -a "tr_children=(${|_split_tokens "${tr_t[$tr_node.children]}";})"
+            local -a "tr_children=(${tr_t[$tr_node.children]})"
             
             if ((tr_array_index!=-1)) ; then
                 if [[ "$tr_token_pack" == '()' ]] ; then
@@ -562,7 +562,7 @@ trie_insert ()
                 array_sorted_insert tr_children "$tr_token" '<'
             fi
 
-            printf -v tr_t[$tr_node.children] "%s$X" "${tr_children[@]}"
+            tr_t[$tr_node.children]=${tr_children[*]@Q}
             tr_t["$tr_child_key"]=$tr_child_id
         fi
 
@@ -683,7 +683,7 @@ _trie_dump ()
     tr_indent_new+="$tr_indent"
 
     # Traverse children
-    local -a "tr_children=(${|_split_tokens "${tr_t[$tr_node.children]}";})"
+    local -a "tr_children=(${tr_t[$tr_node.children]})"
     local tr_index=0
 
     local tr_token tr_mark='=>'
@@ -742,7 +742,8 @@ _trie_token_to_node_id ()
     [[ -z "$tr_full_key" ]] && {
         # ROOT
         [[ -n "${tr_t[$TR_ROOT_ID.children]}" ]] && {
-            tr_child_cnt=${|str_count "${tr_t[$TR_ROOT_ID.children]}" "$X";}
+            local -a "tr_children_tmp=(${tr_t[$TR_ROOT_ID.children]})"
+            tr_child_cnt=${#tr_children_tmp[@]}
         }
         tr_node_info=(
             [node_id]="$TR_ROOT_ID"
@@ -787,7 +788,8 @@ _trie_token_to_node_id ()
     done
 
     [[ -n "${tr_t[$tr_node.children]}" ]] && {
-        tr_child_cnt=${|str_count "${tr_t[$tr_node.children]}" "$X";}
+        local -a "tr_children_tmp=(${tr_t[$tr_node.children]})"
+        tr_child_cnt=${#tr_children_tmp[@]}
     }
 
     local tr_key=${tr_t[$tr_node.key]} tr_value=''
@@ -862,7 +864,7 @@ trie_delete ()
         unset -v 'tr_stack[-1]'
 
         # Get the current node children tr_token list
-        local -a "tr_children=(${|_split_tokens "${tr_t[$tr_cur.children]}";})"
+        local -a "tr_children=(${tr_t[$tr_cur.children]})"
 
         for tr_tk in "${tr_children[@]}"; do
             tr_cid="${tr_t[$tr_cur.child.$tr_tk]}"
@@ -884,10 +886,10 @@ trie_delete ()
     # Update the children of the upper node
     local tr_parent=${tr_path_nodes[-2]}
     tr_token=${tr_path_tokens[-1]}
-    local -a "tr_children=(${|_split_tokens "${tr_t[$tr_parent.children]}";})"
+    local -a "tr_children=(${tr_t[$tr_parent.children]})"
     array_delete_first_e tr_children "$tr_token"
     if ((${#tr_children[@]})) ; then
-        printf -v 'tr_t[$tr_parent.children]' "%s$X" "${tr_children[@]}"
+        tr_t[$tr_parent.children]=${tr_children[*]@Q}
     else
         unset -v 'tr_t[$tr_parent.children]'
     fi
@@ -954,7 +956,7 @@ trie_get_tree ()
     }
 
     # 5. Get the children of the node (the first-level node of the subtree)
-    local -a "tr_root_children=(${|_split_tokens "${tr_t[$tr_node.children]}";})"
+    local -a "tr_root_children=(${tr_t[$tr_node.children]})"
 
     # 6. Create a new tree
     local -A "tr_new=(${|trie_init "${tr_t[$tr_node.type]}";})"
@@ -963,7 +965,7 @@ trie_get_tree ()
     ((${#tr_root_children[@]})) || { REPLY=${tr_new[*]@K} ; return ${TR_RET_ENUM_OK} ; }
     
     # 7. The children of the new tree are reset to the current tr_root_children
-    printf -v tr_new[$TR_ROOT_ID.children] "%s$X" "${tr_root_children[@]}"
+    tr_new[$TR_ROOT_ID.children]=${tr_root_children[*]@Q}
 
     # 8. Mount all root children
     local tr_tk tr_cid
@@ -995,7 +997,7 @@ trie_get_tree ()
             tr_new["$tr_new_key"]=${tr_t["$tr_key"]}
         fi
 
-        local -a "tr_children=(${|_split_tokens "${tr_t[$tr_cur.children]}";})"
+        local -a "tr_children=(${tr_t[$tr_cur.children]})"
 
         for tr_tk in "${tr_children[@]}" ; do
             tr_cid="${tr_t["$tr_cur.child.$tr_tk"]}"
@@ -1042,7 +1044,7 @@ trie_iter ()
     # If tr_node_id is empty, traverse the root node
     tr_node_id=${tr_node_id:-"$TR_ROOT_ID"}
 
-    local -a "tr_children=(${|_split_tokens "${tr_t[$tr_node_id.children]}";})"
+    local -a "tr_children=(${tr_t[$tr_node_id.children]})"
 
     local tr_tk tr_child_id tr_type tr_value tr_key
     local tr_tk_p tr_type_p tr_value_p tr_node_p tr_index_tk_p
@@ -1173,7 +1175,7 @@ trie_walk ()
         local tr_index_prefix=${tr_stack[-1]} ; unset -v 'tr_stack[-1]'
         local tr_physical_prefix=${tr_stack[-1]} ; unset -v 'tr_stack[-1]'
 
-        local -a "tr_children=(${|_split_tokens "${tr_t[$tr_node_id.children]}";})"
+        local -a "tr_children=(${tr_t[$tr_node_id.children]})"
         local tr_tk tr_child_id tr_value tr_index_token
 
         local -i tr_index=0
@@ -1271,10 +1273,11 @@ trie_id_rebuild ()
         if str_is_decimal_positive_int "$index_token" ; then
             # Update new token
             tr_new["$new_parent_id.child.<$new_id>"]="$new_id"
-            tr_new[$new_parent_id.children]+="<$new_id>$X"
+            local tr_real_token="<$new_id>"
+            tr_new[$new_parent_id.children]+=" ${tr_real_token@Q}"
         else
             tr_new[$new_parent_id.child.$token]="$new_id"
-            tr_new[$new_parent_id.children]+="$token$X"
+            tr_new[$new_parent_id.children]+=" ${token@Q}"
         fi
     }
     trie_walk $1 '' trie_id_rebuild_callback
