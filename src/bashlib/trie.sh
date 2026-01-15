@@ -44,6 +44,7 @@ readonly TR_RET_ENUM_KEY_OTHER_TOOL_NOT_INSTALLED=10
 readonly TR_RET_ENUM_KEY_BJSON_TYPE_INVALID=11
 readonly TR_RET_ENUM_KEY_BJSON_TYPE_OBJ=12
 readonly TR_RET_ENUM_KEY_BJSON_TYPE_ARR=13
+readonly TR_RET_ENUM_KEY_PARAMETER_LENGTH_EXCEEDS_LIMIT=14
 
 readonly TR_RET_ENUM_TREE_IS_INVALID=50
 readonly TR_RET_ENUM_TREE_IS_EMPTY=51
@@ -681,7 +682,7 @@ trie_dump ()
     local -A "tr_node_info=($tr_node_info)"
     tr_node=${tr_node_info[node_id]}
 
-    local tr_indent ; printf -v tr_indent "%*s" "$tr_indent_cnt" ""
+    local tr_indent=${|str_repeat ' ' "$tr_indent_cnt";}
 
     printf "%s\n" "$tr_t_name"
 
@@ -714,8 +715,7 @@ _trie_dump ()
     local tr_id_need_print=$5
     local tr_value_need_print=$6
     local tr_print_array_index=$7
-    local tr_indent_new
-    printf -v tr_indent_new "%*s" "$tr_indent_cnt" ""
+    local tr_indent_new=${|str_repeat ' ' "$tr_indent_cnt";}
     tr_indent_new+="$tr_indent"
 
     # Traverse children
@@ -1785,7 +1785,7 @@ trie_to_json_slow ()
         local -a "tokens=(${|_split_tokens "$index_full_key";})"
         local -a bjson_params=()
         local token
-        local write_jstr_param='-j'
+        local write_jstr_param='-f'
 
         case "$node_kind" in
         $TR_NODE_KIND_LEAF)
@@ -1793,7 +1793,7 @@ trie_to_json_slow ()
             $TR_VALUE_TRUE) value='true'   ;;
             $TR_VALUE_FALSE) value='false' ;;
             *"$X")  value=${value%"$X"}    ;;
-            *) write_jstr_param='-s'       ;;
+            *) write_jstr_param='-o'       ;;
             esac
             ;;
         $TR_NODE_KIND_LEAF_NULL) value='null' ;;
@@ -1808,10 +1808,17 @@ trie_to_json_slow ()
             '['*']') bjson_params+=("${token:1:-1}")    ;;
             esac
         done
+        local tr_tmp_file=$(mktemp)
+        printf "%s" "$value" >"$tr_tmp_file"
         
         tr_jstr=${ printf "%s" "$tr_jstr" | \
-            gobolt json -m w -k stdin "$write_jstr_param" "$value" \
-            -P -- "${bjson_params[@]}";} || return $?
+            gobolt json -m w -k stdin "$write_jstr_param" "$tr_tmp_file" \
+            -P -- "${bjson_params[@]}";} || {
+                local tr_slow_ret=$?
+                rm -f "$tr_tmp_file"
+                return $tr_slow_ret
+            }
+        rm -f "$tr_tmp_file"
         return $TR_RET_ENUM_OK
     }
 
@@ -1895,7 +1902,28 @@ trie_to_json ()
 
     # printf "%s\n" "${tr_gobolt_params[@]}"
 
-    REPLY=${ printf '' | gobolt json -m w -k stdin -s '' -M -- "${tr_gobolt_params[@]}";}
+    local tr_i
+    local -A "tr_system_limits=(${|trie_get_arg_limits;})"
+
+    # Check if each parameter exceeds
+    # If it is found to be exceeded, the report will fail.
+
+    for((tr_i=0;tr_i<${#tr_gobolt_params[@]};tr_i+=2)) ; do
+        local -i tr_key_len=${|str_bytes "${tr_gobolt_params[tr_i]}";}
+
+        ((  tr_key_len>=${tr_system_limits[MAX_ARG_STRLEN]} )) && {
+            die "Command line parameters exceed limit"
+            return $TR_RET_ENUM_KEY_PARAMETER_LENGTH_EXCEEDS_LIMIT
+        }
+    done
+
+    local -i tr_all_param_byte_len=${|str_bytes "${tr_gobolt_params[*]}";}
+
+    if ((tr_all_param_byte_len>=${tr_system_limits[AVAILABLE]})) ; then
+        trie_to_json_slow "$tr_name" "$tr_full_key" ; return $?
+    else
+        REPLY=${ printf '' | gobolt json -m w -k stdin -s '' -M -- "${tr_gobolt_params[@]}";}
+    fi
 }
 
 #-------------------------------------------------------------------------------
@@ -1934,6 +1962,34 @@ trie_from_json ()
     # trie_dump tr_init_tree
 
     REPLY=${tr_init_tree[*]@K}
+}
+
+#-------------------------------------------------------------------------------
+
+trie_get_arg_limits ()
+{
+    # Linux: getconf ARG_MAX
+    # Windows/MSYS2: fallback to 8191
+    local -A args=()
+    local argmax=${ getconf ARG_MAX 2>/dev/null;}
+
+    if [[ -z "$argmax" || "$argmax" == "undefined" ]] ; then
+        # Windows hard limits
+        # x=${|str_repeat 'a' 32708;}
+        # printf "" | gobolt json -m w -k stdin -s "$x" -P -- :key1
+        local -i safety=1024
+        # 32KB
+        args[AVAILABLE]=$((32768-safety))
+        args[MAX_ARG_STRLEN]=$((32768-safety))
+    else
+        # Linux Kernel constants MAX_ARG_STRLEN = 131072(128KB)
+        local -i safety=4096
+        local -i env_bytes=${|str_bytes "${ export -p;}";}
+        args[MAX_ARG_STRLEN]=$((131072-safety))
+        args[AVAILABLE]=$((argmax-env_bytes-safety))
+    fi
+
+    REPLY=${args[*]@K}
 }
 
 #-------------------------------------------------------------------------------

@@ -1,53 +1,14 @@
 ((_STR_IMPORTED++)) && return 0
 
-
-# If you need an empty string, you can do it in the following way instead of splicing
-# String concatenation is expensive operation in bash, it is better to use
-# prototype template slicing
-# https://github.com/akinomyoga/ble.sh/blob/master/src/util.sh
-# _ble_string_prototype='        '
-# function ble/string#reserve-prototype {
-#   local n=$1 c
-#   for ((c=${#_ble_string_prototype};c<n;c*=2)); do
-#     _ble_string_prototype=$_ble_string_prototype$_ble_string_prototype
-#   done
-# }
-# ## @fn ble/string#repeat str count
-# ##   @param[in] str
-# ##   @param[in] count
-# ##   @var[out] ret
-# function ble/string#repeat {
-#   ble/string#reserve-prototype "$2"
-#   ret=${_ble_string_prototype::$2}
-#   ret=${ret// /"$1"}
-# }
-#
-# ble/string#repeat "*" 5
-# This way it is faster to pick 5 *
-# 
-
-
 #-------------------------------------------------------------------------------
 
-_str_prototype='        '
-str_reserve_prototype ()
-{
-    local n=$1 c
-    for ((c=${#_str_prototype};c<n;c*=2)); do
-        _str_prototype=$_str_prototype$_str_prototype
-    done
-}
-
-#-------------------------------------------------------------------------------
-
-# $1: string
-# $2: count
-# REPLY
+# The current function is much faster than the following way of writing
+# printf -v REPLY "%*s" "$2" "" ; REPLY=${REPLY// /"$1"}
 str_repeat ()
 {
-    str_reserve_prototype "$2"
-    REPLY=${_str_prototype::$2}
-    REPLY=${REPLY// /"$1"}
+    local str=$1 ; local -i len=$(($2*${#str}))
+    while ((${#str} < len)) ; do str+=$str ; done
+    REPLY=${str::len}
 }
 
 #-------------------------------------------------------------------------------
@@ -185,6 +146,11 @@ str_split ()
 #   . Multi-character separators are fully supported
 #   . No external commands are used (pure Bash, high performance)
 #
+# Return values:
+#   0  – success (field extracted OR field not found but no error)
+#        REPLY contains the field or empty string if not found
+#   1  – error (separator is empty)
+#
 # Performance notes:
 #   . Cutting ~400,000 characters takes ~0.16 seconds
 #   . For strings < 3000 characters, str_cut is significantly faster than awk (no fork)
@@ -203,12 +169,13 @@ str_cut ()
     local transformed=$str
     if ((cnt>0)) ; then
         eval -- "transformed=\${str#${|str_repeat '*"$sep"' "$cnt";}}"
-        [[ "$transformed" == "$str" ]] && transformed=
+        # Length comparison takes much less time than direct string comparison
+        ((${#transformed}==${#str})) && transformed=
         REPLY=${transformed%%"$sep"*}
     elif ((cnt<0)) ; then
         ((cnt!=-1)) && {
             eval -- "transformed=\${str%${|str_repeat '"$sep"*' "$((-cnt-1))";}}"
-            [[ "$transformed" == "$str" ]] && transformed=
+            (("${#transformed}"=="${#str}")) && transformed=
         }
         REPLY=${transformed##*"$sep"}
     else
@@ -225,10 +192,17 @@ str_cuts ()
     local i sep cnt
     for((i=2;i<$#;i++)) ; do
         sep=${!i} ; ((i++)) ; cnt=${!i}
-        str=${|str_cut "$str" "$sep" "$cnt";}
+        str=${|str_cut "$str" "$sep" "$cnt";} || return $?
     done
     REPLY=$str
 }
+
+#-------------------------------------------------------------------------------
+
+# e  -> 1
+# 中 -> 3
+# 😊 -> 4
+str_bytes () { local LC_ALL=C; REPLY=${#1}; }
 
 #-------------------------------------------------------------------------------
 

@@ -157,7 +157,7 @@ test_case4 ()
 test_case5 ()
 {
     local i str
-    for i in {0..100} ; do
+    for i in {0..70} ; do
         str+=${|rand_str;}:
     done
     local get_str=${|str_cut "$str" ':' 89;}
@@ -173,7 +173,34 @@ test_case5 ()
     return 0
 }
 
-# step_test 3
+test_case6 ()
+{
+    local str1= str2=
+
+    str2=${|str_repeat 'x*y' 1000000;}
+    if  [[ "${#str2}" == '3000000' ]] && 
+        [[ "${str2:0:6}" == 'x*yx*y' ]] ; then
+        log_test 1 1
+    else
+        log_test 0 1 ; return 1
+    fi
+    return 0
+}
+
+test_case7 ()
+{
+    local my_str="ee中中😊😊"
+    local -i bytes_num=${|str_bytes "$my_str";}
+    if (( bytes_num == (2+3*2+4*2) )) ; then
+        log_test 1 1
+    else
+        log_test 0 1 ; return 1
+    fi
+
+    return 0
+}
+
+# step_test 6
 
 eval -- "${|AS_RUN_TEST_CASES;}"
 

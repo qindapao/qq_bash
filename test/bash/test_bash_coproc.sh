@@ -141,6 +141,9 @@ test_case2 ()
 
 test_case3 ()
 {
+    # The default delimiter used by bc to trigger calculations is the newline
+    # character.
+    # bc -l loads the math library and sets the precision to 20
     coproc BC { bc -l; }
 
     time {
