@@ -2,6 +2,8 @@
 
 . "${BASH_SOURCE[0]%/*}/trie.sh"
 
+#-------------------------------------------------------------------------------
+
 # Hooking method and SUPER.
 #
 # Although aliases can be used to define methods in a more object-oriented style
@@ -42,6 +44,8 @@ bless ()
     done
 }
 
+#-------------------------------------------------------------------------------
+
 # After taking out the small object from the large object, the variable name of
 # the small object needs to be re-bound.
 # $1: The name of the new object
@@ -81,6 +85,8 @@ rebind_self ()
     }
 }
 
+#-------------------------------------------------------------------------------
+
 die ()
 {
     echo "[ERROR] $*" >&2
@@ -90,6 +96,8 @@ die ()
         echo "  $i: ${FUNCNAME[$i]}() at ${BASH_SOURCE[$i]}:${BASH_LINENO[$((i-1))]}" >&2
     done
 }
+
+#-------------------------------------------------------------------------------
 
 return 0
 

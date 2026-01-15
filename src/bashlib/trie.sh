@@ -19,6 +19,8 @@
 
 
 
+#-------------------------------------------------------------------------------
+
 # If you want more powerful anti-collision capabilities, you can set it as follows
 # But usually $'\034' is enough.
 # Be careful not to change this value casually, as it may affect the re-import of the variable.
@@ -84,6 +86,8 @@ readonly TR_GOBOLT_JSONTYPEARRAY=6
 readonly TR_GOBOLT_JSONTYPEOBJECT=7
 readonly TR_GOBOLT_JSONTYPEUNKNOWN=8
 
+#-------------------------------------------------------------------------------
+
 # $1: The value of the string that needs to be converted
 # $2: Variable name saved after conversion
 trie_bjson_key_escape ()
@@ -110,6 +114,8 @@ trie_bjson_key_escape ()
         ((bjsonKeyEscapeR_is_patsub_replacement_on)) && shopt -u patsub_replacement
     fi
 }
+
+#-------------------------------------------------------------------------------
 
 _split_tokens ()
 {
@@ -153,6 +159,8 @@ _split_tokens ()
     return $TR_RET_ENUM_OK
 }
 
+#-------------------------------------------------------------------------------
+
 # index -> physical
 tr_resolve_index_token ()
 {
@@ -165,6 +173,8 @@ tr_resolve_index_token ()
     fi
     REPLY="$tr_token"
 }
+
+#-------------------------------------------------------------------------------
 
 # physical -> index
 tr_resolve_physical_token ()
@@ -183,6 +193,8 @@ tr_resolve_physical_token ()
     fi
     REPLY="$tr_token"
 }
+
+#-------------------------------------------------------------------------------
 
 # Convert negative index of array to positive index
 # a=(1 2 3 4) index=-1 -> index=3
@@ -205,6 +217,8 @@ _negative_token_to_positive ()
     return $TR_RET_ENUM_OK
 }
 
+#-------------------------------------------------------------------------------
+
 trie_init ()
 {
     local -A t=()
@@ -217,6 +231,8 @@ trie_init ()
     t[max_index]=2
     REPLY=${t[*]@K}
 }
+
+#-------------------------------------------------------------------------------
 
 # Verify whether the subtree is a basic trie
 _trie_tree_is_valid ()
@@ -241,6 +257,8 @@ _trie_tree_is_valid ()
     return ${TR_RET_ENUM_OK}
 }
 
+#-------------------------------------------------------------------------------
+
 _tokens_insert_to_overwrite ()
 {
     local tokens_str=$1
@@ -257,11 +275,14 @@ _tokens_insert_to_overwrite ()
     return $TR_RET_ENUM_OK
 }
 
+#-------------------------------------------------------------------------------
+
 # Subtree mount
 # Reuse trie_insert, so it is not the most efficient implementation version
 # is the simplest implementation
 trie_graft ()
 {
+    local - ; set +x
     local tr_target_name=$1
     # If tr_prefix contains '()', it can only be used for the first time
     local tr_graft_prefix=$2
@@ -307,6 +328,8 @@ trie_graft ()
     REPLY=$tr_graft_start_token_id
 }
 
+#-------------------------------------------------------------------------------
+
 trie_key_is_invalid ()
 {
     if [[ "$1" == "$X"* ]] ||
@@ -320,13 +343,15 @@ trie_key_is_invalid ()
     fi
 }
 
+#-------------------------------------------------------------------------------
+
 # Insert with public prefix
 # trie_inserts t1 "{prefix1}$X{prefix2}$X" "[0]$X" "array_value1" \
 #                                          "[1]$X" "array_value2" \
 #                                          "[2]$X" "array_value3"
-
 trie_qinserts ()
 {
+    local - ; set +x
     local tr_t_name=$1
     # leaves or common
     local tr_return_mode=$2
@@ -368,9 +393,12 @@ trie_qinserts ()
     return $TR_RET_ENUM_OK
 }
 
+#-------------------------------------------------------------------------------
+
 # Returns an array of node IDs
 trie_inserts ()
 {
+    local - ; set +x
     set -- "${@:2}" "$1"
     local tr_insert_id
     while (($#>1)) ; do
@@ -381,9 +409,12 @@ trie_inserts ()
     return $TR_RET_ENUM_OK
 }
 
+#-------------------------------------------------------------------------------
+
 # Returns the inserted node ID, used by external or object tracking systems to track the ID of the object.
 trie_insert ()
 {
+    local - ; set +x
     local -n tr_t=$1
     local tr_full_key=$2
     local -i tr_array_index=-1
@@ -625,8 +656,11 @@ trie_insert ()
     return $TR_RET_ENUM_OK
 }
 
+#-------------------------------------------------------------------------------
+
 trie_dump ()
 {
+    local - ; set +x
     local tr_t_name=$1
     local -n tr_t=$1
     local tr_full_key=$2
@@ -668,6 +702,8 @@ trie_dump ()
                 "$tr_print_array_index"
     printf "${tr_indent}max_index => %s\n" "${tr_t[max_index]}"
 }
+
+#-------------------------------------------------------------------------------
 
 _trie_dump ()
 {
@@ -731,6 +767,8 @@ _trie_dump ()
         ((tr_index++))
     done
 }
+
+#-------------------------------------------------------------------------------
 
 _trie_token_to_node_id ()
 {
@@ -807,8 +845,11 @@ _trie_token_to_node_id ()
     return ${TR_RET_ENUM_OK}
 }
 
+#-------------------------------------------------------------------------------
+
 trie_delete () 
 {
+    local - ; set +x
     local -n tr_t=$1
     local tr_full_key=$2
 
@@ -899,8 +940,11 @@ trie_delete ()
     return "$TR_RET_ENUM_OK"
 }
 
+#-------------------------------------------------------------------------------
+
 trie_get_leaf ()
 {
+    local - ; set +x
     local -n tr_t=$1
     local tr_full_key=$2
 
@@ -921,8 +965,11 @@ trie_get_leaf ()
     fi
 }
 
+#-------------------------------------------------------------------------------
+
 trie_get_tree ()
 {
+    local - ; set +x
     local tr_t_name=$1
     local -n tr_t=$1
     local tr_full_key=$2
@@ -1012,6 +1059,8 @@ trie_get_tree ()
     return ${TR_RET_ENUM_OK}
 }
 
+#-------------------------------------------------------------------------------
+
 # Iterate children under prefix
 #                                  Arrays do not need to be wrapped with []
 #                   phy_token type index_token value node 
@@ -1019,6 +1068,7 @@ trie_get_tree ()
 # bit                   0       1       2        3    4
 trie_iter ()
 {
+    local - ; set +x
     local -n tr_t=$1
     local tr_prefix=$2
     local -i tr_is_iter_{phy_token,type,index_token,value,node}=0
@@ -1087,6 +1137,8 @@ trie_iter ()
     return ${TR_RET_ENUM_OK}
 }
 
+#-------------------------------------------------------------------------------
+
 # This is just an example to demonstrate the callback function of trie_walk,
 # processing the entire tree
 trie_callback_print ()
@@ -1112,8 +1164,11 @@ trie_callback_print ()
     return $TR_RET_ENUM_OK
 }
 
+#-------------------------------------------------------------------------------
+
 trie_get_node_type ()
 {
+    local - ; set +x
     local -n tr_t=$1
     local tr_node=$2
     local tr_key
@@ -1142,6 +1197,8 @@ trie_get_node_type ()
     fi
 }
 
+#-------------------------------------------------------------------------------
+
 trie_layer_child_is_flat ()
 {
     case "$1" in
@@ -1153,8 +1210,11 @@ trie_layer_child_is_flat ()
     return 1
 }
 
+#-------------------------------------------------------------------------------
+
 trie_walk ()
 {
+    local - ; set +x
     local -n tr_t=$1
     local tr_prefix=$2
     local tr_callback=${3:-trie_callback_print}
@@ -1221,8 +1281,11 @@ trie_walk ()
     return $TR_RET_ENUM_OK
 }
 
+#-------------------------------------------------------------------------------
+
 trie_id_rebuild ()
 {
+    local - ; set +x
     local -n tr_old=$1
     local -a tr_id_list=()
 
@@ -1288,8 +1351,11 @@ trie_id_rebuild ()
     return ${TR_RET_ENUM_OK}
 }
 
+#-------------------------------------------------------------------------------
+
 trie_equals ()
 {
+    local - ; set +x
     local -n tr_trie_equals_1=$1 tr_trie_equals_2=$2
     local tr_trie_equals_1_name=$1 tr_trie_equals_2_name=$2
     local tr_ok=1
@@ -1359,6 +1425,7 @@ trie_equals ()
     return $TR_RET_ENUM_OK
 }
 
+#-------------------------------------------------------------------------------
 
 _trie_array_next_key ()
 {
@@ -1417,9 +1484,12 @@ _trie_array_next_key ()
     return ${TR_RET_ENUM_OK}
 }
 
+#-------------------------------------------------------------------------------
+
 # Pushing empty leaves and empty arrays is OK
 _trie_array_write ()
 {
+    local - ; set +x
     local tr_name=$1 tr_up_key=$2
     local tr_mode=$3      # push / unshift
     local tr_write=$4     # leaf / tree
@@ -1434,14 +1504,19 @@ _trie_array_write ()
     esac
 }
 
+#-------------------------------------------------------------------------------
+
 # The return values of leaf and tree are the return values of insert and graft
 trie_push_leaf () { _trie_array_write "$1" "$2" push leaf "$3" ; }
 trie_push_tree () { _trie_array_write "$1" "$2" push tree "$3" ; }
 trie_unshift_leaf () { _trie_array_write "$1" "$2" unshift leaf "$3" ; }
 trie_unshift_tree () { _trie_array_write "$1" "$2" unshift tree "$3" ; }
 
+#-------------------------------------------------------------------------------
+
 _trie_array_get ()
 {
+    local - ; set +x
     local tr_name=$1 tr_up_key=$2
     local tr_mode=$3      # pop / shift
     local tr_read=$4      # leaf / tree
@@ -1455,6 +1530,8 @@ _trie_array_get ()
     esac
 }
 
+#-------------------------------------------------------------------------------
+
 trie_pop_leaf ()
 {
     # REPLY It will be rewritten directly in the sub-function. The explicit
@@ -1463,11 +1540,15 @@ trie_pop_leaf ()
     trie_delete "$1" "$2[-1]$X"
 }
 
+#-------------------------------------------------------------------------------
+
 trie_pop_tree ()
 {
     REPLY=${|_trie_array_get "$1" "$2" pop tree;} || return $?
     trie_delete "$1" "$2[-1]$X"
 }
+
+#-------------------------------------------------------------------------------
 
 trie_shift_leaf ()
 { 
@@ -1475,14 +1556,19 @@ trie_shift_leaf ()
     trie_delete "$1" "$2[0]$X"
 }
 
+#-------------------------------------------------------------------------------
+
 trie_shift_tree ()
 {
     REPLY=${|_trie_array_get "$1" "$2" shift tree;} || return $?
     trie_delete "$1" "$2[0]$X"
 }
 
+#-------------------------------------------------------------------------------
+
 trie_layer_get_flat ()
 {
+    local - ; set +x
     local tr_expect=$1
     local -n tr_t=$2
     local tr_full_key=$3
@@ -1553,8 +1639,12 @@ trie_layer_get_flat ()
     return $TR_FLAT_IS_MATCH
 }
 
+#-------------------------------------------------------------------------------
+
 trie_to_flat_array () { trie_layer_get_flat 'arr' "$@" ; }
 trie_to_flat_assoc () { trie_layer_get_flat 'obj' "$@" ; }
+
+#-------------------------------------------------------------------------------
 
 trie_pop_to_flat_array ()
 {
@@ -1562,11 +1652,15 @@ trie_pop_to_flat_array ()
     trie_delete "$1" "$2[-1]$X"
 }
 
+#-------------------------------------------------------------------------------
+
 trie_pop_to_flat_assoc ()
 {
     REPLY=${|trie_to_flat_assoc "$1" "$2[-1]$X";} || return $?
     trie_delete "$1" "$2[-1]$X"
 }
+
+#-------------------------------------------------------------------------------
 
 trie_shift_to_flat_array ()
 {
@@ -1574,15 +1668,20 @@ trie_shift_to_flat_array ()
     trie_delete "$1" "$2[0]$X"
 }
 
+#-------------------------------------------------------------------------------
+
 trie_shift_to_flat_assoc ()
 {
     REPLY=${|trie_to_flat_assoc "$1" "$2[0]$X";} || return $?
     trie_delete "$1" "$2[0]$X"
 }
 
+#-------------------------------------------------------------------------------
+
 # Hooks have no deletion semantics, but writes to flat layers do
 trie_flat_to_tree ()
 {
+    local - ; set +x
     local tr_prefix=$2
     local -n tr_array=$3
     local -i tr_array_is_assoc=0
@@ -1614,12 +1713,16 @@ trie_flat_to_tree ()
     REPLY=${|trie_qinserts "$1" common "$tr_prefix" "${tr_params[@]}";}
 }
 
+#-------------------------------------------------------------------------------
+
 # Not implemented, users can define it themselves through trie_walk
 trie_search () { : ; }
 
+#-------------------------------------------------------------------------------
 
 _trie_flat_insert ()
 {
+    local - ; set +x
     local tr_next_key
     tr_next_key=${|_trie_array_next_key "$1" "$2" "$3";} || return $?
 
@@ -1646,12 +1749,17 @@ _trie_flat_insert ()
     REPLY=${|trie_qinserts "$1" common "$tr_next_key" "${tr_params[@]}";}
 }
 
+#-------------------------------------------------------------------------------
+
 trie_push_flat () { _trie_flat_insert "$1" "$2" push "$3" ; }
 trie_unshift_flat () { _trie_flat_insert "$1" "$2" unshift "$3" ; }
+
+#-------------------------------------------------------------------------------
 
 # This function is very slow and is only used for verification.
 trie_to_json_slow ()
 {
+    local - ; set +x
     local tr_name=$1
     local -n tr_t=$1
     local tr_full_key=$2
@@ -1711,8 +1819,11 @@ trie_to_json_slow ()
     REPLY=$tr_jstr
 }
 
+#-------------------------------------------------------------------------------
+
 trie_to_json ()
 {
+    local - ; set +x
     local tr_name=$1
     local -n tr_t=$1
     local tr_full_key=$2
@@ -1787,8 +1898,11 @@ trie_to_json ()
     REPLY=${ printf '' | gobolt json -m w -k stdin -s '' -M -- "${tr_gobolt_params[@]}";}
 }
 
+#-------------------------------------------------------------------------------
+
 trie_from_json ()
 {
+    local - ; set +x
     local tr_json_str=$1
     local tr_bjson_keys="${@:2}"
 
@@ -1821,6 +1935,8 @@ trie_from_json ()
 
     REPLY=${tr_init_tree[*]@K}
 }
+
+#-------------------------------------------------------------------------------
 
 return 0
 

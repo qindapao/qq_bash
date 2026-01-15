@@ -18,6 +18,7 @@
 # for ((i=0;i<n;i++)); do arr[i]=; done
 # 
 
+#-------------------------------------------------------------------------------
 
 # a_ as a reserved prefix
 # Q string wrapping is no longer used
@@ -87,45 +88,29 @@ array_sorted_insert ()
     a_arr=("${a_arr[@]:0:$a_left}" "$a_value" "${a_arr[@]:$a_left}")
 }
 
-_array_delete_first_e ()
-{
-    local a=$1 i="i_$1"
-    REPLY='
+#-------------------------------------------------------------------------------
 
-    local '$i'
-    for '$i' in "${!'$a'[@]}" ; do
-        [[ "$2" == "${'$a'[$'$i']}" ]] && {
-            unset -v '\'''$a'[$'$i']'\''
-            return 0
-        }
-    done
-    '
-}
+# $1: array
+# $2: the element need to be deleted
+# The array becomes sparse after the operation
+readonly _array_delete_first_e='
+local iA ; for iA in "${!A[@]}" ; do
+    [[ "$2" == "${A[iA]}" ]] && { unset -v '\''A[iA]'\'' ; return 0 ; }
+done'
+array_delete_first_e () { eval -- "${_array_delete_first_e//A/"$1"}" ; }
 
-array_delete_first_e ()
-{
-    eval -- "${|_array_delete_first_e "$@";}"
-}
+#-------------------------------------------------------------------------------
 
-_array_delete_e ()
-{
-    local a=$1 i="i_$1"
-    REPLY='
+# $1: array
+# $2: the element need to be deleted
+# The array becomes sparse after the operation
+readonly _array_delete_e='
+local iA ; for iA in "${!A[@]}" ; do
+    [[ "$2" == "${A[$iA]}" ]] && unset -v '\''A[$iA]'\''
+done'
+array_delete_e () { eval -- "${_array_delete_e//A/"$1"}" ; }
 
-    local '$i'
-    for '$i' in "${!'$a'[@]}" ; do
-        [[ "$2" == "${'$a'[$'$i']}" ]] && {
-            unset -v '\'''$a'[$'$i']'\''
-        }
-    done
-    '
-}
-
-array_delete_e ()
-{
-    eval -- "${|_array_delete_e "$@";}"
-}
-
+#-------------------------------------------------------------------------------
 
 array_index ()
 {
@@ -138,6 +123,7 @@ array_index ()
     REPLY=-1
 }
 
+#-------------------------------------------------------------------------------
 
 # # "a" is a subset of "b"
 # local -a 'a=({0..5})' 'b=({0..10})'
@@ -163,10 +149,7 @@ _array_is_subset ()
 # than writing it directly into one function!
 # The reason is that the expansion rules of eval are simpler when
 # written as two functions separately.
-array_is_subset ()
-{
-    eval -- "${|_array_is_subset "$@";}"
-}
+array_is_subset () { eval -- "${|_array_is_subset "$@";}" ; }
 
 # array_is_subset ()
 # {
@@ -187,16 +170,16 @@ array_is_subset ()
 #     ';}"
 # }
 
+#-------------------------------------------------------------------------------
+
 # $1: array name
 # $2: join string
 # You can do this directly
 # printf -v xx "%s$sep" "${arr[@]}"
 # xx=${xx%"$sep"}
-array_join ()
-{
-    local IFS=
-    eval -- 'REPLY=${'$1'[*]/%/$2} ; REPLY=${REPLY%"$2"}'
-}
+array_join () { local IFS= ; eval -- 'REPLY=${'$1'[*]/%/$2} ; REPLY=${REPLY%"$2"}' ; }
+
+#-------------------------------------------------------------------------------
 
 return 0
 

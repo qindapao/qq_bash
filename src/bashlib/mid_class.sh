@@ -4,6 +4,8 @@
 . "${BASH_SOURCE[0]%/*}/meta.sh"
 . "${BASH_SOURCE[0]%/*}/base_class.sh"
 
+#-------------------------------------------------------------------------------
+
 setup_mid_class ()
 {
     local tr_self=$1
@@ -17,6 +19,8 @@ setup_mid_class ()
     trie_insert "$tr_self" "{P2}$X" "$tr_value2"
     trie_insert "$tr_self" "{CNT}$X" "$tr_cnt_demo"
 }
+
+#-------------------------------------------------------------------------------
 
 new_mid_class ()
 {
@@ -34,12 +38,16 @@ new_mid_class ()
     return 0
 }
 
+#-------------------------------------------------------------------------------
+
 bless_mid_class ()
 {
     # Bless your parents first and then yourself
     bless_base_class "$1" "$2"
     bless mid_class "$1" "$2"
 }
+
+#-------------------------------------------------------------------------------
 
 cut_plus_mid_class ()
 {
@@ -52,16 +60,22 @@ cut_plus_mid_class ()
     tr_self[{CNT}$X]=$tr_cnt
 }
 
+#-------------------------------------------------------------------------------
+
 haha_mid_class ()
 {
     local tr_self=$1
     echo "$tr_self, Hello world!"
 }
 
+#-------------------------------------------------------------------------------
+
 special_mid_mid_class ()
 {
     :
 }
+
+#-------------------------------------------------------------------------------
 
 return 0
 
