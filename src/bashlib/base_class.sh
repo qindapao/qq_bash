@@ -7,39 +7,36 @@
 
 setup_base_class ()
 {
-    local tr_na=$1
-    local tr_ni=$2
-    local tr_np=$3
+    local tr_s=$1
+    local tr_i=$2
+    local tr_k=$3
     local tr_value1=$4
     local tr_value2=$5
     local tr_cnt_demo=$6
 
-    trie_qinserts   "$tr_na" common "$tr_np" \
-                    "{SELF}$X" "$tr_na" \
-                    "{P1}$X" "$tr_value1" \
-                    "{P2}$X" "$tr_value2" \
-                    "{CNT}$X" "$tr_cnt_demo"
+    trie_insert_token_dict "$tr_s" "$tr_k" "$tr_s" "$tr_i" "{SELF}"
+    trie_insert_token_dict "$tr_s" "$tr_k" "$tr_value1" "$tr_i" "{P1}"
+    trie_insert_token_dict "$tr_s" "$tr_k" "$tr_value2" "$tr_i" "{P2}"
+    trie_insert_token_dict "$tr_s" "$tr_k" "$tr_cnt_demo" "$tr_i" "{CNT}"
 
     # Place other objects
-    trie_insert "$tr_na" "$tr_np{ELEMENTS}$X" "$TR_VALUE_NULL_ARR" "$tr_ni" "$tr_np"
+    trie_insert_token_dict "$tr_na" "$tr_k" "$TR_VALUE_NULL_ARR" "$tr_i" "{ELEMENTS}"
 }
 
 #-------------------------------------------------------------------------------
 
 new_base_class ()
 {
-    local tr_na=$1
-    local tr_ni=$2
-    local tr_np=$3
+    local tr_s=$1 tr_i=$2 tr_k=$3
     local tr_value1=$4
     local tr_value2=$5
     local tr_cnt_demo=$6
     
-    NS_MAP["$tr_na.$tr_ni"]=$tr_np
-    setup_base_class  "$tr_na" "$tr_ni" "$tr_np" \
+    NS_MAP["$tr_s.$tr_i"]=$tr_k
+    setup_base_class  "$tr_s" "$tr_i" "$tr_k" \
                     "$tr_value1" "$tr_value2" "$tr_cnt_demo" 
 
-    bless_base_class "$tr_na" "$tr_ni" "$tr_np"
+    bless_base_class "$tr_s" "$tr_i" "$tr_k"
 
     return 0
 }
@@ -52,29 +49,26 @@ bless_base_class () { bless base_class "$@" ; }
 
 cut_plus_base_class ()
 {
-    local -n tr_ns=$1
-    local tr_na=$1
-    local tr_ni=$2
-    local tr_k=${NS_MAP[$tr_na.$tr_ni]}
+    local -n tr_n=$1
+    local tr_s=$1 tr_i=$2
+    local tr_k=${NS_MAP[$tr_s.$tr_i]}
 
-    ${tr_ns[$tr_k{SUPER}$X{${FUNCNAME[0]}}$X]}
+    ${tr_n[$tr_k{SUPER}$X{${FUNCNAME[0]}}$X]}
     
-    local tr_cnt=${|trie_get_leaf "$tr_na" "$tr_k{CNT}$X";}
+    local tr_cnt=${|trie_get_leaf "$tr_s" "$tr_k{CNT}$X";}
     ((tr_cnt++))
     ((tr_cnt++))
     ((tr_cnt++))
-    tr_ns[$tr_k{CNT}$X]=$tr_cnt
+    tr_n[$tr_k{CNT}$X]=$tr_cnt
 }
 
 #-------------------------------------------------------------------------------
 
 print_self_base_class ()
 {
-    local -n tr_ns=$1
-    local tr_na=$1
-    local tr_ni=$2
-    local tr_k=${NS_MAP[$tr_na.$tr_ni]}
-    trie_dump "$tr_na" "$tr_k"
+    local tr_s=$1 tr_i=$2
+    local tr_k=${NS_MAP[$tr_s.$tr_i]}
+    trie_dump "$tr_s" "$tr_k"
 }
 
 #-------------------------------------------------------------------------------
@@ -92,14 +86,12 @@ special_base_base_class ()
 
 delete_last_element_base_class ()
 {
-    local -n tr_ns=$1
-    local tr_na=$1
-    local tr_ni=$2
-    local tr_k=${NS_MAP[$tr_na.$tr_ni]}
+    local tr_s=$1 tr_i=$2
+    local tr_k=${NS_MAP[$tr_s.$tr_i]}
 
-    local -a "tr_delete_info=(${|trie_delete "$tr_na" "$tr_k{ELEMENTS}$X[-1]$X";})"
+    local -a "tr_delete_info=(${|trie_delete "$tr_s" "$tr_k{ELEMENTS}$X[-1]$X";})"
     ((${#tr_delete_info[@]})) && {
-        unset -v 'NS_MAP[$tr_na.$tr_ni]'
+        unset -v 'NS_MAP[$tr_s.$tr_i]'
     }
 }
 

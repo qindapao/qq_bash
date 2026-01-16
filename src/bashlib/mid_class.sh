@@ -8,38 +8,33 @@
 
 setup_mid_class ()
 {
-    local tr_na=$1
-    local tr_ni=$2
-    local tr_np=$3
+    local tr_s=$1 tr_i=$2 tr_k=$3
     local tr_value1=$4
     local tr_value2=$5
     local tr_cnt_demo=$6
 
-    trie_qinserts   "$tr_na" common "$tr_np" \
-                    "{SELF}$X" "$tr_na" \
-                    "{P1}$X" "$tr_value1" \
-                    "{P2}$X" "$tr_value2" \
-                    "{CNT}$X" "$tr_cnt_demo"
+    trie_insert_token_dict "$tr_s" "$tr_k" "$tr_s" "$tr_i" "{SELF}"
+    trie_insert_token_dict "$tr_s" "$tr_k" "$tr_value1" "$tr_i" "{P1}"
+    trie_insert_token_dict "$tr_s" "$tr_k" "$tr_value2" "$tr_i" "{P2}"
+    trie_insert_token_dict "$tr_s" "$tr_k" "$tr_cnt_demo" "$tr_i" "{CNT}"
 
     # Place other objects
-    trie_insert "$tr_na" "$tr_np{ELEMENTS}$X" "$TR_VALUE_NULL_ARR" "$tr_ni" "$tr_np"
+    trie_insert_token_dict "$tr_s" "$tr_k" "$TR_VALUE_NULL_ARR" "$tr_i" "{ELEMENTS}"
 }
 
 #-------------------------------------------------------------------------------
 
 new_mid_class ()
 {
-    local tr_na=$1
-    local tr_ni=$2
-    local tr_np=$3
+    local tr_s=$1 tr_i=$2 tr_k=$3
     local tr_value1=$4
     local tr_value2=$5
     local tr_cnt_demo=$6
 
-    setup_mid_class  "$tr_na" "$tr_ni" "$tr_np" \
+    setup_mid_class  "$tr_s" "$tr_i" "$tr_k" \
                     "$tr_value1" "$tr_value2" "$tr_cnt_demo" 
 
-    bless_mid_class "tr_na" "$tr_ni" "$tr_np"
+    bless_mid_class "tr_s" "$tr_i" "$tr_k"
 }
 
 #-------------------------------------------------------------------------------
@@ -55,27 +50,24 @@ bless_mid_class ()
 
 cut_plus_mid_class ()
 {
-    local -n tr_ns=$1
-    local tr_na=$1
-    local tr_ni=$2
-    local tr_k=${NS_MAP[$tr_na.$tr_ni]}
+    local -n tr_n=$1
+    local tr_s=$1 tr_i=$2
+    local tr_k=${NS_MAP[$tr_s.$tr_i]}
 
-    ${tr_ns[$tr_k{SUPER}$X{${FUNCNAME[0]}}$X]}
+    ${tr_n[$tr_k{SUPER}$X{${FUNCNAME[0]}}$X]}
     
-    local tr_cnt=${|trie_get_leaf "$tr_na" "$tr_k{CNT}$X";}
+    local tr_cnt=${|trie_get_leaf "$tr_s" "$tr_k{CNT}$X";}
     ((tr_cnt++))
     ((tr_cnt++))
-    tr_ns[$tr_k{CNT}$X]=$tr_cnt
+    tr_n[$tr_k{CNT}$X]=$tr_cnt
 }
 
 #-------------------------------------------------------------------------------
 
 haha_mid_class ()
 {
-    local -n tr_ns=$1
-    local tr_na=$1
-    local tr_ni=$2
-    echo "$tr_na, Hello world!"
+    local tr_s=$1 tr_i=$2 tr_k=$3
+    echo "$tr_s, Hello world!"
 }
 
 #-------------------------------------------------------------------------------
