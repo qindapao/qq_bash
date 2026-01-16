@@ -108,10 +108,7 @@ trie_bjson_key_escape ()
         }
 
         # 5.2 patsub_replacement
-        bjsonKeyEscapeR_ekey=${bjsonKeyEscapeR_ekey//[][\\.*?|@#]/\\&}
-        bjsonKeyEscapeR_ekey=${bjsonKeyEscapeR_ekey//'{'/'\{'}
-        bjsonKeyEscapeR_ekey=${bjsonKeyEscapeR_ekey//'}'/'\}'}
-        bjsonKeyEscapeR_ekey=${bjsonKeyEscapeR_ekey//'!'/'\!'}
+        bjsonKeyEscapeR_ekey=${bjsonKeyEscapeR_ekey//[$'][\\.*?|@#{}!']/\\&}
         ((bjsonKeyEscapeR_is_patsub_replacement_on)) && shopt -u patsub_replacement
     fi
 }
@@ -281,6 +278,8 @@ _tokens_insert_to_overwrite ()
 # Subtree mount
 # Reuse trie_insert, so it is not the most efficient implementation version
 # is the simplest implementation
+#
+# REPLY: (node_id node_phy_path)
 trie_graft ()
 {
     local - ; set +x
@@ -291,6 +290,7 @@ trie_graft ()
     local tr_graft_is_first_insert=1
     local tr_graft_start_token_id=${TR_ROOT_ID}
     local tr_graft_start_path_token=""
+    local tr_graft_reply=()
 
     # 2. Simply check the legality of the subtree
     _trie_tree_is_valid "$3" || return $?
@@ -326,7 +326,8 @@ trie_graft ()
     }
     
     trie_walk "$tr_sub_name" "" trie_graft_walk_callback || return $?
-    REPLY=$tr_graft_start_token_id
+    tr_graft_reply=("$tr_graft_start_token_id" "$tr_graft_start_path_token")
+    REPLY=${tr_graft_reply[*]@Q}
 }
 
 #-------------------------------------------------------------------------------
@@ -359,7 +360,8 @@ trie_qinserts ()
     local tr_common_prefix=$3
     shift 3
     local -a tr_insert_kv=("${@}")
-    local tr_insert_id
+    local tr_insert_info
+    local -a tr_qinserts_reply=()
 
     # If the number of parameters is 1, it means only writing a single value, not a key
     ((${#tr_insert_kv[@]}==1)) && {
@@ -370,8 +372,10 @@ trie_qinserts ()
     ((${#tr_insert_kv[@]}<2)) && return $TR_RET_ENUM_OK
 
     # The first insertion uses the original KEY
-    tr_insert_id=${|trie_insert "$tr_t_name" "$tr_common_prefix${tr_insert_kv[0]}" "${tr_insert_kv[1]}";} || return $?
-    [[ "$tr_return_mode" == 'leaves' ]] && REPLY+="${REPLY:+ }${tr_insert_id}"
+    tr_insert_info=${|trie_insert "$tr_t_name" "$tr_common_prefix${tr_insert_kv[0]}" "${tr_insert_kv[1]}";} || return $?
+    local -a "tr_insert_info=($tr_insert_info)"
+    [[ "$tr_return_mode" == 'leaves' ]] && tr_qinserts_reply+=("${tr_insert_info[@]}")
+    
 
     # The subsequent insertion prefix uses the physical key and brings the node id for acceleration.
     local tr_k_index=2 tr_v_index=3
@@ -380,17 +384,25 @@ trie_qinserts ()
     local -A "tr_prefix_token_info=(${|_trie_token_to_node_id "$tr_t_name" "$tr_common_prefix";})"
     tr_common_prefix=${tr_prefix_token_info[physical_full_key]}
     local tr_common_id=${tr_prefix_token_info[node_id]}
-    [[ "$tr_return_mode" == 'common' ]] && REPLY=$tr_common_id
+    [[ "$tr_return_mode" == 'common' ]] && {
+        tr_qinserts_reply=("$tr_common_id" "$tr_common_prefix")
+
+        REPLY=${tr_qinserts_reply[*]@Q}
+    }
 
     for((tr_k_index=2,tr_v_index=3;tr_v_index<${#tr_insert_kv[@]};tr_k_index+=2,tr_v_index+=2)) ; do
-        tr_insert_id=${|trie_insert "$tr_t_name" \
+        tr_insert_info=${|trie_insert "$tr_t_name" \
                                     "${tr_common_prefix}${tr_insert_kv[tr_k_index]}" \
                                     "${tr_insert_kv[tr_v_index]}" \
                                     "$tr_common_id" \
                                     "$tr_common_prefix";} || return $?
-        [[ "$tr_return_mode" == 'leaves' ]] && REPLY+="${REPLY:+ }${tr_insert_id}"
+        
+        local -a "tr_insert_info=($tr_insert_info)"
+
+        [[ "$tr_return_mode" == 'leaves' ]] && tr_qinserts_reply+=("${tr_insert_info[@]}")
     done
 
+    REPLY=${tr_qinserts_reply[*]@Q}
     return $TR_RET_ENUM_OK
 }
 
@@ -401,12 +413,16 @@ trie_inserts ()
 {
     local - ; set +x
     set -- "${@:2}" "$1"
-    local tr_insert_id
+    local tr_insert_info
+    local -a tr_inserts_reply=()
     while (($#>1)) ; do
-        tr_insert_id=${|trie_insert "${!#}" "$1" "$2";} || return $?
+        tr_insert_info=${|trie_insert "${!#}" "$1" "$2";} || return $?
         shift 2
-        REPLY+="${REPLY:+ }${tr_insert_id}"
+        local -a "tr_insert_info=($tr_insert_info)"
+
+        tr_inserts_reply+=("${tr_insert_info[@]}")
     done
+    REPLY=${tr_inserts_reply[*]@Q}
     return $TR_RET_ENUM_OK
 }
 
@@ -419,6 +435,7 @@ trie_insert ()
     local -n tr_t=$1
     local tr_full_key=$2
     local -i tr_array_index=-1
+    local -a tr_insert_reply=()
 
     trie_key_is_invalid "$tr_full_key" || return $?
 
@@ -441,7 +458,8 @@ trie_insert ()
         [[ "$tr_value" != "$TR_VALUE_NULL_OBJ" ]] ; then
         tr_t["$tr_full_key"]=$tr_value
         local -A "tr_node_info=(${|_trie_token_to_node_id "$1" "$tr_full_key";})"
-        REPLY=${tr_node_info[node_id]}
+        tr_insert_reply=("${tr_node_info[node_id]}" "${tr_node_info[physical_full_key]}")
+        REPLY=${tr_insert_reply[*]@Q}
         return ${TR_RET_ENUM_OK}
     fi
 
@@ -640,7 +658,8 @@ trie_insert ()
             tr_t[$tr_node.key]=$tr_path_key
             tr_t["$tr_path_key"]=$tr_value
             # 返回节点 ID
-            REPLY=$tr_node
+            tr_insert_reply=("$tr_node" "$tr_path_key")
+            REPLY=${tr_insert_reply[*]@Q}
             _trie_insert_delete_tmp_node_ids
             return $TR_RET_ENUM_OK
     esac
@@ -652,7 +671,8 @@ trie_insert ()
     unset -v 'tr_t[$tr_node.key]'
     [[ -n "$tr_key" ]] && unset -v 'tr_t[$tr_key]'
     tr_t[$tr_node.type]="$tr_new_type"
-    REPLY=$tr_node
+    tr_insert_reply=("$tr_node" "$tr_path_key")
+    REPLY=${tr_insert_reply[*]@Q}
     _trie_insert_delete_tmp_node_ids
     return $TR_RET_ENUM_OK
 }
@@ -684,7 +704,7 @@ trie_dump ()
 
     local tr_indent=${|str_repeat ' ' "$tr_indent_cnt";}
 
-    printf "%s\n" "$tr_t_name"
+    printf "%s(%s)\n" "$tr_t_name" "$tr_node"
 
     [[ "${tr_t[$tr_node.type]}" == "$TR_TYPE_OBJ" ]] &&
     [[ -z "${tr_t[$tr_node.children]}" ]] && {
@@ -852,10 +872,13 @@ trie_delete ()
     local - ; set +x
     local -n tr_t=$1
     local tr_full_key=$2
+    local -a tr_delete_reply=()
 
     # Empty key is legal. Only ROOT nodes are reserved.
     [[ -z "$tr_full_key" ]] && {
         eval -- tr_t=(${|trie_init "${tr_t[$TR_ROOT_ID.type]}";})
+        tr_delete_reply=("$TR_ROOT_ID" "")
+        REPLY=${tr_delete_reply[*]@Q}
         return ${TR_RET_ENUM_OK}
     }
 
@@ -891,7 +914,6 @@ trie_delete ()
     # (it can be a leaf or an intermediate node)
 
     # 3. First delete the value/key attached to the current node
-    # (both leaves and intermediate nodes may have key/value)
     unset -v 'tr_t["$tr_full_key"]'   # delete value
     unset -v 'tr_t["$tr_node.key"]'   # delete key
     unset -v 'tr_t["$tr_node.type"]'  # delete type
@@ -936,6 +958,9 @@ trie_delete ()
     fi
 
     unset -v 'tr_t["$tr_parent.child.$tr_token"]'
+    
+    tr_delete_reply=("$tr_node" "$tr_full_key")
+    REPLY=${tr_delete_reply[*]@Q}
 
     return "$TR_RET_ENUM_OK"
 }
@@ -1536,32 +1561,40 @@ trie_pop_leaf ()
 {
     # REPLY It will be rewritten directly in the sub-function. The explicit
     # assignment here is just for higher readability.
-    REPLY=${|_trie_array_get "$1" "$2" pop leaf;} || return $?
-    trie_delete "$1" "$2[-1]$X"
+    local tr_pop_leaf_reply=
+    tr_pop_leaf_reply=${|_trie_array_get "$1" "$2" pop leaf;} || return $?
+    trie_delete "$1" "$2[-1]$X" || return $?
+    REPLY=$tr_pop_leaf_reply
 }
 
 #-------------------------------------------------------------------------------
 
 trie_pop_tree ()
 {
-    REPLY=${|_trie_array_get "$1" "$2" pop tree;} || return $?
-    trie_delete "$1" "$2[-1]$X"
+    local tr_pop_tree_reply=
+    tr_pop_tree_reply=${|_trie_array_get "$1" "$2" pop tree;} || return $?
+    trie_delete "$1" "$2[-1]$X" || return $?
+    REPLY=$tr_pop_tree_reply
 }
 
 #-------------------------------------------------------------------------------
 
 trie_shift_leaf ()
 { 
-    REPLY=${|_trie_array_get "$1" "$2" shift leaf;} || return $?
-    trie_delete "$1" "$2[0]$X"
+    local tr_shift_leaf_reply=
+    tr_shift_leaf_reply=${|_trie_array_get "$1" "$2" shift leaf;} || return $?
+    trie_delete "$1" "$2[0]$X" || return $?
+    REPLY=$tr_shift_leaf_reply
 }
 
 #-------------------------------------------------------------------------------
 
 trie_shift_tree ()
 {
-    REPLY=${|_trie_array_get "$1" "$2" shift tree;} || return $?
-    trie_delete "$1" "$2[0]$X"
+    local tr_shift_tree_reply=
+    tr_shift_tree_reply=${|_trie_array_get "$1" "$2" shift tree;} || return $?
+    trie_delete "$1" "$2[0]$X" || return $?
+    REPLY=$tr_shift_tree_reply
 }
 
 #-------------------------------------------------------------------------------
@@ -1648,32 +1681,40 @@ trie_to_flat_assoc () { trie_layer_get_flat 'obj' "$@" ; }
 
 trie_pop_to_flat_array ()
 {
-    REPLY=${|trie_to_flat_array "$1" "$2[-1]$X";} || return $?
-    trie_delete "$1" "$2[-1]$X"
+    local tr_pop_fa_reply=
+    tr_pop_fa_reply=${|trie_to_flat_array "$1" "$2[-1]$X";} || return $?
+    trie_delete "$1" "$2[-1]$X" || return $?
+    REPLY=$tr_pop_fa_reply
 }
 
 #-------------------------------------------------------------------------------
 
 trie_pop_to_flat_assoc ()
 {
-    REPLY=${|trie_to_flat_assoc "$1" "$2[-1]$X";} || return $?
-    trie_delete "$1" "$2[-1]$X"
+    local tr_pop_fs_reply=
+    tr_pop_fs_reply=${|trie_to_flat_assoc "$1" "$2[-1]$X";} || return $?
+    trie_delete "$1" "$2[-1]$X" || return $?
+    REPLY=$tr_pop_fs_reply
 }
 
 #-------------------------------------------------------------------------------
 
 trie_shift_to_flat_array ()
 {
-    REPLY=${|trie_to_flat_array "$1" "$2[0]$X";} || return $?
-    trie_delete "$1" "$2[0]$X"
+    local tr_shif_fa_reply=
+    tr_shif_fa_reply=${|trie_to_flat_array "$1" "$2[0]$X";} || return $?
+    trie_delete "$1" "$2[0]$X" || return $?
+    REPLY=$tr_shif_fa_reply
 }
 
 #-------------------------------------------------------------------------------
 
 trie_shift_to_flat_assoc ()
 {
-    REPLY=${|trie_to_flat_assoc "$1" "$2[0]$X";} || return $?
-    trie_delete "$1" "$2[0]$X"
+    local tr_shift_fs_reply=
+    tr_shift_fs_reply=${|trie_to_flat_assoc "$1" "$2[0]$X";} || return $?
+    trie_delete "$1" "$2[0]$X" || return $?
+    REPLY=$tr_shift_fs_reply
 }
 
 #-------------------------------------------------------------------------------
@@ -1710,7 +1751,7 @@ trie_flat_to_tree ()
         fi
     }
 
-    REPLY=${|trie_qinserts "$1" common "$tr_prefix" "${tr_params[@]}";}
+    trie_qinserts "$1" common "$tr_prefix" "${tr_params[@]}"
 }
 
 #-------------------------------------------------------------------------------
@@ -1746,7 +1787,7 @@ _trie_flat_insert ()
         fi
     }
 
-    REPLY=${|trie_qinserts "$1" common "$tr_next_key" "${tr_params[@]}";}
+    trie_qinserts "$1" common "$tr_next_key" "${tr_params[@]}"
 }
 
 #-------------------------------------------------------------------------------

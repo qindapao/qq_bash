@@ -120,9 +120,9 @@ test_case1 ()
         trie_inserts t2 "[0]$X(4)$X{c}$X" "t2_1" \
                         "[0]$X(2)$X{c1}$X" "t2_2"
 
-        local my_graft_id=${|trie_graft t1 "{a}$X{c}$X[4]$X" t2;}
+        local -a "my_graft_info=(${|trie_graft t1 "{a}$X{c}$X[4]$X" t2;})"
 
-        if [[ "$my_graft_id" == '13' ]] ; then
+        if [[ "${my_graft_info[0]}" == '13' ]] ; then
             log_test 1 1
         else
             log_test 0 1 ; return 1
@@ -463,7 +463,27 @@ test_case8 ()
                 "[10]$X" "1"                     \
                 "[14]$X" "101.3$X" ;}
 
-    if [[ "$xxy" == '13 17' && "$xxk" == '13 17 35 36 37 38 39 40 41 42' ]] ; then
+    local -a "xxy=($xxy)" 
+    local -a "xxk=($xxk)"
+    
+    declare -a xxy_spec=(
+        [0]="13" [1]="<2>$X<13>$X"
+        [2]="17" [3]="<2>$X<17>$X")
+
+    declare -a xxk_spec=(
+        [0]="13" [1]="<2>$X<13>$X"
+        [2]="17" [3]="<2>$X<17>$X"
+        [4]="35" [5]="<18>$X<35>$X"
+        [6]="36" [7]="<18>$X<36>$X"
+        [8]="37" [9]="<18>$X<37>$X"
+        [10]="38" [11]="<18>$X<38>$X"
+        [12]="39" [13]="<18>$X<39>$X"
+        [14]="40" [15]="<18>$X<40>$X"
+        [16]="41" [17]="<18>$X<41>$X"
+        [18]="42" [19]="<18>$X<42>$X")
+
+    if  assert_array a xxy xxy_spec &&
+        assert_array a xxk xxk_spec ; then
         log_test 1 1
     else
         log_test 0 1 ; return 1
@@ -479,7 +499,19 @@ test_case8 ()
                 "[22]$X" "null"                  \
                 "[23]$X" "xxx" ;}
 
-    if [[ "$xxy" == '35 36 37 38 39 40 41 42' ]] ; then
+    local -a "xxy=($xxy)"
+
+    local -a xxy_spec=(
+        [0]="35" [1]="<18>$X<35>$X"
+        [2]="36" [3]="<18>$X<36>$X"
+        [4]="37" [5]="<18>$X<37>$X"
+        [6]="38" [7]="<18>$X<38>$X"
+        [8]="39" [9]="<18>$X<39>$X"
+        [10]="40" [11]="<18>$X<40>$X"
+        [12]="41" [13]="<18>$X<41>$X"
+        [14]="42" [15]="<18>$X<42>$X")
+
+    if assert_array a xxy xxy_spec ; then
         log_test 1 2
     else
         log_test 0 2 ; return 1
@@ -535,7 +567,7 @@ test_case9 ()
 
     local -a my_arr=("a 1" "b 2" "$TR_VALUE_NULL" "$TR_VALUE_NULL_OBJ" "$TR_VALUE_NULL_ARR")
     my_arr[10]=5
-    local node_id=${|trie_flat_to_tree t1 "[0]$X{b}$X" my_arr;}
+    local -a "node_info=(${|trie_flat_to_tree t1 "[0]$X{b}$X" my_arr;})"
 
     local -A "t2=(${|trie_init "$TR_TYPE_ARR";})"
     trie_insert t2 "[0]$X{b}$X" "$TR_VALUE_NULL"
@@ -548,7 +580,7 @@ test_case9 ()
     trie_insert t2 "[0]$X{b}$X[10]$X" "5"
 
     if trie_equals t1 t2 &&
-       [[ "$node_id" == "6" ]] ; then
+       [[ "${node_info[0]}" == "6" ]] ; then
         log_test 1 1
     else
         log_test 0 1 ; return 1
@@ -564,7 +596,8 @@ test_case10 ()
     trie_insert t1 "[1]$X{c}$X" "yy"
 
     local -A my_arr=(['key 1']='value 1' [key2]="$TR_VALUE_NULL_ARR")
-    local node_id=${|trie_flat_to_tree t1 "(0)$X{b}$X" my_arr;}
+    local node_info=${|trie_flat_to_tree t1 "(0)$X{b}$X" my_arr;}
+    local -a "node_info=($node_info)"
 
     local -A "t2=(${|trie_init "$TR_TYPE_ARR";})"
     trie_insert t2 "[0]$X{b}$X{key 1}$X" "value 1"
@@ -572,7 +605,7 @@ test_case10 ()
     trie_insert t2 "(1)$X{c}$X" "yy"
     trie_insert t2 "(1)$X{b}$X" "xx"
     
-    if [[ "$node_id" == 7 ]] &&
+    if [[ "${node_info[0]}" == 7 ]] &&
         trie_equals t1 t2 ; then
         log_test 1 1
     else
@@ -882,6 +915,6 @@ test_case16 ()
 }
 
 
-# step_test 16
+# step_test 9
 eval -- "${|AS_RUN_TEST_CASES;}"
 

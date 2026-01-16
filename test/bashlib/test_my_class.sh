@@ -4,21 +4,30 @@
 . ../../src/bashlib/meta.sh
 . ../libs/test_utils.sh
 
-# test fn_map_inplace
 test_case1 ()
 {
-    local -A "demo_tree=(${|new_my_class "demo_tree" "yy" '5' 10;})"
+    declare -gA "root_obj=(${|trie_init "$TR_TYPE_OBJ";})"
+    new_my_class "root_obj" 1 '' 'value1' 'value2' '0' 
 
-    ${demo_tree[{print_self}$X]}
-    ${demo_tree[{haha}$X]}
-    ${demo_tree[{cut_plus}$X]}
-    ${demo_tree[{print_self}$X]}
+    ${root_obj[{print_self}$X]}
 
-    local -A "demo_tree_new=(${demo_tree[@]@K})"
-    rebind_self demo_tree_new
+    ${root_obj[{haha}$X]}
+    ${root_obj[{cut_plus}$X]}
+    ${root_obj[{print_self}$X]}
+    
+    # Add a new element
+    local -a "new_element_info=(${|trie_push_leaf root_obj "{ELEMENTS}$X" "$TR_VALUE_NULL_OBJ";})"
+    new_my_class "root_obj" "${new_element_info[@]}" 'new1_value1' 'new1_value2' '3'
 
-    ${demo_tree_new[{print_self}$X]}
-    ${demo_tree_new[{haha}$X]}
+    local -a "new_element_info=(${|trie_push_leaf root_obj "{ELEMENTS}$X" "$TR_VALUE_NULL_OBJ";})"
+    new_my_class "root_obj" "${new_element_info[@]}" 'new2_value1' 'new2_value2' '3'
+
+    local -a "new_element_info=(${|trie_push_leaf root_obj "{ELEMENTS}$X" "$TR_VALUE_NULL_OBJ";})"
+    new_my_class "root_obj" "${new_element_info[@]}" 'new3_value1' 'new3_value2' '3'
+
+    # Delete the last element
+    ${root_obj[{delete_last_element}$X]}
+    ${root_obj[{print_self}$X]}
 }
 
 eval -- "${|AS_RUN_TEST_CASES;}"
