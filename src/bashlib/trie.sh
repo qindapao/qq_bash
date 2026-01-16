@@ -282,7 +282,7 @@ _tokens_insert_to_overwrite ()
 # REPLY: (node_id node_phy_path)
 trie_graft ()
 {
-    local - ; set +x
+    # local - ; set +x
     local tr_target_name=$1
     # If tr_prefix contains '()', it can only be used for the first time
     local tr_graft_prefix=$2
@@ -353,7 +353,7 @@ trie_key_is_invalid ()
 #                                          "[2]$X" "array_value3"
 trie_qinserts ()
 {
-    local - ; set +x
+    # local - ; set +x
     local tr_t_name=$1
     # leaves or common
     local tr_return_mode=$2
@@ -411,7 +411,7 @@ trie_qinserts ()
 # Returns an array of node IDs
 trie_inserts ()
 {
-    local - ; set +x
+    # local - ; set +x
     set -- "${@:2}" "$1"
     local tr_insert_info
     local -a tr_inserts_reply=()
@@ -428,10 +428,102 @@ trie_inserts ()
 
 #-------------------------------------------------------------------------------
 
+# Only insert and do not return any data
+trie_insert_token_dict ()
+{
+    local -n tr_t=$1
+    local tr_value=$3 tr_node=$4 tr_token=$5
+    local tr_path_key=$2$tr_token$X
+
+    [[ -v 'tr_t["$tr_path_key"]' ]] && {
+        tr_t["$tr_path_key"]=$tr_value
+        return ${TR_RET_ENUM_OK}
+    }
+
+    local tr_child_key tr_child_id
+
+    tr_child_id="${tr_t[max_index]}" ; ((tr_t[max_index]++))
+    tr_t[$tr_node.children]+=" ${tr_token@Q}"
+    tr_t["$tr_node.child.$tr_token"]=$tr_child_id
+
+    case "$tr_value" in
+    "$TR_VALUE_NULL_ARR")
+        tr_t[$tr_child_id.type]="$TR_TYPE_ARR"
+        return $TR_RET_ENUM_OK
+        ;;
+    "$TR_VALUE_NULL_OBJ")
+        tr_t[$tr_child_id.type]="$TR_TYPE_OBJ"
+        return $TR_RET_ENUM_OK
+        ;;
+    *)
+        tr_t[$tr_child_id.key]=$tr_path_key
+        tr_t["$tr_path_key"]=$tr_value
+        return $TR_RET_ENUM_OK
+    esac
+}
+
+#-------------------------------------------------------------------------------
+
+# Only insert and do not return any data
+trie_insert_dict ()
+{
+    local -n tr_t=$1
+    local tr_full_key=$2
+
+    local tr_value=$3
+    local tr_start_node_id=${4:-"$TR_ROOT_ID"}
+    local tr_path_key=${5:-""}
+
+    [[ -v 'tr_t["$tr_full_key"]' ]] && {
+        tr_t["$tr_full_key"]=$tr_value
+        return ${TR_RET_ENUM_OK}
+    }
+
+    local tr_token tr_child_key tr_child_id tr_tokens_str
+
+    # Here tr_full_key needs to remove the tr_path_key prefix and start traversing
+    tr_tokens_str=${|_split_tokens "${tr_full_key#"$tr_path_key"}" 1;} || return $?
+    local -a "tr_tokens=($tr_tokens_str)"
+
+    local tr_node=${tr_start_node_id}
+
+    for tr_token in "${tr_tokens[@]}" ; do
+        tr_child_key="$tr_node.child.$tr_token"
+        tr_child_id="${tr_t[$tr_child_key]}"
+
+        # Child node does not exist -> create
+        [[ -z "$tr_child_id" ]] && {
+            tr_child_id="${tr_t[max_index]}" ; ((tr_t[max_index]++))
+            tr_t[$tr_node.children]+=" ${tr_token@Q}"
+            tr_t["$tr_child_key"]=$tr_child_id
+        }
+
+        tr_node=$tr_child_id
+        tr_path_key+="$tr_token$X"
+    done
+
+    case "$tr_value" in
+    "$TR_VALUE_NULL_ARR")
+        tr_t[$tr_node.type]="$TR_TYPE_ARR"
+        return $TR_RET_ENUM_OK
+        ;;
+    "$TR_VALUE_NULL_OBJ")
+        tr_t[$tr_node.type]="$TR_TYPE_OBJ"
+        return $TR_RET_ENUM_OK
+        ;;
+    *)
+        tr_t[$tr_node.key]=$tr_path_key
+        tr_t["$tr_path_key"]=$tr_value
+        return $TR_RET_ENUM_OK
+    esac
+}
+
+#-------------------------------------------------------------------------------
+
 # Returns the inserted node ID, used by external or object tracking systems to track the ID of the object.
 trie_insert ()
 {
-    local - ; set +x
+    # local - ; set +x
     local -n tr_t=$1
     local tr_full_key=$2
     local -i tr_array_index=-1
@@ -609,7 +701,8 @@ trie_insert ()
                 fi
             else
                 # Descending ASCII lexicographic order
-                array_sorted_insert tr_children "$tr_token" '<'
+                # array_sorted_insert tr_children "$tr_token" '<'
+                tr_children+=("$tr_token")
             fi
 
             tr_t[$tr_node.children]=${tr_children[*]@Q}
@@ -681,7 +774,7 @@ trie_insert ()
 
 trie_dump ()
 {
-    local - ; set +x
+    # local - ; set +x
     local tr_t_name=$1
     local -n tr_t=$1
     local tr_full_key=$2
@@ -869,7 +962,7 @@ _trie_token_to_node_id ()
 
 trie_delete () 
 {
-    local - ; set +x
+    # local - ; set +x
     local -n tr_t=$1
     local tr_full_key=$2
     local -a tr_delete_reply=()
@@ -969,7 +1062,7 @@ trie_delete ()
 
 trie_get_leaf ()
 {
-    local - ; set +x
+    # local - ; set +x
     local -n tr_t=$1
     local tr_full_key=$2
 
@@ -994,7 +1087,7 @@ trie_get_leaf ()
 
 trie_get_tree ()
 {
-    local - ; set +x
+    # local - ; set +x
     local tr_t_name=$1
     local -n tr_t=$1
     local tr_full_key=$2
@@ -1093,7 +1186,7 @@ trie_get_tree ()
 # bit                   0       1       2        3    4
 trie_iter ()
 {
-    local - ; set +x
+    # local - ; set +x
     local -n tr_t=$1
     local tr_prefix=$2
     local -i tr_is_iter_{phy_token,type,index_token,value,node}=0
@@ -1193,7 +1286,7 @@ trie_callback_print ()
 
 trie_get_node_type ()
 {
-    local - ; set +x
+    # local - ; set +x
     local -n tr_t=$1
     local tr_node=$2
     local tr_key
@@ -1239,7 +1332,7 @@ trie_layer_child_is_flat ()
 
 trie_walk ()
 {
-    local - ; set +x
+    # local - ; set +x
     local -n tr_t=$1
     local tr_prefix=$2
     local tr_callback=${3:-trie_callback_print}
@@ -1310,7 +1403,7 @@ trie_walk ()
 
 trie_id_rebuild ()
 {
-    local - ; set +x
+    # local - ; set +x
     local -n tr_old=$1
     local -a tr_id_list=()
 
@@ -1380,7 +1473,7 @@ trie_id_rebuild ()
 
 trie_equals ()
 {
-    local - ; set +x
+    # local - ; set +x
     local -n tr_trie_equals_1=$1 tr_trie_equals_2=$2
     local tr_trie_equals_1_name=$1 tr_trie_equals_2_name=$2
     local tr_ok=1
@@ -1514,7 +1607,7 @@ _trie_array_next_key ()
 # Pushing empty leaves and empty arrays is OK
 _trie_array_write ()
 {
-    local - ; set +x
+    # local - ; set +x
     local tr_name=$1 tr_up_key=$2
     local tr_mode=$3      # push / unshift
     local tr_write=$4     # leaf / tree
@@ -1541,7 +1634,7 @@ trie_unshift_tree () { _trie_array_write "$1" "$2" unshift tree "$3" ; }
 
 _trie_array_get ()
 {
-    local - ; set +x
+    # local - ; set +x
     local tr_name=$1 tr_up_key=$2
     local tr_mode=$3      # pop / shift
     local tr_read=$4      # leaf / tree
@@ -1601,7 +1694,7 @@ trie_shift_tree ()
 
 trie_layer_get_flat ()
 {
-    local - ; set +x
+    # local - ; set +x
     local tr_expect=$1
     local -n tr_t=$2
     local tr_full_key=$3
@@ -1722,7 +1815,7 @@ trie_shift_to_flat_assoc ()
 # Hooks have no deletion semantics, but writes to flat layers do
 trie_flat_to_tree ()
 {
-    local - ; set +x
+    # local - ; set +x
     local tr_prefix=$2
     local -n tr_array=$3
     local -i tr_array_is_assoc=0
@@ -1763,7 +1856,7 @@ trie_search () { : ; }
 
 _trie_flat_insert ()
 {
-    local - ; set +x
+    # local - ; set +x
     local tr_next_key
     tr_next_key=${|_trie_array_next_key "$1" "$2" "$3";} || return $?
 
@@ -1800,7 +1893,7 @@ trie_unshift_flat () { _trie_flat_insert "$1" "$2" unshift "$3" ; }
 # This function is very slow and is only used for verification.
 trie_to_json_slow ()
 {
-    local - ; set +x
+    # local - ; set +x
     local tr_name=$1
     local -n tr_t=$1
     local tr_full_key=$2
@@ -1871,7 +1964,7 @@ trie_to_json_slow ()
 
 trie_to_json ()
 {
-    local - ; set +x
+    # local - ; set +x
     local tr_name=$1
     local -n tr_t=$1
     local tr_full_key=$2
@@ -1971,7 +2064,7 @@ trie_to_json ()
 
 trie_from_json ()
 {
-    local - ; set +x
+    # local - ; set +x
     local tr_json_str=$1
     local tr_bjson_keys="${@:2}"
 

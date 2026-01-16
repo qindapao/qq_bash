@@ -54,14 +54,13 @@ setup_my_class ()
     local tr_value2=$5
     local tr_cnt_demo=$6
 
-    trie_qinserts   "$tr_na" common "$tr_np" \
-                    "{SELF}$X" "$tr_na" \
-                    "{P1}$X" "$tr_value1" \
-                    "{P2}$X" "$tr_value2" \
-                    "{CNT}$X" "$tr_cnt_demo"
+    trie_insert_token_dict "$tr_na" "$tr_np" "$tr_na" "$tr_ni" "{SELF}"
+    trie_insert_token_dict "$tr_na" "$tr_np" "$tr_value1" "$tr_ni" "{P1}"
+    trie_insert_token_dict "$tr_na" "$tr_np" "$tr_value2" "$tr_ni" "{P2}"
+    trie_insert_token_dict "$tr_na" "$tr_np" "$tr_cnt_demo" "$tr_ni" "{CNT}"
 
     # Place other objects
-    trie_insert "$tr_na" "$tr_np{ELEMENTS}$X" "$TR_VALUE_NULL_ARR" "$tr_ni" "$tr_np"
+    trie_insert_token_dict "$tr_na" "$tr_np" "$TR_VALUE_NULL_ARR" "$tr_ni" "{ELEMENTS}"
 }
 
 #-------------------------------------------------------------------------------

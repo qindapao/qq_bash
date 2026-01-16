@@ -29,31 +29,54 @@ declare -gA NS_MAP=()
 # Use case to distinguish methods and properties
 # All caps: can only be attributes
 # All lowercase: can only be methods
+_bless_func_list=()
 bless ()
 {
     local tr_class=$1
+    local -n tr_t=$2
     local tr_na=$2
     local tr_ni=$3
     local tr_np=$4
 
+    ((${#_bless_func_list[@]})) || {
+        local tr_i
+        for tr_i in ${ compgen -A function; } ; do
+            [[ "$tr_i" == *_class ]] && {
+                case "$tr_i" in
+                new_*|bless_*|setup_*) : ;;
+                *)  _bless_func_list+=("$tr_i") ;;
+                esac   
+            }
+        done
+    }
+
     # CLASS Add the hook class name to the attribute
-    local tr_class_chain
-    tr_class_chain=${|trie_get_leaf "$tr_na" "${tr_np}{CLASS}$X" 2>/dev/null;}
+    local tr_class_chain=${tr_t["${tr_np}{CLASS}$X"]}
     tr_class_chain="${tr_class}${tr_class_chain:+ -> }${tr_class_chain}"
 
-    trie_insert "$tr_na" "$tr_np{CLASS}$X" "$tr_class_chain" "$tr_ni" "$tr_np"
+    if [[ -v 'tr_t[$tr_np{CLASS}$X]' ]] ; then
+        tr_t[$tr_np{CLASS}$X]=$tr_class_chain
+    else
+        trie_insert_token_dict "$tr_na" "$tr_np" "$tr_class_chain" "$tr_ni" "{CLASS}"
+    fi
 
-    local tr_fn_name ; for tr_fn_name in ${ compgen -A function;} ; do
+    local tr_fn_name ; for tr_fn_name in "${_bless_func_list[@]}" ; do
         case "$tr_fn_name" in
-        new_${tr_class}|bless_${tr_class}|setup_${tr_class}) : ;;
-        # FN: Last level method
-        #SUPER: The parent tr_class method corresponding to each subclass method
         *_${tr_class})
             local tr_key=${tr_fn_name%"_$tr_class"}
             local tr_super=${|trie_get_leaf "$tr_na" "$tr_np{$tr_key}$X" 2>/dev/null;}
 
-            trie_insert "$tr_na" "$tr_np{$tr_key}$X" "$tr_fn_name $tr_na $tr_ni" "$tr_ni" "$tr_np"
-            trie_insert "$tr_na" "$tr_np{SUPER}$X{$tr_fn_name}$X" "${tr_super:-:}" "$tr_ni" "$tr_np"
+            if [[ -v 'tr_t[$tr_np$tr_key]' ]] ; then
+                tr_t[$tr_np$tr_key]="$tr_fn_name $tr_na $tr_ni"
+            else
+                trie_insert_token_dict "$tr_na" "$tr_np" "$tr_fn_name $tr_na $tr_ni" "$tr_ni" "{$tr_key}"
+            fi
+
+            if [[ -v 'tr_t[$tr_np{SUPER}$X{$tr_fn_name}$X]' ]] ; then
+                tr_t[$tr_np{SUPER}$X{$tr_fn_name}$X]="${tr_super:-:}"
+            else
+                trie_insert_dict "$tr_na" "$tr_np{SUPER}$X{$tr_fn_name}$X" "${tr_super:-:}" "$tr_ni" "$tr_np"
+            fi
             ;;
         esac
     done
