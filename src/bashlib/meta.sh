@@ -15,6 +15,7 @@
 # [OBJ1.46]="{key1}$X{key2}$X<124>$X"
 # NAME SPACE MAP
 declare -gA NS_MAP=()
+declare -gA FN_MAP=()
 
 #-------------------------------------------------------------------------------
 
@@ -32,8 +33,8 @@ declare -gA NS_MAP=()
 _bless_func_list=()
 bless ()
 {
-    local -n tr_n=$2
-    local tr_class=$1 tr_s=$2 tr_i=$3 tr_k=$4
+    local tr_class=$1
+    local tr_class_key=$2
 
     ((${#_bless_func_list[@]})) || {
         local tr_item
@@ -48,33 +49,19 @@ bless ()
     }
 
     # CLASS Add the hook class name to the attribute
-    local tr_class_chain=${tr_n["${tr_k}{CLASS}$X"]}
+    local tr_class_chain=${FN_MAP[$tr_class_key.CLASS]}
     tr_class_chain="${tr_class}${tr_class_chain:+ -> }${tr_class_chain}"
-
-    if [[ -v 'tr_n[$tr_k{CLASS}$X]' ]] ; then
-        tr_n[$tr_k{CLASS}$X]=$tr_class_chain
-    else
-        trie_insert_token_dict "$tr_s" "$tr_k" "$tr_class_chain" "$tr_i" "{CLASS}"
-    fi
+    
+    FN_MAP[$tr_class_key.CLASS]=$tr_class_chain
 
     local tr_fn_name ; for tr_fn_name in "${_bless_func_list[@]}" ; do
         case "$tr_fn_name" in
         *_${tr_class})
             local tr_key=${tr_fn_name%"_$tr_class"}
             
-            if [[ -v 'tr_n["$tr_k{$tr_key}$X"]' ]] ; then
-                local tr_super=${tr_n[$tr_k{$tr_key}$X]}
-                tr_n[$tr_k{$tr_key}$X]="$tr_fn_name $tr_s $tr_i"
-            else
-                local tr_super=':'
-                trie_insert_token_dict "$tr_s" "$tr_k" "$tr_fn_name $tr_s $tr_i" "$tr_i" "{$tr_key}"
-            fi
-
-            if [[ -v 'tr_n[$tr_k{SUPER}$X{$tr_fn_name}$X]' ]] ; then
-                tr_n[$tr_k{SUPER}$X{$tr_fn_name}$X]="$tr_super"
-            else
-                trie_insert_dict "$tr_s" "$tr_k{SUPER}$X{$tr_fn_name}$X" "$tr_super" "$tr_i" "$tr_k"
-            fi
+            local tr_super=${FN_MAP[$tr_class_key.$tr_key]}
+            FN_MAP[$tr_class_key.$tr_key]="$tr_fn_name $tr_s $tr_i"
+            FN_MAP[$tr_class_key.SUPER.$tr_fn_name]=${tr_super:-:}
             ;;
         esac
     done

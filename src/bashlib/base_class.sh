@@ -14,7 +14,8 @@ setup_base_class ()
     local tr_value2=$5
     local tr_cnt_demo=$6
 
-    trie_insert_token_dict "$tr_s" "$tr_k" "$tr_s" "$tr_i" "{SELF}"
+    trie_insert_token_dict "$tr_s" "$tr_k" "base_class" "$tr_i" "{CLASS}"
+    trie_insert_token_dict "$tr_s" "$tr_k" "$tr_s $tr_i" "$tr_i" "{SELF}"
     trie_insert_token_dict "$tr_s" "$tr_k" "$tr_value1" "$tr_i" "{P1}"
     trie_insert_token_dict "$tr_s" "$tr_k" "$tr_value2" "$tr_i" "{P2}"
     trie_insert_token_dict "$tr_s" "$tr_k" "$tr_cnt_demo" "$tr_i" "{CNT}"
@@ -36,7 +37,7 @@ new_base_class ()
     setup_base_class  "$tr_s" "$tr_i" "$tr_k" \
                     "$tr_value1" "$tr_value2" "$tr_cnt_demo" 
 
-    bless_base_class "$tr_s" "$tr_i" "$tr_k"
+    # bless_base_class "$tr_s" "$tr_i" "$tr_k"
 
     return 0
 }
@@ -53,7 +54,8 @@ cut_plus_base_class ()
     local tr_s=$1 tr_i=$2
     local tr_k=${NS_MAP[$tr_s.$tr_i]}
 
-    ${tr_n[$tr_k{SUPER}$X{${FUNCNAME[0]}}$X]}
+    local tr_class=${tr_n[{CLASS}$X]}
+    ${FN_MAP[$tr_class.SUPER.${FUNCNAME[0]}]} $tr_s $tr_i
     
     local tr_cnt=${|trie_get_leaf "$tr_s" "$tr_k{CNT}$X";}
     ((tr_cnt++))

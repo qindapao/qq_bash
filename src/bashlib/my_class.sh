@@ -21,24 +21,6 @@
 # name, and then the object can be operated. After the operation is completed,
 # the object can be stuffed back into the large object.
 
-# demo_tree
-#     {print_self}(12) => print_self_base_class demo_tree
-#     {haha}(10) => haha_mid_class demo_tree
-#     {cut_plus}(7) => cut_plus_my_class demo_tree
-#     {SUPER}(8)
-#         {print_self_base_class}(13) => :
-#         {haha_mid_class}(15) => haha_base_class demo_tree
-#         {haha_base_class}(11) => :
-#         {cut_plus_my_class}(16) => cut_plus_mid_class demo_tree
-#         {cut_plus_mid_class}(14) => cut_plus_base_class demo_tree
-#         {cut_plus_base_class}(9) => :
-#     {SELF}(2) => demo_tree
-#     {P2}(4) => 5
-#     {P1}(3) => yy
-#     {CNT}(5) => 10
-#     {CLASS}(6) => my_class -> mid_class -> base_class
-#     max_index => 17
-
 . "${BASH_SOURCE[0]%/*}/trie.sh"
 . "${BASH_SOURCE[0]%/*}/meta.sh"
 . "${BASH_SOURCE[0]%/*}/mid_class.sh"
@@ -52,7 +34,8 @@ setup_my_class ()
     local tr_value2=$5
     local tr_cnt_demo=$6
 
-    trie_insert_token_dict "$tr_s" "$tr_k" "$tr_s" "$tr_i" "{SELF}"
+    trie_insert_token_dict "$tr_s" "$tr_k" "my_class" "$tr_i" "{CLASS}"
+    trie_insert_token_dict "$tr_s" "$tr_k" "$tr_s $tr_i" "$tr_i" "{SELF}"
     trie_insert_token_dict "$tr_s" "$tr_k" "$tr_value1" "$tr_i" "{P1}"
     trie_insert_token_dict "$tr_s" "$tr_k" "$tr_value2" "$tr_i" "{P2}"
     trie_insert_token_dict "$tr_s" "$tr_k" "$tr_cnt_demo" "$tr_i" "{CNT}"
@@ -75,7 +58,7 @@ new_my_class ()
     setup_my_class  "$tr_s" "$tr_i" "$tr_k" \
                     "$tr_value1" "$tr_value2" "$tr_cnt_demo" 
 
-    bless_my_class "$tr_s" "$tr_i" "$tr_k"
+    # bless_my_class "$tr_s" "$tr_i" "$tr_k"
 
     return 0
 }
@@ -98,7 +81,8 @@ cut_plus_my_class ()
     local tr_i=$2
     local tr_k=${NS_MAP[$tr_s.$tr_i]}
 
-    ${tr_n[$tr_k{SUPER}$X{${FUNCNAME[0]}}$X]}
+    local tr_class=${tr_n[{CLASS}$X]}
+    ${FN_MAP[$tr_class.SUPER.${FUNCNAME[0]}]} $tr_s $tr_i
     
     local tr_cnt=${|trie_get_leaf "$tr_s" "$tr_k{CNT}$X";}
     ((tr_cnt++))
