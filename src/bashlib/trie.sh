@@ -704,7 +704,7 @@ trie_dump ()
 
     local tr_indent=${|str_repeat ' ' "$tr_indent_cnt";}
 
-    printf "%s(%s)\n" "$tr_t_name" "$tr_node"
+    printf "%s(%s) -> %s\n" "$tr_t_name" "$tr_node" "${tr_node_info[physical_full_key]}"
 
     [[ "${tr_t[$tr_node.type]}" == "$TR_TYPE_OBJ" ]] &&
     [[ -z "${tr_t[$tr_node.children]}" ]] && {

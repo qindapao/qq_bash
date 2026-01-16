@@ -32,16 +32,16 @@ declare -gA NS_MAP=()
 bless ()
 {
     local tr_class=$1
-    local tr_ns_name=$2
-    local tr_ns_id=$3
-    local tr_ns_prefix=$4
+    local tr_na=$2
+    local tr_ni=$3
+    local tr_np=$4
 
     # CLASS Add the hook class name to the attribute
     local tr_class_chain
-    tr_class_chain=${|trie_get_leaf "$tr_ns_name" "${tr_ns_prefix}{CLASS}$X" 2>/dev/null;}
+    tr_class_chain=${|trie_get_leaf "$tr_na" "${tr_np}{CLASS}$X" 2>/dev/null;}
     tr_class_chain="${tr_class}${tr_class_chain:+ -> }${tr_class_chain}"
 
-    trie_insert "$tr_ns_name" "$tr_ns_prefix{CLASS}$X" "$tr_class_chain"
+    trie_insert "$tr_na" "$tr_np{CLASS}$X" "$tr_class_chain" "$tr_ni" "$tr_np"
 
     local tr_fn_name ; for tr_fn_name in ${ compgen -A function;} ; do
         case "$tr_fn_name" in
@@ -50,55 +50,14 @@ bless ()
         #SUPER: The parent tr_class method corresponding to each subclass method
         *_${tr_class})
             local tr_key=${tr_fn_name%"_$tr_class"}
-            local tr_super=${|trie_get_leaf "$tr_ns_name" "$tr_ns_prefix{$tr_key}$X" 2>/dev/null;}
+            local tr_super=${|trie_get_leaf "$tr_na" "$tr_np{$tr_key}$X" 2>/dev/null;}
 
-            trie_insert "$tr_ns_name" "$tr_ns_prefix{$tr_key}$X" "$tr_fn_name $tr_ns_name $tr_ns_id"
-            trie_insert "$tr_ns_name" "$tr_ns_prefix{SUPER}$X{$tr_fn_name}$X" "${tr_super:-:}"
+            trie_insert "$tr_na" "$tr_np{$tr_key}$X" "$tr_fn_name $tr_na $tr_ni" "$tr_ni" "$tr_np"
+            trie_insert "$tr_na" "$tr_np{SUPER}$X{$tr_fn_name}$X" "${tr_super:-:}" "$tr_ni" "$tr_np"
             ;;
         esac
     done
 }
-
-#-------------------------------------------------------------------------------
-
-# # After taking out the small object from the large object, the variable name of
-# # the small object needs to be re-bound.
-# # $1: The name of the new object
-# rebind_self ()
-# {
-#     local -n tr_self=$1
-#     local tr_new_name=$1
-
-#     [[ "${tr_self[{SELF}$X]}" != "$tr_new_name" ]] && {
-#         tr_self[{SELF}$X]=$tr_new_name
-#         # Trie tree atomic traversal, the class method cannot be called here
-#         # because the binding variable name is incorrect!
-#         local IFS=$'\n' ; local tr_tuple
-#         for tr_tuple in ${|trie_iter "$tr_new_name" "" $((2#1001));} ; do
-#             # This is a literal representation of an array and is 
-#             # not affected by IFS word segmentation.
-#             local -a "tr_tuple=($tr_tuple)"
-
-#             # Because lowercase always comes first, if encounter an uppercase,
-#             # break to speed up
-#             # Only lowercase letters are method names.
-#             if [[ "${tr_tuple[0]}" == "${tr_tuple[0],,}" ]] ; then
-#                 [[ "${tr_tuple[1]}" == ':' ]] || {
-#                     tr_self[${tr_tuple[0]}$X]="${tr_tuple[1]%' '*} $tr_new_name"
-#                 }
-#             else
-#                 break
-#             fi
-#         done
-
-#         for tr_tuple in ${|trie_iter "$tr_new_name" "{SUPER}$X" $((2#1001));} ; do
-#             local -a "tr_tuple=($tr_tuple)"
-#             [[ "${tr_tuple[1]}" == ':' ]] || {
-#                 tr_self[{SUPER}$X${tr_tuple[0]}$X]="${tr_tuple[1]%' '*} $tr_new_name"
-#             }
-#         done
-#     }
-# }
 
 #-------------------------------------------------------------------------------
 
