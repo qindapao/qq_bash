@@ -7,21 +7,18 @@
 
 setup_base_class ()
 {
-    local tr_s=$1
-    local tr_i=$2
-    local tr_k=$3
+    local tr_s=$1 tr_i=$2 tr_k=$3
     local tr_value1=$4
     local tr_value2=$5
     local tr_cnt_demo=$6
 
-    trie_insert_token_dict "$tr_s" "$tr_k" "base_class" "$tr_i" "{CLASS}"
-    trie_insert_token_dict "$tr_s" "$tr_k" "$tr_s $tr_i" "$tr_i" "{SELF}"
-    trie_insert_token_dict "$tr_s" "$tr_k" "$tr_value1" "$tr_i" "{P1}"
-    trie_insert_token_dict "$tr_s" "$tr_k" "$tr_value2" "$tr_i" "{P2}"
-    trie_insert_token_dict "$tr_s" "$tr_k" "$tr_cnt_demo" "$tr_i" "{CNT}"
-
-    # Place other objects
-    trie_insert_token_dict "$tr_na" "$tr_k" "$TR_VALUE_NULL_ARR" "$tr_i" "{ELEMENTS}"
+    trie_insert_token_dict  "$tr_s" "$tr_i" "$tr_k" \
+                            "{CLASS}" "base_class" \
+                            "{SELF}" "$tr_s $tr_i" \
+                            "{P1}" "$tr_value1" \
+                            "{P2}" "$tr_value2" \
+                            "{CNT}" "$tr_cnt_demo" \
+                            "{ELEMENTS}" "$TR_VALUE_NULL_ARR"
 }
 
 #-------------------------------------------------------------------------------

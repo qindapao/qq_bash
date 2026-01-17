@@ -13,14 +13,13 @@ setup_mid_class ()
     local tr_value2=$5
     local tr_cnt_demo=$6
 
-    trie_insert_token_dict "$tr_s" "$tr_k" "mid_class" "$tr_i" "{CLASS}"
-    trie_insert_token_dict "$tr_s" "$tr_k" "$tr_s $tr_i" "$tr_i" "{SELF}"
-    trie_insert_token_dict "$tr_s" "$tr_k" "$tr_value1" "$tr_i" "{P1}"
-    trie_insert_token_dict "$tr_s" "$tr_k" "$tr_value2" "$tr_i" "{P2}"
-    trie_insert_token_dict "$tr_s" "$tr_k" "$tr_cnt_demo" "$tr_i" "{CNT}"
-
-    # Place other objects
-    trie_insert_token_dict "$tr_s" "$tr_k" "$TR_VALUE_NULL_ARR" "$tr_i" "{ELEMENTS}"
+    trie_insert_token_dict  "$tr_s" "$tr_i" "$tr_k" \
+                            "{CLASS}" "mid_class" \
+                            "{SELF}" "$tr_s $tr_i" \
+                            "{P1}" "$tr_value1" \
+                            "{P2}" "$tr_value2" \
+                            "{CNT}" "$tr_cnt_demo" \
+                            "{ELEMENTS}" "$TR_VALUE_NULL_ARR"
 }
 
 #-------------------------------------------------------------------------------

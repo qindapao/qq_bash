@@ -86,7 +86,6 @@ test_case3 ()
     declare var=$n$k$m$x
 
     # bash 5.2 已经正常, bash4.4不一定正常
-    # 这是最慢的
     time {
     for i in {0..1000} ; do
         (( assoc[$var]++ ))
@@ -94,21 +93,18 @@ test_case3 ()
     }
 
     # 下面三种方法是安全的
-    # let 是最快的方式(可能并不是最快的)
     time {
         for i in {0..1000} ; do
             let 'assoc[$var]++'
         done
     }
 
-    # 这种方式也很快(可能是最快的)
     time {
         for i in {0..1000} ; do
             assoc[$var]=$(( ${assoc[$var]} + 1 ))
         done
     }
 
-    # 这种也比较快
     time {
         for i in {0..1000} ; do
             local ref='assoc[$var]'; (( $ref++ ))
