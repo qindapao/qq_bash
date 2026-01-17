@@ -258,5 +258,54 @@ test_case6 ()
     test_case6_inner "${assoc[@]@k}"
 }
 
+# 推荐用法 'dict_spec[$k$m$x]'
+test_case7 ()
+{
+    local m=$'xxx xxx->xxx->xxx->xx:xx.x->(x \\ * @ xx:xx)->(xxxxx:xxxx)'
+    local x=$'zy\n\t 133'
+    local k='(xx:yy)'
+    local n=$'gege\t \n tgeg223 \n tt223'
+    declare -A dict_spec=([$'gege\t \n tgeg223 \n tt223(xx:yy)xxx xxx->xxx->xxx->xx:xx.x->(x \\ * @ xx:xx)->(xxxxx:xxxx)zy\n\t 133']="1" )
+    
+    if [[ -v 'dict_spec[$n$k$m$x]' ]] ; then
+        log_test 1 1
+    else
+        log_test 0 1 ; return 1
+    fi
+
+    if [[ -v 'dict_spec["$n$k$m$x"]' ]] ; then
+        log_test 1 2
+    else
+        log_test 0 2 ; return 1
+    fi
+
+    if [[ -v dict_spec[$n$k$m$x] ]] ; then
+        log_test 1 3
+    else
+        log_test 0 3 ; return 1
+    fi
+}
+
+test_case8 ()
+{
+    local k1='*'
+    local k2='@'
+    local -A assoc=(['*']=1 ['@']=2)
+
+    if [[ -v 'assoc[$k1]' && -v 'assoc[$k2]' ]] ; then
+        log_test 1 1
+    else
+        log_test 0 1 ; return 1
+    fi
+
+    if [[ -v 'assoc["$k1"]' && -v 'assoc["$k2"]' ]] ; then
+        log_test 1 2
+    else
+        log_test 0 2 ; return 1
+    fi
+}
+
+
+
 eval -- "${|AS_RUN_TEST_CASES;}"
 

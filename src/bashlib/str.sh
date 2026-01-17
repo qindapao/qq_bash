@@ -191,7 +191,7 @@ str_cuts ()
     local str=$1
     local i sep cnt
     for((i=2;i<$#;i++)) ; do
-        sep=${!i} ; ((i++)) ; cnt=${!i}
+        sep=${!i} ; let 'i++' ; cnt=${!i}
         str=${|str_cut "$str" "$sep" "$cnt";} || return $?
     done
     REPLY=$str

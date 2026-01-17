@@ -35,12 +35,44 @@ test_case1 ()
         log_test 0 2 ; return 1
     fi
 
+    eval -- local -A k=(${k_temp[*]@K})
+    local -A "k=(${k_temp[*]@K})"
     unset -v 'k["${tmp_key[cnt]}"]'
+    if [[ -v 'k[${tmp_key[cnt]}]' ]] ; then
+        log_test 0 3 ; return 1
+    else
+        log_test 1 3
+    fi
+    
+
+    eval -- local -A k=(${k_temp[*]@K})
+    local -A "k=(${k_temp[*]@K})"
     unset -v 'k[${tmp_key[cnt]}]'
+    if [[ -v 'k[${tmp_key[cnt]}]' ]] ; then
+        log_test 0 4 ; return 1
+    else
+        log_test 1 4
+    fi
 
+    eval -- local -A k=(${k_temp[*]@K})
+    local -A "k=(${k_temp[*]@K})"
     tmp_key="${tmp_key[cnt]}"
-
     unset -v 'k["$tmp_key"]'
+    if [[ -v 'k[${tmp_key[cnt]}]' ]] ; then
+        log_test 0 5 ; return 1
+    else
+        log_test 1 5
+    fi
+
+    eval -- local -A k=(${k_temp[*]@K})
+    local -A "k=(${k_temp[*]@K})"
+    tmp_key="${tmp_key[cnt]}"
+    unset -v 'k[$tmp_key]'
+    if [[ -v 'k[${tmp_key[cnt]}]' ]] ; then
+        log_test 0 6 ; return 1
+    else
+        log_test 1 6
+    fi
 
     return
 }
@@ -74,6 +106,64 @@ xxx xxx->xxx->xxx->xx:xx.x->(xxx:xx)->(xxxxx:xxxx)
     else
         log_test 0 3 ; return 1
     fi
+    return 0
+}
+
+test_case3 ()
+{
+    local k1='*'
+    local k2='@'
+    local -A assoc=(['*']=1 ['@']=2)
+
+    unset -v 'assoc[$k1]'
+
+    if [[ -v 'assoc[$k2]' ]] ; then
+        log_test 1 1
+    else
+        log_test 0 1 ; return 1
+    fi
+
+    if [[ -v 'assoc["$k1"]' ]] ; then
+        log_test 0 2 ; return 1
+    else
+        log_test 1 2
+    fi
+
+    local -A assoc=(['*']=1 ['@']=2)
+    unset -v 'assoc[$k2]'
+
+    if [[ -v 'assoc[$k1]' ]] ; then
+        log_test 1 3
+    else
+        log_test 0 3 ; return 1
+    fi
+
+    if [[ -v 'assoc["$k2"]' ]] ; then
+        log_test 0 4 ; return 1
+    else
+        log_test 1 4
+    fi
+
+    local -A assoc=(['*']=1 ['@']=2)
+    # 现在这样也没问题了
+    unset -v assoc[@]
+
+    if [[ -v 'assoc["$k1"]' && ! -v 'assoc["$k2"]' ]] ; then
+        log_test 1 5
+    else
+        log_test 0 5 ; return 1
+    fi
+
+    local -A assoc=(['*']=1 ['@']=2)
+    # 现在这样也没问题了
+    unset -v assoc[*]
+
+    if [[ ! -v 'assoc["$k1"]' && -v 'assoc["$k2"]' ]] ; then
+        log_test 1 6
+    else
+        log_test 0 6 ; return 1
+    fi
+
     return 0
 }
 

@@ -70,6 +70,60 @@ test_case2 ()
     return 0
 }
 
+# 关联数组的键扩增安全用法(bash5.2以上其它)
+# let 'assoc[$var]++'
+# assoc[$var]=$(( ${assoc[$var]} + 1 ))
+# ref='assoc[$var]'; (( $ref++ ))
+test_case3 ()
+{
+
+    declare -A assoc=([$'gege\t \n tgeg223 \n tt223(xx:yy)xxx xxx->xx \\ * @ xx->xxx->xx:xx.x->(x \\ * @ xx:xx)->(xxxxx:xxxx)zy\n\t 133']="1" )
+    declare -A assoc_spec=([$'gege\t \n tgeg223 \n tt223(xx:yy)xxx xxx->xx \\ * @ xx->xxx->xx:xx.x->(x \\ * @ xx:xx)->(xxxxx:xxxx)zy\n\t 133']="4005" )
+    declare x=$'zy\n\t 133'
+    declare m=$'xxx xxx->xx \\ * @ xx->xxx->xx:xx.x->(x \\ * @ xx:xx)->(xxxxx:xxxx)'
+    declare k='(xx:yy)'
+    declare n=$'gege\t \n tgeg223 \n tt223'
+    declare var=$n$k$m$x
+
+    # bash 5.2 已经正常, bash4.4不一定正常
+    # 这是最慢的
+    time {
+    for i in {0..1000} ; do
+        (( assoc[$var]++ ))
+    done
+    }
+
+    # 下面三种方法是安全的
+    # let 是最快的方式(可能并不是最快的)
+    time {
+        for i in {0..1000} ; do
+            let 'assoc[$var]++'
+        done
+    }
+
+    # 这种方式也很快(可能是最快的)
+    time {
+        for i in {0..1000} ; do
+            assoc[$var]=$(( ${assoc[$var]} + 1 ))
+        done
+    }
+
+    # 这种也比较快
+    time {
+        for i in {0..1000} ; do
+            local ref='assoc[$var]'; (( $ref++ ))
+        done
+    }
+
+    if assert_array A assoc assoc_spec ; then
+        log_test 1 1
+    else
+        log_test 0 1 ; return 1
+    fi
+
+    return 0
+}
+
 eval -- "${|AS_RUN_TEST_CASES;}"
 
 

@@ -207,7 +207,7 @@ _negative_token_to_positive ()
             die "node:${tr_node}(token:${tr_token}) index:${tr_token:1:-1} is out of index."
             return $TR_RET_ENUM_KEY_OUT_OF_INDEX
         }
-        ((tr_token_abs=tr_array_len-tr_token_abs))
+        let 'tr_token_abs=tr_array_len-tr_token_abs'
         REPLY="${tr_token:0:1}$tr_token_abs${tr_token: -1}"
     else
         REPLY="$tr_token"
@@ -454,7 +454,7 @@ trie_insert_token_dict ()
             continue
         }
 
-        tr_child_id="${tr_t[max_index]}" ; ((tr_t[max_index]++))
+        tr_child_id="${tr_t[max_index]}" ; let 'tr_t[max_index]++'
         tr_t["$tr_node.child.$tr_token"]=$tr_child_id
         tr_tokens+=("$tr_token")
 
@@ -507,7 +507,7 @@ trie_insert_dict ()
 
         # Child node does not exist -> create
         [[ -z "$tr_child_id" ]] && {
-            tr_child_id="${tr_t[max_index]}" ; ((tr_t[max_index]++))
+            tr_child_id="${tr_t[max_index]}" ; let 'tr_t[max_index]++'
             tr_t[$tr_node.children]+=" ${tr_token@Q}"
             tr_t["$tr_child_key"]=$tr_child_id
         }
@@ -653,7 +653,7 @@ trie_insert ()
             }
 
             for((tr_i=tr_array_len;tr_i<${tr_token:1:-1};tr_i++)) ; do
-                local tr_new_id=${tr_t[max_index]} ; ((tr_t[max_index]++))
+                local tr_new_id=${tr_t[max_index]} ; let 'tr_t[max_index]++'
                 # tr_t[$tr_new_id]=1
                 tr_t[$tr_new_id.key]="$tr_path_key<$tr_new_id>$X"
                 tr_t["$tr_path_key<$tr_new_id>$X"]="$TR_VALUE_NULL"
@@ -699,7 +699,7 @@ trie_insert ()
 
         # Child node does not exist -> create
         if [[ -z "$tr_child_id" ]] ; then
-            tr_child_id="${tr_t[max_index]}" ; ((tr_t[max_index]++))
+            tr_child_id="${tr_t[max_index]}" ; let 'tr_t[max_index]++'
             tr_t[$tr_child_id]=1
             tr_tmp_node_ids+=("$tr_child_id")
             # tr_t[$tr_child_id.children]=''
@@ -891,7 +891,7 @@ _trie_dump ()
         fi
 
         _trie_dump "$1" "$tr_child_id" "$tr_indent_cnt" "$tr_indent_new" "$tr_id_need_print" "$tr_value_need_print" "$tr_print_array_index"
-        ((tr_index++))
+        let 'tr_index++'
     done
 }
 
@@ -1263,7 +1263,7 @@ trie_iter ()
 
         #                      phy_token      type       index_token       value         node
         REPLY+="${REPLY:+$'\n'}${tr_tk_p} ${tr_type_p} ${tr_index_tk_p} ${tr_value_p} ${tr_node_p}"
-        ((tr_index++))
+        let 'tr_index++'
     done
 
     return ${TR_RET_ENUM_OK}
@@ -1407,7 +1407,7 @@ trie_walk ()
                 ;;
             esac
 
-            ((tr_index++))
+            let 'tr_index++'
         done
     done
     return $TR_RET_ENUM_OK
@@ -1435,7 +1435,7 @@ trie_id_rebuild ()
     local tr_old_id
     for tr_old_id in "${tr_id_list[@]}" ; do
         tr_id_map[$tr_old_id]=$tr_new_id
-        ((tr_new_id++))
+        let 'tr_new_id++'
     done
 
     tr_id_map[$TR_ROOT_ID]=1
@@ -1912,6 +1912,8 @@ trie_to_json_slow ()
     local -n tr_t=$1
     local tr_full_key=$2
     local tr_jstr
+    local tr_temp_file=$(mktemp)
+    trap 'rm -f "$tr_temp_file"' RETURN
 
     command -v gobolt &>/dev/null || {
         die "gobolt tool is not installed."
@@ -1956,17 +1958,12 @@ trie_to_json_slow ()
             '['*']') bjson_params+=("${token:1:-1}")    ;;
             esac
         done
-        local tr_tmp_file=$(mktemp)
-        printf "%s" "$value" >"$tr_tmp_file"
+
+        printf "%s" "$value" >"$tr_temp_file"
         
         tr_jstr=${ printf "%s" "$tr_jstr" | \
-            gobolt json -m w -k stdin "$write_jstr_param" "$tr_tmp_file" \
-            -P -- "${bjson_params[@]}";} || {
-                local tr_slow_ret=$?
-                rm -f "$tr_tmp_file"
-                return $tr_slow_ret
-            }
-        rm -f "$tr_tmp_file"
+            gobolt json -m w -k stdin "$write_jstr_param" "$tr_temp_file" \
+            -P -- "${bjson_params[@]}";} || return $?
         return $TR_RET_ENUM_OK
     }
 

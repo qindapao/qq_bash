@@ -840,6 +840,7 @@ test_case16 ()
 
     local t1_json_slow
     t1_json_slow=${|trie_to_json_slow t1;}
+    t1_json_slow=${|trie_to_json_slow t1;}
 
     # cat -A <(printf "%s" "$t1_json_slow")
     # cat -A <(printf "%s" "$t1_json")
