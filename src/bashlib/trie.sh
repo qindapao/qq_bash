@@ -429,37 +429,51 @@ trie_inserts ()
 #-------------------------------------------------------------------------------
 
 # Only insert and do not return any data
+# Fast writing of associative arrays that can be used directly for flat layers
+# local -A assoc=(['{1 2}']='a b' ['{3 4}']='c d')
+# trie_insert_token_dict my_tree '134' '{lev1}' "${assoc[@]@k}"
 trie_insert_token_dict ()
 {
     local -n tr_t=$1
-    local tr_value=$3 tr_node=$4 tr_token=$5
-    local tr_path_key=$2$tr_token$X
 
-    [[ -v 'tr_t["$tr_path_key"]' ]] && {
-        tr_t["$tr_path_key"]=$tr_value
-        return ${TR_RET_ENUM_OK}
-    }
-
+    local tr_node=$2 tr_preifx=$3
+    local -a tr_token_values=("${@:4}")
+    local tr_path_key=
+    local -a tr_tokens=()
+    local -i tr_index=0
     local tr_child_key tr_child_id
+    local tr_token tr_value
 
-    tr_child_id="${tr_t[max_index]}" ; ((tr_t[max_index]++))
-    tr_t[$tr_node.children]+=" ${tr_token@Q}"
-    tr_t["$tr_node.child.$tr_token"]=$tr_child_id
+    for((tr_index=0;tr_index<${#tr_token_values[@]};tr_index+=2)) ; do
+        tr_token=${tr_token_values[tr_index]}
+        tr_value=${tr_token_values[tr_index+1]}
+        tr_path_key=$tr_preifx$tr_token$X
 
-    case "$tr_value" in
-    "$TR_VALUE_NULL_ARR")
-        tr_t[$tr_child_id.type]="$TR_TYPE_ARR"
-        return $TR_RET_ENUM_OK
-        ;;
-    "$TR_VALUE_NULL_OBJ")
-        tr_t[$tr_child_id.type]="$TR_TYPE_OBJ"
-        return $TR_RET_ENUM_OK
-        ;;
-    *)
-        tr_t[$tr_child_id.key]=$tr_path_key
-        tr_t["$tr_path_key"]=$tr_value
-        return $TR_RET_ENUM_OK
-    esac
+        [[ -v 'tr_t[$tr_path_key]' ]] && {
+            tr_t[$tr_path_key]=$tr_value
+            continue
+        }
+
+        tr_child_id="${tr_t[max_index]}" ; ((tr_t[max_index]++))
+        tr_t["$tr_node.child.$tr_token"]=$tr_child_id
+        tr_tokens+=("$tr_token")
+
+        case "$tr_value" in
+        "$TR_VALUE_NULL_ARR")
+            tr_t[$tr_child_id.type]="$TR_TYPE_ARR"
+            ;;
+        "$TR_VALUE_NULL_OBJ")
+            tr_t[$tr_child_id.type]="$TR_TYPE_OBJ"
+            ;;
+        *)
+            tr_t[$tr_child_id.key]=$tr_path_key
+            tr_t["$tr_path_key"]=$tr_value
+            ;;
+        esac
+    done
+    
+    ((${#tr_tokens[@]})) && tr_t[$tr_node.children]+=" ${tr_tokens[*]@Q}"
+    return $TR_RET_ENUM_OK
 }
 
 #-------------------------------------------------------------------------------

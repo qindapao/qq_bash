@@ -52,13 +52,14 @@ bless_mid_class ()
 cut_plus_mid_class ()
 {
     local -n tr_n=$1
-    local tr_s=$1 tr_i=$2
-    local tr_k=${NS_MAP[$tr_s.$tr_i]}
+    local tr_s=$1
+    local tr_i=$2
+    local tr_k=${NS[$tr_s.$tr_i]}
 
-    local tr_class=${tr_n[{CLASS}$X]}
-    ${FN_MAP[$tr_class.SUPER.${FUNCNAME[0]}]} $tr_s $tr_i
-
-    local tr_cnt=${|trie_get_leaf "$tr_s" "$tr_k{CNT}$X";}
+    local tr_class=${tr_n[$tr_k{CLASS}$X]}
+    ${FN[$tr_class.SUPER.${FUNCNAME[0]}]} $tr_s $tr_i
+    
+    local tr_cnt=${tr_n[$tr_k{CNT}$X]}
     ((tr_cnt++))
     ((tr_cnt++))
     tr_n[$tr_k{CNT}$X]=$tr_cnt

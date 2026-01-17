@@ -225,5 +225,38 @@ test_case4 ()
     return 0
 }
 
+# 关联数组下标赋值中的字符串拼接
+test_case5 ()
+{
+    local -A dict=()
+    local k='(xx:yy)'
+    local m='xxx xxx->xxx->xxx->xx:xx.x->(xxx:xx)->(xxxxx:xxxx)'
+    local x=$'zy\n\t 133'
+    dict[$k$m$x]=1
+    declare -A dict_spec=([$'(xx:yy)xxx xxx->xxx->xxx->xx:xx.x->(xxx:xx)->(xxxxx:xxxx)zy\n\t 133']="1" )
+    if assert_array A dict dict_spec ; then
+        log_test 1 1
+    else
+        log_test 0 1 ; return 1
+    fi
+    return 0
+}
+
+test_case6 ()
+{
+    test_case6_inner ()
+    {
+        local -a get_param=("$@")
+        local -a get_param_spec=('1 2' 'a b' '3 4' 'c d')
+        if assert_array a get_param get_param_spec ; then
+            log_test 1 1
+        else
+            log_test 0 1 ; return 1
+        fi
+    }
+    local -A assoc=(['1 2']='a b' ['3 4']='c d')
+    test_case6_inner "${assoc[@]@k}"
+}
+
 eval -- "${|AS_RUN_TEST_CASES;}"
 

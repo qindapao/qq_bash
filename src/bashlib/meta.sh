@@ -14,8 +14,8 @@
 # [OBJ1.45]="{key1}$X{key2}$X<123>$X"
 # [OBJ1.46]="{key1}$X{key2}$X<124>$X"
 # NAME SPACE MAP
-declare -gA NS_MAP=()
-declare -gA FN_MAP=()
+declare -gA NS=()
+declare -gA FN=()
 
 #-------------------------------------------------------------------------------
 
@@ -49,19 +49,19 @@ bless ()
     }
 
     # CLASS Add the hook class name to the attribute
-    local tr_class_chain=${FN_MAP[$tr_class_key.CLASS]}
+    local tr_class_chain=${FN[$tr_class_key.CLASS]}
     tr_class_chain="${tr_class}${tr_class_chain:+ -> }${tr_class_chain}"
     
-    FN_MAP[$tr_class_key.CLASS]=$tr_class_chain
+    FN[$tr_class_key.CLASS]=$tr_class_chain
 
     local tr_fn_name ; for tr_fn_name in "${_bless_func_list[@]}" ; do
         case "$tr_fn_name" in
         *_${tr_class})
             local tr_key=${tr_fn_name%"_$tr_class"}
             
-            local tr_super=${FN_MAP[$tr_class_key.$tr_key]}
-            FN_MAP[$tr_class_key.$tr_key]="$tr_fn_name $tr_s $tr_i"
-            FN_MAP[$tr_class_key.SUPER.$tr_fn_name]=${tr_super:-:}
+            local tr_super=${FN[$tr_class_key.$tr_key]}
+            FN[$tr_class_key.$tr_key]="$tr_fn_name $tr_s $tr_i"
+            FN[$tr_class_key.SUPER.$tr_fn_name]=${tr_super:-:}
             ;;
         esac
     done

@@ -15,29 +15,29 @@ test_case1 ()
 
     local i
     time {
-        for i in {0..2} ; do
+        for i in {0..5} ; do
             # Add a new element
             local -a "new_element_info=(${|trie_push_leaf root_obj "{ELEMENTS}$X" "$TR_VALUE_NULL_OBJ";})"
             new_my_class "root_obj" "${new_element_info[@]}" 'new1_value1' 'new1_value2' '2'
 
-            local class=${root_obj[${new_element_info[1]}{CLASS}$X]}
-            local self=${root_obj[${new_element_info[1]}{SELF}$X]}
-            ${FN_MAP[$class.print_self]} $self
+            # local class=${root_obj[${new_element_info[1]}{CLASS}$X]}
+            # local self=${root_obj[${new_element_info[1]}{SELF}$X]}
+            # ${FN[$class.print_self]} $self
         done
     }
 
-    # Delete the last element
+    # # Delete the last element
     local class=${root_obj[{CLASS}$X]}
     local self=${root_obj[{SELF}$X]}
 
-    ${FN_MAP[$class.delete_last_element]} $self
-    ${FN_MAP[$class.print_self]} $self
+    ${FN[$class.delete_last_element]} $self
+    ${FN[$class.print_self]} $self
 
-    ${FN_MAP[$class.haha]} $self
+    # ${FN[$class.haha]} $self
 
-    ${FN_MAP[$class.cut_plus]} $self
+    # ${FN[$class.cut_plus]} $self
 
-    ${FN_MAP[$class.print_self]} $self
+    # ${FN[$class.print_self]} $self
 }
 
 eval -- "${|AS_RUN_TEST_CASES;}"
