@@ -185,6 +185,17 @@ str_cut ()
 
 #-------------------------------------------------------------------------------
 
+# Find the index of the count-th occurrence of a substring in a string
+function str_index_of
+{
+    local haystack=$1 needle=$2 count=${3:-1}
+    eval -- "local transformed=\${haystack#${|str_repeat '*"$needle"' "$count";}}"
+    ((REPLY=${#haystack}-${#transformed}-${#needle},
+    REPLY<0&&(REPLY=-1),REPLY>=0))
+}
+
+#-------------------------------------------------------------------------------
+
 # str_cuts "$str" ':' 2 ';' -1
 str_cuts ()
 {

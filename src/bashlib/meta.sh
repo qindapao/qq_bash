@@ -38,13 +38,11 @@ bless ()
 
     ((${#_bless_func_list[@]})) || {
         local tr_item
-        for tr_item in ${ compgen -A function; } ; do
-            [[ "$tr_item" == *_class ]] && {
-                case "$tr_item" in
-                new_*|bless_*|setup_*) : ;;
-                *)  _bless_func_list+=("$tr_item") ;;
-                esac   
-            }
+        for tr_item in ${ compgen -A function -X '!*_class'; } ; do
+            case "$tr_item" in
+            new_*|bless_*|setup_*) : ;;
+            *)  _bless_func_list+=("$tr_item") ;;
+            esac   
         done
     }
 

@@ -38,7 +38,10 @@ test_case1 ()
     # ${FN[$class.cut_plus]} $self
 
     # ${FN[$class.print_self]} $self
+
 }
+
+# step_test 1
 
 eval -- "${|AS_RUN_TEST_CASES;}"
 

@@ -158,11 +158,10 @@ step_test ()
     local -A "run_case_set=(
         ${|var_params_to_set "$AS_TESTCASE_FUNC_HEAD" "$@";})"
     
-    local fns=(${ compgen -A function;})
+    local fns=(${ compgen -A function -X '!'"$AS_TESTCASE_FUNC_HEAD"'*' ;})
+
     local fn ; for fn in "${fns[@]}" ; do
-        [[ -v 'run_case_set["$fn"]' ]] || {
-            [[ "$fn" == "$AS_TESTCASE_FUNC_HEAD"* ]] && unset -f "$fn"
-        }
+        [[ -v 'run_case_set["$fn"]' ]] || unset -f "$fn"
     done
 }
 
@@ -172,7 +171,7 @@ AS_RUN_TEST_CASES ()
 echo "=================== Running tests from script: $0 ========================="
 echo "=== Start time: $(date "+%Y-%m-%d %H:%M:%S") ==="
 
-for fn in ${ compgen -A function | grep "^'$AS_TESTCASE_FUNC_HEAD'" | sort;}; do
+for fn in ${ compgen -A function -X '!'"$AS_TESTCASE_FUNC_HEAD"'*' | sort;}; do
     echo "-------- Running $fn ----------"
     "$fn" || exit 1
 done

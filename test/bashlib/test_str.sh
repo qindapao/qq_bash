@@ -200,7 +200,24 @@ test_case7 ()
     return 0
 }
 
-# step_test 6
+test_case8 ()
+{
+    local my_str='xgeg中文2233svsg23中文2233'
+
+    local -i index1=${|str_index_of "$my_str" '中文' 1;}
+    local -i index2=${|str_index_of "$my_str" '中文' 2;}
+    local -i index3=${|str_index_of "$my_str" '中文' 3;}
+    
+    if [[ "$index1" == '4' && "$index2" == '16' && "$index3" == '-1' ]] ; then
+        log_test 1 1
+    else
+        log_test 0 1 ; return 1
+    fi
+
+    return 0
+}
+
+# step_test 8
 
 eval -- "${|AS_RUN_TEST_CASES;}"
 
