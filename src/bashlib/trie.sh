@@ -428,6 +428,48 @@ trie_inserts ()
 
 #-------------------------------------------------------------------------------
 
+# Quickly push a series of leaf keys into an existing physical key array and
+# return an array of their IDs and physical keys (ID physical keys) tuples
+trie_push_leaf_fast ()
+{
+    local -n tr_t=$1
+    local tr_node=$2 tr_prefix=$3 tr_leaf= tr_token=
+    local -i tr_child_id
+
+    local -a tr_ret=()
+
+    [[ -z "$tr_node" ]] && {
+        local -A "tr_node_info=(${|_trie_token_to_node_id "$1" "$tr_prefix";})"
+        tr_node=${tr_node_info[node_id]}
+    }
+
+    local -a "tr_children=(${tr_t[$tr_node.children]})"
+
+    # Traverse the list of leaves that need to be pushed
+    for tr_leaf in "${@:4}" ; do
+        tr_child_id=${tr_t[max_index]}
+        tr_token="<$tr_child_id>"
+        tr_children+=("$tr_token")
+        ((tr_t[max_index]++))
+        case "$tr_leaf" in
+        $TR_VALUE_NULL_OBJ) tr_t[$tr_child_id.type]=$TR_TYPE_OBJ ;;
+        $TR_VALUE_NULL_ARR) tr_t[$tr_child_id.type]=$TR_TYPE_ARR ;;
+        *)
+            tr_t[$tr_child_id.key]=$tr_prefix$tr_token$X
+            tr_t[$tr_prefix$tr_token$X]=$tr_leaf
+            ;;
+        esac
+        tr_t[$tr_node.child.$tr_token]=$tr_child_id
+        tr_ret+=("$tr_child_id" "$tr_prefix$tr_token$X")
+    done
+    
+    # Update the parent node's children list
+    tr_t[$tr_node.children]=${tr_children[*]@Q}
+    REPLY=${tr_ret[*]@Q}
+}
+
+#-------------------------------------------------------------------------------
+
 # Only insert and do not return any data
 # Fast writing of associative arrays that can be used directly for flat layers
 # local -A assoc=(['{1 2}']='a b' ['{3 4}']='c d')
@@ -436,7 +478,7 @@ trie_insert_token_dict ()
 {
     local -n tr_t=$1
 
-    local tr_node=$2 tr_preifx=$3
+    local tr_node=$2 tr_prefix=$3
     local -a tr_token_values=("${@:4}")
     local tr_path_key=
     local -a tr_tokens=()
@@ -447,7 +489,7 @@ trie_insert_token_dict ()
     for((tr_index=0;tr_index<${#tr_token_values[@]};tr_index+=2)) ; do
         tr_token=${tr_token_values[tr_index]}
         tr_value=${tr_token_values[tr_index+1]}
-        tr_path_key=$tr_preifx$tr_token$X
+        tr_path_key=$tr_prefix$tr_token$X
 
         [[ -v 'tr_t[$tr_path_key]' ]] && {
             tr_t[$tr_path_key]=$tr_value

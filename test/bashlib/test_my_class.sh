@@ -13,16 +13,30 @@ test_case1 ()
     declare -gA "root_obj=(${|trie_init "$TR_TYPE_OBJ";})"
     new_my_class "root_obj" 1 '' 'value1' 'value2' '0' 
 
+    local i element_num=10
+
+    time {
+        local -a params=()
+        local -a new_element_infos=()
+        for((i=0;i<element_num;i++)) ; do
+            params+=("$TR_VALUE_NULL_OBJ")
+        done
+
+        local -a "new_element_infos=(${|trie_push_leaf_fast root_obj '' "{ELEMENTS}$X" "${params[@]}";})"
+    }
+
     local i
     time {
-        for i in {0..5} ; do
-            # Add a new element
-            local -a "new_element_info=(${|trie_push_leaf root_obj "{ELEMENTS}$X" "$TR_VALUE_NULL_OBJ";})"
-            new_my_class "root_obj" "${new_element_info[@]}" 'new1_value1' 'new1_value2' '2'
+        for ((i=0;i<element_num*2;i+=2)) ; do
+            local index=${new_element_infos[i]}
+            local phy_token=${new_element_infos[i+1]}
 
-            # local class=${root_obj[${new_element_info[1]}{CLASS}$X]}
-            # local self=${root_obj[${new_element_info[1]}{SELF}$X]}
-            # ${FN[$class.print_self]} $self
+            # Add a new element
+            new_my_class "root_obj" "$index" "$phy_token" 'new1_value1' 'new1_value2' '2'
+
+            local class=${root_obj[$phy_token{CLASS}$X]}
+            local self=${root_obj[$phy_token{SELF}$X]}
+            ${FN[$class.print_self]} $self
         done
     }
 
@@ -33,12 +47,11 @@ test_case1 ()
     ${FN[$class.delete_last_element]} $self
     ${FN[$class.print_self]} $self
 
-    # ${FN[$class.haha]} $self
+    ${FN[$class.haha]} $self
 
-    # ${FN[$class.cut_plus]} $self
+    ${FN[$class.cut_plus]} $self
 
-    # ${FN[$class.print_self]} $self
-
+    ${FN[$class.print_self]} $self
 }
 
 # step_test 1
