@@ -7,8 +7,8 @@
 test_case1 ()
 {
     bless_my_class 'my_class'
-    bless_mid_class 'mid_class'
-    bless_base_class 'base_class'
+    # bless_mid_class 'mid_class'
+    # bless_base_class 'base_class'
 
     declare -gA "root_obj=(${|trie_init "$TR_TYPE_OBJ";})"
     new_my_class "root_obj" 1 '' 'value1' 'value2' '0' 

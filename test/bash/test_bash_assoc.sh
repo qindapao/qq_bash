@@ -303,9 +303,38 @@ test_case8 ()
     else
         log_test 0 2 ; return 1
     fi
+
+    return 0
 }
 
+# 利用关联数组的键输出顺序固定来做集合的顺序打印
+test_case9 ()
+{
+    local -a array1=(z y x 1 2 3 10 b c a ax)
+    local -a array2=(z y   1   3    b   a ax)
 
+    local array1_sort array2_sort
+    
+    printf -v array1_sort "[%s]= " "${array1[@]}"
+    printf -v array2_sort "[%s]= " "${array2[@]}"
+    local -A "array1_sort=($array1_sort)"
+    local -A "array2_sort=($array2_sort)"
+
+    local -a array1_after=("${!array1_sort[@]}")
+    local -a array2_after=("${!array2_sort[@]}")
+
+    declare -a array1_after_spec=([0]="ax" [1]="3" [2]="2" [3]="1" [4]="z" [5]="y" [6]="x" [7]="c" [8]="b" [9]="a" [10]="10")
+    declare -a array2_after_spec=([0]="ax" [1]="3" [2]="1" [3]="z" [4]="y" [5]="b" [6]="a")
+
+    if  assert_array a array1_after array1_after_spec &&
+        assert_array a array2_after array2_after_spec ; then
+        log_test 1 1
+    else
+        log_test 0 1 ; return 1
+    fi
+
+    return 0
+}
 
 eval -- "${|AS_RUN_TEST_CASES;}"
 

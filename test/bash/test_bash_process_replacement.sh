@@ -80,6 +80,21 @@ test_case3 ()
     return 0
 }
 
+# who is faster to execute external commands using $() or ${ cmd;} ?
+# ${ cmd;} faster
+test_case4 ()
+{
+    local i
+
+    time for i in {0..10} ; do
+        local ret=${ ls -l | grep "xx" | grep "yy";}
+    done
+
+    time for i in {0..10} ; do
+        local ret=$(ls -l | grep "xx" | grep "yy")
+    done
+
+}
 
 eval -- "${|AS_RUN_TEST_CASES;}"
 

@@ -889,7 +889,19 @@ _trie_dump ()
 
     # Traverse children
     local -a "tr_children=(${tr_t[$tr_node.children]})"
-    local tr_index=0
+    local -i tr_index=0
+
+    # This is not sorting, it just uses the key output sequence of the
+    # associative array to make stable output to facilitate comparison of
+    # two trees.
+    # There cannot be duplicate elements in the array
+    # The bucket order inside bash's associative array is fixed
+    [[ "${tr_children[0]}" == '{'* ]] && {
+        local tr_children_sorted=
+        printf -v tr_children_sorted "[%s]= " "${tr_children[@]@Q}"
+        local -A "tr_children_sorted=($tr_children_sorted)"
+        tr_children=("${!tr_children_sorted[@]}")
+    }
 
     local tr_token tr_mark='=>'
     for tr_token in "${tr_children[@]}"; do
