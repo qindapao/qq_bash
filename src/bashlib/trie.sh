@@ -891,11 +891,15 @@ _trie_dump ()
     local -a "tr_children=(${tr_t[$tr_node.children]})"
     local -i tr_index=0
 
-    # This is not sorting, it just uses the key output sequence of the
-    # associative array to make stable output to facilitate comparison of
-    # two trees.
     # There cannot be duplicate elements in the array
-    # The bucket order inside bash's associative array is fixed
+    # The output order of hash keys is output in accordance with the hash bucket.
+    # If a conflict occurs in the bucket, it is output in the order of the linked list.
+    # So the order here is very unstable. It is OK when there are few elements,
+    # but if there are too many elements,hash table will trigger expansion,
+    # and if there are too few elements, the hash bucket will trigger shrinkage.
+    # So here is just an approximate fix, It is not absolutely fixed. This
+    # feature can be used to stabilize the display key when the number of
+    # elements is small.
     [[ "${tr_children[0]}" == '{'* ]] && {
         local tr_children_sorted=
         printf -v tr_children_sorted "[%s]= " "${tr_children[@]@Q}"
@@ -951,24 +955,35 @@ _trie_dump ()
 
 #-------------------------------------------------------------------------------
 
+# If we need to rearrange an array, it is very simple. We can use this function to
+# get the node ID, then get the children through the node ID, and then rearrange
+# the children and write them back to the original associative array. Because
+# there is no addition or subtraction of elements, there is no deletion or addition
+# of elements involved, only children need to be updated.
 _trie_token_to_node_id ()
 {
     local -n tr_t=$1
     local tr_full_key=$2
+    local -i    tr_need_index_full_key=${3:-0} \
+                tr_need_child_cnt=${4:-0} \
+                tr_need_value=${5:-0}
     local -A tr_node_info=()
-    local -i tr_child_cnt=0
 
     [[ -z "$tr_full_key" ]] && {
         # ROOT
-        [[ -n "${tr_t[$TR_ROOT_ID.children]}" ]] && {
-            local -a "tr_children_tmp=(${tr_t[$TR_ROOT_ID.children]})"
-            tr_child_cnt=${#tr_children_tmp[@]}
-        }
-        tr_node_info=(
+        if ((tr_need_child_cnt)) ; then
+            if [[ -n "${tr_t[$TR_ROOT_ID.children]}" ]] ; then
+                local -a "tr_children_tmp=(${tr_t[$TR_ROOT_ID.children]})"
+                tr_node_info[child_cnt]=${#tr_children_tmp[@]}
+            else
+                tr_node_info[child_cnt]=0
+            fi
+        fi
+
+        tr_node_info+=(
             [node_id]="$TR_ROOT_ID"
             [physical_full_key]=""
             [index_full_key]=""
-            [child_cnt]=$tr_child_cnt
             [type]=${tr_t[$TR_ROOT_ID.type]}
             [value]=""
             )
@@ -981,7 +996,7 @@ _trie_token_to_node_id ()
     local tr_tokens_str ; tr_tokens_str=${|_split_tokens "$tr_full_key";} || return $?
     local -a "tr_tokens=($tr_tokens_str)"
     local tr_node=$TR_ROOT_ID tr_token tr_child_id tr_token_raw tr_real_full_key=''
-    local tr_token_index tr_index_full_key=''
+    local tr_token_index= tr_index_full_key=
     for tr_token in "${tr_tokens[@]}" ; do
         tr_token_raw=$tr_token
         tr_token=${|tr_resolve_index_token "$1" "$tr_token" "$tr_node";}
@@ -989,11 +1004,15 @@ _trie_token_to_node_id ()
             die "node:${tr_node}(token:${tr_token_raw}) is not found physical token!"
             return $TR_RET_ENUM_KEY_IS_NOTFOUND
         }
+        tr_real_full_key+="$tr_token$X"
 
-        tr_token_index=${|tr_resolve_physical_token "$1" "$tr_token" "$tr_node";}
-        [[ -z "$tr_token_index" ]] && {
-            die "node:${tr_node}(token:${tr_token_raw}) is not found index token!"
-            return $TR_RET_ENUM_KEY_IS_NOTFOUND
+        ((tr_need_index_full_key)) && {
+            tr_token_index=${|tr_resolve_physical_token "$1" "$tr_token" "$tr_node";}
+            [[ -z "$tr_token_index" ]] && {
+                die "node:${tr_node}(token:${tr_token_raw}) is not found index token!"
+                return $TR_RET_ENUM_KEY_IS_NOTFOUND
+            }
+            tr_index_full_key+="$tr_token_index$X"
         }
 
         tr_child_id="${tr_t[$tr_node.child.$tr_token]}"
@@ -1002,25 +1021,29 @@ _trie_token_to_node_id ()
             return "$TR_RET_ENUM_KEY_IS_NOTFOUND"
         }
         tr_node=$tr_child_id
-        tr_real_full_key+="$tr_token$X"
-        tr_index_full_key+="$tr_token_index$X"
     done
 
-    [[ -n "${tr_t[$tr_node.children]}" ]] && {
-        local -a "tr_children_tmp=(${tr_t[$tr_node.children]})"
-        tr_child_cnt=${#tr_children_tmp[@]}
+    ((tr_need_index_full_key)) && tr_node_info[index_full_key]=$tr_index_full_key
+
+    if ((tr_need_child_cnt)) ; then
+        if [[ -n "${tr_t[$tr_node.children]}" ]] ; then
+            local -a "tr_children_tmp=(${tr_t[$tr_node.children]})"
+            tr_node_info[child_cnt]=${#tr_children_tmp[@]}
+        else
+            tr_node_info[child_cnt]=0
+        fi
+    fi
+
+    ((tr_need_value)) && {
+        local tr_key=${tr_t[$tr_node.key]} tr_value=
+        [[ -n "$tr_key" ]] && tr_value=${tr_t["$tr_key"]}
+        tr_node_info[value]=$tr_value
     }
 
-    local tr_key=${tr_t[$tr_node.key]} tr_value=''
-    [[ -n "$tr_key" ]] && tr_value=${tr_t["$tr_key"]}
-
-    tr_node_info=(
+    tr_node_info+=(
         [node_id]="$tr_node"
         [physical_full_key]="$tr_real_full_key"
-        [index_full_key]="$tr_index_full_key"
-        [child_cnt]=$tr_child_cnt
         [type]=${tr_t[$tr_node.type]}
-        [value]=$tr_value
         )
     REPLY=${tr_node_info[*]@K}
     return ${TR_RET_ENUM_OK}
@@ -1282,17 +1305,19 @@ trie_iter ()
 
     local -a "tr_children=(${tr_t[$tr_node_id.children]})"
 
-    local tr_tk tr_child_id tr_type tr_value tr_key
+    local tr_tk tr_child_id tr_type tr_key
     local tr_tk_p tr_type_p tr_value_p tr_node_p tr_index_tk_p
 
     local -i tr_index=0
     local tr_parent_type=${tr_t[$tr_node_id.type]}
     for tr_tk in "${tr_children[@]}"; do
         tr_child_id=${tr_t["$tr_node_id.child.$tr_tk"]}
-        trie_get_node_type "$1" "$tr_child_id" ; tr_type=$?
-
-        tr_key="${tr_t["$tr_child_id.key"]}"
-        tr_value='' ; [[ -n "$tr_key" ]] && tr_value=${tr_t["$tr_key"]}
+        if ((tr_is_iter_type)) ; then
+            trie_get_node_type "$1" "$tr_child_id" ; tr_type=$?
+            tr_type_p=${tr_type@Q}
+        else
+            tr_type_p=''
+        fi
 
         if ((tr_is_iter_index_token)) ; then
             if [[ "$tr_parent_type" == "$TR_TYPE_ARR" ]] ; then
@@ -1304,15 +1329,23 @@ trie_iter ()
             tr_index_tk_p=''
         fi
         
-        # Empty objects and empty arrays return simulated values
-        case "$tr_type" in
-        $TR_NODE_KIND_OBJ_EMPTY)    tr_value="$TR_VALUE_NULL_OBJ" ;;
-        $TR_NODE_KIND_ARR_EMPTY)    tr_value=$"$TR_VALUE_NULL_ARR" ;;
-        esac
+        if ((tr_is_iter_value)) ; then
+            tr_key="${tr_t["$tr_child_id.key"]}"
+            [[ -n "$tr_key" ]] && tr_value_p=${tr_t["$tr_key"]}
+
+            ((tr_is_iter_type)) || { trie_get_node_type "$1" "$tr_child_id" ; tr_type=$? ; }
+
+            # Empty objects and empty arrays return simulated values
+            case "$tr_type" in
+            $TR_NODE_KIND_OBJ_EMPTY)    tr_value_p="$TR_VALUE_NULL_OBJ" ;;
+            $TR_NODE_KIND_ARR_EMPTY)    tr_value_p=$"$TR_VALUE_NULL_ARR" ;;
+            esac
+            tr_value_p=${tr_value_p@Q}
+        else
+            tr_value_p=''
+        fi
 
         ((tr_is_iter_phy_token)) && tr_tk_p=${tr_tk@Q}         || tr_tk_p=''
-        ((tr_is_iter_type))      && tr_type_p=${tr_type@Q}     || tr_type_p=''
-        ((tr_is_iter_value))     && tr_value_p=${tr_value@Q}   || tr_value_p=''
         ((tr_is_iter_node))      && tr_node_p=${tr_child_id@Q} || tr_node_p=''
 
         #                      phy_token      type       index_token       value         node
@@ -1407,7 +1440,7 @@ trie_walk ()
 
     local tr_root_id tr_physical_full_key tr_index_full_key
     local tr_node_info tr_node_kind
-    tr_node_info=${|_trie_token_to_node_id "$1" "$tr_prefix";} || return $?
+    tr_node_info=${|_trie_token_to_node_id "$1" "$tr_prefix" 1;} || return $?
     local -A "tr_node_info=($tr_node_info)"
     tr_root_id=${tr_node_info[node_id]}
     tr_physical_full_key=${tr_node_info[physical_full_key]}
@@ -1624,7 +1657,7 @@ _trie_array_next_key ()
     # Get the up node type, if it exists, it must be an array or null
     # If it does not exist create an array and write position 0
     local tr_node_info tr_node_info_ret
-    tr_node_info=${|_trie_token_to_node_id "$tr_name" "$tr_up_key" 2>/dev/null;}
+    tr_node_info=${|_trie_token_to_node_id "$tr_name" "$tr_up_key" 0 1 1 2>/dev/null;}
     tr_node_info_ret=$?
 
     case "$tr_node_info_ret" in
