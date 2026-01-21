@@ -1,5 +1,9 @@
 ((_STR_IMPORTED++)) && return 0
 
+
+readonly _STR_BUILT_IN_THRESHOLDS=3000
+# readonly _STR_BUILT_IN_THRESHOLDS=-1
+
 #-------------------------------------------------------------------------------
 
 # The current function is much faster than the following way of writing
@@ -71,8 +75,15 @@ str_count ()
 {
     [[ -z "$1" || -z "$2" ]] && {
         echo "null haystack or null needle!" >&2
-        REPLY=-1
-        return 1
+        REPLY=-1 ; return 1
+    }
+    ((${#1}>_STR_BUILT_IN_THRESHOLDS)) && {
+        # -z Treat the input as a whole (because there are no nulls in shell variables)
+        # --null Output with null delimiter
+        # -F Search according to literals, not according to regular rules
+        # -dc Only keep empty characters
+        REPLY=${ printf "%s" "$1" | grep -zFo --null "$2" | tr -dc '\0' | wc -c;}
+        return 0
     }
     local text=${1//"$2"}
     ((REPLY=(${#1}-${#text})/${#2}))
@@ -128,6 +139,99 @@ str_split ()
 
 #-------------------------------------------------------------------------------
 
+awk_cut ()
+{
+    local str=$1 sep=$2 cnt=$3
+    REPLY=${
+        awk -v cnt="$cnt" '
+        function split_literal(str, sep, arr, cnt,    pos, m, idx)
+        {
+        m = length(sep)
+        idx = 1
+
+        # Forward index: stop when splitting reaches the target segment
+        if (cnt >= 0)
+            {
+            while ((pos = index(str, sep)) > 0)
+                {
+                arr[idx++] = substr(str, 1, pos - 1)
+                if (idx > cnt + 1) {
+                    # We have reached the target section and there is no need
+                    # to continue dismantling it.
+                    arr[idx] = substr(str, pos + m)
+                    return idx
+                }
+                str = substr(str, pos + m)
+                }
+            arr[idx] = str
+            return idx
+            }
+        else
+            {
+            # Negative index: must be split completely
+            while ((pos = index(str, sep)) > 0)
+                {
+                arr[idx++] = substr(str, 1, pos - 1)
+                str = substr(str, pos + m)
+                }
+            arr[idx] = str
+            return idx
+            }
+        }
+
+        BEGIN {
+            RS = "\0"
+            if ((getline s < ARGV[1]) > 0)
+                {
+                close(ARGV[1])
+                }
+            if ((getline str < ARGV[2]) > 0)
+                {
+                close(ARGV[2])
+                }
+            
+            n = split_literal(str, s, a, cnt)
+
+            if (cnt >= 0)
+                idx = cnt + 1
+            else
+                idx = n + cnt + 1
+
+            if (idx >= 1 && idx <= n)
+                printf "%s ", a[idx]
+            }
+        ' <(printf "%s" "$sep") <(printf "%s" "$str");}
+    [[ -n "$REPLY" ]] && REPLY=${REPLY::-1}
+}
+
+#-------------------------------------------------------------------------------
+
+awk_cut_regex ()
+{
+    local str=$1 sep=$2 cnt=$3
+    REPLY=${
+        awk -v s="$sep" -v cnt="$cnt" -v str="$str" '
+        BEGIN {
+            RS = "\0"
+            if ((getline s < ARGV[1]) > 0)
+                {
+                close(ARGV[1])
+                }
+            if ((getline str < ARGV[2]) > 0)
+                {
+                close(ARGV[2])
+                }
+            n = split(str, a, s)
+            if (cnt >= 0) idx = cnt + 1
+            else idx = n + cnt + 1
+            if (idx >= 1 && idx <= n) printf "%s ", a[idx]
+            }
+        ' <(printf "%s" "$sep") <(printf "%s" "$str");}
+    [[ -n "$REPLY" ]] && REPLY=${REPLY::-1}
+}
+
+#-------------------------------------------------------------------------------
+
 # str_cut
 # ----------
 # Extract a field from a string using a multi character separator.
@@ -165,6 +269,7 @@ str_cut ()
     local str=$1 sep=$2 cnt=$3
     [[ -z "$sep" ]] && { echo "sep:$sep can not be null!" >&2 ; return 1 ; }
     [[ "$str" == *"$sep"* ]] || return 0
+    ((${#str}>_STR_BUILT_IN_THRESHOLDS)) && { awk_cut "$@" ; return $? ; }
 
     local transformed=$str
     if ((cnt>0)) ; then
@@ -185,10 +290,53 @@ str_cut ()
 
 #-------------------------------------------------------------------------------
 
+awk_str_index_of ()
+{
+    local haystack=$1 needle=$2 count=${3:-1}
+    [[ -z "$needle" ]] && { REPLY=-1; return 0; }
+
+    REPLY=${
+        awk -v h="$haystack" -v n="$needle" -v c="$count" '
+        BEGIN {
+            RS = "\0"
+            if ((getline n < ARGV[1]) > 0)
+                {
+                close(ARGV[1])
+                }
+            if ((getline h < ARGV[2]) > 0)
+                {
+                close(ARGV[2])
+                }
+
+            pos = 0
+            start = 1
+            len_n = length(n)
+
+            for (i = 1; i <= c; i++)
+                {
+                idx = index(substr(h, start), n)
+                if (idx == 0)
+                    {
+                    print -1
+                    exit
+                    }
+                pos = start + idx - 1
+                start = pos + len_n
+                }
+            print pos - 1
+            }
+        ' <(printf "%s" "$needle") <(printf "%s" "$haystack");}
+}
+
+#-------------------------------------------------------------------------------
+
 # Find the index of the count-th occurrence of a substring in a string
 function str_index_of
 {
     local haystack=$1 needle=$2 count=${3:-1}
+    ((${#haystack}>_STR_BUILT_IN_THRESHOLDS||${#needle}>_STR_BUILT_IN_THRESHOLDS)) && {
+        awk_str_index_of "$@" ; return $?
+    }
     eval -- "local transformed=\${haystack#${|str_repeat '*"$needle"' "$count";}}"
     ((REPLY=${#haystack}-${#transformed}-${#needle},
     REPLY<0&&(REPLY=-1),REPLY>=0))
