@@ -5,7 +5,7 @@
 test_case1 ()
 {
     local a=$'gge geg gege' m k
-    printf -v m "%q" "$a"
+    printf -v m '%q' "$a"
     k=${a@Q}
 
     if [[ "$m" == "$k" ]] ; then

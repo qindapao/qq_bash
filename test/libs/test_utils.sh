@@ -121,15 +121,15 @@ diff_two_str_side_by_side ()
     local str1="$1" str2="$2"
     local title1="$3" title2="$4"
     local ret_code=0
-    local max1=$(printf "%s" "$str1" | display_max)
-    local max2=$(printf "%s" "$str2" | display_max)
+    local max1=$(printf '%s' "$str1" | display_max)
+    local max2=$(printf '%s' "$str2" | display_max)
     local max=$(( max1 > max2 ? max1 : max2 ))
     local width=$(( max * 2 + 4 ))
 
     printf '%.0s-' $(seq 1 "$width") ; echo ""
-    printf "%-*s    %-*s\n" "$max" "$title1" "$max" "$title2"
+    printf '%-*s    %-*s\n' "$max" "$title1" "$max" "$title2"
     printf '%.0s-' $(seq 1 "$width") ; echo ""
-    diff --minimal --side-by-side --expand-tabs --tabsize=4 --color --width=${width} -y <(printf "%s" "$str1") <(printf "%s" "$str2")
+    diff --minimal --side-by-side --expand-tabs --tabsize=4 --color --width=${width} -y <(printf '%s' "$str1") <(printf '%s' "$str2")
 
     ret_code=${PIPESTATUS[0]}
     echo ""

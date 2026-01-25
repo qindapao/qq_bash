@@ -9,18 +9,18 @@ test_case1 ()
     flush()
     {
         local line_num=$1
-        printf "line_num:%s\n" "$line_num"
-        printf "len:%s\n" "${#arr[@]}"
-        printf "array indexes:"
-        printf "%s," "${!arr[@]}"
+        printf 'line_num:%s\n' "$line_num"
+        printf 'len:%s\n' "${#arr[@]}"
+        printf 'array indexes:'
+        printf '%s,' "${!arr[@]}"
         echo 
-        printf "array elements:"
-        printf "%s," "${arr[@]}"
+        printf 'array elements:'
+        printf '%s,' "${arr[@]}"
         echo 
         arr=()
     }
 
-    local get_str=${ mapfile -t -C flush -c 5 arr < <(printf "%s\n" {0..20});}
+    local get_str=${ mapfile -t -C flush -c 5 arr < <(printf '%s\n' {0..20});}
 
     local get_str_spec='line_num:4
 len:4

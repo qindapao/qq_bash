@@ -7,7 +7,7 @@ readonly _STR_BUILT_IN_THRESHOLDS=3000
 #-------------------------------------------------------------------------------
 
 # The current function is much faster than the following way of writing
-# printf -v REPLY "%*s" "$2" "" ; REPLY=${REPLY// /"$1"}
+# printf -v REPLY '%*s' "$2" "" ; REPLY=${REPLY// /"$1"}
 str_repeat ()
 {
     local str=$1 ; local -i len=$(($2*${#str}))
@@ -82,7 +82,7 @@ str_count ()
         # --null Output with null delimiter
         # -F Search according to literals, not according to regular rules
         # -dc Only keep empty characters
-        REPLY=${ printf "%s" "$1" | grep -zFo --null "$2" | tr -dc '\0' | wc -c;}
+        REPLY=${ printf '%s' "$1" | grep -zFo --null "$2" | tr -dc '\0' | wc -c;}
         return 0
     }
     local text=${1//"$2"}
@@ -200,7 +200,7 @@ awk_cut ()
             if (idx >= 1 && idx <= n)
                 printf "%s ", a[idx]
             }
-        ' <(printf "%s" "$sep") <(printf "%s" "$str");}
+        ' <(printf '%s' "$sep") <(printf '%s' "$str");}
     [[ -n "$REPLY" ]] && REPLY=${REPLY::-1}
 }
 
@@ -226,7 +226,7 @@ awk_cut_regex ()
             else idx = n + cnt + 1
             if (idx >= 1 && idx <= n) printf "%s ", a[idx]
             }
-        ' <(printf "%s" "$sep") <(printf "%s" "$str");}
+        ' <(printf '%s' "$sep") <(printf '%s' "$str");}
     [[ -n "$REPLY" ]] && REPLY=${REPLY::-1}
 }
 
@@ -325,7 +325,7 @@ awk_str_index_of ()
                 }
             print pos - 1
             }
-        ' <(printf "%s" "$needle") <(printf "%s" "$haystack");}
+        ' <(printf '%s' "$needle") <(printf '%s' "$haystack");}
 }
 
 #-------------------------------------------------------------------------------

@@ -30,7 +30,7 @@ test_case1 ()
             [max_index]=3
             )
 
-        # printf "%s=>%s\n" "${t1[@]@k}"
+        # printf '%s=>%s\n' "${t1[@]@k}"
 
         if assert_array 'A' t1 t1_insert_spec ; then
             log_test 1 2
@@ -431,7 +431,7 @@ test_case7 ()
     fi
 
     # cat -A <(trie_dump t1)
-    # printf "%s => %s\n" "${flat_1[@]@k}"
+    # printf '%s => %s\n' "${flat_1[@]@k}"
 
     if  [[ "${flat_1@a}" == *A* ]] &&
         assert_array A flat_1 flat_1_spec ; then
@@ -547,7 +547,7 @@ test_case8 ()
     fi
 
     # cat -A <(trie_dump t1)
-    # printf "%s\n" "${flat_1[@]}"
+    # printf '%s\n' "${flat_1[@]}"
 
     if  [[ "${flat_1@a}" == *a* ]] &&
         assert_array a flat_1 flat_1_spec ; then
@@ -842,8 +842,8 @@ test_case16 ()
     t1_json_slow=${|trie_to_json_slow t1;}
     t1_json_slow=${|trie_to_json_slow t1;}
 
-    # cat -A <(printf "%s" "$t1_json_slow")
-    # cat -A <(printf "%s" "$t1_json")
+    # cat -A <(printf '%s' "$t1_json_slow")
+    # cat -A <(printf '%s' "$t1_json")
 
     local json_spec='[
     {
@@ -887,10 +887,10 @@ test_case16 ()
 ]'
     
     # echo "t1_json"
-    # printf "%s\n" "$t1_json"
+    # printf '%s\n' "$t1_json"
 
     # echo "json_spec"
-    # printf "%s\n" "$json_spec"
+    # printf '%s\n' "$json_spec"
 
     if [[ "$t1_json" == "$json_spec" ]] && [[ "$t1_json" == "$t1_json_slow" ]] ; then
         log_test 1 1

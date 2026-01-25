@@ -200,7 +200,7 @@ test_case5 ()
     local get_str=${|str_cut "$str" ':' 89;}
     # awk here is the fastest in transmitting data through pipes.
     # <<< On the contrary, it is slower
-    get_str_awk=${ printf "%s" "$str" | awk -F ':' '{print $90}';}
+    get_str_awk=${ printf '%s' "$str" | awk -F ':' '{print $90}';}
     
     if [[ "$get_str" == "$get_str_awk" ]] ; then
         log_test 1 1

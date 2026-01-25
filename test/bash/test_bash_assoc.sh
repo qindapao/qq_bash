@@ -315,8 +315,8 @@ test_case9 ()
 
     local array1_sort array2_sort
     
-    printf -v array1_sort "[%s]= " "${array1[@]}"
-    printf -v array2_sort "[%s]= " "${array2[@]}"
+    printf -v array1_sort '[%s]= ' "${array1[@]}"
+    printf -v array2_sort '[%s]= ' "${array2[@]}"
     local -A "array1_sort=($array1_sort)"
     local -A "array2_sort=($array2_sort)"
 

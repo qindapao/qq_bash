@@ -98,7 +98,7 @@ trie_bjson_key_escape ()
     bjsonKeyEscapeR_ekey="$1"
 
     if ((${#bjsonKeyEscapeR_ekey}>6666)) ; then
-        bjsonKeyEscapeR_ekey=$(printf "%s" "$bjsonKeyEscapeR_ekey" | gobolt json -m e -k stdin)
+        bjsonKeyEscapeR_ekey=$(printf '%s' "$bjsonKeyEscapeR_ekey" | gobolt json -m e -k stdin)
         bjsonKeyEscapeR_ekey=${bjsonKeyEscapeR_ekey%?}
     else
         local bjsonKeyEscapeR_is_patsub_replacement_on=0
@@ -853,24 +853,24 @@ trie_dump ()
 
     local tr_indent=${|str_repeat ' ' "$tr_indent_cnt";}
 
-    printf "%s(%s) -> %s\n" "$tr_t_name" "$tr_node" "${tr_node_info[physical_full_key]}"
+    printf '%s(%s) -> %s\n' "$tr_t_name" "$tr_node" "${tr_node_info[physical_full_key]}"
 
     [[ "${tr_t[$tr_node.type]}" == "$TR_TYPE_OBJ" ]] &&
     [[ -z "${tr_t[$tr_node.children]}" ]] && {
-        printf "${tr_indent}%s\n" "$TR_VALUE_NULL_OBJ"
+        printf '%s%s\n' "$tr_indent" "$TR_VALUE_NULL_OBJ"
         return
     }
 
     [[ "${tr_t[$tr_node.type]}" == "$TR_TYPE_ARR" ]] &&
     [[ -z "${tr_t[$tr_node.children]}" ]] && {
-        printf "${tr_indent}%s\n" "$TR_VALUE_NULL_ARR"
+        printf '%s%s\n' "$tr_indent" "$TR_VALUE_NULL_ARR"
         return
     }
 
     _trie_dump  "$tr_t_name" "$tr_node" "$tr_indent_cnt" "$tr_indent" \
                 "$tr_id_need_print" "$tr_value_need_print" \
                 "$tr_print_array_index"
-    printf "${tr_indent}max_index => %s\n" "${tr_t[max_index]}"
+    printf '%smax_index => %s\n' "$tr_indent" "${tr_t[max_index]}"
 }
 
 #-------------------------------------------------------------------------------
@@ -902,7 +902,7 @@ _trie_dump ()
     # elements is small.
     [[ "${tr_children[0]}" == '{'* ]] && {
         local tr_children_sorted=
-        printf -v tr_children_sorted "[%s]= " "${tr_children[@]@Q}"
+        printf -v tr_children_sorted '[%s]= ' "${tr_children[@]@Q}"
         local -A "tr_children_sorted=($tr_children_sorted)"
         tr_children=("${!tr_children_sorted[@]}")
     }
@@ -934,18 +934,33 @@ _trie_dump ()
                 tr_value_p="${tr_value//$'\n'/$'\n'$tr_value_indent}"
             }
 
-            printf "%s%s%s ${tr_mark} %s\n" \
-                "$tr_indent" "${tr_token//$'\n'/$'\n'$tr_indent}" "$tr_child_id_p" "$tr_value_p"
+            printf '%s%s%s %s %s\n' \
+                "$tr_indent" \
+                "${tr_token//$'\n'/$'\n'$tr_indent}" \
+                "$tr_child_id_p" \
+                "$tr_mark" \
+                "$tr_value_p"
         elif [[ "${tr_t[$tr_child_id.type]}" == "$TR_TYPE_ARR" ]] && [[ -z "${tr_t[$tr_child_id.children]}" ]] ; then
             ((tr_value_need_print)) && tr_value_p="$TR_VALUE_NULL_ARR"
-            printf "%s%s%s ${tr_mark} %s\n" \
-                "$tr_indent" "${tr_token//$'\n'/$'\n'$tr_indent}" "$tr_child_id_p" "$tr_value_p"
+            printf '%s%s%s %s %s\n' \
+                "$tr_indent" \
+                "${tr_token//$'\n'/$'\n'$tr_indent}" \
+                "$tr_child_id_p" \
+                "$tr_mark" \
+                "$tr_value_p"
         elif [[ "${tr_t[$tr_child_id.type]}" == "$TR_TYPE_OBJ" ]] && [[ -z "${tr_t[$tr_child_id.children]}" ]] ; then
             ((tr_value_need_print)) && tr_value_p="$TR_VALUE_NULL_OBJ"
-            printf "%s%s%s ${tr_mark} %s\n" \
-                "$tr_indent" "${tr_token//$'\n'/$'\n'$tr_indent}" "$tr_child_id_p" "$tr_value_p"
+            printf '%s%s%s %s %s\n' \
+                "$tr_indent" \
+                "${tr_token//$'\n'/$'\n'$tr_indent}" \
+                "$tr_child_id_p" \
+                "$tr_mark" \
+                "$tr_value_p"
         else
-            printf "%s%s%s\n" "${tr_indent}" "${tr_token//$'\n'/$'\n'$tr_indent}" "$tr_child_id_p"
+            printf '%s%s%s\n' \
+                "${tr_indent}" \
+                "${tr_token//$'\n'/$'\n'$tr_indent}" \
+                "$tr_child_id_p"
         fi
 
         _trie_dump "$1" "$tr_child_id" "$tr_indent_cnt" "$tr_indent_new" "$tr_id_need_print" "$tr_value_need_print" "$tr_print_array_index"
@@ -1379,7 +1394,7 @@ trie_callback_print ()
     printf_info+="physical full key:$physical_full_key "
     printf_info+="node id:$node_id "
     printf_info+="parent id:$parent_id"
-    printf "%s\n" "$printf_info"
+    printf '%s\n' "$printf_info"
     return $TR_RET_ENUM_OK
 }
 
@@ -2046,9 +2061,9 @@ trie_to_json_slow ()
             esac
         done
 
-        printf "%s" "$value" >"$tr_temp_file"
+        printf '%s' "$value" >"$tr_temp_file"
         
-        tr_jstr=${ printf "%s" "$tr_jstr" | \
+        tr_jstr=${ printf '%s' "$tr_jstr" | \
             gobolt json -m w -k stdin "$write_jstr_param" "$tr_temp_file" \
             -P -- "${bjson_params[@]}";} || return $?
         return $TR_RET_ENUM_OK
@@ -2132,7 +2147,7 @@ trie_to_json ()
 
     trie_walk "$tr_name" "$tr_full_key" trie_to_json_callback || return $?
 
-    # printf "%s\n" "${tr_gobolt_params[@]}"
+    # printf '%s\n' "${tr_gobolt_params[@]}"
 
     local tr_i
     local -A "tr_system_limits=(${|trie_get_arg_limits;})"
@@ -2171,7 +2186,7 @@ trie_from_json ()
         return $TR_RET_ENUM_KEY_OTHER_TOOL_NOT_INSTALLED
     }
 
-    local tr_assoc ; tr_assoc=${ printf "%s" "$tr_json_str" | \
+    local tr_assoc ; tr_assoc=${ printf '%s' "$tr_json_str" | \
         gobolt json -m r -t txt -k stdin -F trie -x "$X" -P -- "${tr_bjson_keys[@]}";}
     case "$?" in
     $TR_GOBOLT_JSONTYPEARRAY|$TR_GOBOLT_JSONTYPEOBJECT)
@@ -2208,7 +2223,7 @@ trie_get_arg_limits ()
     if [[ -z "$argmax" || "$argmax" == "undefined" ]] ; then
         # Windows hard limits
         # x=${|str_repeat 'a' 32708;}
-        # printf "" | gobolt json -m w -k stdin -s "$x" -P -- :key1
+        # printf '' | gobolt json -m w -k stdin -s "$x" -P -- :key1
         local -i safety=1024
         # 32KB
         args[AVAILABLE]=$((32768-safety))
