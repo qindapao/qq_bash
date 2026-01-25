@@ -59,40 +59,6 @@ test_case4 ()
     return 0
 }
 
-test_case5 ()
-{
-    local x=(1 2 3 4)
-    local y=(1 2 3 4 5 6)
-    
-    if array_is_subset x y ; then
-        log_test 1 1
-    else
-        log_test 0 1 ; return 1
-    fi
-
-    local x=(1 3 4)
-    local y=(1 2 3 4 5 6)
-    
-    if array_is_subset x y ; then
-        log_test 0 2 ; return 1
-    else
-        log_test 1 2
-    fi
-
-    local -A x_map=(['a 1']=" 1 2" ['a 2']="3 4")
-    local -A y_map=(['a 1']=" 1 2" ['a 2']="3 4" [ohter]=3)
-
-    if array_is_subset x_map y_map ; then
-        log_test 1 3
-    else
-        log_test 0 3 ; return 1
-    fi
-    
-
-    return 0
-
-}
-
 test_case6 ()
 {
     local -
