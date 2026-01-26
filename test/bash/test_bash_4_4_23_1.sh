@@ -15,7 +15,7 @@ test_case1 ()
 
 test_case2 ()
 {
-    set -x
+    # local - ; set -x
     local m=$'xxx xxx->xxx->xxx->xx:xx.x->(x \\ * @ xx:xx)->(xxxxx:xxxx)'
     local x=$'zy\n\t 133'
     local k='(xx:yy)'
@@ -41,6 +41,20 @@ test_case2 ()
     fi
 }
 
+# bash 4.4 的关联数组没有自动扩容机制，所以非常慢
+# 50万个键是无法接收的
+# 10万个键，3s，勉强能接受
+# 20完个键，12s，已经很慢了
+# 建议 bash 4.4 的hash 表不要超过 10万 个键
+test_case3 ()
+{
+    local -A assoc=()
+    time for i in {1..100000} ; do
+        assoc[$i]=1
+    done
+}
+
 test_case1 &&
-test_case2
+test_case2 &&
+test_case3
 
