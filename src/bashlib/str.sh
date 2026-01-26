@@ -210,7 +210,7 @@ awk_cut_regex ()
 {
     local str=$1 sep=$2 cnt=$3
     REPLY=${
-        awk -v s="$sep" -v cnt="$cnt" -v str="$str" '
+        awk -v cnt="$cnt" '
         BEGIN {
             RS = "\0"
             if ((getline s < ARGV[1]) > 0)
@@ -296,7 +296,7 @@ awk_str_index_of ()
     [[ -z "$needle" ]] && { REPLY=-1; return 0; }
 
     REPLY=${
-        awk -v h="$haystack" -v n="$needle" -v c="$count" '
+        awk -v c="$count" '
         BEGIN {
             RS = "\0"
             if ((getline n < ARGV[1]) > 0)

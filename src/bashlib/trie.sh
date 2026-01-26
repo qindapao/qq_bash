@@ -247,7 +247,7 @@ _trie_tree_is_valid ()
         return ${TR_RET_ENUM_TREE_IS_EMPTY}
     }
 
-    [[ -v tr_tree[$TR_ROOT_ID.type] ]] || {
+    [[ ${tr_tree[$TR_ROOT_ID.type]+_} ]] || {
         die "invalid tree: $1 not have root node!"
         return ${TR_RET_ENUM_TREE_NOT_HAVE_ROOT}
     }
@@ -491,7 +491,7 @@ trie_insert_token_dict ()
         tr_value=${tr_token_values[tr_index+1]}
         tr_path_key=$tr_prefix$tr_token$X
 
-        [[ -v 'tr_t[$tr_path_key]' ]] && {
+        [[ ${tr_t[$tr_path_key]+_} ]] && {
             tr_t[$tr_path_key]=$tr_value
             continue
         }
@@ -530,7 +530,7 @@ trie_insert_dict ()
     local tr_start_node_id=${4:-"$TR_ROOT_ID"}
     local tr_path_key=${5:-""}
 
-    [[ -v 'tr_t["$tr_full_key"]' ]] && {
+    [[ ${tr_t["$tr_full_key"]+_} ]] && {
         tr_t["$tr_full_key"]=$tr_value
         return ${TR_RET_ENUM_OK}
     }
@@ -601,7 +601,7 @@ trie_insert ()
     fi
 
     # If it is a leaf node, update the value directly
-    if  [[ -v 'tr_t["$tr_full_key"]' ]] &&
+    if  [[ ${tr_t["$tr_full_key"]+_} ]] &&
         [[ "$tr_value" != "$TR_VALUE_NULL_ARR" ]] &&
         [[ "$tr_value" != "$TR_VALUE_NULL_OBJ" ]] ; then
         tr_t["$tr_full_key"]=$tr_value
@@ -651,9 +651,9 @@ trie_insert ()
                 unset -v 'tr_t[$tr_key]'
                 tr_t[$tr_node.type]=$TR_TYPE_OBJ
             # If tr_node has only node tags, then turn it into empty obj
-            elif [[ -v 'tr_t[$tr_node]' ]] &&
-                [[ ! -v 'tr_t[$tr_node.key]' ]] &&
-                [[ ! -v 'tr_t[$tr_node.children]' ]] &&
+            elif [[ ${tr_t[$tr_node]+_} ]] &&
+                [[ -z ${tr_t[$tr_node.key]+_} ]] &&
+                [[ -z ${tr_t[$tr_node.children]+_} ]] &&
                 [[ "${tr_t[$tr_node.type]}" != "$TR_TYPE_ARR" ]] ; then
                 tr_t[$tr_node.type]=$TR_TYPE_OBJ
             else
@@ -669,9 +669,9 @@ trie_insert ()
                 unset -v 'tr_t[$tr_key]'
                 tr_t[$tr_node.type]=$TR_TYPE_ARR
             # Contains only node existence flags
-            elif [[ -v 'tr_t[$tr_node]' ]] &&
-                [[ ! -v 'tr_t[$tr_node.key]' ]] &&
-                [[ ! -v 'tr_t[$tr_node.children]' ]] &&
+            elif [[ ${tr_t[$tr_node]+_} ]] &&
+                [[ -z ${tr_t[$tr_node.key]+_} ]] &&
+                [[ -z ${tr_t[$tr_node.children]+_} ]] &&
                 [[ "${tr_t[$tr_node.type]}" != "$TR_TYPE_OBJ" ]] ; then
                 tr_t[$tr_node.type]=$TR_TYPE_ARR
             fi
@@ -1180,7 +1180,7 @@ trie_get_leaf ()
     tr_node_info=${|_trie_token_to_node_id "$1" "$tr_full_key";} || return $?
     local -A "tr_node_info=($tr_node_info)"
     local tr_physical_full_key=${tr_node_info[physical_full_key]}
-    if [[ -v 'tr_t["$tr_physical_full_key"]' ]] ; then
+    if [[ ${tr_t["$tr_physical_full_key"]+_} ]] ; then
         REPLY=${tr_t["$tr_physical_full_key"]}
         return $TR_RET_ENUM_OK
     else
@@ -1221,7 +1221,7 @@ trie_get_tree ()
         tr_real_full_key=${tr_node_info[physical_full_key]}
     fi
 
-    [[ -v 'tr_t["$tr_real_full_key"]' ]] && {
+    [[ ${tr_t[$tr_real_full_key]+_} ]] && {
         die "key is leaf!"
         return ${TR_RET_ENUM_KEY_IS_LEAF}
     }
@@ -1407,7 +1407,7 @@ trie_get_node_type ()
     local tr_node=$2
     local tr_key
     
-    if [[ -v 'tr_t["$tr_node.key"]' ]] ; then
+    if [[ ${tr_t[$tr_node.key]+_} ]] ; then
         tr_key="${tr_t["$tr_node.key"]}"
         if [[ "${tr_t["$tr_key"]}" == "$TR_VALUE_NULL" ]] ; then
             return $TR_NODE_KIND_LEAF_NULL
@@ -1639,7 +1639,7 @@ trie_equals ()
     }
 
     for tr_key in "${!tr_trie_equals_1_check[@]}" ; do
-        [[ -v 'tr_trie_equals_2_check[$tr_key]' ]] || {
+        [[ ${tr_trie_equals_2_check[$tr_key]+_} ]] || {
             _trie_equals_fail ; return $?
         }
         [[ "${tr_trie_equals_1_check[$tr_key]}" == "${tr_trie_equals_2_check[$tr_key]}" ]] || {
@@ -1648,7 +1648,7 @@ trie_equals ()
     done
 
     for tr_key in "${!tr_trie_equals_2_check[@]}" ; do
-        [[ -v 'tr_trie_equals_1_check[$tr_key]' ]] || {
+        [[ ${tr_trie_equals_1_check[$tr_key]+_} ]] || {
             _trie_equals_fail ; return $?
         }
         [[ "${tr_trie_equals_1_check[$tr_key]}" == "${tr_trie_equals_2_check[$tr_key]}" ]] || {
@@ -1832,7 +1832,7 @@ trie_layer_get_flat ()
 
     # First determine whether the current layer is null
     local tr_key=${tr_t[$tr_node_id.key]}
-    if [[ -n "$tr_key" && -v 'tr_t[$tr_key]' ]] ; then
+    if [[ -n "$tr_key" && ${tr_t[$tr_key]+_} ]] ; then
         if [[ "${tr_t[$tr_key]}" == "$TR_VALUE_NULL" ]] ; then
             return $TR_FLAT_IS_MATCH
         else

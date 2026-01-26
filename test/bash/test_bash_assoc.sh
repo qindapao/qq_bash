@@ -267,19 +267,22 @@ test_case7 ()
     local n=$'gege\t \n tgeg223 \n tt223'
     declare -A dict_spec=([$'gege\t \n tgeg223 \n tt223(xx:yy)xxx xxx->xxx->xxx->xx:xx.x->(x \\ * @ xx:xx)->(xxxxx:xxxx)zy\n\t 133']="1" )
     
-    if [[ -v 'dict_spec[$n$k$m$x]' ]] ; then
+    if [[ -v 'dict_spec[$n$k$m$x]' ]] &&
+       [[ ${dict_spec["$n$k$m$x"]+_} ]] ; then
         log_test 1 1
     else
         log_test 0 1 ; return 1
     fi
 
-    if [[ -v 'dict_spec["$n$k$m$x"]' ]] ; then
+    if [[ -v 'dict_spec["$n$k$m$x"]' ]] &&
+       [[ ${dict_spec["$n$k$m$x"]+_} ]] ; then
         log_test 1 2
     else
         log_test 0 2 ; return 1
     fi
 
-    if [[ -v dict_spec[$n$k$m$x] ]] ; then
+    if [[ -v dict_spec[$n$k$m$x] ]] &&
+       [[ ${dict_spec["$n$k$m$x"]+_} ]] ; then
         log_test 1 3
     else
         log_test 0 3 ; return 1
