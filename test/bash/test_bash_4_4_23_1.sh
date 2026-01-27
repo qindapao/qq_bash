@@ -54,7 +54,14 @@ test_case3 ()
     done
 }
 
+test_case4 ()
+{
+    cat xx.txt > >(tee -a yy.txt)
+    echo $?
+}
+
 test_case1 &&
 test_case2 &&
-test_case3
+test_case3 &&
+test_case4
 
