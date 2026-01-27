@@ -167,11 +167,11 @@ step_test ()
 
 AS_RUN_TEST_CASES ()
 {
-    REPLY='
+    printf "%s" '
 echo "=================== Running tests from script: $0 ========================="
 echo "=== Start time: $(date "+%Y-%m-%d %H:%M:%S") ==="
 
-for fn in ${ compgen -A function -X '!'"$AS_TESTCASE_FUNC_HEAD"'*' | sort;}; do
+for fn in $(compgen -A function -X '!'"$AS_TESTCASE_FUNC_HEAD"'*' | sort); do
     echo "-------- Running $fn ----------"
     "$fn" || exit 1
 done

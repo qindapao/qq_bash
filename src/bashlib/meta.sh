@@ -38,7 +38,12 @@ bless ()
 
     ((${#_bless_func_list[@]})) || {
         local tr_item
+    #@if current_shell_process_replace==1
         for tr_item in ${ compgen -A function -X '!*_class'; } ; do
+    #@endif
+    #@if current_shell_process_replace==0
+        for tr_item in $(compgen -A function -X '!*_class') ; do
+    #@endif
             case "$tr_item" in
             new_*|bless_*|setup_*) : ;;
             *)  _bless_func_list+=("$tr_item") ;;

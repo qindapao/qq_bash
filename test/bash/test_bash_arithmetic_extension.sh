@@ -120,6 +120,6 @@ test_case3 ()
     return 0
 }
 
-eval -- "${|AS_RUN_TEST_CASES;}"
+eval -- "$(AS_RUN_TEST_CASES)"
 
 

@@ -306,5 +306,5 @@ test_case9 ()
 
 # step_test 9
 
-eval -- "${|AS_RUN_TEST_CASES;}"
+eval -- "$(AS_RUN_TEST_CASES)"
 

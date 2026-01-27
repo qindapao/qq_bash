@@ -1,20 +1,24 @@
 #!/usr/bin/env bash
 
-date_log ()
-{
-    printf '%(%Y_%m_%d_%H_%M_%S)T' -1
-}
+. ./src/bashlib/grammar.sh
 
-date_print ()
-{
-    printf '%(%Y-%m-%d %H:%M:%S)T' -1
-}
+if ((${BASH_GRAMMAR[printf_time]})) ; then
+date_log () { printf '%(%Y_%m_%d_%H_%M_%S)T' -1 ; }
+else
+date_log () { date +"%Y_%m_%d_%H_%M_%S" ; }
+fi
+
+if ((${BASH_GRAMMAR[printf_time]})) ; then
+date_print () { printf '%(%Y-%m-%d %H:%M:%S)T' -1 ; }
+else
+date_print () { date +"%Y-%m-%d %H:%M:%S" ; }
+fi
 
 exec_all_test_case ()
 {
-    local start_time=${ date_print;}
+    local start_time=$(date_print)
 
-    local test_report="${PWD}/test_report_${ date_log;}.txt"
+    local test_report="${PWD}/test_report_$(date_log).txt"
     local -a test_case_files=() 
 
     local is_globstar_set=0 is_nullglob_set=0 is_dotglob_unset=0
@@ -42,7 +46,7 @@ exec_all_test_case ()
     local is_test_fail=0 state
     for file_name in "${all_files[@]}" ; do
         cd ${file_name%/*}
-        bash ${file_name##*/} > >(tee -a "$test_report")
+        /home/admin/bash ${file_name##*/} > >(tee -a "$test_report")
         if (($?)) ; then
             echo "~~~~~~~~${file_name}~~~~~~~~ test fail!" | tee -a "$test_report"
             is_test_fail=1
@@ -52,7 +56,7 @@ exec_all_test_case ()
         cd "$cur_dir"
     done
     
-    local end_time=${ date_print;}
+    local end_time=$(date_print)
     local result=pass
     ((is_test_fail)) && result=fail
     echo "test start in ${start_time},end_in ${end_time},result:${result}."
