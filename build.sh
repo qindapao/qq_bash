@@ -2,26 +2,25 @@
 
 . ./src/bashlib/grammar.sh
 
-BUILD_DIR="./build"
-
 FILES_TO_BE_PROCESSED=(
-    "./src/bashlib/meta.sh"
-    "./src/bashlib/var.sh"
-    "./src/bashlib/fn.sh"
-    "./src/bashlib/str.sh"
-    "./src/bashlib/float.sh"
-    "./src/bashlib/array.sh"
-    "./src/bashlib/trie.sh"
-    "./src/bashlib/my_class.sh"
-    "./src/bashlib/mid_class.sh"
-    "./src/bashlib/base_class.sh"
+    "./src/bashlib/meta.in"
+    "./src/bashlib/var.in"
+    "./src/bashlib/str.in"
+    "./src/bashlib/float.in"
+    "./src/bashlib/array.in"
+    "./src/bashlib/trie.in"
+    "./src/bashlib/my_class.in"
+    "./src/bashlib/mid_class.in"
+    "./src/bashlib/base_class.in"
+    "./test/bashlib/test_trie.in"
+    "./test/bashlib/test_my_class.in"
 )
 
 clear_build_dir ()
 {
     local f
     for f in "${FILES_TO_BE_PROCESSED[@]}" ; do
-        rm -f "${BUILD_DIR}/${f##*/}"
+        rm -f "${f%".in"}.sh"
     done
 }
 
@@ -59,10 +58,12 @@ process_file() {
                 ;;
             esac
 
-            (( in_block )) && printf '%s\n' "$f_line" >> "${BUILD_DIR}/${f##*/}"
+            (( in_block )) && printf '%s\n' "$f_line" >> "${f%".in"}.sh"
         done < "$f"
     done
 }
+
+[[ "$1" == '-d' ]] && { clear_build_dir ; exit 0 ; }
 
 clear_build_dir
 process_file

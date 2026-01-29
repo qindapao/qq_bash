@@ -82,7 +82,7 @@ str_count ()
         # --null Output with null delimiter
         # -F Search according to literals, not according to regular rules
         # -dc Only keep empty characters
-        REPLY=${ printf '%s' "$1" | grep -zFo --null "$2" | tr -dc '\0' | wc -c;}
+        REPLY=${ printf '%s' "$1" | grep -zFo --null -- "$2" | tr -dc '\0' | wc -c;}
         return 0
     }
     local text=${1//"$2"}
@@ -141,8 +141,9 @@ str_split ()
 
 awk_cut ()
 {
+    REPLY=
     local str=$1 sep=$2 cnt=$3
-    REPLY=${
+    REPLY=$(
         awk -v cnt="$cnt" '
         function split_literal(str, sep, arr, cnt,    pos, m, idx)
         {
@@ -200,7 +201,7 @@ awk_cut ()
             if (idx >= 1 && idx <= n)
                 printf "%s ", a[idx]
             }
-        ' <(printf '%s' "$sep") <(printf '%s' "$str");}
+        ' <(printf '%s' "$sep") <(printf '%s' "$str"))
     [[ -n "$REPLY" ]] && REPLY=${REPLY::-1}
 }
 
@@ -209,7 +210,7 @@ awk_cut ()
 awk_cut_regex ()
 {
     local str=$1 sep=$2 cnt=$3
-    REPLY=${
+    REPLY=$(
         awk -v cnt="$cnt" '
         BEGIN {
             RS = "\0"
@@ -226,7 +227,7 @@ awk_cut_regex ()
             else idx = n + cnt + 1
             if (idx >= 1 && idx <= n) printf "%s ", a[idx]
             }
-        ' <(printf '%s' "$sep") <(printf '%s' "$str");}
+        ' <(printf '%s' "$sep") <(printf '%s' "$str"))
     [[ -n "$REPLY" ]] && REPLY=${REPLY::-1}
 }
 
@@ -266,6 +267,7 @@ awk_cut_regex ()
 #   str_cut "$str" ':' -1    # last field
 str_cut ()
 {
+    REPLY=
     local str=$1 sep=$2 cnt=$3
     [[ -z "$sep" ]] && { echo "sep:$sep can not be null!" >&2 ; return 1 ; }
     [[ "$str" == *"$sep"* ]] || return 0
@@ -273,13 +275,25 @@ str_cut ()
 
     local transformed=$str
     if ((cnt>0)) ; then
-        eval -- "transformed=\${str#${|str_repeat '*"$sep"' "$cnt";}}"
+    #@if current_shell_process_replace==1
+        local repeat_str=${|str_repeat '*"$sep"' "$cnt";}
+    #@endif
+    #@if current_shell_process_replace==0
+        str_repeat '*"$sep"' "$cnt" ; local repeat_str=$REPLY
+    #@endif
+        eval -- "transformed=\${str#$repeat_str}"
         # Length comparison takes much less time than direct string comparison
         ((${#transformed}==${#str})) && transformed=
         REPLY=${transformed%%"$sep"*}
     elif ((cnt<0)) ; then
         ((cnt!=-1)) && {
-            eval -- "transformed=\${str%${|str_repeat '"$sep"*' "$((-cnt-1))";}}"
+        #@if current_shell_process_replace==1
+            local repeat_str=${|str_repeat '"$sep"*' "$((-cnt-1))";}
+        #@endif
+        #@if current_shell_process_replace==0
+            str_repeat '"$sep"*' "$((-cnt-1))" ; local repeat_str=$REPLY
+        #@endif
+            eval -- "transformed=\${str%$repeat_str}"
             (("${#transformed}"=="${#str}")) && transformed=
         }
         REPLY=${transformed##*"$sep"}
@@ -295,7 +309,7 @@ awk_str_index_of ()
     local haystack=$1 needle=$2 count=${3:-1}
     [[ -z "$needle" ]] && { REPLY=-1; return 0; }
 
-    REPLY=${
+    REPLY=$(
         awk -v c="$count" '
         BEGIN {
             RS = "\0"
@@ -325,7 +339,7 @@ awk_str_index_of ()
                 }
             print pos - 1
             }
-        ' <(printf '%s' "$needle") <(printf '%s' "$haystack");}
+        ' <(printf '%s' "$needle") <(printf '%s' "$haystack"))
 }
 
 #-------------------------------------------------------------------------------
@@ -333,11 +347,18 @@ awk_str_index_of ()
 # Find the index of the count-th occurrence of a substring in a string
 function str_index_of
 {
+    REPLY=
     local haystack=$1 needle=$2 count=${3:-1}
     ((${#haystack}>_STR_BUILT_IN_THRESHOLDS||${#needle}>_STR_BUILT_IN_THRESHOLDS)) && {
         awk_str_index_of "$@" ; return $?
     }
+#@if current_shell_process_replace==1
     eval -- "local transformed=\${haystack#${|str_repeat '*"$needle"' "$count";}}"
+#@endif
+#@if current_shell_process_replace==0
+    str_repeat '*"$needle"' "$count" ; local repeat_str=$REPLY   
+    eval -- "local transformed=\${haystack#$repeat_str}"
+#@endif
     ((REPLY=${#haystack}-${#transformed}-${#needle},
     REPLY<0&&(REPLY=-1),REPLY>=0))
 }
@@ -347,11 +368,18 @@ function str_index_of
 # str_cuts "$str" ':' 2 ';' -1
 str_cuts ()
 {
+    REPLY=
     local str=$1
     local i sep cnt
     for((i=2;i<$#;i++)) ; do
         sep=${!i} ; ((i++)) ; cnt=${!i}
+    #@if current_shell_process_replace==1
         str=${|str_cut "$str" "$sep" "$cnt";} || return $?
+    #@endif
+    #@if current_shell_process_replace==0
+        str_cut "$str" "$sep" "$cnt" || return $?
+        str=$REPLY
+    #@endif
     done
     REPLY=$str
 }

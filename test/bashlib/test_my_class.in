@@ -10,7 +10,12 @@ test_case1 ()
     # bless_mid_class 'mid_class'
     # bless_base_class 'base_class'
 
+#@if current_shell_process_replace==1
     declare -gA "root_obj=(${|trie_init "$TR_TYPE_OBJ";})"
+#@endif
+#@if current_shell_process_replace==0
+    trie_init "$TR_TYPE_OBJ" ; declare -gA "root_obj=($REPLY)"
+#@endif
     new_my_class "root_obj" 1 '' 'value1' 'value2' '0' 
 
     local i element_num=10
@@ -22,7 +27,12 @@ test_case1 ()
             params+=("$TR_VALUE_NULL_OBJ")
         done
 
+    #@if current_shell_process_replace==1
         local -a "new_element_infos=(${|trie_push_leaf_fast root_obj '' "{ELEMENTS}$X" "${params[@]}";})"
+    #@endif
+    #@if current_shell_process_replace==0
+        trie_push_leaf_fast root_obj '' "{ELEMENTS}$X" "${params[@]}" ; local -a "new_element_infos=($REPLY)"
+    #@endif
     }
 
     local i

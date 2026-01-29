@@ -169,10 +169,10 @@ test_case9 ()
     local str2='x b'
     local a2=('a 2 c  ' '1 2 3 ' 'degeg' '中文')
 
-    local join1=${|array_join a1 "str1";}
-    local join2=${|array_join a1 "str2";}
-    local join3=${|array_join a2 "$str1";}
-    local join4=${|array_join a2 "$str2";}
+    array_join a1 "str1"  ; local join1=$REPLY
+    array_join a1 "str2"  ; local join2=$REPLY
+    array_join a2 "$str1" ; local join3=$REPLY
+    array_join a2 "$str2" ; local join4=$REPLY
 
     if [[ "$join1" == '' ]] &&
         [[ "$join2" == '' ]] &&

@@ -108,5 +108,17 @@ array_join () { local IFS= ; eval -- 'REPLY=${'$1'[*]/%/$2} ; REPLY=${REPLY%"$2"
 
 #-------------------------------------------------------------------------------
 
+array_to_kv_q_str ()
+{
+    REPLY=
+    local -n ar_arr=$1
+    local ar_key
+    for ar_key in "${!ar_arr[@]}" ; do
+        REPLY+="[${ar_key@Q}]=${ar_arr[$ar_key]@Q} "
+    done
+}
+
+#-------------------------------------------------------------------------------
+
 return 0
 

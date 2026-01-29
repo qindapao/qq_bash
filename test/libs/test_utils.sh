@@ -27,6 +27,7 @@ geg
 # Is there any magic way to make the function restore metadata?
 save_func ()
 {
+    REPLY=
     declare -F "$1" && {
         REPLY=${ declare -f "$1";}
         return 0
@@ -51,10 +52,11 @@ log_test ()
 # SRANDOM 32
 rand_str ()
 {
+    REPLY=
     local len=${1:-40}
     local i
     for ((i=0; i<len; i++)); do
-        REPLY+="${AS_NORMAL_CHARS[SRANDOM % AS_NORMAL_CHARS_LEN]}"
+        REPLY+="${AS_NORMAL_CHARS[RANDOM % AS_NORMAL_CHARS_LEN]}"
     done
 }
 

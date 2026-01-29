@@ -2,6 +2,8 @@
 
 # var_ as a reserved prefix
 
+. "${BASH_SOURCE[0]%/*}/array.sh"
+
 #-------------------------------------------------------------------------------
 
 # Convert the parameter list into a set
@@ -13,7 +15,12 @@ var_params_to_set ()
     while (($#)) ; do
         var_set["$var_head$1"]=1 ; shift
     done
+#@if current_shell_process_replace==1
     REPLY="${var_set[*]@K}"
+#@endif
+#@if current_shell_process_replace==0
+    array_to_kv_q_str var_set ; REPLY=$REPLY
+#@endif
 }
 
 #-------------------------------------------------------------------------------

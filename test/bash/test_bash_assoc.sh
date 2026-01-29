@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
 # assoc_expand_once
+. ../../src/bashlib/grammar.sh
 . ../libs/test_utils.sh
 
 # 关联数组的赋值

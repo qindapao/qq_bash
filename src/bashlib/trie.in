@@ -101,6 +101,7 @@ trie_bjson_key_escape ()
         bjsonKeyEscapeR_ekey=$(printf '%s' "$bjsonKeyEscapeR_ekey" | gobolt json -m e -k stdin)
         bjsonKeyEscapeR_ekey=${bjsonKeyEscapeR_ekey%?}
     else
+    #@if patsub_replacement==1
         local bjsonKeyEscapeR_is_patsub_replacement_on=0
         shopt -q patsub_replacement || {
             shopt -s patsub_replacement
@@ -110,6 +111,22 @@ trie_bjson_key_escape ()
         # 5.2 patsub_replacement
         bjsonKeyEscapeR_ekey=${bjsonKeyEscapeR_ekey//[$'][\\.*?|@#{}!']/\\&}
         ((bjsonKeyEscapeR_is_patsub_replacement_on)) && shopt -u patsub_replacement
+    #@endif
+    #@if patsub_replacement==0
+        # Backslashes must be handle first
+        bjsonKeyEscapeR_ekey=${bjsonKeyEscapeR_ekey//'\'/'\\'}
+        bjsonKeyEscapeR_ekey=${bjsonKeyEscapeR_ekey//']'/'\]'}
+        bjsonKeyEscapeR_ekey=${bjsonKeyEscapeR_ekey//'['/'\['}
+        bjsonKeyEscapeR_ekey=${bjsonKeyEscapeR_ekey//'.'/'\.'}
+        bjsonKeyEscapeR_ekey=${bjsonKeyEscapeR_ekey//'*'/'\*'}
+        bjsonKeyEscapeR_ekey=${bjsonKeyEscapeR_ekey//'?'/'\?'}
+        bjsonKeyEscapeR_ekey=${bjsonKeyEscapeR_ekey//'|'/'\|'}
+        bjsonKeyEscapeR_ekey=${bjsonKeyEscapeR_ekey//'@'/'\@'}
+        bjsonKeyEscapeR_ekey=${bjsonKeyEscapeR_ekey//'#'/'\#'}
+        bjsonKeyEscapeR_ekey=${bjsonKeyEscapeR_ekey//'{'/'\{'}
+        bjsonKeyEscapeR_ekey=${bjsonKeyEscapeR_ekey//'}'/'\}'}
+        bjsonKeyEscapeR_ekey=${bjsonKeyEscapeR_ekey//'!'/'\!'}
+    #@endif
     fi
 }
 
@@ -117,6 +134,7 @@ trie_bjson_key_escape ()
 
 _split_tokens ()
 {
+    REPLY=
     local tokens_str=$1
     local is_insertion_semantics=${2:-0}
     local -a tokens=()
@@ -162,11 +180,21 @@ _split_tokens ()
 # index -> physical
 tr_resolve_index_token ()
 {
+    REPLY=
     local -n tr_t=$1
     local tr_token=$2 tr_node=$3
     if [[ "${tr_token:0:1}${tr_token: -1}" == '[]' ]] ; then
         local -a "tr_child_ids=(${tr_t[$tr_node.children]})"
+        #@if current_shell_process_replace==1
         tr_token=${|_negative_token_to_positive "$tr_token" "${#tr_child_ids[@]}" "$tr_node";} || return $?
+        #@endif
+        #@if current_shell_process_replace==0
+        _negative_token_to_positive "$tr_token" "${#tr_child_ids[@]}" "$tr_node" || {
+            local tr_resolve_index_token_ret=$? ; REPLY=
+            return $tr_resolve_index_token_ret
+        }
+        tr_token=$REPLY
+        #@endif
         tr_token=${tr_child_ids[${tr_token:1:-1}]}
     fi
     REPLY="$tr_token"
@@ -177,12 +205,18 @@ tr_resolve_index_token ()
 # physical -> index
 tr_resolve_physical_token ()
 {
+    REPLY=
     local -n tr_t=$1
     local tr_token=$2 tr_node=$3
 
     if [[ "${tr_token:0:1}${tr_token: -1}" == '<>' ]] ; then
         local -a "tr_child_ids=(${tr_t[$tr_node.children]})"
+        #@if current_shell_process_replace==1
         local -i tr_index=${|array_index "${tr_token}" ${tr_child_ids[@]};}
+        #@endif
+        #@if current_shell_process_replace==0
+        array_index "${tr_token}" ${tr_child_ids[@]} ; local -i tr_index=$REPLY
+        #@endif
         ((tr_index==-1)) && {
             die "node:${tr_node}(token:${tr_token}) can not find index."
             return $TR_RET_ENUM_KEY_IS_INVALID
@@ -199,6 +233,7 @@ tr_resolve_physical_token ()
 #                         index=(($len+index))
 _negative_token_to_positive ()
 {
+    REPLY=
     local tr_token=$1 tr_array_len=$2 tr_node=$3
     if ((${tr_token:1:-1}<0)) ; then
         local -i tr_token_abs=${tr_token:1:-1}
@@ -219,6 +254,7 @@ _negative_token_to_positive ()
 
 trie_init ()
 {
+    REPLY=
     local -A t=()
     # t[$TR_ROOT_ID]=1
     t[$TR_ROOT_ID.type]=${1:-"$TR_TYPE_OBJ"}
@@ -227,7 +263,12 @@ trie_init ()
 
     # Next available node ID
     t[max_index]=2
+#@if current_shell_process_replace==1
     REPLY=${t[*]@K}
+#@endif
+#@if current_shell_process_replace==0
+    array_to_kv_q_str t ; REPLY=$REPLY
+#@endif
 }
 
 #-------------------------------------------------------------------------------
@@ -259,6 +300,7 @@ _trie_tree_is_valid ()
 
 _tokens_insert_to_overwrite ()
 {
+    REPLY=
     local tokens_str=$1
     [[ -z "$tokens_str" ]] && return $TR_RET_ENUM_OK
     local -a tokens=()
@@ -282,6 +324,7 @@ _tokens_insert_to_overwrite ()
 # REPLY: (node_id node_phy_path)
 trie_graft ()
 {
+    REPLY=
     # local - ; set +x
     local tr_target_name=$1
     # If tr_prefix contains '()', it can only be used for the first time
@@ -314,8 +357,14 @@ trie_graft ()
 
             if ((tr_graft_is_first_insert)) ; then
                 tr_graft_is_first_insert=0
+            #@if current_shell_process_replace==1
                 tr_graft_prefix=${|_tokens_insert_to_overwrite "$tr_graft_prefix";}
                 local -A "tr_prefix_token_info=(${|_trie_token_to_node_id "$tr_target_name" "$tr_graft_prefix";})"
+            #@endif
+            #@if current_shell_process_replace==0
+                _tokens_insert_to_overwrite "$tr_graft_prefix" ; tr_graft_prefix=$REPLY
+                _trie_token_to_node_id "$tr_target_name" "$tr_graft_prefix" ; local -A "tr_prefix_token_info=($REPLY)"
+            #@endif
                 tr_graft_start_token_id=${tr_prefix_token_info[node_id]}
                 tr_graft_start_path_token=${tr_prefix_token_info[physical_full_key]}
                 tr_graft_prefix=$tr_graft_start_path_token
@@ -353,6 +402,7 @@ trie_key_is_invalid ()
 #                                          "[2]$X" "array_value3"
 trie_qinserts ()
 {
+    REPLY=
     # local - ; set +x
     local tr_t_name=$1
     # leaves or common
@@ -365,14 +415,27 @@ trie_qinserts ()
 
     # If the number of parameters is 1, it means only writing a single value, not a key
     ((${#tr_insert_kv[@]}==1)) && {
+    #@if current_shell_process_replace==1
         REPLY=${|trie_insert "$tr_t_name" "$tr_common_prefix" "${tr_insert_kv[0]}";}
         return $?
+    #@endif
+    #@if current_shell_process_replace==0
+        trie_insert "$tr_t_name" "$tr_common_prefix" "${tr_insert_kv[0]}"
+        local tr_trie_qinserts_ret=$? ; REPLY=$REPLY
+        return $tr_trie_qinserts_ret
+    #@endif
     }
 
     ((${#tr_insert_kv[@]}<2)) && return $TR_RET_ENUM_OK
 
     # The first insertion uses the original KEY
+#@if current_shell_process_replace==1
     tr_insert_info=${|trie_insert "$tr_t_name" "$tr_common_prefix${tr_insert_kv[0]}" "${tr_insert_kv[1]}";} || return $?
+#@endif
+#@if current_shell_process_replace==0
+    trie_insert "$tr_t_name" "$tr_common_prefix${tr_insert_kv[0]}" "${tr_insert_kv[1]}" || return $?
+    tr_insert_info=$REPLY
+#@endif
     local -a "tr_insert_info=($tr_insert_info)"
     [[ "$tr_return_mode" == 'leaves' ]] && tr_qinserts_reply+=("${tr_insert_info[@]}")
     
@@ -380,8 +443,14 @@ trie_qinserts ()
     # The subsequent insertion prefix uses the physical key and brings the node id for acceleration.
     local tr_k_index=2 tr_v_index=3
 
+#@if current_shell_process_replace==1
     tr_common_prefix=${|_tokens_insert_to_overwrite "$tr_common_prefix";}
     local -A "tr_prefix_token_info=(${|_trie_token_to_node_id "$tr_t_name" "$tr_common_prefix";})"
+#@endif
+#@if current_shell_process_replace==0
+    _tokens_insert_to_overwrite "$tr_common_prefix" ; tr_common_prefix=$REPLY
+    _trie_token_to_node_id "$tr_t_name" "$tr_common_prefix" ; local -A "tr_prefix_token_info=($REPLY)"
+#@endif
     tr_common_prefix=${tr_prefix_token_info[physical_full_key]}
     local tr_common_id=${tr_prefix_token_info[node_id]}
     [[ "$tr_return_mode" == 'common' ]] && {
@@ -391,11 +460,21 @@ trie_qinserts ()
     }
 
     for((tr_k_index=2,tr_v_index=3;tr_v_index<${#tr_insert_kv[@]};tr_k_index+=2,tr_v_index+=2)) ; do
+#@if current_shell_process_replace==1
         tr_insert_info=${|trie_insert "$tr_t_name" \
                                     "${tr_common_prefix}${tr_insert_kv[tr_k_index]}" \
                                     "${tr_insert_kv[tr_v_index]}" \
                                     "$tr_common_id" \
                                     "$tr_common_prefix";} || return $?
+#@endif
+#@if current_shell_process_replace==0
+        trie_insert "$tr_t_name" \
+                    "${tr_common_prefix}${tr_insert_kv[tr_k_index]}" \
+                    "${tr_insert_kv[tr_v_index]}" \
+                    "$tr_common_id" \
+                    "$tr_common_prefix" || return $?
+        tr_insert_info=$REPLY
+#@endif
         
         local -a "tr_insert_info=($tr_insert_info)"
 
@@ -411,12 +490,19 @@ trie_qinserts ()
 # Returns an array of node IDs
 trie_inserts ()
 {
+    REPLY=
     # local - ; set +x
     set -- "${@:2}" "$1"
     local tr_insert_info
     local -a tr_inserts_reply=()
     while (($#>1)) ; do
+    #@if current_shell_process_replace==1
         tr_insert_info=${|trie_insert "${!#}" "$1" "$2";} || return $?
+    #@endif
+    #@if current_shell_process_replace==0
+        trie_insert "${!#}" "$1" "$2" || return $?
+        tr_insert_info=$REPLY
+    #@endif
         shift 2
         local -a "tr_insert_info=($tr_insert_info)"
 
@@ -432,6 +518,7 @@ trie_inserts ()
 # return an array of their IDs and physical keys (ID physical keys) tuples
 trie_push_leaf_fast ()
 {
+    REPLY=
     local -n tr_t=$1
     local tr_node=$2 tr_prefix=$3 tr_leaf= tr_token=
     local -i tr_child_id
@@ -439,7 +526,12 @@ trie_push_leaf_fast ()
     local -a tr_ret=()
 
     [[ -z "$tr_node" ]] && {
+    #@if current_shell_process_replace==1
         local -A "tr_node_info=(${|_trie_token_to_node_id "$1" "$tr_prefix";})"
+    #@endif
+    #@if current_shell_process_replace==0
+        _trie_token_to_node_id "$1" "$tr_prefix" ; local -A "tr_node_info=($REPLY)"
+    #@endif
         tr_node=${tr_node_info[node_id]}
     }
 
@@ -538,7 +630,13 @@ trie_insert_dict ()
     local tr_token tr_child_key tr_child_id tr_tokens_str
 
     # Here tr_full_key needs to remove the tr_path_key prefix and start traversing
+#@if current_shell_process_replace==1
     tr_tokens_str=${|_split_tokens "${tr_full_key#"$tr_path_key"}" 1;} || return $?
+#@endif
+#@if current_shell_process_replace==0
+    _split_tokens "${tr_full_key#"$tr_path_key"}" 1 || return $?
+    tr_tokens_str=$REPLY
+#@endif
     local -a "tr_tokens=($tr_tokens_str)"
 
     local tr_node=${tr_start_node_id}
@@ -579,6 +677,7 @@ trie_insert_dict ()
 # Returns the inserted node ID, used by external or object tracking systems to track the ID of the object.
 trie_insert ()
 {
+    REPLY=
     # local - ; set +x
     local -n tr_t=$1
     local tr_full_key=$2
@@ -605,7 +704,13 @@ trie_insert ()
         [[ "$tr_value" != "$TR_VALUE_NULL_ARR" ]] &&
         [[ "$tr_value" != "$TR_VALUE_NULL_OBJ" ]] ; then
         tr_t["$tr_full_key"]=$tr_value
+    #@if current_shell_process_replace==1
         local -A "tr_node_info=(${|_trie_token_to_node_id "$1" "$tr_full_key";})"
+    #@endif
+    #@if current_shell_process_replace==0
+        _trie_token_to_node_id "$1" "$tr_full_key"
+        local -A "tr_node_info=($REPLY)"
+    #@endif
         tr_insert_reply=("${tr_node_info[node_id]}" "${tr_node_info[physical_full_key]}")
         REPLY=${tr_insert_reply[*]@Q}
         return ${TR_RET_ENUM_OK}
@@ -619,7 +724,13 @@ trie_insert ()
         die "path_key:${tr_path_key} is not part of full key:${tr_full_key}."
         return $TR_RET_ENUM_KEY_IS_INVALID
     }
+#@if current_shell_process_replace==1
     tr_tokens_str=${|_split_tokens "$tr_tokens_str" 1;} || return $?
+#@endif
+#@if current_shell_process_replace==0
+    _split_tokens "$tr_tokens_str" 1 || return $?
+    tr_tokens_str=$REPLY
+#@endif
     local -a "tr_tokens=($tr_tokens_str)"
 
     local tr_node=${tr_start_node_id}
@@ -688,7 +799,13 @@ trie_insert ()
             local -a tr_add_token=()
             
             local tr_token_ret
+        #@if current_shell_process_replace==1
             tr_token=${|_negative_token_to_positive "$tr_token" "$tr_array_len" "$tr_node";} ; tr_token_ret=$?
+        #@endif
+        #@if current_shell_process_replace==0
+            _negative_token_to_positive "$tr_token" "$tr_array_len" "$tr_node" ; tr_token_ret=$?
+            tr_token=$REPLY
+        #@endif
             ((tr_token_ret)) && {
                 _trie_insert_delete_tmp_node_ids
                 return $tr_token_ret
@@ -847,11 +964,22 @@ trie_dump ()
                         "tr_print_array_index:2"
 
     local tr_node tr_node_info
+#@if current_shell_process_replace==1
     tr_node_info=${|_trie_token_to_node_id "$tr_t_name" "$tr_full_key";} || return $?
+#@endif
+#@if current_shell_process_replace==0
+    _trie_token_to_node_id "$tr_t_name" "$tr_full_key" || return $?
+    tr_node_info=$REPLY
+#@endif
     local -A "tr_node_info=($tr_node_info)"
     tr_node=${tr_node_info[node_id]}
 
+#@if current_shell_process_replace==1
     local tr_indent=${|str_repeat ' ' "$tr_indent_cnt";}
+#@endif
+#@if current_shell_process_replace==0
+    str_repeat ' ' "$tr_indent_cnt" ; local tr_indent=$REPLY
+#@endif
 
     printf '%s(%s) -> %s\n' "$tr_t_name" "$tr_node" "${tr_node_info[physical_full_key]}"
 
@@ -884,7 +1012,12 @@ _trie_dump ()
     local tr_id_need_print=$5
     local tr_value_need_print=$6
     local tr_print_array_index=$7
+#@if current_shell_process_replace==1
     local tr_indent_new=${|str_repeat ' ' "$tr_indent_cnt";}
+#@endif
+#@if current_shell_process_replace==0
+    str_repeat ' ' "$tr_indent_cnt" ; local tr_indent_new=$REPLY
+#@endif
     tr_indent_new+="$tr_indent"
 
     # Traverse children
@@ -977,6 +1110,7 @@ _trie_dump ()
 # of elements involved, only children need to be updated.
 _trie_token_to_node_id ()
 {
+    REPLY=
     local -n tr_t=$1
     local tr_full_key=$2
     local -i    tr_need_index_full_key=${3:-0} \
@@ -1002,19 +1136,36 @@ _trie_token_to_node_id ()
             [type]=${tr_t[$TR_ROOT_ID.type]}
             [value]=""
             )
+    #@if current_shell_process_replace==1
         REPLY=${tr_node_info[*]@K}
+    #@endif
+    #@if current_shell_process_replace==0
+        array_to_kv_q_str tr_node_info ; REPLY=$REPLY
+    #@endif
         return ${TR_RET_ENUM_OK}
     }
 
     trie_key_is_invalid "$tr_full_key" || return $?
 
-    local tr_tokens_str ; tr_tokens_str=${|_split_tokens "$tr_full_key";} || return $?
+    local tr_tokens_str
+#@if current_shell_process_replace==1
+    tr_tokens_str=${|_split_tokens "$tr_full_key";} || return $?
+#@endif
+#@if current_shell_process_replace==0
+    _split_tokens "$tr_full_key" || return $?
+    tr_tokens_str=$REPLY
+#@endif
     local -a "tr_tokens=($tr_tokens_str)"
     local tr_node=$TR_ROOT_ID tr_token tr_child_id tr_token_raw tr_real_full_key=''
     local tr_token_index= tr_index_full_key=
     for tr_token in "${tr_tokens[@]}" ; do
         tr_token_raw=$tr_token
+    #@if current_shell_process_replace==1
         tr_token=${|tr_resolve_index_token "$1" "$tr_token" "$tr_node";}
+    #@endif
+    #@if current_shell_process_replace==0
+        tr_resolve_index_token "$1" "$tr_token" "$tr_node" ; tr_token=$REPLY
+    #@endif
         [[ -z "$tr_token" ]] && {
             die "node:${tr_node}(token:${tr_token_raw}) is not found physical token!"
             return $TR_RET_ENUM_KEY_IS_NOTFOUND
@@ -1022,7 +1173,12 @@ _trie_token_to_node_id ()
         tr_real_full_key+="$tr_token$X"
 
         ((tr_need_index_full_key)) && {
+        #@if current_shell_process_replace==1
             tr_token_index=${|tr_resolve_physical_token "$1" "$tr_token" "$tr_node";}
+        #@endif
+        #@if current_shell_process_replace==0
+            tr_resolve_physical_token "$1" "$tr_token" "$tr_node" ; tr_token_index=$REPLY
+        #@endif
             [[ -z "$tr_token_index" ]] && {
                 die "node:${tr_node}(token:${tr_token_raw}) is not found index token!"
                 return $TR_RET_ENUM_KEY_IS_NOTFOUND
@@ -1060,7 +1216,12 @@ _trie_token_to_node_id ()
         [physical_full_key]="$tr_real_full_key"
         [type]=${tr_t[$tr_node.type]}
         )
+#@if current_shell_process_replace==1
     REPLY=${tr_node_info[*]@K}
+#@endif
+#@if current_shell_process_replace==0
+    array_to_kv_q_str tr_node_info ; REPLY=$REPLY
+#@endif
     return ${TR_RET_ENUM_OK}
 }
 
@@ -1068,6 +1229,7 @@ _trie_token_to_node_id ()
 
 trie_delete () 
 {
+    REPLY=
     # local - ; set +x
     local -n tr_t=$1
     local tr_full_key=$2
@@ -1075,7 +1237,13 @@ trie_delete ()
 
     # Empty key is legal. Only ROOT nodes are reserved.
     [[ -z "$tr_full_key" ]] && {
+    #@if current_shell_process_replace==1
         eval -- tr_t=(${|trie_init "${tr_t[$TR_ROOT_ID.type]}";})
+    #@endif
+    #@if current_shell_process_replace==0
+        trie_init "${tr_t[$TR_ROOT_ID.type]}"
+        eval -- tr_t=($REPLY)
+    #@endif
         tr_delete_reply=("$TR_ROOT_ID" "")
         REPLY=${tr_delete_reply[*]@Q}
         return ${TR_RET_ENUM_OK}
@@ -1083,7 +1251,14 @@ trie_delete ()
 
     trie_key_is_invalid "$tr_full_key" || return $?
     
-    local tr_tokens_str ; tr_tokens_str=${|_split_tokens "$tr_full_key";} || return $?
+    local tr_tokens_str
+#@if current_shell_process_replace==1
+    tr_tokens_str=${|_split_tokens "$tr_full_key";} || return $?
+#@endif
+#@if current_shell_process_replace==0
+    _split_tokens "$tr_full_key" || return $?
+    tr_tokens_str=$REPLY
+#@endif
     local -a "tr_tokens=($tr_tokens_str)"
 
     # 2. Path search: go all the way from root to the node to be deleted
@@ -1093,7 +1268,13 @@ trie_delete ()
 
     local tr_token tr_child_id tr_index
     for tr_token in "${tr_tokens[@]}"; do
+#@if current_shell_process_replace==1
         tr_token=${|tr_resolve_index_token "$1" "$tr_token" "$tr_node";}
+#@endif
+#@if current_shell_process_replace==0
+        tr_resolve_index_token "$1" "$tr_token" "$tr_node"
+        tr_token=$REPLY
+#@endif
         [[ -z "$tr_token" ]] && return $TR_RET_ENUM_OK
 
         tr_child_id="${tr_t[$tr_node.child.$tr_token]}"
@@ -1168,6 +1349,7 @@ trie_delete ()
 
 trie_get_leaf ()
 {
+    REPLY=
     # local - ; set +x
     local -n tr_t=$1
     local tr_full_key=$2
@@ -1177,7 +1359,13 @@ trie_get_leaf ()
         return $TR_RET_ENUM_KEY_IS_NULL
     }
     local tr_node_info
+#@if current_shell_process_replace==1
     tr_node_info=${|_trie_token_to_node_id "$1" "$tr_full_key";} || return $?
+#@endif
+#@if current_shell_process_replace==0
+    _trie_token_to_node_id "$1" "$tr_full_key" || return $?
+    tr_node_info=$REPLY
+#@endif
     local -A "tr_node_info=($tr_node_info)"
     local tr_physical_full_key=${tr_node_info[physical_full_key]}
     if [[ ${tr_t["$tr_physical_full_key"]+_} ]] ; then
@@ -1193,6 +1381,7 @@ trie_get_leaf ()
 
 trie_get_tree ()
 {
+    REPLY=
     # local - ; set +x
     local tr_t_name=$1
     local -n tr_t=$1
@@ -1206,7 +1395,12 @@ trie_get_tree ()
     else
         # 1. If tr_full_key is empty, return the entire tree directly
         [[ -z "$tr_full_key" ]] && {
+        #@if current_shell_process_replace==1
             REPLY="${tr_t[*]@K}"
+        #@endif
+        #@if current_shell_process_replace==0
+            array_to_kv_q_str tr_t ; REPLY=$REPLY
+        #@endif
             return ${TR_RET_ENUM_OK}
         }
         
@@ -1215,7 +1409,13 @@ trie_get_tree ()
 
         # 4. Find the node ID corresponding to tr_full_key
         local tr_node_info
+    #@if current_shell_process_replace==1
         tr_node_info=${|_trie_token_to_node_id "$tr_t_name" "$tr_full_key";} || return $?
+    #@endif
+    #@if current_shell_process_replace==0
+        _trie_token_to_node_id "$tr_t_name" "$tr_full_key" || return $?
+        tr_node_info=$REPLY
+    #@endif
         local -A "tr_node_info=($tr_node_info)"
         tr_node=${tr_node_info[node_id]}
         tr_real_full_key=${tr_node_info[physical_full_key]}
@@ -1230,10 +1430,23 @@ trie_get_tree ()
     local -a "tr_root_children=(${tr_t[$tr_node.children]})"
 
     # 6. Create a new tree
+#@if current_shell_process_replace==1
     local -A "tr_new=(${|trie_init "${tr_t[$tr_node.type]}";})"
+#@endif
+#@if current_shell_process_replace==0
+    trie_init "${tr_t[$tr_node.type]}" ; local -A "tr_new=($REPLY)"
+#@endif
 
     # If the subtree root is empty, it is returned directly.
-    ((${#tr_root_children[@]})) || { REPLY=${tr_new[*]@K} ; return ${TR_RET_ENUM_OK} ; }
+    ((${#tr_root_children[@]})) || {
+    #@if current_shell_process_replace==1
+        REPLY=${tr_new[*]@K} ; return ${TR_RET_ENUM_OK}
+    #@endif
+    #@if current_shell_process_replace==0
+        array_to_kv_q_str tr_new ; REPLY=$REPLY
+        return $TR_RET_ENUM_OK
+    #@endif
+    }
     
     # 7. The children of the new tree are reset to the current tr_root_children
     tr_new[$TR_ROOT_ID.children]=${tr_root_children[*]@Q}
@@ -1279,7 +1492,12 @@ trie_get_tree ()
 
     tr_new[max_index]=$((tr_max_id+1))
 
+#@if current_shell_process_replace==1
     REPLY=${tr_new[*]@K}
+#@endif
+#@if current_shell_process_replace==0
+    array_to_kv_q_str tr_new ; REPLY=$REPLY
+#@endif
     return ${TR_RET_ENUM_OK}
 }
 
@@ -1292,6 +1510,7 @@ trie_get_tree ()
 # bit                   0       1       2        3    4
 trie_iter ()
 {
+    REPLY=
     # local - ; set +x
     local -n tr_t=$1
     local tr_prefix=$2
@@ -1310,7 +1529,13 @@ trie_iter ()
             trie_key_is_invalid "$tr_prefix" || return $?
         }
         local tr_node_info
+    #@if current_shell_process_replace==1
         tr_node_info=${|_trie_token_to_node_id "$1" "$tr_prefix";} || return $?
+    #@endif
+    #@if current_shell_process_replace==0
+        _trie_token_to_node_id "$1" "$tr_prefix" || return $?
+        tr_node_info=$REPLY
+    #@endif
         local -A "tr_node_info=($tr_node_info)"
         tr_node_id=${tr_node_info[node_id]}
     }
@@ -1325,6 +1550,7 @@ trie_iter ()
 
     local -i tr_index=0
     local tr_parent_type=${tr_t[$tr_node_id.type]}
+    REPLY=
     for tr_tk in "${tr_children[@]}"; do
         tr_child_id=${tr_t["$tr_node_id.child.$tr_tk"]}
         if ((tr_is_iter_type)) ; then
@@ -1455,7 +1681,13 @@ trie_walk ()
 
     local tr_root_id tr_physical_full_key tr_index_full_key
     local tr_node_info tr_node_kind
+#@if current_shell_process_replace==1
     tr_node_info=${|_trie_token_to_node_id "$1" "$tr_prefix" 1;} || return $?
+#@endif
+#@if current_shell_process_replace==0
+    _trie_token_to_node_id "$1" "$tr_prefix" 1 || return $?
+    tr_node_info=$REPLY
+#@endif
     local -A "tr_node_info=($tr_node_info)"
     tr_root_id=${tr_node_info[node_id]}
     tr_physical_full_key=${tr_node_info[physical_full_key]}
@@ -1519,6 +1751,7 @@ trie_walk ()
 
 trie_id_rebuild ()
 {
+    REPLY=
     # local - ; set +x
     local -n tr_old=$1
     local -a tr_id_list=()
@@ -1542,7 +1775,12 @@ trie_id_rebuild ()
 
     tr_id_map[$TR_ROOT_ID]=1
 
+#@if current_shell_process_replace==1
     local -A "tr_new=(${|trie_init "${tr_old[$TR_ROOT_ID.type]}";})"
+#@endif
+#@if current_shell_process_replace==0
+    trie_init "${tr_old[$TR_ROOT_ID.type]}" ; local -A "tr_new=($REPLY)"
+#@endif
 
     trie_id_rebuild_callback ()
     {
@@ -1581,7 +1819,12 @@ trie_id_rebuild ()
 
     tr_new[max_index]=$tr_new_id
     
+#@if current_shell_process_replace==1
     REPLY=${tr_new[*]@K}
+#@endif
+#@if current_shell_process_replace==0
+    array_to_kv_q_str tr_new ; REPLY=$REPLY
+#@endif
     return ${TR_RET_ENUM_OK}
 }
 
@@ -1663,6 +1906,7 @@ trie_equals ()
 
 _trie_array_next_key ()
 {
+    REPLY=
     local tr_name=$1
     local tr_up_key=$2
     # push/unshift/pop/shift
@@ -1672,8 +1916,15 @@ _trie_array_next_key ()
     # Get the up node type, if it exists, it must be an array or null
     # If it does not exist create an array and write position 0
     local tr_node_info tr_node_info_ret
+#@if current_shell_process_replace==1
     tr_node_info=${|_trie_token_to_node_id "$tr_name" "$tr_up_key" 0 1 1 2>/dev/null;}
     tr_node_info_ret=$?
+#@endif
+#@if current_shell_process_replace==0
+    _trie_token_to_node_id "$tr_name" "$tr_up_key" 0 1 1 2>/dev/null
+    tr_node_info_ret=$?
+    tr_node_info=$REPLY
+#@endif
 
     case "$tr_node_info_ret" in
     $TR_RET_ENUM_KEY_IS_NOTFOUND)
@@ -1730,7 +1981,13 @@ _trie_array_write ()
     local tr_value=$5     # leaf value or subtree name
 
     local tr_next_key
+#@if current_shell_process_replace==1
     tr_next_key=${|_trie_array_next_key "$tr_name" "$tr_up_key" "$tr_mode";} || return $?
+#@endif
+#@if current_shell_process_replace==0
+    _trie_array_next_key "$tr_name" "$tr_up_key" "$tr_mode" || return $?
+    tr_next_key=$REPLY
+#@endif
 
     case "$tr_write" in
     leaf)   trie_insert "$tr_name" "$tr_next_key" "$tr_value" ;;
@@ -1756,7 +2013,13 @@ _trie_array_get ()
     local tr_read=$4      # leaf / tree
 
     local tr_next_key
+#@if current_shell_process_replace==1
     tr_next_key=${|_trie_array_next_key "$tr_name" "$tr_up_key" "$tr_mode";} || return $?
+#@endif
+#@if current_shell_process_replace==0
+    _trie_array_next_key "$tr_name" "$tr_up_key" "$tr_mode" || return $?
+    tr_next_key=$REPLY
+#@endif
 
     case "$tr_read" in
     leaf)   trie_get_leaf "$tr_name" "$tr_next_key" ;;
@@ -1768,10 +2031,17 @@ _trie_array_get ()
 
 trie_pop_leaf ()
 {
+    REPLY=
     # REPLY It will be rewritten directly in the sub-function. The explicit
     # assignment here is just for higher readability.
     local tr_pop_leaf_reply=
+#@if current_shell_process_replace==1
     tr_pop_leaf_reply=${|_trie_array_get "$1" "$2" pop leaf;} || return $?
+#@endif
+#@if current_shell_process_replace==0
+    _trie_array_get "$1" "$2" pop leaf || return $?
+    tr_pop_leaf_reply=$REPLY
+#@endif
     trie_delete "$1" "$2[-1]$X" || return $?
     REPLY=$tr_pop_leaf_reply
 }
@@ -1780,8 +2050,15 @@ trie_pop_leaf ()
 
 trie_pop_tree ()
 {
+    REPLY=
     local tr_pop_tree_reply=
+#@if current_shell_process_replace==1
     tr_pop_tree_reply=${|_trie_array_get "$1" "$2" pop tree;} || return $?
+#@endif
+#@if current_shell_process_replace==0
+    _trie_array_get "$1" "$2" pop tree || return $?
+    tr_pop_tree_reply=$REPLY
+#@endif
     trie_delete "$1" "$2[-1]$X" || return $?
     REPLY=$tr_pop_tree_reply
 }
@@ -1790,8 +2067,15 @@ trie_pop_tree ()
 
 trie_shift_leaf ()
 { 
+    REPLY=
     local tr_shift_leaf_reply=
+#@if current_shell_process_replace==1
     tr_shift_leaf_reply=${|_trie_array_get "$1" "$2" shift leaf;} || return $?
+#@endif
+#@if current_shell_process_replace==0
+    _trie_array_get "$1" "$2" shift leaf || return $?
+    tr_shift_leaf_reply=$REPLY
+#@endif
     trie_delete "$1" "$2[0]$X" || return $?
     REPLY=$tr_shift_leaf_reply
 }
@@ -1800,8 +2084,15 @@ trie_shift_leaf ()
 
 trie_shift_tree ()
 {
+    REPLY=
     local tr_shift_tree_reply=
+#@if current_shell_process_replace==1
     tr_shift_tree_reply=${|_trie_array_get "$1" "$2" shift tree;} || return $?
+#@endif
+#@if current_shell_process_replace==0
+    _trie_array_get "$1" "$2" shift tree || return $?
+    tr_shift_tree_reply=$REPLY
+#@endif
     trie_delete "$1" "$2[0]$X" || return $?
     REPLY=$tr_shift_tree_reply
 }
@@ -1810,6 +2101,7 @@ trie_shift_tree ()
 
 trie_layer_get_flat ()
 {
+    REPLY=
     # local - ; set +x
     local tr_expect=$1
     local -n tr_t=$2
@@ -1822,7 +2114,13 @@ trie_layer_get_flat ()
             trie_key_is_invalid "$tr_full_key" || return $?
         }
         local tr_node_info
+    #@if current_shell_process_replace==1
         tr_node_info=${|_trie_token_to_node_id "$2" "$tr_full_key";} || return $?
+    #@endif
+    #@if current_shell_process_replace==0
+        _trie_token_to_node_id "$2" "$tr_full_key" || return $?
+        tr_node_info=$REPLY
+    #@endif
         local -A "tr_node_info=($tr_node_info)"
         tr_node_id=${tr_node_info[node_id]}
     fi
@@ -1850,7 +2148,16 @@ trie_layer_get_flat ()
             return $TR_FLAT_IS_NOT_MATCH
         }
         local -a tr_plat_arr=()
-        for tr_tuple in ${|trie_iter "$2" '' $((2#11111)) "$tr_node_id";} ; do
+        local tr_iter_str
+    #@if current_shell_process_replace==1
+        tr_iter_str=${|trie_iter "$2" '' $((2#11111)) "$tr_node_id";}
+    #@endif
+    #@if current_shell_process_replace==0
+        trie_iter "$2" '' $((2#11111)) "$tr_node_id"
+        tr_iter_str=$REPLY
+    #@endif
+
+        for tr_tuple in $tr_iter_str ; do
             IFS=$tr_old_ifs ; local -a "tr_tuple=($tr_tuple)"
             trie_layer_child_is_flat "${tr_tuple[1]}" || {
                 die "node id:${tr_node_id} flat type not match."
@@ -1866,7 +2173,15 @@ trie_layer_get_flat ()
             return $TR_FLAT_IS_NOT_MATCH
         }
         local -A tr_plat_arr=()
-        for tr_tuple in ${|trie_iter "$2" '' $((2#11111)) "$tr_node_id";} ; do
+        local tr_iter_str
+    #@if current_shell_process_replace==1
+        tr_iter_str=${|trie_iter "$2" '' $((2#11111)) "$tr_node_id";}
+    #@endif
+    #@if current_shell_process_replace==0
+        trie_iter "$2" '' $((2#11111)) "$tr_node_id"
+        tr_iter_str=$REPLY
+    #@endif
+        for tr_tuple in $tr_iter_str ; do
             IFS=$tr_old_ifs ; local -a "tr_tuple=($tr_tuple)"
             trie_layer_child_is_flat "${tr_tuple[1]}" || {
                 die "node id:${tr_node_id} flat type not match."
@@ -1874,7 +2189,12 @@ trie_layer_get_flat ()
             }
             tr_plat_arr["${tr_tuple[0]:1:-1}"]="${tr_tuple[3]}"
         done
+    #@if current_shell_process_replace==1
         REPLY=${tr_plat_arr[*]@K}
+    #@endif
+    #@if current_shell_process_replace==0
+        array_to_kv_q_str tr_plat_arr ; REPLY=$REPLY
+    #@endif
         ;;
     esac
     
@@ -1890,8 +2210,15 @@ trie_to_flat_assoc () { trie_layer_get_flat 'obj' "$@" ; }
 
 trie_pop_to_flat_array ()
 {
+    REPLY=
     local tr_pop_fa_reply=
+#@if current_shell_process_replace==1
     tr_pop_fa_reply=${|trie_to_flat_array "$1" "$2[-1]$X";} || return $?
+#@endif
+#@if current_shell_process_replace==0
+    trie_to_flat_array "$1" "$2[-1]$X" || return $?
+    tr_pop_fa_reply=$REPLY
+#@endif
     trie_delete "$1" "$2[-1]$X" || return $?
     REPLY=$tr_pop_fa_reply
 }
@@ -1900,8 +2227,15 @@ trie_pop_to_flat_array ()
 
 trie_pop_to_flat_assoc ()
 {
+    REPLY=
     local tr_pop_fs_reply=
+#@if current_shell_process_replace==1
     tr_pop_fs_reply=${|trie_to_flat_assoc "$1" "$2[-1]$X";} || return $?
+#@endif
+#@if current_shell_process_replace==0
+    trie_to_flat_assoc "$1" "$2[-1]$X" || return $?
+    tr_pop_fs_reply=$REPLY
+#@endif
     trie_delete "$1" "$2[-1]$X" || return $?
     REPLY=$tr_pop_fs_reply
 }
@@ -1910,8 +2244,15 @@ trie_pop_to_flat_assoc ()
 
 trie_shift_to_flat_array ()
 {
+    REPLY=
     local tr_shif_fa_reply=
+#@if current_shell_process_replace==1
     tr_shif_fa_reply=${|trie_to_flat_array "$1" "$2[0]$X";} || return $?
+#@endif
+#@if current_shell_process_replace==0
+    trie_to_flat_array "$1" "$2[0]$X" || return $?
+    tr_shif_fa_reply=$REPLY
+#@endif
     trie_delete "$1" "$2[0]$X" || return $?
     REPLY=$tr_shif_fa_reply
 }
@@ -1920,8 +2261,15 @@ trie_shift_to_flat_array ()
 
 trie_shift_to_flat_assoc ()
 {
+    REPLY=
     local tr_shift_fs_reply=
+#@if current_shell_process_replace==1
     tr_shift_fs_reply=${|trie_to_flat_assoc "$1" "$2[0]$X";} || return $?
+#@endif
+#@if current_shell_process_replace==0
+    trie_to_flat_assoc "$1" "$2[0]$X" || return $?
+    tr_shift_fs_reply=$REPLY
+#@endif
     trie_delete "$1" "$2[0]$X" || return $?
     REPLY=$tr_shift_fs_reply
 }
@@ -1974,7 +2322,13 @@ _trie_flat_insert ()
 {
     # local - ; set +x
     local tr_next_key
+#@if current_shell_process_replace==1
     tr_next_key=${|_trie_array_next_key "$1" "$2" "$3";} || return $?
+#@endif
+#@if current_shell_process_replace==0
+    _trie_array_next_key "$1" "$2" "$3" || return $?
+    tr_next_key=$REPLY
+#@endif
 
     local -a tr_params=()
     local tr_index tr_token
@@ -2009,6 +2363,7 @@ trie_unshift_flat () { _trie_flat_insert "$1" "$2" unshift "$3" ; }
 # This function is very slow and is only used for verification.
 trie_to_json_slow ()
 {
+    REPLY=
     # local - ; set +x
     local tr_name=$1
     local -n tr_t=$1
@@ -2034,7 +2389,12 @@ trie_to_json_slow ()
     {
         local node_kind=$1
         local index_full_key=$3 value=$4
+    #@if current_shell_process_replace==1
         local -a "tokens=(${|_split_tokens "$index_full_key";})"
+    #@endif
+    #@if current_shell_process_replace==0
+        _split_tokens "$index_full_key" ; local -a "tokens=($REPLY)"
+    #@endif
         local -a bjson_params=()
         local token
         local write_jstr_param='-f'
@@ -2063,9 +2423,17 @@ trie_to_json_slow ()
 
         printf '%s' "$value" >"$tr_temp_file"
         
+    #@if current_shell_process_replace==1
         tr_jstr=${ printf '%s' "$tr_jstr" | \
             gobolt json -m w -k stdin "$write_jstr_param" "$tr_temp_file" \
             -P -- "${bjson_params[@]}";} || return $?
+    #@endif
+    #@if current_shell_process_replace==0
+        tr_jstr=$( printf '%s' "$tr_jstr" | \
+            gobolt json -m w -k stdin "$write_jstr_param" "$tr_temp_file" \
+            -P -- "${bjson_params[@]}" ) || return $?
+    #@endif
+
         return $TR_RET_ENUM_OK
     }
 
@@ -2077,6 +2445,7 @@ trie_to_json_slow ()
 
 trie_to_json ()
 {
+    REPLY=
     # local - ; set +x
     local tr_name=$1
     local -n tr_t=$1
@@ -2100,7 +2469,12 @@ trie_to_json ()
     {
         local node_kind=$1
         local index_full_key=$3 value=$4
+    #@if current_shell_process_replace==1
         local -a "tokens=(${|_split_tokens "$index_full_key";})"
+    #@endif
+    #@if current_shell_process_replace==0
+        _split_tokens "$index_full_key" ; local -a "tokens=($REPLY)"
+    #@endif
         local -a bjson_params=()
         local token
 
@@ -2150,13 +2524,23 @@ trie_to_json ()
     # printf '%s\n' "${tr_gobolt_params[@]}"
 
     local tr_i
+#@if current_shell_process_replace==1
     local -A "tr_system_limits=(${|trie_get_arg_limits;})"
+#@endif
+#@if current_shell_process_replace==0
+    trie_get_arg_limits ; local -A "tr_system_limits=($REPLY)"
+#@endif
 
     # Check if each parameter exceeds
     # If it is found to be exceeded, the report will fail.
 
     for((tr_i=0;tr_i<${#tr_gobolt_params[@]};tr_i+=2)) ; do
+    #@if current_shell_process_replace==1
         local -i tr_key_len=${|str_bytes "${tr_gobolt_params[tr_i]}";}
+    #@endif
+    #@if current_shell_process_replace==0
+        str_bytes "${tr_gobolt_params[tr_i]}" ; local -i tr_key_len=$REPLY
+    #@endif
 
         ((  tr_key_len>=${tr_system_limits[MAX_ARG_STRLEN]} )) && {
             die "Command line parameters exceed limit"
@@ -2164,12 +2548,22 @@ trie_to_json ()
         }
     done
 
+#@if current_shell_process_replace==1
     local -i tr_all_param_byte_len=${|str_bytes "${tr_gobolt_params[*]}";}
+#@endif
+#@if current_shell_process_replace==0
+    str_bytes "${tr_gobolt_params[*]}" ; local -i tr_all_param_byte_len=$REPLY
+#@endif
 
     if ((tr_all_param_byte_len>=${tr_system_limits[AVAILABLE]})) ; then
         trie_to_json_slow "$tr_name" "$tr_full_key" ; return $?
     else
+    #@if current_shell_process_replace==1
         REPLY=${ printf '' | gobolt json -m w -k stdin -s '' -M -- "${tr_gobolt_params[@]}";}
+    #@endif
+    #@if current_shell_process_replace==0
+        REPLY=$( printf '' | gobolt json -m w -k stdin -s '' -M -- "${tr_gobolt_params[@]}" )
+    #@endif
     fi
 }
 
@@ -2177,6 +2571,7 @@ trie_to_json ()
 
 trie_from_json ()
 {
+    REPLY=
     # local - ; set +x
     local tr_json_str=$1
     local tr_bjson_keys="${@:2}"
@@ -2186,15 +2581,32 @@ trie_from_json ()
         return $TR_RET_ENUM_KEY_OTHER_TOOL_NOT_INSTALLED
     }
 
-    local tr_assoc ; tr_assoc=${ printf '%s' "$tr_json_str" | \
+    local tr_assoc
+#@if current_shell_process_replace==1
+    tr_assoc=${ printf '%s' "$tr_json_str" | \
         gobolt json -m r -t txt -k stdin -F trie -x "$X" -P -- "${tr_bjson_keys[@]}";}
+#@endif
+#@if current_shell_process_replace==0
+    tr_assoc=$( printf '%s' "$tr_json_str" | \
+        gobolt json -m r -t txt -k stdin -F trie -x "$X" -P -- "${tr_bjson_keys[@]}" )
+#@endif
     case "$?" in
     $TR_GOBOLT_JSONTYPEARRAY|$TR_GOBOLT_JSONTYPEOBJECT)
         local -A "tr_assoc=($tr_assoc)" ;;&
     $TR_GOBOLT_JSONTYPEARRAY)
+        #@if current_shell_process_replace==1
         local -A "tr_init_tree=(${|trie_init "$TR_TYPE_ARR";})" ;;
+        #@endif
+        #@if current_shell_process_replace==0
+        trie_init "$TR_TYPE_ARR" ; local -A "tr_init_tree=($REPLY)" ;;
+        #@endif
     $TR_GOBOLT_JSONTYPEOBJECT)
+        #@if current_shell_process_replace==1
         local -A "tr_init_tree=(${|trie_init "$TR_TYPE_OBJ";})" ;;
+        #@endif
+        #@if current_shell_process_replace==0
+        trie_init "$TR_TYPE_OBJ" ; local -A "tr_init_tree=($REPLY)" ;;
+        #@endif
     *)
         die "bjson key:${tr_bjson_keys[*]} type is known."
         return $TR_RET_ENUM_KEY_BJSON_TYPE_INVALID
@@ -2208,17 +2620,23 @@ trie_from_json ()
     
     # trie_dump tr_init_tree
 
+#@if current_shell_process_replace==1
     REPLY=${tr_init_tree[*]@K}
+#@endif
+#@if current_shell_process_replace==0
+    array_to_kv_q_str tr_init_tree ; REPLY=$REPLY
+#@endif
 }
 
 #-------------------------------------------------------------------------------
 
 trie_get_arg_limits ()
 {
+    REPLY=
     # Linux: getconf ARG_MAX
     # Windows/MSYS2: fallback to 8191
     local -A args=()
-    local argmax=${ getconf ARG_MAX 2>/dev/null;}
+    local argmax=$( getconf ARG_MAX 2>/dev/null )
 
     if [[ -z "$argmax" || "$argmax" == "undefined" ]] ; then
         # Windows hard limits
@@ -2231,12 +2649,22 @@ trie_get_arg_limits ()
     else
         # Linux Kernel constants MAX_ARG_STRLEN = 131072(128KB)
         local -i safety=4096
+    #@if current_shell_process_replace==1
         local -i env_bytes=${|str_bytes "${ export -p;}";}
+    #@endif
+    #@if current_shell_process_replace==0
+        str_bytes "$( export -p )" ; local -i env_bytes=$REPLY
+    #@endif
         args[MAX_ARG_STRLEN]=$((131072-safety))
         args[AVAILABLE]=$((argmax-env_bytes-safety))
     fi
 
+#@if current_shell_process_replace==1
     REPLY=${args[*]@K}
+#@endif
+#@if current_shell_process_replace==0
+    array_to_kv_q_str args ; REPLY=$REPLY
+#@endif
 }
 
 #-------------------------------------------------------------------------------

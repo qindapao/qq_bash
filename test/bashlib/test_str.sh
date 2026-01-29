@@ -6,7 +6,7 @@
 test_case1 ()
 {
     local demo_str='*1*a*b'
-    local str_count=${|str_count "$demo_str" '*';}
+    str_count "$demo_str" '*' ; local str_count=$REPLY
     if [[ "$str_count" == '3' ]] ; then
         log_test 1 1
     else
@@ -14,7 +14,7 @@ test_case1 ()
     fi
 
     local demo_str="我是中文hahah中文文"
-    local str_count=${|str_count "$demo_str" '中文';}
+    str_count "$demo_str" '中文' ; local str_count=$REPLY
     if [[ "$str_count" == '2' ]] ; then
         log_test 1 2
     else
@@ -22,7 +22,7 @@ test_case1 ()
     fi
 
     local demo_str="我是中文hahah中文文"
-    local str_count=${|str_count "$demo_str" '中x文';}
+    str_count "$demo_str" '中x文' ; local str_count=$REPLY
     if [[ "$str_count" == '0' ]] ; then
         log_test 1 3
     else
@@ -30,7 +30,7 @@ test_case1 ()
     fi
 
     local demo_str=""
-    local str_count=${|str_count "$demo_str" '中x文';}
+    str_count "$demo_str" '中x文' ; local str_count=$REPLY
     if [[ "$str_count" == '-1' ]] ; then
         log_test 1 4
     else
@@ -49,14 +49,14 @@ test_case2 ()
     local sep3='yy'
     local str3='xxyy'
     
-    local -a "arr1=(${|str_split "$str1" "$sep1";})"
-    local -a "arr2=(${|str_split "$str1" "$sep2";})"
-    local -a "arr3=(${|str_split "$str2" "$sep1";})"
-    local -a "arr4=(${|str_split "$str2" "$sep2";})"
-    local -a "arr5=(${|str_split "$str2" "$sep3";})"
-    local -a "arr6=(${|str_split "$str3" "$sep1";})"
-    local -a "arr7=(${|str_split "$str3" "$sep2";})"
-    local -a "arr8=(${|str_split "$str3" "$sep3";})"
+    str_split "$str1" "$sep1"; local -a "arr1=($REPLY)"
+    str_split "$str1" "$sep2"; local -a "arr2=($REPLY)"
+    str_split "$str2" "$sep1"; local -a "arr3=($REPLY)"
+    str_split "$str2" "$sep2"; local -a "arr4=($REPLY)"
+    str_split "$str2" "$sep3"; local -a "arr5=($REPLY)"
+    str_split "$str3" "$sep1"; local -a "arr6=($REPLY)"
+    str_split "$str3" "$sep2"; local -a "arr7=($REPLY)"
+    str_split "$str3" "$sep3"; local -a "arr8=($REPLY)"
 
     # declare -p arr1 arr2 arr3 arr4 arr5 arr6 arr7 arr8
     
@@ -88,25 +88,25 @@ test_case2 ()
 test_case3 ()
 {
     local str1=$'a:;b:;c ggg \n \tge :;:;e'
-    local get_str1=${|str_cut "$str1" ':;' 0;}
-    local get_str2=${|str_cut "$str1" ':;' 1;}
-    local get_str3=${|str_cut "$str1" ':;' 2;}
-    local get_str4=${|str_cut "$str1" ':;' 3;}
-    local get_str5=${|str_cut "$str1" ':;' 4;}
-    local get_str6=${|str_cut "$str1" ':;' 5;}
-    local get_str7=${|str_cut "$str1" ':x' 0;}
-    local get_str8=${|str_cut "$str1" ':x' 1;}
-    local get_str9=${|str_cut "$str1" '' 3;}
+    str_cut "$str1" ':;' 0;   local get_str1=${REPLY}
+    str_cut "$str1" ':;' 1;   local get_str2=${REPLY}
+    str_cut "$str1" ':;' 2;   local get_str3=${REPLY}
+    str_cut "$str1" ':;' 3;   local get_str4=${REPLY}
+    str_cut "$str1" ':;' 4;   local get_str5=${REPLY}
+    str_cut "$str1" ':;' 5;   local get_str6=${REPLY}
+    str_cut "$str1" ':x' 0;   local get_str7=${REPLY}
+    str_cut "$str1" ':x' 1;   local get_str8=${REPLY}
+    str_cut "$str1" '' 3;     local get_str9=${REPLY}
 
-    local get_str10=${|str_cut "$str1" ':;' -1;}
-    local get_str11=${|str_cut "$str1" ':;' -2;}
-    local get_str12=${|str_cut "$str1" ':;' -3;}
-    local get_str13=${|str_cut "$str1" ':;' -4;}
-    local get_str14=${|str_cut "$str1" ':;' -5;}
-    local get_str15=${|str_cut "$str1" ':;' -6;}
-    local get_str16=${|str_cut "$str1" ':x' -1;}
-    local get_str17=${|str_cut "$str1" ':x' -2;}
-    local get_str18=${|str_cut "$str1" '' -4;}
+    str_cut "$str1" ':;' -1;   local get_str10=${REPLY}
+    str_cut "$str1" ':;' -2;   local get_str11=${REPLY}
+    str_cut "$str1" ':;' -3;   local get_str12=${REPLY}
+    str_cut "$str1" ':;' -4;   local get_str13=${REPLY}
+    str_cut "$str1" ':;' -5;   local get_str14=${REPLY}
+    str_cut "$str1" ':;' -6;   local get_str15=${REPLY}
+    str_cut "$str1" ':x' -1;   local get_str16=${REPLY}
+    str_cut "$str1" ':x' -2;   local get_str17=${REPLY}
+    str_cut "$str1" ''   -4;   local get_str18=${REPLY}
 
     if  [[ "$get_str1" == 'a' ]] &&
         [[ "$get_str2" == 'b' ]] &&
@@ -132,26 +132,26 @@ test_case3 ()
     fi
     
     # 1. 字符串以分隔符开头
-    local get_str19=${|str_cut ":;a:;b" ":;" 0;}   # => ''
-    local get_str20=${|str_cut ":;a:;b" ":;" 1;}   # => 'a'
+    str_cut ":;a:;b" ":;" 0 ; local get_str19=${REPLY}   # => ''
+    str_cut ":;a:;b" ":;" 1 ; local get_str20=${REPLY}   # => 'a'
 
     # 2. 字符串以分隔符结尾
-    local get_str21=${|str_cut "a:;b:;" ":;" -1;}  # => ''
+    str_cut "a:;b:;" ":;" -1 ; local get_str21=${REPLY}  # => ''
 
     # 3. 多个连续分隔符
-    local get_str22=${|str_cut "a:;:;:;b" ":;" 1;} # => ''
-    local get_str23=${|str_cut "a:;:;:;b" ":;" 2;} # => ''
-    local get_str24=${|str_cut "a:;:;:;b" ":;" 3;} # => 'b'
+    str_cut "a:;:;:;b" ":;" 1 ; local get_str22=${REPLY} # => ''
+    str_cut "a:;:;:;b" ":;" 2 ; local get_str23=${REPLY} # => ''
+    str_cut "a:;:;:;b" ":;" 3 ; local get_str24=${REPLY} # => 'b'
 
     # 4. 特殊字符分隔符
-    local get_str25=${|str_cut "a.*b.*c" '.*' 1;}  # => 'b'
-    local get_str26=${|awk_cut_regex "a.*b.*c" '.*' 1;}  # => ''
+    str_cut       "a.*b.*c" '.*' 1 ;   local get_str25=${REPLY}  # => 'b'
+    awk_cut_regex "a.*b.*c" '.*' 1 ;   local get_str26=${REPLY}  # => ''
 
     # 5. 字段包含分隔符子串
-    local get_str27=${|str_cut "abc:;def:;ghi:;jkl:;mno:;xyz" ":;" 5;} # => 'xyz'
+    str_cut "abc:;def:;ghi:;jkl:;mno:;xyz" ":;" 5 ; local get_str27=${REPLY} # => 'xyz'
 
     # 6. 空字符串
-    local get_str28=${|str_cut "" ":;" 0;}         # => ''
+    str_cut "" ":;" 0 ; local get_str28=${REPLY}         # => ''
 
     if [[ "$get_str19" == '' ]] &&
         [[ "$get_str20" == 'a' ]] &&
@@ -174,14 +174,14 @@ test_case3 ()
 test_case4 ()
 {
     local str=$'ggeeg:gege\nge;g \tgeg te中文t不对 aew:geeg ge;geg:'
-    local get_str=${|str_cuts "$str" ':' 1 ';' -1;}
+    str_cuts "$str" ':' 1 ';' -1 ; local get_str=${REPLY}
     if [[ "$get_str" == $'g \tgeg te中文t不对 aew' ]] ; then
         log_test 1 1
     else
         log_test 0 1 ; return 1
     fi
 
-    local get_str1=${|str_cuts "$str" ':' 1 ';' -1 '中文' 1;}
+    str_cuts "$str" ':' 1 ';' -1 '中文' 1 ; local get_str1=${REPLY}
     if [[ "$get_str1" == $'t不对 aew' ]] ; then
         log_test 1 2
     else
@@ -195,12 +195,13 @@ test_case5 ()
 {
     local i str
     for i in {0..70} ; do
-        str+=${|rand_str;}:
+        rand_str
+        str+=${REPLY}
     done
-    local get_str=${|str_cut "$str" ':' 89;}
+    str_cut "$str" ':' 89 ; local get_str=${REPLY}
     # awk here is the fastest in transmitting data through pipes.
     # <<< On the contrary, it is slower
-    get_str_awk=${ printf '%s' "$str" | awk -F ':' '{print $90}';}
+    get_str_awk=$( printf '%s' "$str" | awk -F ':' '{print $90}' )
     
     if [[ "$get_str" == "$get_str_awk" ]] ; then
         log_test 1 1
@@ -214,7 +215,7 @@ test_case6 ()
 {
     local str1= str2=
 
-    str2=${|str_repeat 'x*y' 1000000;}
+    str_repeat 'x*y' 1000000 ; str2=${REPLY}
     if  [[ "${#str2}" == '3000000' ]] && 
         [[ "${str2:0:6}" == 'x*yx*y' ]] ; then
         log_test 1 1
@@ -227,7 +228,7 @@ test_case6 ()
 test_case7 ()
 {
     local my_str="ee中中😊😊"
-    local -i bytes_num=${|str_bytes "$my_str";}
+    str_bytes "$my_str" ; local -i bytes_num=$REPLY
     if (( bytes_num == (2+3*2+4*2) )) ; then
         log_test 1 1
     else
@@ -241,9 +242,9 @@ test_case8 ()
 {
     local my_str='xgeg中文2233svsg23中文2233'
 
-    local -i index1=${|str_index_of "$my_str" '中文' 1;}
-    local -i index2=${|str_index_of "$my_str" '中文' 2;}
-    local -i index3=${|str_index_of "$my_str" '中文' 3;}
+    str_index_of "$my_str" '中文' 1 ; local -i index1=${REPLY}
+    str_index_of "$my_str" '中文' 2 ; local -i index2=${REPLY}
+    str_index_of "$my_str" '中文' 3 ; local -i index3=${REPLY}
     
     if [[ "$index1" == '4' && "$index2" == '16' && "$index3" == '-1' ]] ; then
         log_test 1 1
@@ -258,18 +259,18 @@ test_case9 ()
 {
     local str=$'gege\nge中文ge 12\t gege 2e\nge中文ge 12\t g中\n ge\t文e\nge中文ge 12\t g不对'
     local sep=$'e\nge中文ge 12\t g'
-    local get_str1=${|str_cut "$str" "$sep" 0;}
-    local get_str2=${|str_cut "$str" "$sep" 1;}
-    local get_str3=${|str_cut "$str" "$sep" 2;}
-    local get_str4=${|str_cut "$str" "$sep" 3;}
-    local get_str5=${|str_cut "$str" "$sep" 4;}
-    local get_str6=${|str_cut "$str" "$sep" 5;}
-    local get_str7=${|str_cut "$str" "$sep" -1;}
-    local get_str8=${|str_cut "$str" "$sep" -2;}
-    local get_str9=${|str_cut "$str" "$sep" -3;}
-    local get_str10=${|str_cut "$str" "$sep" -4;}
-    local get_str11=${|str_cut "$str" "$sep" -5;}
-    local get_str12=${|str_cut "$str" "$sep" -6;}
+    str_cut "$str" "$sep"  0;      local get_str1=${REPLY}
+    str_cut "$str" "$sep"  1;      local get_str2=${REPLY}
+    str_cut "$str" "$sep"  2;      local get_str3=${REPLY}
+    str_cut "$str" "$sep"  3;      local get_str4=${REPLY}
+    str_cut "$str" "$sep"  4;      local get_str5=${REPLY}
+    str_cut "$str" "$sep"  5;      local get_str6=${REPLY}
+    str_cut "$str" "$sep" -1;      local get_str7=${REPLY}
+    str_cut "$str" "$sep" -2;      local get_str8=${REPLY}
+    str_cut "$str" "$sep" -3;      local get_str9=${REPLY}
+    str_cut "$str" "$sep" -4;      local get_str10=${REPLY}
+    str_cut "$str" "$sep" -5;      local get_str11=${REPLY}
+    str_cut "$str" "$sep" -6;      local get_str12=${REPLY}
 
     declare -- get_str1_s="geg"
     declare -- get_str2_s="ege 2"
