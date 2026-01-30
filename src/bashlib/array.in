@@ -113,9 +113,12 @@ array_to_kv_q_str ()
     REPLY=
     local -n ar_arr=$1
     local ar_key
+    local -a ar_parts=()
+    
     for ar_key in "${!ar_arr[@]}" ; do
-        REPLY+="[${ar_key@Q}]=${ar_arr[$ar_key]@Q} "
+        ar_parts+=("[${ar_key@Q}]=${ar_arr[$ar_key]@Q}")
     done
+    REPLY="${ar_parts[*]}"
 }
 
 #-------------------------------------------------------------------------------

@@ -1550,6 +1550,11 @@ trie_iter ()
 
     local -i tr_index=0
     local tr_parent_type=${tr_t[$tr_node_id.type]}
+    
+    # The safest method for REPLY can only be separate assignment. If you want
+    # to append a string to it, it is best to use a separate intermediate
+    # variable to process it, and finally assign it to REPLY all at once,
+    # or you must clear the value of REPLY first.
     REPLY=
     for tr_tk in "${tr_children[@]}"; do
         tr_child_id=${tr_t["$tr_node_id.child.$tr_tk"]}
