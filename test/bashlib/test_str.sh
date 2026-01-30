@@ -240,6 +240,8 @@ test_case7 ()
 
 test_case8 ()
 {
+    local LC_ALL=en_US.UTF-8
+    local LANG=en_US.UTF-8
     local my_str='xgeg中文2233svsg23中文2233'
 
     str_index_of "$my_str" '中文' 1 ; local -i index1=${REPLY}
