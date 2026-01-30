@@ -263,10 +263,10 @@ trie_init ()
 
     # Next available node ID
     t[max_index]=2
-#@if current_shell_process_replace==1
+#@if at_k_var_substitution==1
     REPLY=${t[*]@K}
 #@endif
-#@if current_shell_process_replace==0
+#@if at_k_var_substitution==0
     array_to_kv_q_str t ; REPLY=$REPLY
 #@endif
 }
@@ -1136,10 +1136,10 @@ _trie_token_to_node_id ()
             [type]=${tr_t[$TR_ROOT_ID.type]}
             [value]=""
             )
-    #@if current_shell_process_replace==1
+    #@if at_k_var_substitution==1
         REPLY=${tr_node_info[*]@K}
     #@endif
-    #@if current_shell_process_replace==0
+    #@if at_k_var_substitution==0
         array_to_kv_q_str tr_node_info ; REPLY=$REPLY
     #@endif
         return ${TR_RET_ENUM_OK}
@@ -1216,10 +1216,10 @@ _trie_token_to_node_id ()
         [physical_full_key]="$tr_real_full_key"
         [type]=${tr_t[$tr_node.type]}
         )
-#@if current_shell_process_replace==1
+#@if at_k_var_substitution==1
     REPLY=${tr_node_info[*]@K}
 #@endif
-#@if current_shell_process_replace==0
+#@if at_k_var_substitution==0
     array_to_kv_q_str tr_node_info ; REPLY=$REPLY
 #@endif
     return ${TR_RET_ENUM_OK}
@@ -1395,10 +1395,10 @@ trie_get_tree ()
     else
         # 1. If tr_full_key is empty, return the entire tree directly
         [[ -z "$tr_full_key" ]] && {
-        #@if current_shell_process_replace==1
+        #@if at_k_var_substitution==1
             REPLY="${tr_t[*]@K}"
         #@endif
-        #@if current_shell_process_replace==0
+        #@if at_k_var_substitution==0
             array_to_kv_q_str tr_t ; REPLY=$REPLY
         #@endif
             return ${TR_RET_ENUM_OK}
@@ -1439,10 +1439,10 @@ trie_get_tree ()
 
     # If the subtree root is empty, it is returned directly.
     ((${#tr_root_children[@]})) || {
-    #@if current_shell_process_replace==1
+    #@if at_k_var_substitution==1
         REPLY=${tr_new[*]@K} ; return ${TR_RET_ENUM_OK}
     #@endif
-    #@if current_shell_process_replace==0
+    #@if at_k_var_substitution==0
         array_to_kv_q_str tr_new ; REPLY=$REPLY
         return $TR_RET_ENUM_OK
     #@endif
@@ -1492,10 +1492,10 @@ trie_get_tree ()
 
     tr_new[max_index]=$((tr_max_id+1))
 
-#@if current_shell_process_replace==1
+#@if at_k_var_substitution==1
     REPLY=${tr_new[*]@K}
 #@endif
-#@if current_shell_process_replace==0
+#@if at_k_var_substitution==0
     array_to_kv_q_str tr_new ; REPLY=$REPLY
 #@endif
     return ${TR_RET_ENUM_OK}
@@ -1824,10 +1824,10 @@ trie_id_rebuild ()
 
     tr_new[max_index]=$tr_new_id
     
-#@if current_shell_process_replace==1
+#@if at_k_var_substitution==1
     REPLY=${tr_new[*]@K}
 #@endif
-#@if current_shell_process_replace==0
+#@if at_k_var_substitution==0
     array_to_kv_q_str tr_new ; REPLY=$REPLY
 #@endif
     return ${TR_RET_ENUM_OK}
@@ -2194,10 +2194,10 @@ trie_layer_get_flat ()
             }
             tr_plat_arr["${tr_tuple[0]:1:-1}"]="${tr_tuple[3]}"
         done
-    #@if current_shell_process_replace==1
+    #@if at_k_var_substitution==1
         REPLY=${tr_plat_arr[*]@K}
     #@endif
-    #@if current_shell_process_replace==0
+    #@if at_k_var_substitution==0
         array_to_kv_q_str tr_plat_arr ; REPLY=$REPLY
     #@endif
         ;;
@@ -2625,10 +2625,10 @@ trie_from_json ()
     
     # trie_dump tr_init_tree
 
-#@if current_shell_process_replace==1
+#@if at_k_var_substitution==1
     REPLY=${tr_init_tree[*]@K}
 #@endif
-#@if current_shell_process_replace==0
+#@if at_k_var_substitution==0
     array_to_kv_q_str tr_init_tree ; REPLY=$REPLY
 #@endif
 }
@@ -2664,10 +2664,10 @@ trie_get_arg_limits ()
         args[AVAILABLE]=$((argmax-env_bytes-safety))
     fi
 
-#@if current_shell_process_replace==1
+#@if at_k_var_substitution==1
     REPLY=${args[*]@K}
 #@endif
-#@if current_shell_process_replace==0
+#@if at_k_var_substitution==0
     array_to_kv_q_str args ; REPLY=$REPLY
 #@endif
 }

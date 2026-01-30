@@ -82,7 +82,7 @@ str_count ()
         # --null Output with null delimiter
         # -F Search according to literals, not according to regular rules
         # -dc Only keep empty characters
-        REPLY=${ printf '%s' "$1" | grep -zFo --null -- "$2" | tr -dc '\0' | wc -c;}
+        REPLY=$( printf '%s' "$1" | grep -zFo --null -- "$2" | tr -dc '\0' | wc -c )
         return 0
     }
     local text=${1//"$2"}
