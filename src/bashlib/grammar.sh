@@ -2,6 +2,8 @@
 
 export -A BASH_GRAMMAR=()
 
+#-------------------------------------------------------------------------------
+
 grammar_detect ()
 {
     # *. 当前进程的命令替换
@@ -57,4 +59,18 @@ grammar_detect ()
 grammar_detect
 readonly BASH_GRAMMAR
 
+#-------------------------------------------------------------------------------
+
+# 兼容性宏 
+_ret_s='declare o=$REPLY ; REPLY='
+_ret_s_='o=$REPLY ; REPLY='
+_ret_i='declare -i o=$REPLY ; REPLY='
+
+_ret_a='declare -a "o=($REPLY)" ; REPLY='
+_ret_A='declare -A "o=($REPLY)" ; REPLY='
+_ret_e='set -- "$?" ; REPLY= ; return $1'
+
+#-------------------------------------------------------------------------------
+
 return 0
+

@@ -1,5 +1,6 @@
 ((_BASE_CLASS_IMPORTED++)) && return 0
 
+. "${BASH_SOURCE[0]%/*}/grammar.sh"
 . "${BASH_SOURCE[0]%/*}/trie.sh"
 . "${BASH_SOURCE[0]%/*}/meta.sh"
 
@@ -90,12 +91,12 @@ delete_last_element_base_class ()
     local tr_s=$1 tr_i=$2
     local tr_k=${NS[$tr_s.$tr_i]}
 
-#@if current_shell_process_replace==1
+        #@if current_shell_process_replace==1
     local -a "tr_delete_info=(${|trie_delete "$tr_s" "$tr_k{ELEMENTS}$X[-1]$X";})"
-#@endif
-#@if current_shell_process_replace==0
-    trie_delete "$tr_s" "$tr_k{ELEMENTS}$X[-1]$X" ; local -a "tr_delete_info=($REPLY)"
-#@endif
+        #@endif
+        #@if current_shell_process_replace==0
+    trie_delete "$tr_s" "$tr_k{ELEMENTS}$X[-1]$X" ; eval "${_ret_a/o/tr_delete_info}"
+        #@endif
     ((${#tr_delete_info[@]})) && {
         unset -v 'NS[$tr_s.$tr_i]'
     }

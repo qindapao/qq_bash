@@ -275,24 +275,24 @@ str_cut ()
 
     local transformed=$str
     if ((cnt>0)) ; then
-    #@if current_shell_process_replace==1
+            #@if current_shell_process_replace==1
         local repeat_str=${|str_repeat '*"$sep"' "$cnt";}
-    #@endif
-    #@if current_shell_process_replace==0
+            #@endif
+            #@if current_shell_process_replace==0
         str_repeat '*"$sep"' "$cnt" ; local repeat_str=$REPLY
-    #@endif
+            #@endif
         eval -- "transformed=\${str#$repeat_str}"
         # Length comparison takes much less time than direct string comparison
         ((${#transformed}==${#str})) && transformed=
         REPLY=${transformed%%"$sep"*}
     elif ((cnt<0)) ; then
         ((cnt!=-1)) && {
-        #@if current_shell_process_replace==1
+                #@if current_shell_process_replace==1
             local repeat_str=${|str_repeat '"$sep"*' "$((-cnt-1))";}
-        #@endif
-        #@if current_shell_process_replace==0
+                #@endif
+                #@if current_shell_process_replace==0
             str_repeat '"$sep"*' "$((-cnt-1))" ; local repeat_str=$REPLY
-        #@endif
+                #@endif
             eval -- "transformed=\${str%$repeat_str}"
             (("${#transformed}"=="${#str}")) && transformed=
         }
@@ -352,13 +352,13 @@ function str_index_of
     ((${#haystack}>_STR_BUILT_IN_THRESHOLDS||${#needle}>_STR_BUILT_IN_THRESHOLDS)) && {
         awk_str_index_of "$@" ; return $?
     }
-#@if current_shell_process_replace==1
+        #@if current_shell_process_replace==1
     eval -- "local transformed=\${haystack#${|str_repeat '*"$needle"' "$count";}}"
-#@endif
-#@if current_shell_process_replace==0
+        #@endif
+        #@if current_shell_process_replace==0
     str_repeat '*"$needle"' "$count" ; local repeat_str=$REPLY   
     eval -- "local transformed=\${haystack#$repeat_str}"
-#@endif
+        #@endif
     ((REPLY=${#haystack}-${#transformed}-${#needle},
     REPLY<0&&(REPLY=-1),REPLY>=0))
 }
@@ -373,13 +373,13 @@ str_cuts ()
     local i sep cnt
     for((i=2;i<$#;i++)) ; do
         sep=${!i} ; ((i++)) ; cnt=${!i}
-    #@if current_shell_process_replace==1
+            #@if current_shell_process_replace==1
         str=${|str_cut "$str" "$sep" "$cnt";} || return $?
-    #@endif
-    #@if current_shell_process_replace==0
+            #@endif
+            #@if current_shell_process_replace==0
         str_cut "$str" "$sep" "$cnt" || return $?
         str=$REPLY
-    #@endif
+            #@endif
     done
     REPLY=$str
 }
