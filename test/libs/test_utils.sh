@@ -120,7 +120,12 @@ assert_array ()
 
 diff_two_str_side_by_side ()
 {
+    local tmp_file1=$(mktemp) tmp_file2=$(mktemp)
+    trap "rm -f ${tmp_file1} ${tmp_file2}" RETURN EXIT
+
     local str1="$1" str2="$2"
+    printf '%s' "$str1" > "$tmp_file1"
+    printf '%s' "$str2" > "$tmp_file2"
     local title1="$3" title2="$4"
     local ret_code=0
     local max1=$(printf '%s' "$str1" | display_max)
@@ -131,7 +136,7 @@ diff_two_str_side_by_side ()
     printf '%.0s-' $(seq 1 "$width") ; echo ""
     printf '%-*s    %-*s\n' "$max" "$title1" "$max" "$title2"
     printf '%.0s-' $(seq 1 "$width") ; echo ""
-    diff --minimal --side-by-side --expand-tabs --tabsize=4 --color --width=${width} -y <(printf '%s' "$str1") <(printf '%s' "$str2")
+    diff --minimal --side-by-side --expand-tabs --tabsize=4 --color --width=${width} -y "$tmp_file1" "$tmp_file2"
 
     ret_code=${PIPESTATUS[0]}
     echo ""

@@ -306,8 +306,28 @@ test_case9 ()
     return 0
 }
 
+test_case10 ()
+{
+    local test_str=$'中文\nxxx是对的的确是对的\n哥哥xxx'
+    local part1 part2 part3
 
-# step_test 9
+    awk_cut "$test_str" '对的' 0 ; part1=$REPLY
+    awk_cut "$test_str" '对的' 1 ; part2=$REPLY
+    awk_cut "$test_str" '对的' 2 ; part3=$REPLY
+
+    if [[ "$part1" == $'中文\nxxx是' ]] &&
+        [[ "$part2" == "的确是" ]] &&
+        [[ "$part3" == $'\n哥哥xxx' ]] ; then
+        log_test 1 1
+    else
+        log_test 0 1 ; return 1
+    fi
+
+    return 0
+}
+
+
+# step_test 10
 
 eval -- "$(AS_RUN_TEST_CASES)"
 

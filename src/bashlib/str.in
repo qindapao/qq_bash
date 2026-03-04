@@ -143,6 +143,11 @@ awk_cut ()
 {
     REPLY=
     local str=$1 sep=$2 cnt=$3
+    local tmp_sep=$(mktemp) tmp_str=$(mktemp)
+    trap "rm -f ${tmp_sep} ${tmp_str}" RETURN EXIT
+    printf '%s' "$sep" >"$tmp_sep"
+    printf '%s' "$str" >"$tmp_str"
+
     REPLY=$(
         awk -v cnt="$cnt" '
         function split_literal(str, sep, arr, cnt,    pos, m, idx)
@@ -201,7 +206,7 @@ awk_cut ()
             if (idx >= 1 && idx <= n)
                 printf "%s ", a[idx]
             }
-        ' <(printf '%s' "$sep") <(printf '%s' "$str"))
+        ' "$tmp_sep" "$tmp_str")
     [[ -n "$REPLY" ]] && REPLY=${REPLY::-1}
 }
 
@@ -210,6 +215,13 @@ awk_cut ()
 awk_cut_regex ()
 {
     local str=$1 sep=$2 cnt=$3
+    # Using temporary file syntax is more stable than process replacement
+    # Because process replacement <(cmd) relies more on OS features
+    local tmp_sep=$(mktemp) tmp_str=$(mktemp)
+    trap "rm -f ${tmp_sep} ${tmp_str}" RETURN EXIT
+    printf '%s' "$sep" > "$tmp_sep"
+    printf '%s' "$str" > "$tmp_str"
+
     REPLY=$(
         awk -v cnt="$cnt" '
         BEGIN {
@@ -227,7 +239,7 @@ awk_cut_regex ()
             else idx = n + cnt + 1
             if (idx >= 1 && idx <= n) printf "%s ", a[idx]
             }
-        ' <(printf '%s' "$sep") <(printf '%s' "$str"))
+        ' "$tmp_sep" "$tmp_str")
     [[ -n "$REPLY" ]] && REPLY=${REPLY::-1}
 }
 
@@ -308,6 +320,10 @@ awk_str_index_of ()
 {
     local haystack=$1 needle=$2 count=${3:-1}
     [[ -z "$needle" ]] && { REPLY=-1; return 0; }
+    local tmp_needle=$(mktemp) tmp_haystack=$(mktemp)
+    trap "rm -f ${tmp_needle} ${tmp_haystack}" RETURN EXIT
+    printf '%s' "$needle" > "$tmp_needle"
+    printf '%s' "$haystack" > "$tmp_haystack"
 
     REPLY=$(
         awk -v c="$count" '
@@ -339,7 +355,7 @@ awk_str_index_of ()
                 }
             print pos - 1
             }
-        ' <(printf '%s' "$needle") <(printf '%s' "$haystack"))
+        ' "$tmp_needle" "$tmp_haystack")
 }
 
 #-------------------------------------------------------------------------------
