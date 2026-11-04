@@ -158,5 +158,32 @@ test_case5 ()
     return 0
 }
 
+test_case6 ()
+{
+    test_case6_inner ()
+    {
+        local -a arr1=( a b c d )
+        local -n ref=arr1
+        local -n ref2=ref
+        local -n ref3=ref2
+        local compare_str=$(declare -p "${!ref3}")
+        if [[ "$compare_str" == 'declare -a arr1=([0]="a" [1]="b" [2]="c" [3]="d")' ]] ; then
+            log_test 1 1
+        else
+            log_test 0 1 ; return 1
+        fi
+    }
+
+    local -a arr1=( 1 2 3 4 )
+    local -n ref=arr1
+    test_case6_inner || return $?
+    local compare_str=$(declare -p "${!ref}")
+    if [[ "$compare_str" == 'declare -a arr1=([0]="1" [1]="2" [2]="3" [3]="4")' ]] ; then
+        log_test 1 2
+    else
+        log_test 0 2 ; return 1
+    fi
+}
+
 eval -- "$(AS_RUN_TEST_CASES)"
 

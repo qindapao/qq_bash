@@ -1060,8 +1060,16 @@ _trie_dump ()
                 ((tr_id_need_print)) && tr_value_indent+="(${tr_child_id})"
                 tr_value_indent=${tr_value_indent##*$'\n'}
                 tr_value_indent=${tr_value_indent//?/ }
-                tr_value_indent+="${tr_indent}    "
+                # 值除了第一行其它的行都由 | 开头
+                if [[ "$tr_mark" == '=' ]]; then
+                    tr_value_indent+="${tr_indent}  |"
+                else
+                    tr_value_indent+="${tr_indent}   |"
+                fi
                 tr_value_p="${tr_value//$'\n'/$'\n'$tr_value_indent}"
+                local _TrieDump_tr_value_p
+                str_escape_keep_nl "$tr_value_p" _TrieDump_tr_value_p
+                tr_value_p=$_TrieDump_tr_value_p
             }
 
             printf '%s%s%s %s %s\n' \

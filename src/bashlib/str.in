@@ -408,6 +408,37 @@ str_cuts ()
 str_bytes () { local LC_ALL=C; REPLY=${#1}; }
 
 #-------------------------------------------------------------------------------
+# JSON 风格转义（简化版）：保留 \n 真换行；\b \f \r \t 用简写；
+# 反斜杠转 \\；其余控制字符（含 0x7F）转 \u00XX；
+# 双引号、中文等可打印字符原样（不转义 "，不输出外层引号）
+# 用法: str_escape_keep_nl <输入字符串> <输出变量名>
+str_escape_keep_nl ()
+{
+    local s=$1 i ch code hex
+    local -n out=$2
+
+    # 快速路径：无控制字符、无反斜杠，直接返回
+    [[ $s != *[[:cntrl:]]* && $s != *\\* ]] && { out=$s ; return ; }
+
+    out=''
+    for ((i = 0; i < ${#s}; i++)); do
+        ch=${s:i:1}
+        case $ch in
+            $'\n')  out+=$'\n'   ;;   # 保留真换行
+            $'\b')  out+='\b'    ;;
+            $'\f')  out+='\f'    ;;
+            $'\r')  out+='\r'    ;;
+            $'\t')  out+='\t'    ;;
+            '\')    out+='\\'    ;;   # 反斜杠必须转义，这是无歧义的边界
+            [[:cntrl:]])
+                printf -v code '%d' "'$ch"
+                printf -v hex '\\u%04x' "$code"
+                out+=$hex
+                ;;
+            *)      out+=$ch     ;;   # 中文、双引号等原样
+        esac
+    done
+}
 
 return 0
 
