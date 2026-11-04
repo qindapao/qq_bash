@@ -1041,13 +1041,23 @@ _trie_dump ()
     for tr_token in "${tr_children[@]}"; do
         local tr_child_id="${tr_t[$tr_node.child.$tr_token]}"
         local tr_child_id_p='' tr_value_p=''
+        local tr_token_safe tr_token_disp
 
         tr_mark='=>'
-        [[ "${tr_t[$tr_node.type]}" == "${TR_TYPE_ARR}" ]] && {
+        if [[ "${tr_t[$tr_node.type]}" == "${TR_TYPE_ARR}" ]]; then
             tr_mark='='
             ((tr_print_array_index)) && tr_token=$tr_index || tr_token='o'
-        }
-            
+            # 数组 token 是索引或 'o'，无危险字符，直接透传
+            tr_token_safe=$tr_token
+            tr_token_disp=$tr_token
+        else
+            # 字典键：统一走自定义转义（保留 \n），不再用 %q/@Q
+            local _TrieDump_tr_token_safe
+            str_escape_keep_nl "$tr_token" _TrieDump_tr_token_safe
+            tr_token_safe=$_TrieDump_tr_token_safe
+            tr_token_disp="${tr_token_safe//$'\n'/$'\n'$tr_indent}"
+        fi
+
         ((tr_id_need_print)) && tr_child_id_p="($tr_child_id)"
 
         if [[ -n "${tr_t[$tr_child_id.key]}" ]]; then
@@ -1056,7 +1066,7 @@ _trie_dump ()
             # :TODO: Double-width aligned display of Chinese has not been considered for
             # the time being.
             ((tr_value_need_print)) && {
-                local tr_value_indent="${tr_token}"
+                local tr_value_indent="${tr_token_safe}"
                 ((tr_id_need_print)) && tr_value_indent+="(${tr_child_id})"
                 tr_value_indent=${tr_value_indent##*$'\n'}
                 tr_value_indent=${tr_value_indent//?/ }
@@ -1074,7 +1084,7 @@ _trie_dump ()
 
             printf '%s%s%s %s %s\n' \
                 "$tr_indent" \
-                "${tr_token//$'\n'/$'\n'$tr_indent}" \
+                "$tr_token_disp" \
                 "$tr_child_id_p" \
                 "$tr_mark" \
                 "$tr_value_p"
@@ -1082,7 +1092,7 @@ _trie_dump ()
             ((tr_value_need_print)) && tr_value_p="$TR_VALUE_NULL_ARR"
             printf '%s%s%s %s %s\n' \
                 "$tr_indent" \
-                "${tr_token//$'\n'/$'\n'$tr_indent}" \
+                "$tr_token_disp" \
                 "$tr_child_id_p" \
                 "$tr_mark" \
                 "$tr_value_p"
@@ -1090,14 +1100,14 @@ _trie_dump ()
             ((tr_value_need_print)) && tr_value_p="$TR_VALUE_NULL_OBJ"
             printf '%s%s%s %s %s\n' \
                 "$tr_indent" \
-                "${tr_token//$'\n'/$'\n'$tr_indent}" \
+                "$tr_token_disp" \
                 "$tr_child_id_p" \
                 "$tr_mark" \
                 "$tr_value_p"
         else
             printf '%s%s%s\n' \
-                "${tr_indent}" \
-                "${tr_token//$'\n'/$'\n'$tr_indent}" \
+                "$tr_indent" \
+                "$tr_token_disp" \
                 "$tr_child_id_p"
         fi
 
