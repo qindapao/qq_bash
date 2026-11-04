@@ -1055,7 +1055,9 @@ _trie_dump ()
             local _TrieDump_tr_token_safe
             str_escape_keep_nl "$tr_token" _TrieDump_tr_token_safe
             tr_token_safe=$_TrieDump_tr_token_safe
-            tr_token_disp="${tr_token_safe//$'\n'/$'\n'$tr_indent}"
+            # 多行键的续行加 | 补位：| 与第一行的 { 对齐，
+            # 使行首空格明确属于键内容而非缩进
+            tr_token_disp="${tr_token_safe//$'\n'/$'\n'$tr_indent|}"
         fi
 
         ((tr_id_need_print)) && tr_child_id_p="($tr_child_id)"
@@ -1070,6 +1072,8 @@ _trie_dump ()
                 ((tr_id_need_print)) && tr_value_indent+="(${tr_child_id})"
                 tr_value_indent=${tr_value_indent##*$'\n'}
                 tr_value_indent=${tr_value_indent//?/ }
+                # 多行键最后一行多了 |，值续行补偿加一个空格
+                [[ $tr_token_safe == *$'\n'* ]] && tr_value_indent+=" "
                 # 值除了第一行其它的行都由 | 开头
                 if [[ "$tr_mark" == '=' ]]; then
                     tr_value_indent+="${tr_indent}  |"
