@@ -1202,6 +1202,44 @@ test_case16 ()
     return 0
 }
 
+test_case17 ()
+{
+    local -A "t1=(${|trie_init "$TR_TYPE_ARR";})"
+    local special_str1=$' gge\n gege g\nggegg geg\t\t\02\03\04ge我是中文'
+    local special_str2=$'\n 响铃 geg\n gg  ee\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1a\x1b\x1c\x1d\x1e\x1f ;over'
+
+    local xx_key=$'\n ge中各\n ge\\g\n'
+
+    local key_nl=$'\nkey\n'
+    local val_nl=$'value_line1\nvalue_line2'
+
+    trie_inserts t1 "[0]$X{b}$X" "value1" \
+                    "[0]$X{aa ge}$X" "value2" \
+                    "[1]$X{$special_str1}$X" "$special_str2" \
+                    "[1]$X{c1}$X" "$TR_VALUE_NULL_OBJ" \
+                    "[1]$X{c2}$X" "$TR_VALUE_NULL_ARR" \
+                    "[1]$X{c3}$X" "$TR_VALUE_NULL" \
+                    "[1]$X{c4}$X" "190.22$X" \
+                    "[1]$X{c5*[]@!{}}$X" "190.23*[]@!{}" \
+                    "[1]$X{c6}$X" "$TR_VALUE_TRUE" \
+                    "[1]$X{c7}$X" "$TR_VALUE_FALSE" \
+                    "[1]$X{c8}$X" "strwxx" \
+                    "[1]$X{$xx_key}$X[0]$X" "null" \
+                    "[1]$X{$xx_key}$X[1]$X" $'\ngege\ngege\n' \
+                    "[1]$X{$xx_key}$X[2]$X" "$TR_VALUE_TRUE" \
+                    "[1]$X{$xx_key}$X[3]$X" "1010$X" \
+                    "[1]$X{$xx_key}$X[4]$X" "1010.22" \
+                    "[1]$X{$key_nl}$X" "$val_nl" \
+                    "[1]$X{$xx_key}$X[5]$X" "gegege" \
+                    "[2]$X{x}$X" "value3" \
+                    "[3]$X{y}$X" "value4" \
+                    "[4]$X{z}$X" "value5" \
+                    "[5]$X[3]$X" "value5" \
+                    "[6]$X{key1ggggggggg}$X{keeeeeeeey2}$X" "valueX"
+
+    trie_dump t1 '' 4 $((2#111))
+}
+
 
 # step_test 9
 eval -- "$(AS_RUN_TEST_CASES)"

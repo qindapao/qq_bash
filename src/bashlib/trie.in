@@ -1065,13 +1065,13 @@ _trie_dump ()
         if [[ -n "${tr_t[$tr_child_id.key]}" ]]; then
             local tr_key=${tr_t[$tr_child_id.key]}
             local tr_value=${tr_t["$tr_key"]}
-            # :TODO: Double-width aligned display of Chinese has not been considered for
-            # the time being.
             ((tr_value_need_print)) && {
                 local tr_value_indent="${tr_token_safe}"
                 ((tr_id_need_print)) && tr_value_indent+="(${tr_child_id})"
                 tr_value_indent=${tr_value_indent##*$'\n'}
-                tr_value_indent=${tr_value_indent//?/ }
+                local _TrieDump_w ; str_display_width "$tr_value_indent" _TrieDump_w
+                printf -v tr_value_indent '%*s' "$_TrieDump_w" ''
+
                 # 多行键最后一行多了 |，值续行补偿加一个空格
                 [[ $tr_token_safe == *$'\n'* ]] && tr_value_indent+=" "
                 # 值除了第一行其它的行都由 | 开头

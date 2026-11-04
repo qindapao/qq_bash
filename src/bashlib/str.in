@@ -440,5 +440,75 @@ str_escape_keep_nl ()
     done
 }
 
+
+#-------------------------------------------------------------------------------
+# 计算字符串在终端下的显示宽度（ASCII=1，CJK/全角/Emoji=2，控制字符=0）
+# 用法: str_display_width <字符串> <输出变量名>
+#
+# 【前提】入参必须是已经过 str_escape_keep_nl 转义的字符串：
+#   - 原始控制字符（0x01-0x1F、0x7F 等）已转为字面 \uXXXX / \t / \r 等，
+#     不会污染终端，也不会被快速路径误判。
+#   - 若值多行，调用方应先 ##*$'\n' 取最后一行；残留的 \n 走慢速路径按 0 宽计。
+#   - 若直接传入原始控制字符，慢速路径仍按码点算 0 宽，结果正确但属用法错误。
+str_display_width ()
+{
+    local s=$1
+    local -n out_w=$2
+    local total=0 i ch cp
+
+    # 快速路径：纯 ASCII（0x00-0x7F），宽度 = 字符数
+    # 用 [[:ascii:]] 而非 [ -~] 或 [[:print:]]：后两者在多字节 locale 下
+    # 会漏判或误判中文，[[:ascii:]] 与 locale 无关，最稳。
+    if [[ $s != *[![:ascii:]]* ]]; then
+        out_w=${#s}
+        return
+    fi
+
+    # 慢速路径：逐字符判断码点范围
+    # 宽字符（宽度 2）范围：
+    #   0x1100-0x115F   Hangul Jamo
+    #   0x2E80-0x303E   CJK 部首扩展、符号
+    #   0x3041-0x33FF   Hiragana, Katakana, Bopomofo, 兼容
+    #   0x3400-0x4DBF   CJK 扩展 A
+    #   0x4E00-0x9FFF   CJK 统一表意文字
+    #   0xA000-0xA4CF   Yi
+    #   0xAC00-0xD7A3   Hangul 音节
+    #   0xF900-0xFAFF   CJK 兼容表意文字
+    #   0xFE30-0xFE4F   CJK 兼容形式
+    #   0xFF00-0xFF60   全角 ASCII
+    #   0xFFE0-0xFFE6   全角符号
+    #   0x1F300-0x1F64F Emoji
+    #   0x1F900-0x1F9FF 补充 Emoji
+    #   0x20000-0x3FFFD CJK 扩展 B+
+    for (( i = 0; i < ${#s}; i++ )); do
+        ch=${s:i:1}
+        printf -v cp '%d' "'$ch"
+
+        if (( cp < 32 || (cp >= 127 && cp < 160) )); then
+            :                                        # 控制字符宽度 0
+        elif (( (cp >= 0x1100  && cp <= 0x115F) ||
+                (cp >= 0x2E80  && cp <= 0x303E) ||
+                (cp >= 0x3041  && cp <= 0x33FF) ||
+                (cp >= 0x3400  && cp <= 0x4DBF) ||
+                (cp >= 0x4E00  && cp <= 0x9FFF) ||
+                (cp >= 0xA000  && cp <= 0xA4CF) ||
+                (cp >= 0xAC00  && cp <= 0xD7A3) ||
+                (cp >= 0xF900  && cp <= 0xFAFF) ||
+                (cp >= 0xFE30  && cp <= 0xFE4F) ||
+                (cp >= 0xFF00  && cp <= 0xFF60) ||
+                (cp >= 0xFFE0  && cp <= 0xFFE6) ||
+                (cp >= 0x1F300 && cp <= 0x1F64F) ||
+                (cp >= 0x1F900 && cp <= 0x1F9FF) ||
+                (cp >= 0x20000 && cp <= 0x3FFFD) )); then
+            (( total += 2 ))
+        else
+            (( total += 1 ))
+        fi
+    done
+    out_w=$total
+}
+
+#-------------------------------------------------------------------------------
+
 return 0
 
