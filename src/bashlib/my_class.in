@@ -17,7 +17,7 @@ setup_my_class ()
     local tr_value2=$5
     local tr_cnt_demo=$6
 
-    trie_insert_token_dict  "$tr_s" "$tr_i" "$tr_k" \
+    x_insert_token_dict  "$tr_s" "$tr_i" "$tr_k" \
                             "{CLASS}" "my_class" \
                             "{SELF}" "$tr_s $tr_i" \
                             "{P1}" "$tr_value1" \

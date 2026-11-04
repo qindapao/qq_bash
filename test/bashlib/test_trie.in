@@ -3,17 +3,17 @@
 . ../../src/bashlib/trie.sh
 . ../libs/test_utils.sh
 
-# trie_insert
+# x_insert
 test_case1 ()
 {
     # 初始化为对象节点
     test_case1_inner1 ()
     {
     #@if current_shell_process_replace==1
-        local -A "t1=(${|trie_init "$TR_TYPE_OBJ";})"
+        local -A "t1=(${|x_init "$TR_TYPE_OBJ";})"
     #@endif
     #@if current_shell_process_replace==0
-        trie_init "$TR_TYPE_OBJ" ; local -A "t1=($REPLY)"
+        x_init "$TR_TYPE_OBJ" ; local -A "t1=($REPLY)"
     #@endif
         local -A t1_init_spec=(
             [1.type]=1
@@ -25,7 +25,7 @@ test_case1 ()
             log_test 0 1 ;return 1
         fi
 
-        trie_insert t1 "{key1}$X" "value1"
+        x_insert t1 "{key1}$X" "value1"
         local -A t1_insert_spec=(
             [1.type]=1
             [1.children]="'{key1}'"
@@ -49,12 +49,12 @@ test_case1 ()
     test_case1_inner2 ()
     {
     #@if current_shell_process_replace==1
-        local -A "t1=(${|trie_init "$TR_TYPE_OBJ";})"
+        local -A "t1=(${|x_init "$TR_TYPE_OBJ";})"
     #@endif
     #@if current_shell_process_replace==0
-        trie_init "$TR_TYPE_OBJ" ; local -A "t1=($REPLY)"
+        x_init "$TR_TYPE_OBJ" ; local -A "t1=($REPLY)"
     #@endif
-        trie_inserts t1 "{key1}$X[2]$X[2]$X" "key1_2_2"                \
+        x_inserts t1 "{key1}$X[2]$X[2]$X" "key1_2_2"                \
                         "{key1}$X[1]$X[1]$X" "null0_change"            \
                         "{key1}$X[3]$X[2]$X" "new_value"               \
                         "{key1}$X[3]$X[0]$X" "$TR_VALUE_NULL_OBJ"      \
@@ -77,19 +77,19 @@ test_case1 ()
                         "{key1}$X[3]$X[-4]$X" "$TR_VALUE_NULL_ARR"     \
                         "{key2}${ohter_lev1}$X" "$TR_VALUE_NULL_OBJ"
 
-        local str1="$( trie_dump t1 "" 4 $((2#011)) )"
-        trie_delete t1 "{key1}$X[2]$X"
-        local str2="$( trie_dump t1 "" 4 $((2#011)) )"
+        local str1="$( x_dump t1 "" 4 $((2#011)) )"
+        x_delete t1 "{key1}$X[2]$X"
+        local str2="$( x_dump t1 "" 4 $((2#011)) )"
         diff_two_str_side_by_side "$str1" "$str2" "t1" "t1_delete"
         
     #@if current_shell_process_replace==1
-        local -A "t2=(${|trie_init "$TR_TYPE_OBJ";})"
+        local -A "t2=(${|x_init "$TR_TYPE_OBJ";})"
     #@endif
     #@if current_shell_process_replace==0
-        trie_init "$TR_TYPE_OBJ" ; local -A "t2=($REPLY)"
+        x_init "$TR_TYPE_OBJ" ; local -A "t2=($REPLY)"
     #@endif
 
-        trie_inserts t2 "{key1}$X[1]$X[1]$X" "null0_change"            \
+        x_inserts t2 "{key1}$X[1]$X[1]$X" "null0_change"            \
                         "{key1}$X[2]$X[2]$X" "new_value"               \
                         "{key1}$X[2]$X[0]$X" "$TR_VALUE_NULL_OBJ"      \
                         "{key1}$X[2]$X[0]$X{x3}$X" "1.11"              \
@@ -111,8 +111,8 @@ test_case1 ()
                         "{key1}$X[2]$X[-4]$X" "$TR_VALUE_NULL_ARR"     \
                         "{key2}${ohter_lev1}$X" "$TR_VALUE_NULL_OBJ"
 
-        # trie_dump t2 "" 4 $((2#111));
-        if trie_equals t1 t2 ; then
+        # x_dump t2 "" 4 $((2#111));
+        if x_equals t1 t2 ; then
             log_test 1 1
         else
             log_test 0 1 ; return 1
@@ -124,33 +124,33 @@ test_case1 ()
     test_case1_inner3 ()
     {
     #@if current_shell_process_replace==1
-        local -A "t1=(${|trie_init "$TR_TYPE_OBJ";})"
+        local -A "t1=(${|x_init "$TR_TYPE_OBJ";})"
     #@endif
     #@if current_shell_process_replace==0
-        trie_init "$TR_TYPE_OBJ" ; local -A "t1=($REPLY)"
+        x_init "$TR_TYPE_OBJ" ; local -A "t1=($REPLY)"
     #@endif
 
-        trie_inserts t1 "{a}$X{b}$X{c}$X" "1" \
+        x_inserts t1 "{a}$X{b}$X{c}$X" "1" \
                         "{a}$X{b}$X{c1}$X" "2" \
                         "{a}$X{b}$X{c2}$X" "$TR_VALUE_NULL_OBJ" \
                         "{a}$X{b}$X{c3}$X" "$TR_VALUE_NULL_ARR" \
                         "{a}$X{c}$X[4]$X" "$TR_VALUE_NULL"
 
     #@if current_shell_process_replace==1
-        local -A "t2=(${|trie_init "$TR_TYPE_ARR";})"
+        local -A "t2=(${|x_init "$TR_TYPE_ARR";})"
     #@endif
     #@if current_shell_process_replace==0
-        trie_init "$TR_TYPE_ARR" ; local -A "t2=($REPLY)"
+        x_init "$TR_TYPE_ARR" ; local -A "t2=($REPLY)"
     #@endif
 
-        trie_inserts t2 "[0]$X(4)$X{c}$X" "t2_1" \
+        x_inserts t2 "[0]$X(4)$X{c}$X" "t2_1" \
                         "[0]$X(2)$X{c1}$X" "t2_2"
 
     #@if current_shell_process_replace==1
-        local -a "my_graft_info=(${|trie_graft t1 "{a}$X{c}$X[4]$X" t2;})"
+        local -a "my_graft_info=(${|x_graft t1 "{a}$X{c}$X[4]$X" t2;})"
     #@endif
     #@if current_shell_process_replace==0
-        trie_graft t1 "{a}$X{c}$X[4]$X" t2 ; local -a "my_graft_info=($REPLY)"
+        x_graft t1 "{a}$X{c}$X[4]$X" t2 ; local -a "my_graft_info=($REPLY)"
     #@endif
 
         if [[ "${my_graft_info[0]}" == '13' ]] ; then
@@ -161,39 +161,39 @@ test_case1 ()
 
         local abc
     #@if current_shell_process_replace==1
-        abc=${|trie_get_leaf t1 "{a}$X{c}$X[4]$X[0]$X[2]$X{c1}$X";}
+        abc=${|x_get_leaf t1 "{a}$X{c}$X[4]$X[0]$X[2]$X{c1}$X";}
     #@endif
     #@if current_shell_process_replace==0
-        trie_get_leaf t1 "{a}$X{c}$X[4]$X[0]$X[2]$X{c1}$X"
+        x_get_leaf t1 "{a}$X{c}$X[4]$X[0]$X[2]$X{c1}$X"
         abc=$REPLY
     #@endif
-        trie_insert t1 "{a}$X{c}$X[4]$X[0]$X[2]$X{c1}$X" "18.2"
+        x_insert t1 "{a}$X{c}$X[4]$X[0]$X[2]$X{c1}$X" "18.2"
         local ab
     #@if current_shell_process_replace==1
-        abc=${|trie_get_leaf t1 "{a}$X{c}$X[4]$X[0]$X[2]$X{c1}$X";}
+        abc=${|x_get_leaf t1 "{a}$X{c}$X[4]$X[0]$X[2]$X{c1}$X";}
     #@endif
     #@if current_shell_process_replace==0
-        trie_get_leaf t1 "{a}$X{c}$X[4]$X[0]$X[2]$X{c1}$X"
+        x_get_leaf t1 "{a}$X{c}$X[4]$X[0]$X[2]$X{c1}$X"
         abc=$REPLY
     #@endif
-        trie_insert t1 "{a}$X{c}$X[4]$X[0]$X[0]$X" "18.2"
-        trie_insert t1 "{a}$X{c}$X[5]$X" "$TR_VALUE_NULL_ARR"
-        trie_insert t1 "{a}$X{c}$X[5]$X[0]$X" "xx_1"
+        x_insert t1 "{a}$X{c}$X[4]$X[0]$X[0]$X" "18.2"
+        x_insert t1 "{a}$X{c}$X[5]$X" "$TR_VALUE_NULL_ARR"
+        x_insert t1 "{a}$X{c}$X[5]$X[0]$X" "xx_1"
 
-        trie_delete t1 "{a}$X{b}$X"
+        x_delete t1 "{a}$X{b}$X"
 
     #@if current_shell_process_replace==1
-        local -A "t1_rebuild=(${|trie_id_rebuild t1;})"
+        local -A "t1_rebuild=(${|x_id_rebuild t1;})"
     #@endif
     #@if current_shell_process_replace==0
-        trie_id_rebuild t1 ; local -A "t1_rebuild=($REPLY)"
+        x_id_rebuild t1 ; local -A "t1_rebuild=($REPLY)"
     #@endif
 
 
-        trie_insert t1 "{a}$X{m}$X" "$TR_VALUE_NULL_OBJ"
-        trie_insert t1_rebuild "{a}$X{m}$X" "$TR_VALUE_NULL_OBJ"
+        x_insert t1 "{a}$X{m}$X" "$TR_VALUE_NULL_OBJ"
+        x_insert t1_rebuild "{a}$X{m}$X" "$TR_VALUE_NULL_OBJ"
         
-        if trie_equals t1 t1_rebuild ; then
+        if x_equals t1 t1_rebuild ; then
             log_test 1 2
         else
             log_test 0 2 ; return 1
@@ -205,28 +205,28 @@ test_case1 ()
     test_case1_inner4 ()
     {
     #@if current_shell_process_replace==1
-        local -A "t1=(${|trie_init "$TR_TYPE_OBJ";})"
+        local -A "t1=(${|x_init "$TR_TYPE_OBJ";})"
     #@endif
     #@if current_shell_process_replace==0
-        trie_init "$TR_TYPE_OBJ" ; local -A "t1=($REPLY)"
+        x_init "$TR_TYPE_OBJ" ; local -A "t1=($REPLY)"
     #@endif
 
-        trie_inserts t1 "{a 1}$X{b}$X{c}$X" "1" \
+        x_inserts t1 "{a 1}$X{b}$X{c}$X" "1" \
                         "{a 1}$X{b}$X{c1}$X" "2" \
                         "{a 1}$X{b}$X{c2}$X" "$TR_VALUE_NULL_OBJ" \
                         "{a 1}$X{b}$X{c3}$X" "$TR_VALUE_NULL_ARR" \
                         "{a 1}$X{c}$X[4]$X" "xx"
-        trie_dump t1
+        x_dump t1
         local tuple
         local old_ifs=$IFS ; local IFS=$'\n'
         local -a get_info=()
         local iter_str
 
     #@if current_shell_process_replace==1
-        iter_str=${|trie_iter t1 "{a 1}$X{c}$X" $((2#11111));}
+        iter_str=${|x_iter t1 "{a 1}$X{c}$X" $((2#11111));}
     #@endif
     #@if current_shell_process_replace==0
-        trie_iter t1 "{a 1}$X{c}$X" $((2#11111)) ; iter_str=$REPLY
+        x_iter t1 "{a 1}$X{c}$X" $((2#11111)) ; iter_str=$REPLY
     #@endif
         for tuple in $iter_str ; do
             IFS=$old_ifs ; eval -- set -- $tuple
@@ -257,30 +257,30 @@ test_case1 ()
 test_case2 ()
 {
 #@if current_shell_process_replace==1
-    local -A "t1=(${|trie_init "$TR_TYPE_OBJ";})"
-    local -A "t2=(${|trie_init "$TR_TYPE_OBJ";})"
-    local -A "t1_spec=(${|trie_init "$TR_TYPE_OBJ";})"
+    local -A "t1=(${|x_init "$TR_TYPE_OBJ";})"
+    local -A "t2=(${|x_init "$TR_TYPE_OBJ";})"
+    local -A "t1_spec=(${|x_init "$TR_TYPE_OBJ";})"
 #@endif
 #@if current_shell_process_replace==0
-    trie_init "$TR_TYPE_OBJ" ; local -A "t1=($REPLY)"
-    trie_init "$TR_TYPE_OBJ" ; local -A "t2=($REPLY)"
-    trie_init "$TR_TYPE_OBJ" ; local -A "t1_spec=($REPLY)"
+    x_init "$TR_TYPE_OBJ" ; local -A "t1=($REPLY)"
+    x_init "$TR_TYPE_OBJ" ; local -A "t2=($REPLY)"
+    x_init "$TR_TYPE_OBJ" ; local -A "t1_spec=($REPLY)"
 #@endif
     
-    trie_inserts t1 "{a}$X{b}$X{c}$X" "1" \
+    x_inserts t1 "{a}$X{b}$X{c}$X" "1" \
                     "{a}$X{m}$X" "$TR_VALUE_NULL"
 
-    trie_inserts t2 "{a1}$X{b}$X{c}$X" "1" \
+    x_inserts t2 "{a1}$X{b}$X{c}$X" "1" \
                     "{b}$X{m}$X[5]$X" "$TR_VALUE_NULL"
 
-    trie_graft t1 "{x}$X" t2
+    x_graft t1 "{x}$X" t2
 
-    trie_inserts t1_spec    "{a}$X{b}$X{c}$X" "1" \
+    x_inserts t1_spec    "{a}$X{b}$X{c}$X" "1" \
                             "{a}$X{m}$X" "$TR_VALUE_NULL" \
                             "{x}$X{a1}$X{b}$X{c}$X" "1" \
                             "{x}$X{b}$X{m}$X[5]$X" "$TR_VALUE_NULL"
 
-    if trie_equals t1 t1_spec ; then
+    if x_equals t1 t1_spec ; then
         log_test 1 1
     else
         log_test 0 1 ; return 1
@@ -292,33 +292,33 @@ test_case2 ()
 test_case3 ()
 {
 #@if current_shell_process_replace==1
-    local -A "t1=(${|trie_init "$TR_TYPE_OBJ";})"
+    local -A "t1=(${|x_init "$TR_TYPE_OBJ";})"
 #@endif
 #@if current_shell_process_replace==0
-    trie_init "$TR_TYPE_OBJ" ; local -A "t1=($REPLY)"
+    x_init "$TR_TYPE_OBJ" ; local -A "t1=($REPLY)"
 #@endif
-    trie_inserts t1     "{a}$X{b}$X{c}$X" "1" \
+    x_inserts t1     "{a}$X{b}$X{c}$X" "1" \
                         "{a}$X{m}$X" "$TR_VALUE_NULL" \
                         "{x}$X{a1}$X{b}$X{c}$X" "1" \
                         "{x}$X{b}$X{m}$X[5]$X" "$TR_VALUE_NULL"
 
-    trie_dump t1
-    trie_push_leaf t1 "{a}$X{beee}$X" 'x'
-    trie_push_leaf t1 "{a}$X{beee}$X" 'y'
-    trie_push_leaf t1 "{a}$X{beee}$X" "$TR_VALUE_NULL_ARR"
-    trie_push_leaf t1 "{a}$X{beee}$X" "$TR_VALUE_NULL"
-    trie_push_leaf t1 "{a}$X{beee}$X" "$TR_VALUE_NULL_OBJ"
+    x_dump t1
+    x_push_leaf t1 "{a}$X{beee}$X" 'x'
+    x_push_leaf t1 "{a}$X{beee}$X" 'y'
+    x_push_leaf t1 "{a}$X{beee}$X" "$TR_VALUE_NULL_ARR"
+    x_push_leaf t1 "{a}$X{beee}$X" "$TR_VALUE_NULL"
+    x_push_leaf t1 "{a}$X{beee}$X" "$TR_VALUE_NULL_OBJ"
 
-    trie_insert t1 "{a}$X{m}$X" "$TR_VALUE_NULL_ARR"
-    trie_push_leaf t1 "{a}$X{m}$X" "x"
+    x_insert t1 "{a}$X{m}$X" "$TR_VALUE_NULL_ARR"
+    x_push_leaf t1 "{a}$X{m}$X" "x"
 
 #@if current_shell_process_replace==1
-    local -A "t1_spec=(${|trie_init "$TR_TYPE_OBJ";})"
+    local -A "t1_spec=(${|x_init "$TR_TYPE_OBJ";})"
 #@endif
 #@if current_shell_process_replace==0
-    trie_init "$TR_TYPE_OBJ" ; local -A "t1_spec=($REPLY)"
+    x_init "$TR_TYPE_OBJ" ; local -A "t1_spec=($REPLY)"
 #@endif
-    trie_inserts t1_spec "{a}$X{b}$X{c}$X" 1 \
+    x_inserts t1_spec "{a}$X{b}$X{c}$X" 1 \
                         "{a}$X{beee}$X[0]$X" x \
                         "{a}$X{beee}$X[1]$X" y \
                         "{a}$X{beee}$X[2]$X" "$TR_VALUE_NULL_ARR" \
@@ -332,12 +332,12 @@ test_case3 ()
                         "{x}$X{b}$X{m}$X[2]$X" "2" \
                         "{x}$X{b}$X{m}$X[3]$X" "1"
 
-    trie_unshift_leaf t1 "{x}$X{b}$X{m}$X" "1"
-    trie_unshift_leaf t1 "{x}$X{b}$X{m}$X" "2"
-    trie_unshift_leaf t1 "{x}$X{b}$X{m}$X" "3"
-    trie_unshift_leaf t1 "{x}$X{b}$X{m}$X" "4"
+    x_unshift_leaf t1 "{x}$X{b}$X{m}$X" "1"
+    x_unshift_leaf t1 "{x}$X{b}$X{m}$X" "2"
+    x_unshift_leaf t1 "{x}$X{b}$X{m}$X" "3"
+    x_unshift_leaf t1 "{x}$X{b}$X{m}$X" "4"
 
-    if trie_equals t1 t1_spec ; then
+    if x_equals t1 t1_spec ; then
         log_test 1 1
     else
         log_test 0 1 ; return 1
@@ -349,30 +349,30 @@ test_case3 ()
 test_case4 ()
 {
 #@if current_shell_process_replace==1
-    local -A "t1=(${|trie_init "$TR_TYPE_OBJ";})"
-    local -A "t2=(${|trie_init "$TR_TYPE_OBJ";})"
-    local -A "t1_spec=(${|trie_init "$TR_TYPE_OBJ";})"
-    local -A "t3=(${|trie_init "$TR_TYPE_OBJ";})"
+    local -A "t1=(${|x_init "$TR_TYPE_OBJ";})"
+    local -A "t2=(${|x_init "$TR_TYPE_OBJ";})"
+    local -A "t1_spec=(${|x_init "$TR_TYPE_OBJ";})"
+    local -A "t3=(${|x_init "$TR_TYPE_OBJ";})"
 #@endif
 #@if current_shell_process_replace==0
-    trie_init "$TR_TYPE_OBJ" ; local -A "t1=($REPLY)"
-    trie_init "$TR_TYPE_OBJ" ; local -A "t2=($REPLY)"
-    trie_init "$TR_TYPE_OBJ" ; local -A "t1_spec=($REPLY)"
-    trie_init "$TR_TYPE_OBJ" ; local -A "t3=($REPLY)"
+    x_init "$TR_TYPE_OBJ" ; local -A "t1=($REPLY)"
+    x_init "$TR_TYPE_OBJ" ; local -A "t2=($REPLY)"
+    x_init "$TR_TYPE_OBJ" ; local -A "t1_spec=($REPLY)"
+    x_init "$TR_TYPE_OBJ" ; local -A "t3=($REPLY)"
 #@endif
-    trie_inserts t1     "{a}$X{b}$X{c}$X" "1" \
+    x_inserts t1     "{a}$X{b}$X{c}$X" "1" \
                         "{a}$X{m}$X" "$TR_VALUE_NULL" \
                         "{x}$X{a1}$X{b}$X{c}$X" "1" \
                         "{x}$X{b}$X{m}$X[5]$X" "$TR_VALUE_NULL"
 
-    trie_inserts t2     "{a}$X{b}$X{c}$X" "1" \
+    x_inserts t2     "{a}$X{b}$X{c}$X" "1" \
                         "{a}$X{m}$X" "$TR_VALUE_NULL" \
                         "{mxx}$X{a1}$X{b}$X{c}$X" "1" \
                         "{x}$X{b}$X{m}$X[5]$X" "$TR_VALUE_NULL"
 
-    trie_push_tree t1 "{a}$X{x}$X{b}$X{m}$X" t2
+    x_push_tree t1 "{a}$X{x}$X{b}$X{m}$X" t2
     
-    trie_inserts t1_spec "{a}$X{b}$X{c}$X" "1" \
+    x_inserts t1_spec "{a}$X{b}$X{c}$X" "1" \
                         "{a}$X{m}$X" "$TR_VALUE_NULL" \
                         "{x}$X{a1}$X{b}$X{c}$X" "1" \
                         "{x}$X{b}$X{m}$X[5]$X" "$TR_VALUE_NULL" \
@@ -383,27 +383,27 @@ test_case4 ()
                         "{a}$X{x}$X{b}$X{m}$X[0]$X{new}$X" "new_value"
 
 
-    trie_insert t3 "{new}$X" "new_value"
-    trie_unshift_tree t1 "{a}$X{x}$X{b}$X{m}$X" t3
+    x_insert t3 "{new}$X" "new_value"
+    x_unshift_tree t1 "{a}$X{x}$X{b}$X{m}$X" t3
 
-    if trie_equals t1 t1_spec ; then
+    if x_equals t1 t1_spec ; then
         log_test 1 1
     else
         log_test 0 1 ; return 1
     fi
 
-    # trie_walk t1
+    # x_walk t1
 }
 
 test_case5 ()
 {
 #@if current_shell_process_replace==1
-    local -A "t1=(${|trie_init "$TR_TYPE_OBJ";})"
+    local -A "t1=(${|x_init "$TR_TYPE_OBJ";})"
 #@endif
 #@if current_shell_process_replace==0
-    trie_init "$TR_TYPE_OBJ" ; local -A "t1=($REPLY)"
+    x_init "$TR_TYPE_OBJ" ; local -A "t1=($REPLY)"
 #@endif
-    trie_inserts t1     "{a}$X" "1"                    \
+    x_inserts t1     "{a}$X" "1"                    \
                         "{b}$X" "101.3$X"              \
                         "{c}$X" "101.3"                \
                         "{d}$X" "${TR_VALUE_TRUE}"     \
@@ -429,10 +429,10 @@ test_case5 ()
     local flat_1 flat_1_ret
 
 #@if current_shell_process_replace==1
-    flat_1=${|trie_to_flat_assoc t1;} ; flat_1_ret=$?
+    flat_1=${|x_to_flat_assoc t1;} ; flat_1_ret=$?
 #@endif
 #@if current_shell_process_replace==0
-    trie_to_flat_assoc t1 ; flat_1_ret=$?
+    x_to_flat_assoc t1 ; flat_1_ret=$?
     flat_1=$REPLY
 #@endif
 
@@ -440,7 +440,7 @@ test_case5 ()
         local -A "flat_1=($flat_1)"
     fi
 
-    # cat -A <(trie_dump t1)
+    # cat -A <(x_dump t1)
 
     if  [[ "${flat_1@a}" == *A* ]] &&
         assert_array A flat_1 flat_1_spec ; then
@@ -455,12 +455,12 @@ test_case5 ()
 test_case6 ()
 {
 #@if current_shell_process_replace==1
-    local -A "t1=(${|trie_init "$TR_TYPE_ARR";})"
+    local -A "t1=(${|x_init "$TR_TYPE_ARR";})"
 #@endif
 #@if current_shell_process_replace==0
-    trie_init "$TR_TYPE_ARR" ; local -A "t1=($REPLY)"
+    x_init "$TR_TYPE_ARR" ; local -A "t1=($REPLY)"
 #@endif
-    trie_inserts t1     "[10]$X" "1"                    \
+    x_inserts t1     "[10]$X" "1"                    \
                         "[14]$X" "101.3$X"              \
                         "[16]$X" "101.3"                \
                         "[17]$X" "${TR_VALUE_TRUE}"     \
@@ -499,10 +499,10 @@ test_case6 ()
         )
 
 #@if current_shell_process_replace==1
-    flat_1=${|trie_to_flat_array t1;} ; flat_1_ret=$?
+    flat_1=${|x_to_flat_array t1;} ; flat_1_ret=$?
 #@endif
 #@if current_shell_process_replace==0
-    trie_to_flat_array t1 ; flat_1_ret=$?
+    x_to_flat_array t1 ; flat_1_ret=$?
     flat_1=$REPLY
 #@endif
 
@@ -510,7 +510,7 @@ test_case6 ()
         local -a "flat_1=($flat_1)"
     fi
 
-    # cat -A <(trie_dump t1)
+    # cat -A <(x_dump t1)
 
     if  [[ "${flat_1@a}" == *a* ]] &&
         assert_array a flat_1 flat_1_spec ; then
@@ -525,12 +525,12 @@ test_case6 ()
 test_case7 ()
 {
 #@if current_shell_process_replace==1
-    local -A "t1=(${|trie_init "$TR_TYPE_OBJ";})"
+    local -A "t1=(${|x_init "$TR_TYPE_OBJ";})"
 #@endif
 #@if current_shell_process_replace==0
-    trie_init "$TR_TYPE_OBJ" ; local -A "t1=($REPLY)"
+    x_init "$TR_TYPE_OBJ" ; local -A "t1=($REPLY)"
 #@endif
-    trie_inserts t1     "{x}$X{a}$X" "1"                    \
+    x_inserts t1     "{x}$X{a}$X" "1"                    \
                         "{x}$X{b}$X" "101.3$X"              \
                         "{x}$X{c}$X" "101.3"                \
                         "{x}$X{d}$X" "${TR_VALUE_TRUE}"     \
@@ -549,10 +549,10 @@ test_case7 ()
         )
     
 #@if current_shell_process_replace==1
-    flat_1=${|trie_to_flat_assoc t1 "{x}$X";} ; flat_1_ret=$?
+    flat_1=${|x_to_flat_assoc t1 "{x}$X";} ; flat_1_ret=$?
 #@endif
 #@if current_shell_process_replace==0
-    trie_to_flat_assoc t1 "{x}$X" ; flat_1_ret=$?
+    x_to_flat_assoc t1 "{x}$X" ; flat_1_ret=$?
     flat_1=$REPLY
 #@endif
 
@@ -560,7 +560,7 @@ test_case7 ()
         local -A "flat_1=($flat_1)"
     fi
 
-    # cat -A <(trie_dump t1)
+    # cat -A <(x_dump t1)
     # printf '%s => %s\n' "${flat_1[@]@k}"
 
     if  [[ "${flat_1@a}" == *A* ]] &&
@@ -576,16 +576,16 @@ test_case7 ()
 test_case8 ()
 {
 #@if current_shell_process_replace==1
-    local -A "t1=(${|trie_init "$TR_TYPE_ARR";})"
-    local -A "t2=(${|trie_init "$TR_TYPE_ARR";})"
+    local -A "t1=(${|x_init "$TR_TYPE_ARR";})"
+    local -A "t2=(${|x_init "$TR_TYPE_ARR";})"
 #@endif
 #@if current_shell_process_replace==0
-    trie_init "$TR_TYPE_ARR" ; local -A "t1=($REPLY)"
-    trie_init "$TR_TYPE_ARR" ; local -A "t2=($REPLY)"
+    x_init "$TR_TYPE_ARR" ; local -A "t1=($REPLY)"
+    x_init "$TR_TYPE_ARR" ; local -A "t2=($REPLY)"
 #@endif
 
 #@if current_shell_process_replace==1
-    local xxk=${|trie_inserts t2     "[0]$X[10]$X" "1"   \
+    local xxk=${|x_inserts t2     "[0]$X[10]$X" "1"   \
                     "[0]$X[14]$X" "101.3$X"              \
                     "[1]$X[16]$X" "101.3"                \
                     "[1]$X[17]$X" "${TR_VALUE_TRUE}"     \
@@ -597,7 +597,7 @@ test_case8 ()
                     "[1]$X[23]$X" "xxx";}
 #@endif
 #@if current_shell_process_replace==0
-    trie_inserts t2     "[0]$X[10]$X" "1"   \
+    x_inserts t2     "[0]$X[10]$X" "1"   \
                     "[0]$X[14]$X" "101.3$X"              \
                     "[1]$X[16]$X" "101.3"                \
                     "[1]$X[17]$X" "${TR_VALUE_TRUE}"     \
@@ -611,12 +611,12 @@ test_case8 ()
 #@endif
 
 #@if current_shell_process_replace==1
-    local xxy=${|trie_qinserts t1 leaves "[0]$X" \
+    local xxy=${|x_qinserts t1 leaves "[0]$X" \
                 "[10]$X" "1"                     \
                 "[14]$X" "101.3$X" ;}
 #@endif
 #@if current_shell_process_replace==0
-    trie_qinserts t1 leaves "[0]$X" \
+    x_qinserts t1 leaves "[0]$X" \
             "[10]$X" "1"            \
             "[14]$X" "101.3$X"
     local xxy=$REPLY
@@ -649,7 +649,7 @@ test_case8 ()
     fi
 
 #@if current_shell_process_replace==1
-    local xxy=${|trie_qinserts t1 leaves "[1]$X" \
+    local xxy=${|x_qinserts t1 leaves "[1]$X" \
                 "[16]$X" "101.3"                 \
                 "[17]$X" "${TR_VALUE_TRUE}"      \
                 "[18]$X" "${TR_VALUE_FALSE}"     \
@@ -660,7 +660,7 @@ test_case8 ()
                 "[23]$X" "xxx" ;}
 #@endif
 #@if current_shell_process_replace==0
-     trie_qinserts t1 leaves "[1]$X" \
+     x_qinserts t1 leaves "[1]$X" \
         "[16]$X" "101.3"                 \
         "[17]$X" "${TR_VALUE_TRUE}"      \
         "[18]$X" "${TR_VALUE_FALSE}"     \
@@ -690,7 +690,7 @@ test_case8 ()
         log_test 0 2 ; return 1
     fi
 
-    if trie_equals t1 t2 ; then
+    if x_equals t1 t2 ; then
         log_test 1 3
     else
         log_test 0 3 ; return 1
@@ -716,17 +716,17 @@ test_case8 ()
         )
 
 #@if current_shell_process_replace==1
-    flat_1=${|trie_to_flat_array t1 '' 2;} ; flat_1_ret=$?
+    flat_1=${|x_to_flat_array t1 '' 2;} ; flat_1_ret=$?
 #@endif
 #@if current_shell_process_replace==0
-    trie_to_flat_array t1 '' 2 ; flat_1_ret=$?
+    x_to_flat_array t1 '' 2 ; flat_1_ret=$?
     flat_1=$REPLY
 #@endif
     if ((flat_1_ret==0)) ; then
         local -a "flat_1=($flat_1)"
     fi
 
-    # cat -A <(trie_dump t1)
+    # cat -A <(x_dump t1)
     # printf '%s\n' "${flat_1[@]}"
 
     if  [[ "${flat_1@a}" == *a* ]] &&
@@ -742,35 +742,35 @@ test_case8 ()
 test_case9 ()
 {
 #@if current_shell_process_replace==1
-    local -A "t1=(${|trie_init "$TR_TYPE_ARR";})"
+    local -A "t1=(${|x_init "$TR_TYPE_ARR";})"
 #@endif
 #@if current_shell_process_replace==0
-    trie_init "$TR_TYPE_ARR" ; local -A "t1=($REPLY)"
+    x_init "$TR_TYPE_ARR" ; local -A "t1=($REPLY)"
 #@endif
-    trie_insert t1 "[0]$X{b}$X" "xx"
-    trie_insert t1 "[1]$X{c}$X" "yy"
+    x_insert t1 "[0]$X{b}$X" "xx"
+    x_insert t1 "[1]$X{c}$X" "yy"
 
     local -a my_arr=("a 1" "b 2" "$TR_VALUE_NULL" "$TR_VALUE_NULL_OBJ" "$TR_VALUE_NULL_ARR")
     my_arr[10]=5
 #@if current_shell_process_replace==1
-    local -a "node_info=(${|trie_flat_to_tree t1 "[0]$X{b}$X" my_arr;})"
-    local -A "t2=(${|trie_init "$TR_TYPE_ARR";})"
+    local -a "node_info=(${|x_flat_to_tree t1 "[0]$X{b}$X" my_arr;})"
+    local -A "t2=(${|x_init "$TR_TYPE_ARR";})"
 #@endif
 #@if current_shell_process_replace==0
-    trie_flat_to_tree t1 "[0]$X{b}$X" my_arr ; local -a "node_info=($REPLY)"
-    trie_init "$TR_TYPE_ARR" ; local -A "t2=($REPLY)"
+    x_flat_to_tree t1 "[0]$X{b}$X" my_arr ; local -a "node_info=($REPLY)"
+    x_init "$TR_TYPE_ARR" ; local -A "t2=($REPLY)"
 #@endif
 
-    trie_insert t2 "[0]$X{b}$X" "$TR_VALUE_NULL"
-    trie_insert t2 "[1]$X{c}$X" "yy"
-    trie_insert t2 "[0]$X{b}$X[0]$X" "a 1"
-    trie_insert t2 "[0]$X{b}$X[1]$X" "b 2"
-    trie_insert t2 "[0]$X{b}$X[2]$X" "$TR_VALUE_NULL"
-    trie_insert t2 "[0]$X{b}$X[3]$X" "$TR_VALUE_NULL_OBJ"
-    trie_insert t2 "[0]$X{b}$X[4]$X" "$TR_VALUE_NULL_ARR"
-    trie_insert t2 "[0]$X{b}$X[10]$X" "5"
+    x_insert t2 "[0]$X{b}$X" "$TR_VALUE_NULL"
+    x_insert t2 "[1]$X{c}$X" "yy"
+    x_insert t2 "[0]$X{b}$X[0]$X" "a 1"
+    x_insert t2 "[0]$X{b}$X[1]$X" "b 2"
+    x_insert t2 "[0]$X{b}$X[2]$X" "$TR_VALUE_NULL"
+    x_insert t2 "[0]$X{b}$X[3]$X" "$TR_VALUE_NULL_OBJ"
+    x_insert t2 "[0]$X{b}$X[4]$X" "$TR_VALUE_NULL_ARR"
+    x_insert t2 "[0]$X{b}$X[10]$X" "5"
 
-    if trie_equals t1 t2 &&
+    if x_equals t1 t2 &&
        [[ "${node_info[0]}" == "6" ]] ; then
         log_test 1 1
     else
@@ -783,36 +783,36 @@ test_case9 ()
 test_case10 ()
 {
 #@if current_shell_process_replace==1
-    local -A "t1=(${|trie_init "$TR_TYPE_ARR";})"
+    local -A "t1=(${|x_init "$TR_TYPE_ARR";})"
 #@endif
 #@if current_shell_process_replace==0
-    trie_init "$TR_TYPE_ARR" ; local -A "t1=($REPLY)"
+    x_init "$TR_TYPE_ARR" ; local -A "t1=($REPLY)"
 #@endif
-    trie_insert t1 "[0]$X{b}$X" "xx"
-    trie_insert t1 "[1]$X{c}$X" "yy"
+    x_insert t1 "[0]$X{b}$X" "xx"
+    x_insert t1 "[1]$X{c}$X" "yy"
 
     local -A my_arr=(['key 1']='value 1' [key2]="$TR_VALUE_NULL_ARR")
 #@if current_shell_process_replace==1
-    local node_info=${|trie_flat_to_tree t1 "(0)$X{b}$X" my_arr;}
+    local node_info=${|x_flat_to_tree t1 "(0)$X{b}$X" my_arr;}
 #@endif
 #@if current_shell_process_replace==0
-    trie_flat_to_tree t1 "(0)$X{b}$X" my_arr ; local node_info=$REPLY
+    x_flat_to_tree t1 "(0)$X{b}$X" my_arr ; local node_info=$REPLY
 #@endif
     local -a "node_info=($node_info)"
 
 #@if current_shell_process_replace==1
-    local -A "t2=(${|trie_init "$TR_TYPE_ARR";})"
+    local -A "t2=(${|x_init "$TR_TYPE_ARR";})"
 #@endif
 #@if current_shell_process_replace==0
-    trie_init "$TR_TYPE_ARR" ; local -A "t2=($REPLY)"
+    x_init "$TR_TYPE_ARR" ; local -A "t2=($REPLY)"
 #@endif
-    trie_insert t2 "[0]$X{b}$X{key 1}$X" "value 1"
-    trie_insert t2 "[0]$X{b}$X{key2}$X" "$TR_VALUE_NULL_ARR"
-    trie_insert t2 "(1)$X{c}$X" "yy"
-    trie_insert t2 "(1)$X{b}$X" "xx"
+    x_insert t2 "[0]$X{b}$X{key 1}$X" "value 1"
+    x_insert t2 "[0]$X{b}$X{key2}$X" "$TR_VALUE_NULL_ARR"
+    x_insert t2 "(1)$X{c}$X" "yy"
+    x_insert t2 "(1)$X{b}$X" "xx"
     
     if [[ "${node_info[0]}" == 7 ]] &&
-        trie_equals t1 t2 ; then
+        x_equals t1 t2 ; then
         log_test 1 1
     else
         log_test 0 1 ; return 1
@@ -821,16 +821,16 @@ test_case10 ()
     return 0
 }
 
-# test trie_get_tree
+# test x_get_tree
 test_case11 ()
 {
 #@if current_shell_process_replace==1
-    local -A "t1=(${|trie_init "$TR_TYPE_OBJ";})"
+    local -A "t1=(${|x_init "$TR_TYPE_OBJ";})"
 #@endif
 #@if current_shell_process_replace==0
-    trie_init "$TR_TYPE_OBJ" ; local -A "t1=($REPLY)"
+    x_init "$TR_TYPE_OBJ" ; local -A "t1=($REPLY)"
 #@endif
-    trie_inserts t1 "{a}$X{b}$X" "1" \
+    x_inserts t1 "{a}$X{b}$X" "1" \
                     "{a}$X{c}$X" "2" \
                     "{a}$X{m}$X[0]$X[2]$X" "2" \
                     "{a}$X{k}$X{key2}$X[2]$X" "4" \
@@ -838,19 +838,19 @@ test_case11 ()
                     "{b}$X{y}$X" "3"
 
 #@if current_shell_process_replace==1
-    local -A "t2=(${|trie_get_tree t1 "{a}$X";})"
-    local -A "t2_spec=(${|trie_init "$TR_TYPE_OBJ";})"
+    local -A "t2=(${|x_get_tree t1 "{a}$X";})"
+    local -A "t2_spec=(${|x_init "$TR_TYPE_OBJ";})"
 #@endif
 #@if current_shell_process_replace==0
-    trie_get_tree t1 "{a}$X" ; local -A "t2=($REPLY)"
-    trie_init "$TR_TYPE_OBJ" ; local -A "t2_spec=($REPLY)"
+    x_get_tree t1 "{a}$X" ; local -A "t2=($REPLY)"
+    x_init "$TR_TYPE_OBJ" ; local -A "t2_spec=($REPLY)"
 #@endif
-    trie_inserts t2_spec    "{b}$X" "1" \
+    x_inserts t2_spec    "{b}$X" "1" \
                             "{c}$X" "2" \
                             "{m}$X[0]$X[2]$X" "2" \
                             "{k}$X{key2}$X[2]$X" "4"
 
-    if trie_equals t2 t2_spec ; then
+    if x_equals t2 t2_spec ; then
         log_test 1 1
     else
         log_test 0 1 ; return 1
@@ -863,14 +863,14 @@ test_case12 ()
 {
 
 #@if current_shell_process_replace==1
-    local -A "t1=(${|trie_init "$TR_TYPE_OBJ";})"
+    local -A "t1=(${|x_init "$TR_TYPE_OBJ";})"
 #@endif
 #@if current_shell_process_replace==0
-    trie_init "$TR_TYPE_OBJ" ; local -A "t1=($REPLY)"
+    x_init "$TR_TYPE_OBJ" ; local -A "t1=($REPLY)"
 #@endif
 
     local sp=$'\ngeg geg\n ge\ng  ge  '
-    trie_qinserts   t1 leaves '' \
+    x_qinserts   t1 leaves '' \
                     "{a}$X" $'geg\ngee\n  gg\n ' \
                     "{$sp}$X" $'2333\n geg\ngge  '
     local old_ifs=$IFS IFS=$'\n' tuple
@@ -878,10 +878,10 @@ test_case12 ()
     local iter_str
 
 #@if current_shell_process_replace==1
-    iter_str=${|trie_iter t1 '' $((2#11111));}
+    iter_str=${|x_iter t1 '' $((2#11111));}
 #@endif
 #@if current_shell_process_replace==0
-    trie_iter t1 '' $((2#11111)) ; iter_str=$REPLY
+    x_iter t1 '' $((2#11111)) ; iter_str=$REPLY
 #@endif
 
     for tuple in $iter_str ; do
@@ -914,35 +914,35 @@ test_case13 ()
 {
     
 #@if current_shell_process_replace==1
-    local -A "t1=(${|trie_init "$TR_TYPE_ARR";})"
+    local -A "t1=(${|x_init "$TR_TYPE_ARR";})"
 #@endif
 #@if current_shell_process_replace==0
-    trie_init "$TR_TYPE_ARR" ; local -A "t1=($REPLY)"
+    x_init "$TR_TYPE_ARR" ; local -A "t1=($REPLY)"
 #@endif
     local -a null_arr=()
     local -A null_obj=()
     local -a arr1=("a 1" "b 2")
     local -A obj1=(["a 1"]="c 3" ["b 2"]="d 4")
 
-    trie_push_flat t1 '' null_obj 
+    x_push_flat t1 '' null_obj 
 
-    trie_push_flat t1 '' null_obj 
-    trie_unshift_flat t1 '' null_arr 
-    trie_unshift_flat t1 '' null_arr 
+    x_push_flat t1 '' null_obj 
+    x_unshift_flat t1 '' null_arr 
+    x_unshift_flat t1 '' null_arr 
 
-    trie_push_flat t1 "[2]$X{key1}$X{key2}$X" arr1
-    trie_unshift_flat t1 "[2]$X{key1}$X{key2}$X" obj1
-    trie_unshift_flat t1 "[2]$X{key1}$X{key2}$X" obj1
-    trie_unshift_flat t1 "[2]$X{key1}$X{key2}$X" obj1
-    trie_unshift_flat t1 "[2]$X{key1}$X{key2}$X" obj1
-    trie_unshift_flat t1 "[2]$X{key1}$X{key2}$X" obj1
-    trie_unshift_flat t1 "[2]$X{key1}$X{key2}$X" obj1
-    trie_push_flat t1 "[2]$X{key1}$X{key2}$X" arr1
-    trie_push_flat t1 "[2]$X{key1}$X{key2}$X" arr1
-    trie_push_flat t1 "[2]$X{key1}$X{key2}$X" arr1
-    trie_push_flat t1 "[2]$X{key1}$X{key2}$X" arr1
+    x_push_flat t1 "[2]$X{key1}$X{key2}$X" arr1
+    x_unshift_flat t1 "[2]$X{key1}$X{key2}$X" obj1
+    x_unshift_flat t1 "[2]$X{key1}$X{key2}$X" obj1
+    x_unshift_flat t1 "[2]$X{key1}$X{key2}$X" obj1
+    x_unshift_flat t1 "[2]$X{key1}$X{key2}$X" obj1
+    x_unshift_flat t1 "[2]$X{key1}$X{key2}$X" obj1
+    x_unshift_flat t1 "[2]$X{key1}$X{key2}$X" obj1
+    x_push_flat t1 "[2]$X{key1}$X{key2}$X" arr1
+    x_push_flat t1 "[2]$X{key1}$X{key2}$X" arr1
+    x_push_flat t1 "[2]$X{key1}$X{key2}$X" arr1
+    x_push_flat t1 "[2]$X{key1}$X{key2}$X" arr1
 
-    trie_qinserts t1 common "[2]$X{key2}$X{key3}$X" \
+    x_qinserts t1 common "[2]$X{key2}$X{key3}$X" \
                 "{key1}$X" "vgege" \
                 "{key2}$X" "vgege" \
                 "{key3}$X" "vgege" \
@@ -950,21 +950,21 @@ test_case13 ()
                 "{key5}$X" "vgege" \
                 "{key6}$X" "vgege"
 
-    trie_delete t1 "[2]$X{key1}$X{key2}$X[3]$X"
-    trie_delete t1 "[2]$X{key1}$X{key2}$X[4]$X"
-    trie_delete t1 "[2]$X{key1}$X{key2}$X[5]$X"
-    trie_delete t1 "[2]$X{key1}$X{key2}$X[6]$X"
+    x_delete t1 "[2]$X{key1}$X{key2}$X[3]$X"
+    x_delete t1 "[2]$X{key1}$X{key2}$X[4]$X"
+    x_delete t1 "[2]$X{key1}$X{key2}$X[5]$X"
+    x_delete t1 "[2]$X{key1}$X{key2}$X[6]$X"
 
-    trie_delete t1 "[2]$X{key2}$X"
+    x_delete t1 "[2]$X{key2}$X"
 
 #@if current_shell_process_replace==1
-    local -A "t1_rebuild=(${|trie_id_rebuild t1;})"
+    local -A "t1_rebuild=(${|x_id_rebuild t1;})"
 #@endif
 #@if current_shell_process_replace==0
-    trie_id_rebuild t1 ; local -A "t1_rebuild=($REPLY)"
+    x_id_rebuild t1 ; local -A "t1_rebuild=($REPLY)"
 #@endif
 
-    if trie_equals t1 t1_rebuild ; then
+    if x_equals t1 t1_rebuild ; then
         log_test 1 1
     else
         log_test 0 1 ; return 1
@@ -977,13 +977,13 @@ test_case13 ()
 test_case14 ()
 {
 #@if current_shell_process_replace==1
-    local -A "t1=(${|trie_init "$TR_TYPE_ARR";})"
+    local -A "t1=(${|x_init "$TR_TYPE_ARR";})"
 #@endif
 #@if current_shell_process_replace==0
-    trie_init "$TR_TYPE_ARR" ; local -A "t1=($REPLY)"
+    x_init "$TR_TYPE_ARR" ; local -A "t1=($REPLY)"
 #@endif
 
-    trie_inserts t1 "[0]$X{b}$X" "value1" \
+    x_inserts t1 "[0]$X{b}$X" "value1" \
                     "[1]$X{c}$X" "value2" \
                     "[2]$X{x}$X" "value3" \
                     "[3]$X{y}$X" "value4" \
@@ -991,27 +991,27 @@ test_case14 ()
                     "[5]$X[3]$X" "value5"
 
 #@if current_shell_process_replace==1
-    local -A "get_tree=(${|trie_shift_tree t1 '';})"
-    local -A "get_tree_spec=(${|trie_init "$TR_TYPE_OBJ";})"
-    local -A "t1_spec=(${|trie_init "$TR_TYPE_ARR";})"
+    local -A "get_tree=(${|x_shift_tree t1 '';})"
+    local -A "get_tree_spec=(${|x_init "$TR_TYPE_OBJ";})"
+    local -A "t1_spec=(${|x_init "$TR_TYPE_ARR";})"
 #@endif
 #@if current_shell_process_replace==0
-    trie_shift_tree t1 '' ; local -A "get_tree=($REPLY)"
-    trie_init "$TR_TYPE_OBJ" ; local -A "get_tree_spec=($REPLY)"
-    trie_init "$TR_TYPE_ARR" ; local -A "t1_spec=($REPLY)"
+    x_shift_tree t1 '' ; local -A "get_tree=($REPLY)"
+    x_init "$TR_TYPE_OBJ" ; local -A "get_tree_spec=($REPLY)"
+    x_init "$TR_TYPE_ARR" ; local -A "t1_spec=($REPLY)"
 #@endif
 
-    trie_insert get_tree_spec "{b}$X" 'value1'
+    x_insert get_tree_spec "{b}$X" 'value1'
 
-    trie_inserts t1_spec \
+    x_inserts t1_spec \
                 "[0]$X{c}$X" "value2" \
                 "[1]$X{x}$X" "value3" \
                 "[2]$X{y}$X" "value4" \
                 "[3]$X{z}$X" "value5" \
                 "[4]$X[3]$X" "value5"
 
-    if  trie_equals get_tree get_tree_spec &&
-        trie_equals t1 t1_spec ; then
+    if  x_equals get_tree get_tree_spec &&
+        x_equals t1 t1_spec ; then
         log_test 1 1
     else
         log_test 0 1 ; return 1
@@ -1023,13 +1023,13 @@ test_case14 ()
 test_case15 ()
 {
 #@if current_shell_process_replace==1
-    local -A "t1=(${|trie_init "$TR_TYPE_ARR";})"
+    local -A "t1=(${|x_init "$TR_TYPE_ARR";})"
 #@endif
 #@if current_shell_process_replace==0
-    trie_init "$TR_TYPE_ARR" ; local -A "t1=($REPLY)"
+    x_init "$TR_TYPE_ARR" ; local -A "t1=($REPLY)"
 #@endif
 
-    trie_inserts t1 "[0]$X{b}$X" "value1" \
+    x_inserts t1 "[0]$X{b}$X" "value1" \
                     "[0]$X{aage}$X" "value2" \
                     "[1]$X{c}$X" "value2" \
                     "[1]$X{c1}$X" "value1" \
@@ -1040,12 +1040,12 @@ test_case15 ()
                     "[5]$X[3]$X" "value5"
 
 #@if current_shell_process_replace==1
-    local -a "arr=(${|trie_pop_to_flat_array t1;})"
-    local -A "obj=(${|trie_shift_to_flat_assoc t1;})"
+    local -a "arr=(${|x_pop_to_flat_array t1;})"
+    local -A "obj=(${|x_shift_to_flat_assoc t1;})"
 #@endif
 #@if current_shell_process_replace==0
-    trie_pop_to_flat_array t1 ; local -a "arr=($REPLY)"
-    trie_shift_to_flat_assoc t1 ; local -A "obj=($REPLY)"
+    x_pop_to_flat_array t1 ; local -a "arr=($REPLY)"
+    x_shift_to_flat_assoc t1 ; local -A "obj=($REPLY)"
 #@endif
 
     local -a arr_spec=([0]=$'null'$X [1]=$'null'$X [2]=$'null'$X [3]="value5")
@@ -1064,16 +1064,16 @@ test_case15 ()
 test_case16 ()
 {
 #@if current_shell_process_replace==1
-    local -A "t1=(${|trie_init "$TR_TYPE_ARR";})"
+    local -A "t1=(${|x_init "$TR_TYPE_ARR";})"
 #@endif
 #@if current_shell_process_replace==0
-    trie_init "$TR_TYPE_ARR" ; local -A "t1=($REPLY)"
+    x_init "$TR_TYPE_ARR" ; local -A "t1=($REPLY)"
 #@endif
 
     local special_str1=$'gge\ngege g\n \t gegge'
     local special_str2=$'\ngege geg\ngg  ee'
 
-    trie_inserts t1 "[0]$X{b}$X" "value1" \
+    x_inserts t1 "[0]$X{b}$X" "value1" \
                     "[0]$X{aage}$X" "value2" \
                     "[1]$X{$special_str1}$X" "$special_str2" \
                     "[1]$X{c1}$X" "$TR_VALUE_NULL_OBJ" \
@@ -1096,12 +1096,12 @@ test_case16 ()
                     "[5]$X[3]$X" "value5"
 
 #@if current_shell_process_replace==1
-    local -A "t2=(${|trie_init "$TR_TYPE_OBJ";})"
+    local -A "t2=(${|x_init "$TR_TYPE_OBJ";})"
 #@endif
 #@if current_shell_process_replace==0
-    trie_init "$TR_TYPE_OBJ" ; local -A "t2=($REPLY)"
+    x_init "$TR_TYPE_OBJ" ; local -A "t2=($REPLY)"
 #@endif
-    trie_inserts t2 "{b}$X" "value1" \
+    x_inserts t2 "{b}$X" "value1" \
                     "{aage}$X" "value2"
 
 
@@ -1109,18 +1109,18 @@ test_case16 ()
 
     local t1_json
 #@if current_shell_process_replace==1
-    t1_json=${|trie_to_json t1;}
+    t1_json=${|x_to_json t1;}
 #@endif
 #@if current_shell_process_replace==0
-    trie_to_json t1 ; t1_json=$REPLY
+    x_to_json t1 ; t1_json=$REPLY
 #@endif
 
     local t1_json_slow
 #@if current_shell_process_replace==1
-    t1_json_slow=${|trie_to_json_slow t1;}
+    t1_json_slow=${|x_to_json_slow t1;}
 #@endif
 #@if current_shell_process_replace==0
-    trie_to_json_slow t1 ; t1_json_slow=$REPLY
+    x_to_json_slow t1 ; t1_json_slow=$REPLY
 #@endif
 
     # cat -A <(printf '%s' "$t1_json_slow")
@@ -1180,18 +1180,18 @@ test_case16 ()
     fi
 
 #@if current_shell_process_replace==1
-    local -A "my_recover_tree1=(${|trie_from_json "$json_spec";})"
-    local -A "my_recover_tree2=(${|trie_from_json "$json_spec" 0;})"
+    local -A "my_recover_tree1=(${|x_from_json "$json_spec";})"
+    local -A "my_recover_tree2=(${|x_from_json "$json_spec" 0;})"
 #@endif
 #@if current_shell_process_replace==0
-    trie_from_json "$json_spec" ; local -A "my_recover_tree1=($REPLY)"
-    trie_from_json "$json_spec" 0 ; local -A "my_recover_tree2=($REPLY)"
+    x_from_json "$json_spec" ; local -A "my_recover_tree1=($REPLY)"
+    x_from_json "$json_spec" 0 ; local -A "my_recover_tree2=($REPLY)"
 #@endif
 
-    # cat -A <(trie_dump my_recover_tree1)
+    # cat -A <(x_dump my_recover_tree1)
 
-    if  trie_equals my_recover_tree1 t1 &&
-        trie_equals my_recover_tree2 t2 ; then
+    if  x_equals my_recover_tree1 t1 &&
+        x_equals my_recover_tree2 t2 ; then
         log_test 1 2
     else
         log_test 0 2 ; return 1
@@ -1204,7 +1204,7 @@ test_case16 ()
 
 test_case17 ()
 {
-    local -A "t1=(${|trie_init "$TR_TYPE_ARR";})"
+    local -A "t1=(${|x_init "$TR_TYPE_ARR";})"
     local special_str1=$' gge\n gege g\nggegg geg\t\t\02\03\04ge我是中文'
     local special_str2=$'\n 响铃 geg\n gg  ee\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1a\x1b\x1c\x1d\x1e\x1f ;over'
 
@@ -1213,7 +1213,7 @@ test_case17 ()
     local key_nl=$'\nkey\n'
     local val_nl=$'value_line1\nvalue_line2'
 
-    trie_inserts t1 "[0]$X{b}$X" "value1" \
+    x_inserts t1 "[0]$X{b}$X" "value1" \
                     "[0]$X{aa ge}$X" "value2" \
                     "[1]$X{$special_str1}$X" "$special_str2" \
                     "[1]$X{c1}$X" "$TR_VALUE_NULL_OBJ" \
@@ -1237,7 +1237,7 @@ test_case17 ()
                     "[5]$X[3]$X" "value5" \
                     "[6]$X{key1ggggggggg}$X{keeeeeeeey2}$X" "valueX"
 
-    trie_dump t1 '' 4 $((2#111))
+    x_dump t1 '' 4 $((2#111))
 }
 
 
