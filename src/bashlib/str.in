@@ -409,7 +409,7 @@ str_bytes () { local LC_ALL=C; REPLY=${#1}; }
 
 #-------------------------------------------------------------------------------
 # JSON 风格转义（简化版）：保留 \n 真换行；\b \f \r \t 用简写；
-# 反斜杠转 \\；其余控制字符（含 0x7F）转 \u00XX；
+# 反斜杠转 \\；C0(0x00-0x1F) / DEL(0x7F) / C1(0x80-0x9F) 转 \uXXXX；
 # 双引号、中文等可打印字符原样（不转义 "，不输出外层引号）
 # 用法: str_escape_keep_nl <输入字符串> <输出变量名>
 str_escape_keep_nl ()
@@ -417,8 +417,12 @@ str_escape_keep_nl ()
     local s=$1 i ch code hex
     local -n out=$2
 
-    # 快速路径：无控制字符、无反斜杠，直接返回
-    [[ $s != *[[:cntrl:]]* && $s != *\\* ]] && { out=$s ; return ; }
+    # 快速路径：纯可打印 ASCII 且无反斜杠
+    # [[:ascii:]] 排除所有非 ASCII（C1 在 UTF-8 下是多字节，码点 > 127）
+    # [[:cntrl:]] 排除 C0 和 DEL；纯 ASCII 下无 C1，判断可靠
+    if [[ $s != *[![:ascii:]]* && $s != *[[:cntrl:]]* && $s != *\\* ]]; then
+        out=$s ; return
+    fi
 
     out=''
     for ((i = 0; i < ${#s}; i++)); do
@@ -430,16 +434,21 @@ str_escape_keep_nl ()
             $'\r')  out+='\r'    ;;
             $'\t')  out+='\t'    ;;
             '\')    out+='\\'    ;;   # 反斜杠必须转义，这是无歧义的边界
-            [[:cntrl:]])
+            *)
+                # 显式按码点判断，不依赖 [[:cntrl:]] 对 C1 的 locale 行为：
+                # C0(0x00-0x1F) / DEL(0x7F) / C1(0x80-0x9F) 全部转 \uXXXX
+                # C1 中 0x9B=CSI、0x9D=OSC、0x90=DCS，终端安全风险高于 C0
                 printf -v code '%d' "'$ch"
-                printf -v hex '\\u%04x' "$code"
-                out+=$hex
+                if (( code < 32 || (code >= 127 && code <= 159) )); then
+                    printf -v hex '\\u%04x' "$code"
+                    out+=$hex
+                else
+                    out+=$ch
+                fi
                 ;;
-            *)      out+=$ch     ;;   # 中文、双引号等原样
         esac
     done
 }
-
 
 #-------------------------------------------------------------------------------
 # 计算字符串在终端下的显示宽度（ASCII=1，CJK/全角/Emoji=2，控制字符=0）
