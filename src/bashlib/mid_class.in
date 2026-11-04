@@ -1,6 +1,6 @@
 ((_MID_CLASS_IMPORTED++)) && return 0
 
-. "${BASH_SOURCE[0]%/*}/trie.sh"
+. "${BASH_SOURCE[0]%/*}/x.sh"
 . "${BASH_SOURCE[0]%/*}/meta.sh"
 . "${BASH_SOURCE[0]%/*}/base_class.sh"
 

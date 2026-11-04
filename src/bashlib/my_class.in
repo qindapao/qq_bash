@@ -4,7 +4,7 @@
 # so the properties of the current design object are independent.
 # Cannot inherit from parent class
 
-. "${BASH_SOURCE[0]%/*}/trie.sh"
+. "${BASH_SOURCE[0]%/*}/x.sh"
 . "${BASH_SOURCE[0]%/*}/meta.sh"
 . "${BASH_SOURCE[0]%/*}/mid_class.sh"
 

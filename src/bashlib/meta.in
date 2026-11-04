@@ -1,6 +1,6 @@
 ((_META_IMPORTED++)) && return 0
 
-. "${BASH_SOURCE[0]%/*}/trie.sh"
+. "${BASH_SOURCE[0]%/*}/x.sh"
 
 
 # Maintain a global resource pool and save the mapping relationship of

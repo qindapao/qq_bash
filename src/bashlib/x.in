@@ -1,4 +1,4 @@
-((_TRIE_IMPORTED++)) && return 0
+((_X_IMPORTED++)) && return 0
 
 . "${BASH_SOURCE[0]%/*}/grammar.sh"
 . "${BASH_SOURCE[0]%/*}/array.sh"
@@ -7,9 +7,9 @@
 . "${BASH_SOURCE[0]%/*}/meta.sh"
 
 # ================================================================================
-# Importantly, if you want to save trie data, it is recommended to directly
+# Importantly, if you want to save x data, it is recommended to directly
 # serialize it into JSON standard format(x_to_json), and then convert JSON
-# into trie(x_from_json) before use. Because the implementation details inside
+# into x(x_from_json) before use. Because the implementation details inside
 # the tree may change, If directly `declare -p tree` saves it to a file and reuses
 # it through the source method. If the implementation details of the tree change,
 # it will cause failure.
@@ -271,7 +271,7 @@ x_init ()
 
 #-------------------------------------------------------------------------------
 
-# Verify whether the subtree is a basic trie
+# Verify whether the subtree is a basic x
 _x_tree_is_valid ()
 {
     local -n tr_tree=$1
@@ -337,7 +337,7 @@ x_graft ()
     _x_tree_is_valid "$3" || return $?
 
     # 3. Use the x_walk function to traverse a subtree
-    x_graft_walk_callback ()
+    x_graft_walk_cb ()
     {
         local tr_node_kind=$1
         local tr_index_full_key=$3
@@ -372,7 +372,7 @@ x_graft ()
         return 0
     }
     
-    x_walk "$tr_sub_name" "" x_graft_walk_callback || return $?
+    x_walk "$tr_sub_name" "" x_graft_walk_cb || return $?
     tr_graft_reply=("$tr_graft_start_token_id" "$tr_graft_start_path_token")
     REPLY=${tr_graft_reply[*]@Q}
 }
@@ -1623,7 +1623,7 @@ x_iter ()
 
 # This is just an example to demonstrate the callback function of x_walk,
 # processing the entire tree
-x_callback_print ()
+x_cb_print ()
 {
     local node_kind=$1         # leaf / leaf_null / obj / obj_empty / arr / arr_empty
     local index_token=$2       # "{k}" or "[0]"
@@ -1699,7 +1699,7 @@ x_walk ()
     # local - ; set +x
     local -n tr_t=$1
     local tr_prefix=$2
-    local tr_callback=${3:-x_callback_print}
+    local tr_cb=${3:-x_cb_print}
 
     local tr_root_id tr_physical_full_key tr_index_full_key
     local tr_node_info tr_node_kind
@@ -1748,7 +1748,7 @@ x_walk ()
             tr_index_full_key="$tr_index_prefix$tr_index_token$X"
             tr_physical_full_key="$tr_physical_prefix$tr_tk$X"
 
-            "$tr_callback"  "$tr_node_kind" \
+            "$tr_cb"  "$tr_node_kind" \
                             "$tr_index_token" \
                             "$tr_index_full_key" \
                             "$tr_value" \
@@ -1778,12 +1778,12 @@ x_id_rebuild ()
     local -n tr_old=$1
     local -a tr_id_list=()
 
-    x_id_rebuild_collect_ids_callback ()
+    x_id_rebuild_collect_ids_cb ()
     {
         local old_id=$7
         tr_id_list+=("$old_id")
     }
-    x_walk "$1" '' x_id_rebuild_collect_ids_callback
+    x_walk "$1" '' x_id_rebuild_collect_ids_cb
 
     # There is absolutely no need to waste time sorting here.
     # array_qsort tr_id_list '-gt'
@@ -1804,7 +1804,7 @@ x_id_rebuild ()
     x_init "${tr_old[$TR_ROOT_ID.type]}" ; eval "${_ret_A/o/tr_new}"
         #@endif
 
-    x_id_rebuild_callback ()
+    x_id_rebuild_cb ()
     {
         local type=$1 value=$4 token=$5 full_key=$6 old_id=$7 parent_old_id=$8 
         local index_token=$2
@@ -1837,7 +1837,7 @@ x_id_rebuild ()
             tr_new[$new_parent_id.children]+=" ${token@Q}"
         fi
     }
-    x_walk $1 '' x_id_rebuild_callback
+    x_walk $1 '' x_id_rebuild_cb
 
     tr_new[max_index]=$tr_new_id
     
@@ -2406,7 +2406,7 @@ x_to_json_slow ()
         esac
     }
 
-    x_to_json_slow_callback ()
+    x_to_json_slow_cb ()
     {
         local node_kind=$1
         local index_full_key=$3 value=$4
@@ -2458,7 +2458,7 @@ x_to_json_slow ()
         return $TR_RET_ENUM_OK
     }
 
-    x_walk "$tr_name" "$tr_full_key" x_to_json_slow_callback || return $?
+    x_walk "$tr_name" "$tr_full_key" x_to_json_slow_cb || return $?
     REPLY=$tr_jstr
 }
 
@@ -2486,7 +2486,7 @@ x_to_json ()
         esac
     }
 
-    x_to_json_callback ()
+    x_to_json_cb ()
     {
         local node_kind=$1
         local index_full_key=$3 value=$4
@@ -2540,7 +2540,7 @@ x_to_json ()
         return $TR_RET_ENUM_OK
     }
 
-    x_walk "$tr_name" "$tr_full_key" x_to_json_callback || return $?
+    x_walk "$tr_name" "$tr_full_key" x_to_json_cb || return $?
 
     # printf '%s\n' "${tr_gobolt_params[@]}"
 

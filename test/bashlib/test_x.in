@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-. ../../src/bashlib/trie.sh
+. ../../src/bashlib/x.sh
 . ../libs/test_utils.sh
 
 # x_insert

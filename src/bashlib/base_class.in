@@ -1,7 +1,7 @@
 ((_BASE_CLASS_IMPORTED++)) && return 0
 
 . "${BASH_SOURCE[0]%/*}/grammar.sh"
-. "${BASH_SOURCE[0]%/*}/trie.sh"
+. "${BASH_SOURCE[0]%/*}/x.sh"
 . "${BASH_SOURCE[0]%/*}/meta.sh"
 
 #-------------------------------------------------------------------------------

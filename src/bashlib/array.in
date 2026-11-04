@@ -1,20 +1,17 @@
 ((_ARRAY_IMPORTED++)) && return 0
 
-# ar_ is a reserved prefix. The incoming reference string cannot use variable
-#   names with this prefix.
-
 #-------------------------------------------------------------------------------
 
 # a_ as a reserved prefix
 # Q string wrapping is no longer used
 array_sorted_insert ()
 {
-    local -n ar_arr=$1
-    local ar_value=$2
+    local -n arr=$1
+    local value=$2
     # Default ascending order
     local ar_rule=${3:-">"}
 
-    local ar_left=0 ar_right=${#ar_arr[@]}
+    local ar_left=0 ar_right=${#arr[@]}
     # Sort lexicographically in ASCII
     # LC_ALL
     # LC_xxx(LC_COLLATE LC_CTYPE ...)
@@ -26,25 +23,25 @@ array_sorted_insert ()
     ">")  # Ascending order
         while ((ar_left < ar_right)); do
             local a_mid=$(((ar_left + ar_right) / 2))
-            [[ "${ar_arr[a_mid]}" < "${ar_value}" ]] && ar_left=$((a_mid + 1)) || ar_right=$a_mid
+            [[ "${arr[a_mid]}" < "${value}" ]] && ar_left=$((a_mid + 1)) || ar_right=$a_mid
         done
         ;;
     "<")  # descending order
         while ((ar_left < ar_right)); do
             local a_mid=$(((ar_left + ar_right) / 2))
-            [[ "${ar_arr[a_mid]}" > "${ar_value}" ]] && ar_left=$((a_mid + 1)) || ar_right=$a_mid
+            [[ "${arr[a_mid]}" > "${value}" ]] && ar_left=$((a_mid + 1)) || ar_right=$a_mid
         done
         ;;
     "-gt")  # Ascending order
         while ((ar_left < ar_right)); do
             local a_mid=$(((ar_left + ar_right) / 2))
-            (( ar_arr[a_mid] < ar_value )) && ar_left=$((a_mid + 1)) || ar_right=$a_mid
+            (( arr[a_mid] < value )) && ar_left=$((a_mid + 1)) || ar_right=$a_mid
         done
         ;;
     "-lt")  # descending order
         while ((ar_left < ar_right)); do
             local a_mid=$(((ar_left + ar_right) / 2))
-            (( ar_arr[a_mid] > ar_value )) && ar_left=$((a_mid + 1)) || ar_right=$a_mid
+            (( arr[a_mid] > value )) && ar_left=$((a_mid + 1)) || ar_right=$a_mid
         done
         ;;
     *)
@@ -53,7 +50,7 @@ array_sorted_insert ()
         ;;
     esac
 
-    ar_arr=("${ar_arr[@]:0:$ar_left}" "$ar_value" "${ar_arr[@]:$ar_left}")
+    arr=("${arr[@]:0:$ar_left}" "$value" "${arr[@]:$ar_left}")
 }
 
 #-------------------------------------------------------------------------------
@@ -62,11 +59,11 @@ array_sorted_insert ()
 # $2: the element need to be deleted
 array_delete_first_e ()
 {
-    local -n ar_a=$1
-    local ar_del_e=$2
-    local ar_i ; for ar_i in "${!ar_a[@]}" ; do
-        [[ "$ar_del_e" == "${ar_a[$ar_i]}" ]] && {
-            unset -v 'ar_a[$ar_i]' ; return 0 ;
+    local -n a=$1
+    local del_e=$2
+    local i ; for i in "${!a[@]}" ; do
+        [[ "$del_e" == "${a[$i]}" ]] && {
+            unset -v 'a[$i]' ; return 0 ;
         }
     done
 }
@@ -77,10 +74,10 @@ array_delete_first_e ()
 # $2: the element need to be deleted
 array_delete_e ()
 {
-    local -n ar_a=$1
-    local ar_del_e=$2
-    local ar_i ; for ar_i in "${!ar_a[@]}" ; do
-        [[ "$ar_del_e" == "${ar_a[$ar_i]}" ]] && unset -v 'ar_a[$ar_i]'
+    local -n a=$1
+    local del_e=$2
+    local i ; for i in "${!a[@]}" ; do
+        [[ "$del_e" == "${a[$i]}" ]] && unset -v 'a[$i]'
     done
 }
 
@@ -88,11 +85,11 @@ array_delete_e ()
 
 array_index ()
 {
-    local element=$1 item
-    local -i index=0
+    local e=$1 item
+    local -i idx=0
     for item in "${@:2}" ; do
-        [[ "$element" == "$item" ]] && { REPLY=$index ; return ; }
-        ((index++))
+        [[ "$e" == "$item" ]] && { REPLY=$idx ; return ; }
+        ((idx++))
     done
     REPLY=-1
 }
@@ -111,14 +108,14 @@ array_join () { local IFS= ; eval -- 'REPLY=${'$1'[*]/%/$2} ; REPLY=${REPLY%"$2"
 array_to_kv_q_str ()
 {
     REPLY=
-    local -n ar_arr=$1
-    local ar_key
-    local -a ar_parts=()
+    local -n arr=$1
+    local key
+    local -a parts=()
     
-    for ar_key in "${!ar_arr[@]}" ; do
-        ar_parts+=("[${ar_key@Q}]=${ar_arr[$ar_key]@Q}")
+    for key in "${!arr[@]}" ; do
+        parts+=("[${key@Q}]=${arr[$key]@Q}")
     done
-    REPLY="${ar_parts[*]}"
+    REPLY="${parts[*]}"
 }
 
 #-------------------------------------------------------------------------------
