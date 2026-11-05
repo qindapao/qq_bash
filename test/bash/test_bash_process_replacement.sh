@@ -2,6 +2,7 @@
 
 . ../libs/test_utils.sh
 
+if [[ "${BASH_GRAMMAR[current_shell_process_replace]}" == 1 ]] ; then
 # ${|function;} The behavior is safe. Except for the REPLY variable,
 # other variables in the upper scope can be modified.
 test_case1 ()
@@ -94,6 +95,12 @@ test_case4 ()
         local ret=$(ls -l | grep "xx" | grep "yy")
     done
 
+}
+fi
+
+test_case5 ()
+{
+    :
 }
 
 eval -- "$(AS_RUN_TEST_CASES)"

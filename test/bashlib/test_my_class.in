@@ -11,10 +11,10 @@ test_case1 ()
     # bless_base_class 'base_class'
 
 #@if current_shell_process_replace==1
-    declare -gA "root_obj=(${|x_init "$TR_TYPE_OBJ";})"
+    declare -gA "root_obj=(${|x_init "$X_TYPE_OBJ";})"
 #@endif
 #@if current_shell_process_replace==0
-    x_init "$TR_TYPE_OBJ" ; declare -gA "root_obj=($REPLY)"
+    x_init "$X_TYPE_OBJ" ; declare -gA "root_obj=($REPLY)"
 #@endif
     new_my_class "root_obj" 1 '' 'value1' 'value2' '0' 
 
@@ -24,7 +24,7 @@ test_case1 ()
         local -a params=()
         local -a new_element_infos=()
         for((i=0;i<element_num;i++)) ; do
-            params+=("$TR_VALUE_NULL_OBJ")
+            params+=("$X_VALUE_NULL_OBJ")
         done
 
     #@if current_shell_process_replace==1

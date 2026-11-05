@@ -2,6 +2,7 @@
 
 . ../libs/test_utils.sh
 
+if [[ "${BASH_GRAMMAR[current_shell_process_replace]}" == 1 ]] ; then
 # 测试 set 是否受 IFS 分词影响
 # 结论: set 不会受 IFS 分词的影响
 test_case1 ()
@@ -45,6 +46,9 @@ test_case2 ()
 
     return 0
 }
+fi
+
+test_case3 () { : ; }
 
 eval -- "$(AS_RUN_TEST_CASES)"
 

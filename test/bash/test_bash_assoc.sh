@@ -118,7 +118,8 @@ test_case3 ()
 
     # 插入 100000 个键值对
     for i in {1..1000} ; do
-        KEYS["$i"]=${|rand_str;}
+        rand_str
+        KEYS["$i"]=${REPLY}
     done
 
     # 获取开始时间
@@ -162,7 +163,8 @@ test_case4 ()
         log_test 0 1 ; return 1
     fi
 
-    local save_func=${|save_func test_case_temp_func;}
+    save_func test_case_temp_func
+    local save_func=${REPLY}
     test_case_temp_func ()
     {
         local -A "recive_dict1=($1)"
@@ -186,7 +188,8 @@ test_case4 ()
     }
 
     local -A demo2=(['1 2 3']=1 ['x y z']=2)
-    local -A "demo_ret=(${|test_case_temp_func2;})"
+    test_case_temp_func2
+    local -A "demo_ret=(${REPLY})"
 
     if assert_array 'A' demo2 demo_ret ; then
         log_test 1 3
@@ -201,7 +204,8 @@ test_case4 ()
     }
 
     local -a ademo2=('1 2 3' 'x y z')
-    local -a "ademo_ret=(${|test_case_temp_func3;})"
+    test_case_temp_func3
+    local -a "ademo_ret=(${REPLY})"
     if assert_array 'a' ademo2 ademo_ret ; then
         log_test 1 4
     else
@@ -216,7 +220,8 @@ test_case4 ()
 
     local -a bdemo2=('1 2 3' 'x y z')
     local -i i=0 j=1
-    local -a "bdemo_ret=(${|test_case_temp_func4 "${bdemo2["$i"]}" "${bdemo2["$j"]}";})"
+    test_case_temp_func4 "${bdemo2["$i"]}" "${bdemo2["$j"]}"
+    local -a "bdemo_ret=(${REPLY})"
     if assert_array 'a' bdemo2 bdemo_ret ; then
         log_test 1 5
     else

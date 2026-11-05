@@ -18,8 +18,6 @@
 # tr_
 # ================================================================================
 
-
-
 #-------------------------------------------------------------------------------
 
 # If you want more powerful anti-collision capabilities, you can set it as follows
@@ -28,70 +26,74 @@
 # The semantics will change after importing
 # readonly X=$'\034\035\036\037'
 readonly X=$'\034'
-readonly TR_ROOT_ID=1
+readonly X_ROOT_ID=1
 
-readonly TR_RET_ENUM_OK=0
+readonly X_RET_ENUM_OK=0
 
-readonly TR_RET_ENUM_KEY_IS_TREE=1
-readonly TR_RET_ENUM_KEY_IS_LEAF=2
-readonly TR_RET_ENUM_KEY_IS_NOTFOUND=3
-readonly TR_RET_ENUM_KEY_IS_INVALID=4
-readonly TR_RET_ENUM_KEY_OUT_OF_INDEX=5
-readonly TR_RET_ENUM_KEY_IS_NOT_LEAF=6
-readonly TR_RET_ENUM_KEY_IS_NULL=7
-readonly TR_RET_ENUM_KEY_UP_LEV_TYPE_MISMATCH=8
-readonly TR_RET_ENUM_KEY_CHILD_CNT_IS_ZERO=9
-readonly TR_RET_ENUM_KEY_OTHER_TOOL_NOT_INSTALLED=10
-readonly TR_RET_ENUM_KEY_BJSON_TYPE_INVALID=11
-readonly TR_RET_ENUM_KEY_BJSON_TYPE_OBJ=12
-readonly TR_RET_ENUM_KEY_BJSON_TYPE_ARR=13
-readonly TR_RET_ENUM_KEY_PARAMETER_LENGTH_EXCEEDS_LIMIT=14
+readonly X_RET_ENUM_KEY_IS_TREE=1
+readonly X_RET_ENUM_KEY_IS_LEAF=2
+readonly X_RET_ENUM_KEY_IS_NOTFOUND=3
+readonly X_RET_ENUM_KEY_IS_INVALID=4
+readonly X_RET_ENUM_KEY_OUT_OF_INDEX=5
+readonly X_RET_ENUM_KEY_IS_NOT_LEAF=6
+readonly X_RET_ENUM_KEY_IS_NULL=7
+readonly X_RET_ENUM_KEY_UP_LEV_TYPE_MISMATCH=8
+readonly X_RET_ENUM_KEY_CHILD_CNT_IS_ZERO=9
+readonly X_RET_ENUM_KEY_OTHER_TOOL_NOT_INSTALLED=10
+readonly X_RET_ENUM_KEY_BJSON_TYPE_INVALID=11
+readonly X_RET_ENUM_KEY_BJSON_TYPE_OBJ=12
+readonly X_RET_ENUM_KEY_BJSON_TYPE_ARR=13
+readonly X_RET_ENUM_KEY_PARAMETER_LENGTH_EXCEEDS_LIMIT=14
 
-readonly TR_RET_ENUM_TREE_IS_INVALID=50
-readonly TR_RET_ENUM_TREE_IS_EMPTY=51
-readonly TR_RET_ENUM_TREE_NOT_HAVE_ROOT=52
-readonly TR_RET_ENUM_TREE_IS_NOT_SAME=53
+readonly X_RET_ENUM_TREE_IS_INVALID=50
+readonly X_RET_ENUM_TREE_IS_EMPTY=51
+readonly X_RET_ENUM_TREE_NOT_HAVE_ROOT=52
+readonly X_RET_ENUM_TREE_IS_NOT_SAME=53
 
 # type field (dedicated to container identification)
-readonly TR_TYPE_OBJ=1
-readonly TR_TYPE_ARR=2
+readonly X_TYPE_OBJ=1
+readonly X_TYPE_ARR=2
 
 # Node type (walk-specific)
-readonly TR_NODE_KIND_OBJ=1
-readonly TR_NODE_KIND_ARR=2
-readonly TR_NODE_KIND_OBJ_EMPTY=3
-readonly TR_NODE_KIND_ARR_EMPTY=4
-readonly TR_NODE_KIND_LEAF=5
-readonly TR_NODE_KIND_LEAF_NULL=6
-readonly TR_NODE_KIND_UNKNOWN=7
+readonly X_NODE_KIND_OBJ=1
+readonly X_NODE_KIND_ARR=2
+readonly X_NODE_KIND_OBJ_EMPTY=3
+readonly X_NODE_KIND_ARR_EMPTY=4
+readonly X_NODE_KIND_LEAF=5
+readonly X_NODE_KIND_LEAF_NULL=6
+readonly X_NODE_KIND_UNKNOWN=7
 
 # Value types (only for writing and printing)
-readonly TR_VALUE_NULL="null$X"
-readonly TR_VALUE_TRUE="true$X"
-readonly TR_VALUE_FALSE="false$X"
-readonly TR_VALUE_NULL_OBJ="{}$X"
-readonly TR_VALUE_NULL_ARR="[]$X"
+readonly X_VALUE_NULL="null$X"
+readonly X_VALUE_TRUE="true$X"
+readonly X_VALUE_FALSE="false$X"
+readonly X_VALUE_NULL_OBJ="{}$X"
+readonly X_VALUE_NULL_ARR="[]$X"
 
 # Flat layer judgment
-readonly TR_FLAT_IS_MATCH=0
-readonly TR_FLAT_IS_NOT_MATCH=1
-readonly TR_FLAT_ARRAY_NULL=2
-readonly TR_FLAT_ASSOC_NULL=3
+readonly X_FLAT_IS_MATCH=0
+readonly X_FLAT_IS_NOT_MATCH=1
+readonly X_FLAT_ARRAY_NULL=2
+readonly X_FLAT_ASSOC_NULL=3
 
 # gobolt JSON Object type return value
-readonly TR_GOBOLT_JSONTYPENULL=1
-readonly TR_GOBOLT_JSONTYPETRUE=2
-readonly TR_GOBOLT_JSONTYPEFALSE=3
-readonly TR_GOBOLT_JSONTYPENUMBER=4
-readonly TR_GOBOLT_JSONTYPESTRING=5
-readonly TR_GOBOLT_JSONTYPEARRAY=6
-readonly TR_GOBOLT_JSONTYPEOBJECT=7
-readonly TR_GOBOLT_JSONTYPEUNKNOWN=8
+readonly X_GOBOLT_JSONTYPENULL=1
+readonly X_GOBOLT_JSONTYPETRUE=2
+readonly X_GOBOLT_JSONTYPEFALSE=3
+readonly X_GOBOLT_JSONTYPENUMBER=4
+readonly X_GOBOLT_JSONTYPESTRING=5
+readonly X_GOBOLT_JSONTYPEARRAY=6
+readonly X_GOBOLT_JSONTYPEOBJECT=7
+readonly X_GOBOLT_JSONTYPEUNKNOWN=8
 
 #-------------------------------------------------------------------------------
 
 # $1: The value of the string that needs to be converted
 # $2: Variable name saved after conversion
+#
+# JSON 路径键转义：转义 [ ] . * ? | @ # { } ! 为带反斜杠的形态。
+# @in  $1=原始字符串  $2=输出变量名（nameref）
+# @ret 0（始终成功）
 x_bjson_key_escape ()
 {
     local -n bjsonKeyEscapeR_ekey="$2"
@@ -133,6 +135,10 @@ x_bjson_key_escape ()
 
 #-------------------------------------------------------------------------------
 
+# 拆分 "$X" 分隔的 token 串为数组，校验每个 token 是否合法（'{k}'/'[]'/'()'/'<>'）。
+# @in  $1=token 串  $2=插入语义标志(1=允许 '()' 主键)
+# @out REPLY=token 数组（@Q 格式）
+# @ret 0=OK  4=X_RET_ENUM_KEY_IS_INVALID
 _split_tokens ()
 {
     REPLY=
@@ -143,28 +149,28 @@ _split_tokens ()
 
     while [[ -n "$tokens_str" ]] ; do
         token=${tokens_str%%"$X"*}
-        ((${#token}<=2)) && return $TR_RET_ENUM_KEY_IS_INVALID
+        ((${#token}<=2)) && return $X_RET_ENUM_KEY_IS_INVALID
         case "${token:0:1}${token: -1}" in
         '()')
             # Must have insertion semantics and must be a positive integer
             ((is_insertion_semantics)) || {
-                die "now are not in insertion semantics. key:$1 is invalid!"
-                return $TR_RET_ENUM_KEY_IS_INVALID
+                die ERR "now are not in insertion semantics. key:$1 is invalid!"
+                return $X_RET_ENUM_KEY_IS_INVALID
             }
             str_is_decimal_positive_int "${token:1:-1}" || {
-                die "key:$1 is invalid!"
-                return $TR_RET_ENUM_KEY_IS_INVALID
+                die ERR "key:$1 is invalid!"
+                return $X_RET_ENUM_KEY_IS_INVALID
             }
             ;;
         '[]')
             str_is_decimal_int "${token:1:-1}" || {
-                die "key:$1 is invalid!"
-                return $TR_RET_ENUM_KEY_IS_INVALID
+                die ERR "key:$1 is invalid!"
+                return $X_RET_ENUM_KEY_IS_INVALID
             }
             ;;
         '{}'|'<>')  : ;;
-        *)  die "key:$1 is invalid!"
-            return $TR_RET_ENUM_KEY_IS_INVALID
+        *)  die ERR "key:$1 is invalid!"
+            return $X_RET_ENUM_KEY_IS_INVALID
             ;;
         esac
         tokens+=("$token")
@@ -173,12 +179,17 @@ _split_tokens ()
     done
     
     REPLY="${tokens[*]@Q}"
-    return $TR_RET_ENUM_OK
+    return $X_RET_ENUM_OK
 }
 
 #-------------------------------------------------------------------------------
 
 # index -> physical
+#
+# 索引 token 转物理 token（如 '[0]' -> '<n>'）。
+# @in  $1=树名  $2=token  $3=父节点 ID
+# @out REPLY=物理 token
+# @ret 0=OK  5=X_RET_ENUM_KEY_OUT_OF_INDEX
 tr_resolve_index_token ()
 {
     REPLY=
@@ -201,6 +212,11 @@ tr_resolve_index_token ()
 #-------------------------------------------------------------------------------
 
 # physical -> index
+#
+# 物理 token 转索引 token（如 '<n>' -> '[i]'）。
+# @in  $1=树名  $2=token  $3=父节点 ID
+# @out REPLY=索引 token
+# @ret 0=OK  4=X_RET_ENUM_KEY_IS_INVALID
 tr_resolve_physical_token ()
 {
     REPLY=
@@ -216,8 +232,8 @@ tr_resolve_physical_token ()
         array_index "${tr_token}" ${tr_child_ids[@]} ; local -i tr_index=$REPLY
         #@endif
         ((tr_index==-1)) && {
-            die "node:${tr_node}(token:${tr_token}) can not find index."
-            return $TR_RET_ENUM_KEY_IS_INVALID
+            die ERR "node:${tr_node}(token:${tr_token}) can not find index."
+            return $X_RET_ENUM_KEY_IS_INVALID
         }
         tr_token="[$tr_index]"
     fi
@@ -229,6 +245,10 @@ tr_resolve_physical_token ()
 # Convert negative index of array to positive index
 # a=(1 2 3 4) index=-1 -> index=3
 #                         index=(($len+index))
+# 负索引归一化：'[-1]' -> '[(len-1)]'。
+# @in  $1=token  $2=数组长度  $3=父节点 ID
+# @out REPLY=归一化后的 token
+# @ret 0=OK  5=X_RET_ENUM_KEY_OUT_OF_INDEX
 _negative_token_to_positive ()
 {
     REPLY=
@@ -237,27 +257,31 @@ _negative_token_to_positive ()
         local -i tr_token_abs=${tr_token:1:-1}
         ((tr_token_abs=-tr_token_abs))
         ((tr_token_abs>tr_array_len)) && {
-            die "node:${tr_node}(token:${tr_token}) index:${tr_token:1:-1} is out of index."
-            return $TR_RET_ENUM_KEY_OUT_OF_INDEX
+            die ERR "node:${tr_node}(token:${tr_token}) index:${tr_token:1:-1} is out of index."
+            return $X_RET_ENUM_KEY_OUT_OF_INDEX
         }
         ((tr_token_abs=tr_array_len-tr_token_abs))
         REPLY="${tr_token:0:1}$tr_token_abs${tr_token: -1}"
     else
         REPLY="$tr_token"
     fi
-    return $TR_RET_ENUM_OK
+    return $X_RET_ENUM_OK
 }
 
 #-------------------------------------------------------------------------------
 
+# 初始化一棵空树。
+# @in  $1=根类型（X_TYPE_OBJ=1 或 X_TYPE_ARR=2，默认 OBJ）
+# @out REPLY=新树（关联数组 KV 格式，含根节点和 max_index=2）
+# @ret 0
 x_init ()
 {
     REPLY=
     local -A t=()
-    # t[$TR_ROOT_ID]=1
-    t[$TR_ROOT_ID.type]=${1:-"$TR_TYPE_OBJ"}
-    # t[$TR_ROOT_ID.children]=''
-    # t[$TR_ROOT_ID.key]=''
+    # t[$X_ROOT_ID]=1
+    t[$X_ROOT_ID.type]=${1:-"$X_TYPE_OBJ"}
+    # t[$X_ROOT_ID.children]=''
+    # t[$X_ROOT_ID.key]=''
 
     # Next available node ID
     t[max_index]=2
@@ -272,35 +296,43 @@ x_init ()
 #-------------------------------------------------------------------------------
 
 # Verify whether the subtree is a basic x
+#
+# 校验子树是否合法（关联数组、非空、有根节点）。
+# @in  $1=树名
+# @ret 0=OK  50=X_RET_ENUM_TREE_IS_INVALID  51=TREE_IS_EMPTY  52=TREE_NOT_HAVE_ROOT
 _x_tree_is_valid ()
 {
     local -n tr_tree=$1
 
     [[ "${tr_tree@a}" != *A* ]] && {
-        die "invalid tree: $1 is not an associative array!"
-        return ${TR_RET_ENUM_TREE_IS_INVALID}
+        die ERR "invalid tree: $1 is not an associative array!"
+        return ${X_RET_ENUM_TREE_IS_INVALID}
     }
 
     ((${#tr_tree[@]})) || {
-        die "invalid tree: $1 is empty!"
-        return ${TR_RET_ENUM_TREE_IS_EMPTY}
+        die ERR "invalid tree: $1 is empty!"
+        return ${X_RET_ENUM_TREE_IS_EMPTY}
     }
 
-    [[ ${tr_tree[$TR_ROOT_ID.type]+_} ]] || {
-        die "invalid tree: $1 not have root node!"
-        return ${TR_RET_ENUM_TREE_NOT_HAVE_ROOT}
+    [[ ${tr_tree[$X_ROOT_ID.type]+_} ]] || {
+        die ERR "invalid tree: $1 not have root node!"
+        return ${X_RET_ENUM_TREE_NOT_HAVE_ROOT}
     }
 
-    return ${TR_RET_ENUM_OK}
+    return ${X_RET_ENUM_OK}
 }
 
 #-------------------------------------------------------------------------------
 
+# 将 '()' 主键语义转为 '[]' 索引语义（用于 x_qinserts 的前缀归一化）。
+# @in  $1=token 串
+# @out REPLY=转换后的 token 串
+# @ret 0
 _tokens_insert_to_overwrite ()
 {
     REPLY=
     local tokens_str=$1
-    [[ -z "$tokens_str" ]] && return $TR_RET_ENUM_OK
+    [[ -z "$tokens_str" ]] && return $X_RET_ENUM_OK
     local -a tokens=()
     local token
     while [[ -n "$tokens_str" ]] ; do
@@ -310,7 +342,7 @@ _tokens_insert_to_overwrite ()
         tokens_str="${tokens_str#*"$X"}"
     done
     printf -v REPLY "%s$X" "${tokens[@]}"
-    return $TR_RET_ENUM_OK
+    return $X_RET_ENUM_OK
 }
 
 #-------------------------------------------------------------------------------
@@ -320,6 +352,11 @@ _tokens_insert_to_overwrite ()
 # is the simplest implementation
 #
 # REPLY: (node_id node_phy_path)
+#
+# 子树挂载：把子树 $3 的全部叶挂到 $1 的 $2 前缀下。
+# @in  $1=目标树名  $2=挂载前缀  $3=子树名
+# @out REPLY=列表 "node_id physical_key"
+# @ret 0=OK  其他=透传 _x_tree_is_valid / x_insert 的返回码
 x_graft ()
 {
     REPLY=
@@ -329,7 +366,7 @@ x_graft ()
     local tr_graft_prefix=$2
     local tr_sub_name=$3
     local tr_graft_is_first_insert=1
-    local tr_graft_start_token_id=${TR_ROOT_ID}
+    local tr_graft_start_token_id=${X_ROOT_ID}
     local tr_graft_start_path_token=""
     local tr_graft_reply=()
 
@@ -345,7 +382,7 @@ x_graft ()
         local tr_prefix=$tr_graft_prefix
 
         case "$tr_node_kind" in
-        $TR_NODE_KIND_LEAF|$TR_NODE_KIND_LEAF_NULL|$TR_NODE_KIND_OBJ_EMPTY|$TR_NODE_KIND_ARR_EMPTY)
+        $X_NODE_KIND_LEAF|$X_NODE_KIND_LEAF_NULL|$X_NODE_KIND_OBJ_EMPTY|$X_NODE_KIND_ARR_EMPTY)
 
             x_insert "$tr_target_name" \
                         "$tr_prefix$tr_index_full_key" \
@@ -379,16 +416,19 @@ x_graft ()
 
 #-------------------------------------------------------------------------------
 
+# 校验物理键格式：非空、不以 $X 开头、不含连续的 $X、必须含 $X。
+# @in  $1=物理键字符串
+# @ret 0=OK  7=X_RET_ENUM_KEY_IS_NULL
 x_key_is_invalid ()
 {
     if [[ "$1" == "$X"* ]] ||
         [[ "$1" == *"$X$X"* ]] ||
         [[ "$1" == "$X" ]] ||
         [[ "$1" != *"$X" ]] ; then
-        die "key is null or invalid!"
-        return $TR_RET_ENUM_KEY_IS_NULL
+        die ERR "key is null or invalid!"
+        return $X_RET_ENUM_KEY_IS_NULL
     else
-        return $TR_RET_ENUM_OK
+        return $X_RET_ENUM_OK
     fi
 }
 
@@ -398,6 +438,12 @@ x_key_is_invalid ()
 # x_inserts t1 "{prefix1}$X{prefix2}$X" "[0]$X" "array_value1" \
 #                                          "[1]$X" "array_value2" \
 #                                          "[2]$X" "array_value3"
+#
+# 批量带公共前缀插入多个叶，自动处理首个 '()' 语义转 '[]' 加速后续插入。
+# @in  $1=树名  $2=返回模式(leaves/common)  $3=公共前缀 token 串
+#      $4..=成对的 {key value}
+# @out REPLY=按返回模式拼接的 "node_id physical_key ..." 列表
+# @ret 0=OK  其他=透传 x_insert 的返回码
 x_qinserts ()
 {
     REPLY=
@@ -424,7 +470,7 @@ x_qinserts ()
     #@endif
     }
 
-    ((${#tr_insert_kv[@]}<2)) && return $TR_RET_ENUM_OK
+    ((${#tr_insert_kv[@]}<2)) && return $X_RET_ENUM_OK
 
     # The first insertion uses the original KEY
         #@if current_shell_process_replace==1
@@ -480,12 +526,16 @@ x_qinserts ()
     done
 
     REPLY=${tr_qinserts_reply[*]@Q}
-    return $TR_RET_ENUM_OK
+    return $X_RET_ENUM_OK
 }
 
 #-------------------------------------------------------------------------------
 
 # Returns an array of node IDs
+# 批量插入叶（参数顺序：{k v} 成对在前，树名在最后）。
+# @in  $1=第一个键  $2=第一个值  ...  最后一个参数=树名
+# @out REPLY=叶节点 "node_id physical_key" 列表
+# @ret 0=OK  其他=透传 x_insert 的返回码
 x_inserts ()
 {
     REPLY=
@@ -507,13 +557,18 @@ x_inserts ()
         tr_inserts_reply+=("${tr_insert_info[@]}")
     done
     REPLY=${tr_inserts_reply[*]@Q}
-    return $TR_RET_ENUM_OK
+    return $X_RET_ENUM_OK
 }
 
 #-------------------------------------------------------------------------------
 
 # Quickly push a series of leaf keys into an existing physical key array and
 # return an array of their IDs and physical keys (ID physical keys) tuples
+#
+# 快速向现有数组节点追加多个叶，只返回新节点 ID 列表。
+# @in  $1=树名  $2=数组节点 ID 或空  $3=物理前缀  $4..=叶值列表
+# @out REPLY=新叶 "node_id physical_key" 列表
+# @ret 0=OK
 x_push_leaf_fast ()
 {
     REPLY=
@@ -542,8 +597,8 @@ x_push_leaf_fast ()
         tr_children+=("$tr_token")
         ((tr_t[max_index]++))
         case "$tr_leaf" in
-        $TR_VALUE_NULL_OBJ) tr_t[$tr_child_id.type]=$TR_TYPE_OBJ ;;
-        $TR_VALUE_NULL_ARR) tr_t[$tr_child_id.type]=$TR_TYPE_ARR ;;
+        $X_VALUE_NULL_OBJ) tr_t[$tr_child_id.type]=$X_TYPE_OBJ ;;
+        $X_VALUE_NULL_ARR) tr_t[$tr_child_id.type]=$X_TYPE_ARR ;;
         *)
             tr_t[$tr_child_id.key]=$tr_prefix$tr_token$X
             tr_t[$tr_prefix$tr_token$X]=$tr_leaf
@@ -564,6 +619,10 @@ x_push_leaf_fast ()
 # Fast writing of associative arrays that can be used directly for flat layers
 # local -A assoc=(['{1 2}']='a b' ['{3 4}']='c d')
 # x_insert_token_dict my_tree '134' '{lev1}' "${assoc[@]@k}"
+#
+# 从 "token value token value ..." 数组快速插入到指定节点（仅插入不返回）。
+# @in  $1=树名  $2=起始节点 ID  $3=物理前缀  $4..=token,value 交错
+# @ret 0=OK
 x_insert_token_dict ()
 {
     local -n tr_t=$1
@@ -591,11 +650,11 @@ x_insert_token_dict ()
         tr_tokens+=("$tr_token")
 
         case "$tr_value" in
-        "$TR_VALUE_NULL_ARR")
-            tr_t[$tr_child_id.type]="$TR_TYPE_ARR"
+        "$X_VALUE_NULL_ARR")
+            tr_t[$tr_child_id.type]="$X_TYPE_ARR"
             ;;
-        "$TR_VALUE_NULL_OBJ")
-            tr_t[$tr_child_id.type]="$TR_TYPE_OBJ"
+        "$X_VALUE_NULL_OBJ")
+            tr_t[$tr_child_id.type]="$X_TYPE_OBJ"
             ;;
         *)
             tr_t[$tr_child_id.key]=$tr_path_key
@@ -605,24 +664,29 @@ x_insert_token_dict ()
     done
     
     ((${#tr_tokens[@]})) && tr_t[$tr_node.children]+=" ${tr_tokens[*]@Q}"
-    return $TR_RET_ENUM_OK
+    return $X_RET_ENUM_OK
 }
 
 #-------------------------------------------------------------------------------
 
 # Only insert and do not return any data
+#
+# 单点快速插入（仅插入不返回）。
+# @in  $1=树名  $2=物理全 key  $3=值  $4=起始节点 ID（默认 ROOT）
+#      $5=已遍历物理前缀（默认空）
+# @ret 0=OK
 x_insert_dict ()
 {
     local -n tr_t=$1
     local tr_full_key=$2
 
     local tr_value=$3
-    local tr_start_node_id=${4:-"$TR_ROOT_ID"}
+    local tr_start_node_id=${4:-"$X_ROOT_ID"}
     local tr_path_key=${5:-""}
 
     [[ ${tr_t["$tr_full_key"]+_} ]] && {
         tr_t["$tr_full_key"]=$tr_value
-        return ${TR_RET_ENUM_OK}
+        return ${X_RET_ENUM_OK}
     }
 
     local tr_token tr_child_key tr_child_id tr_tokens_str
@@ -655,24 +719,30 @@ x_insert_dict ()
     done
 
     case "$tr_value" in
-    "$TR_VALUE_NULL_ARR")
-        tr_t[$tr_node.type]="$TR_TYPE_ARR"
-        return $TR_RET_ENUM_OK
+    "$X_VALUE_NULL_ARR")
+        tr_t[$tr_node.type]="$X_TYPE_ARR"
+        return $X_RET_ENUM_OK
         ;;
-    "$TR_VALUE_NULL_OBJ")
-        tr_t[$tr_node.type]="$TR_TYPE_OBJ"
-        return $TR_RET_ENUM_OK
+    "$X_VALUE_NULL_OBJ")
+        tr_t[$tr_node.type]="$X_TYPE_OBJ"
+        return $X_RET_ENUM_OK
         ;;
     *)
         tr_t[$tr_node.key]=$tr_path_key
         tr_t["$tr_path_key"]=$tr_value
-        return $TR_RET_ENUM_OK
+        return $X_RET_ENUM_OK
     esac
 }
 
 #-------------------------------------------------------------------------------
 
 # Returns the inserted node ID, used by external or object tracking systems to track the ID of the object.
+#
+# 核心插入：把 $3 插入到 $1 的 $2 位置，支持自动创建路径节点。
+# @in  $1=树名  $2=物理全 key  $3=值（X_VALUE_NULL_OBJ/ARR 或叶值）
+#      $4=起始节点 ID（默认 ROOT）  $5=已遍历物理前缀（默认空）
+# @out REPLY=列表 "node_id physical_key"
+# @ret 0=OK  4=X_RET_ENUM_KEY_IS_INVALID  8=X_RET_ENUM_KEY_UP_LEV_TYPE_MISMATCH
 x_insert ()
 {
     REPLY=
@@ -685,22 +755,22 @@ x_insert ()
     x_key_is_invalid "$tr_full_key" || return $?
 
     local tr_value=$3
-    local tr_start_node_id=${4:-"$TR_ROOT_ID"}
+    local tr_start_node_id=${4:-"$X_ROOT_ID"}
     local tr_path_key=${5:-""}
 
     if [[ -n "$tr_path_key" ]] ; then
         x_key_is_invalid "$tr_path_key" || return $?
 
         [[ "$tr_path_key" == *"]$X"* || "$tr_path_key" == *")$X"* ]] && {
-            die "path key:${tr_path_key} is not physical key."
-            return $TR_RET_ENUM_KEY_IS_INVALID
+            die ERR "path key:${tr_path_key} is not physical key."
+            return $X_RET_ENUM_KEY_IS_INVALID
         }
     fi
 
     # If it is a leaf node, update the value directly
     if  [[ ${tr_t["$tr_full_key"]+_} ]] &&
-        [[ "$tr_value" != "$TR_VALUE_NULL_ARR" ]] &&
-        [[ "$tr_value" != "$TR_VALUE_NULL_OBJ" ]] ; then
+        [[ "$tr_value" != "$X_VALUE_NULL_ARR" ]] &&
+        [[ "$tr_value" != "$X_VALUE_NULL_OBJ" ]] ; then
         tr_t["$tr_full_key"]=$tr_value
             #@if current_shell_process_replace==1
         local -A "tr_node_info=(${|_x_token_to_node_id "$1" "$tr_full_key";})"
@@ -710,7 +780,7 @@ x_insert ()
             #@endif
         tr_insert_reply=("${tr_node_info[node_id]}" "${tr_node_info[physical_full_key]}")
         REPLY=${tr_insert_reply[*]@Q}
-        return ${TR_RET_ENUM_OK}
+        return ${X_RET_ENUM_OK}
     fi
 
     local tr_token tr_child_key tr_child_id tr_tokens_str
@@ -718,8 +788,8 @@ x_insert ()
     # Here tr_full_key needs to remove the tr_path_key prefix and start traversing
     tr_tokens_str=${tr_full_key#"$tr_path_key"}
     [[ -n "$tr_path_key" && "$tr_tokens_str" == "$tr_full_key" ]] && {
-        die "path_key:${tr_path_key} is not part of full key:${tr_full_key}."
-        return $TR_RET_ENUM_KEY_IS_INVALID
+        die ERR "path_key:${tr_path_key} is not part of full key:${tr_full_key}."
+        return $X_RET_ENUM_KEY_IS_INVALID
     }
         #@if current_shell_process_replace==1
     tr_tokens_str=${|_split_tokens "$tr_tokens_str" 1;} || return $?
@@ -751,43 +821,43 @@ x_insert ()
         case "$tr_token_pack" in
         '{}') 
             # The previous level must be null or obj or nothing (only nodes have tags)
-            if [[ "${tr_t[$tr_node.type]}" == "$TR_TYPE_OBJ" ]] ; then
+            if [[ "${tr_t[$tr_node.type]}" == "$X_TYPE_OBJ" ]] ; then
                 :
-            elif [[ -n "$tr_key" ]] && [[ "${tr_t[$tr_key]}" == "$TR_VALUE_NULL" ]] ; then
+            elif [[ -n "$tr_key" ]] && [[ "${tr_t[$tr_key]}" == "$X_VALUE_NULL" ]] ; then
                 # Become path empty obj
                 unset -v 'tr_t[$tr_node.key]'
                 unset -v 'tr_t[$tr_key]'
-                tr_t[$tr_node.type]=$TR_TYPE_OBJ
+                tr_t[$tr_node.type]=$X_TYPE_OBJ
             # If tr_node has only node tags, then turn it into empty obj
             elif [[ ${tr_t[$tr_node]+_} ]] &&
                 [[ -z ${tr_t[$tr_node.key]+_} ]] &&
                 [[ -z ${tr_t[$tr_node.children]+_} ]] &&
-                [[ "${tr_t[$tr_node.type]}" != "$TR_TYPE_ARR" ]] ; then
-                tr_t[$tr_node.type]=$TR_TYPE_OBJ
+                [[ "${tr_t[$tr_node.type]}" != "$X_TYPE_ARR" ]] ; then
+                tr_t[$tr_node.type]=$X_TYPE_OBJ
             else
-                die "node:${tr_node}(token:${tr_token}) is not obj or null."
+                die ERR "node:${tr_node}(token:${tr_token}) is not obj or null."
                 _x_insert_delete_tmp_node_ids
-                return $TR_RET_ENUM_KEY_UP_LEV_TYPE_MISMATCH
+                return $X_RET_ENUM_KEY_UP_LEV_TYPE_MISMATCH
             fi
             ;;
         '[]'|'()')
             # If the previous layer is null, create an empty array path node.
-            if [[ -n "$tr_key" ]] && [[ "${tr_t[$tr_key]}" == "$TR_VALUE_NULL" ]] ; then
+            if [[ -n "$tr_key" ]] && [[ "${tr_t[$tr_key]}" == "$X_VALUE_NULL" ]] ; then
                 unset -v 'tr_t[$tr_node.key]'
                 unset -v 'tr_t[$tr_key]'
-                tr_t[$tr_node.type]=$TR_TYPE_ARR
+                tr_t[$tr_node.type]=$X_TYPE_ARR
             # Contains only node existence flags
             elif [[ ${tr_t[$tr_node]+_} ]] &&
                 [[ -z ${tr_t[$tr_node.key]+_} ]] &&
                 [[ -z ${tr_t[$tr_node.children]+_} ]] &&
-                [[ "${tr_t[$tr_node.type]}" != "$TR_TYPE_OBJ" ]] ; then
-                tr_t[$tr_node.type]=$TR_TYPE_ARR
+                [[ "${tr_t[$tr_node.type]}" != "$X_TYPE_OBJ" ]] ; then
+                tr_t[$tr_node.type]=$X_TYPE_ARR
             fi
 
-            [[ "${tr_t[$tr_node.type]}" != "$TR_TYPE_ARR" ]] && {
-                die "node:${tr_node}(token:${tr_token}) up layer is not array or null."
+            [[ "${tr_t[$tr_node.type]}" != "$X_TYPE_ARR" ]] && {
+                die ERR "node:${tr_node}(token:${tr_token}) up layer is not array or null."
                 _x_insert_delete_tmp_node_ids
-                return $TR_RET_ENUM_KEY_UP_LEV_TYPE_MISMATCH
+                return $X_RET_ENUM_KEY_UP_LEV_TYPE_MISMATCH
             }
 
             # Fill incomplete null nodes and update tr_token
@@ -812,7 +882,7 @@ x_insert ()
                 local tr_new_id=${tr_t[max_index]} ; ((tr_t[max_index]++))
                 # tr_t[$tr_new_id]=1
                 tr_t[$tr_new_id.key]="$tr_path_key<$tr_new_id>$X"
-                tr_t["$tr_path_key<$tr_new_id>$X"]="$TR_VALUE_NULL"
+                tr_t["$tr_path_key<$tr_new_id>$X"]="$X_VALUE_NULL"
                 # Attach parent node children
                 tr_t["$tr_node.child.<$tr_new_id>"]=$tr_new_id
                 tr_add_token+=("<$tr_new_id>")
@@ -836,16 +906,16 @@ x_insert ()
             ;;
         '<>')
             # The previous level must be an array and elements must exist
-            if [[ "${tr_t[$tr_node.type]}" != "$TR_TYPE_ARR" ]] ; then
-                die "node:${tr_node}(token:${tr_token}) up layer is not array."
+            if [[ "${tr_t[$tr_node.type]}" != "$X_TYPE_ARR" ]] ; then
+                die ERR "node:${tr_node}(token:${tr_token}) up layer is not array."
                 _x_insert_delete_tmp_node_ids
-                return $TR_RET_ENUM_KEY_UP_LEV_TYPE_MISMATCH
+                return $X_RET_ENUM_KEY_UP_LEV_TYPE_MISMATCH
             fi
 
             if [[ -z "${tr_t[$tr_node.child.$tr_token]}" ]] ; then
-                die "node:${tr_node}(token:${tr_token}) is not exist."
+                die ERR "node:${tr_node}(token:${tr_token}) is not exist."
                 _x_insert_delete_tmp_node_ids
-                return $TR_RET_ENUM_KEY_UP_LEV_TYPE_MISMATCH
+                return $X_RET_ENUM_KEY_UP_LEV_TYPE_MISMATCH
             fi
             ;;
         esac
@@ -891,32 +961,32 @@ x_insert ()
     # it proves to be an existing structure node,
     # and the leaf is not allowed to be inserted.
     [[ -n "${tr_t[$tr_node.children]}" ]] && {
-        die "node:${tr_node}(token:${tr_token}) have children."
+        die ERR "node:${tr_node}(token:${tr_token}) have children."
         _x_insert_delete_tmp_node_ids
-        return $TR_RET_ENUM_KEY_UP_LEV_TYPE_MISMATCH
+        return $X_RET_ENUM_KEY_UP_LEV_TYPE_MISMATCH
     }
 
     # If it is found at the end that the inserted place is an empty obj or an
     # empty array, but the content to be inserted does not match,
     # an error will be reported.
-    if  [[ "${tr_t[$tr_node.type]}" == "$TR_TYPE_OBJ" ]] &&
-        [[ "$tr_value" != "$TR_VALUE_NULL_OBJ" ]] ; then
-        die "node:${tr_node}(token:${tr_token}) is null obj,but insert is not."
+    if  [[ "${tr_t[$tr_node.type]}" == "$X_TYPE_OBJ" ]] &&
+        [[ "$tr_value" != "$X_VALUE_NULL_OBJ" ]] ; then
+        die ERR "node:${tr_node}(token:${tr_token}) is null obj,but insert is not."
         _x_insert_delete_tmp_node_ids
-        return $TR_RET_ENUM_KEY_UP_LEV_TYPE_MISMATCH
+        return $X_RET_ENUM_KEY_UP_LEV_TYPE_MISMATCH
     fi
 
-    if  [[ "${tr_t[$tr_node.type]}" == "$TR_TYPE_ARR" ]] &&
-        [[ "$tr_value" != "$TR_VALUE_NULL_ARR" ]] ; then
-        die "node:${tr_node}(token:${tr_token}) is null array,but insert is not."
+    if  [[ "${tr_t[$tr_node.type]}" == "$X_TYPE_ARR" ]] &&
+        [[ "$tr_value" != "$X_VALUE_NULL_ARR" ]] ; then
+        die ERR "node:${tr_node}(token:${tr_token}) is null array,but insert is not."
         _x_insert_delete_tmp_node_ids
-        return $TR_RET_ENUM_KEY_UP_LEV_TYPE_MISMATCH
+        return $X_RET_ENUM_KEY_UP_LEV_TYPE_MISMATCH
     fi
 
     local tr_new_type
     case "$tr_value" in
-        "$TR_VALUE_NULL_ARR")   tr_new_type="$TR_TYPE_ARR" ;;
-        "$TR_VALUE_NULL_OBJ")   tr_new_type="$TR_TYPE_OBJ" ;;
+        "$X_VALUE_NULL_ARR")   tr_new_type="$X_TYPE_ARR" ;;
+        "$X_VALUE_NULL_OBJ")   tr_new_type="$X_TYPE_OBJ" ;;
         *)
             tr_t[$tr_node.key]=$tr_path_key
             tr_t["$tr_path_key"]=$tr_value
@@ -924,7 +994,7 @@ x_insert ()
             tr_insert_reply=("$tr_node" "$tr_path_key")
             REPLY=${tr_insert_reply[*]@Q}
             _x_insert_delete_tmp_node_ids
-            return $TR_RET_ENUM_OK
+            return $X_RET_ENUM_OK
     esac
 
     # The current leaf strings, values and bool can be overwritten into
@@ -937,11 +1007,15 @@ x_insert ()
     tr_insert_reply=("$tr_node" "$tr_path_key")
     REPLY=${tr_insert_reply[*]@Q}
     _x_insert_delete_tmp_node_ids
-    return $TR_RET_ENUM_OK
+    return $X_RET_ENUM_OK
 }
 
 #-------------------------------------------------------------------------------
 
+# 打印整棵树（调试用）。
+# @in  $1=树名  $2=起始物理全 key（空=根）  $3=缩进宽度（默认 4）
+#      $4=打印掩码（bit0=ID，bit1=值，bit2=数组索引，默认 0b111）
+# @ret 0
 x_dump ()
 {
     # local - ; set +x
@@ -980,15 +1054,15 @@ x_dump ()
 
     printf '%s(%s) -> %s\n' "$tr_t_name" "$tr_node" "${tr_node_info[physical_full_key]}"
 
-    [[ "${tr_t[$tr_node.type]}" == "$TR_TYPE_OBJ" ]] &&
+    [[ "${tr_t[$tr_node.type]}" == "$X_TYPE_OBJ" ]] &&
     [[ -z "${tr_t[$tr_node.children]}" ]] && {
-        printf '%s%s\n' "$tr_indent" "$TR_VALUE_NULL_OBJ"
+        printf '%s%s\n' "$tr_indent" "$X_VALUE_NULL_OBJ"
         return
     }
 
-    [[ "${tr_t[$tr_node.type]}" == "$TR_TYPE_ARR" ]] &&
+    [[ "${tr_t[$tr_node.type]}" == "$X_TYPE_ARR" ]] &&
     [[ -z "${tr_t[$tr_node.children]}" ]] && {
-        printf '%s%s\n' "$tr_indent" "$TR_VALUE_NULL_ARR"
+        printf '%s%s\n' "$tr_indent" "$X_VALUE_NULL_ARR"
         return
     }
 
@@ -1000,6 +1074,7 @@ x_dump ()
 
 #-------------------------------------------------------------------------------
 
+# 递归打印内部引擎，由 x_dump 调用，不建议直接使用。
 _x_dump ()
 {
     local -n tr_t=$1
@@ -1044,7 +1119,7 @@ _x_dump ()
         local tr_token_safe tr_token_disp
 
         tr_mark='=>'
-        if [[ "${tr_t[$tr_node.type]}" == "${TR_TYPE_ARR}" ]]; then
+        if [[ "${tr_t[$tr_node.type]}" == "${X_TYPE_ARR}" ]]; then
             tr_mark='='
             ((tr_print_array_index)) && tr_token=$tr_index || tr_token='o'
             # 数组 token 是索引或 'o'，无危险字符，直接透传
@@ -1092,16 +1167,16 @@ _x_dump ()
                 "$tr_child_id_p" \
                 "$tr_mark" \
                 "$tr_value_p"
-        elif [[ "${tr_t[$tr_child_id.type]}" == "$TR_TYPE_ARR" ]] && [[ -z "${tr_t[$tr_child_id.children]}" ]] ; then
-            ((tr_value_need_print)) && tr_value_p="$TR_VALUE_NULL_ARR"
+        elif [[ "${tr_t[$tr_child_id.type]}" == "$X_TYPE_ARR" ]] && [[ -z "${tr_t[$tr_child_id.children]}" ]] ; then
+            ((tr_value_need_print)) && tr_value_p="$X_VALUE_NULL_ARR"
             printf '%s%s%s %s %s\n' \
                 "$tr_indent" \
                 "$tr_token_disp" \
                 "$tr_child_id_p" \
                 "$tr_mark" \
                 "$tr_value_p"
-        elif [[ "${tr_t[$tr_child_id.type]}" == "$TR_TYPE_OBJ" ]] && [[ -z "${tr_t[$tr_child_id.children]}" ]] ; then
-            ((tr_value_need_print)) && tr_value_p="$TR_VALUE_NULL_OBJ"
+        elif [[ "${tr_t[$tr_child_id.type]}" == "$X_TYPE_OBJ" ]] && [[ -z "${tr_t[$tr_child_id.children]}" ]] ; then
+            ((tr_value_need_print)) && tr_value_p="$X_VALUE_NULL_OBJ"
             printf '%s%s%s %s %s\n' \
                 "$tr_indent" \
                 "$tr_token_disp" \
@@ -1127,6 +1202,13 @@ _x_dump ()
 # the children and write them back to the original associative array. Because
 # there is no addition or subtraction of elements, there is no deletion or addition
 # of elements involved, only children need to be updated.
+#
+# 物理/索引 token 解析为节点 ID，可选返回子节点数或值。
+# @in  $1=树名  $2=物理全 key  $3=需要 index_full_key(0/1)
+#      $4=需要 child_cnt(0/1)  $5=需要 value(0/1)
+# @out REPLY=关联数组 KV：node_id physical_full_key index_full_key type
+#             child_cnt(可选) value(可选)
+# @ret 0=OK  3=X_RET_ENUM_KEY_IS_NOTFOUND  4=X_RET_ENUM_KEY_IS_INVALID
 _x_token_to_node_id ()
 {
     REPLY=
@@ -1140,8 +1222,8 @@ _x_token_to_node_id ()
     [[ -z "$tr_full_key" ]] && {
         # ROOT
         if ((tr_need_child_cnt)) ; then
-            if [[ -n "${tr_t[$TR_ROOT_ID.children]}" ]] ; then
-                local -a "tr_children_tmp=(${tr_t[$TR_ROOT_ID.children]})"
+            if [[ -n "${tr_t[$X_ROOT_ID.children]}" ]] ; then
+                local -a "tr_children_tmp=(${tr_t[$X_ROOT_ID.children]})"
                 tr_node_info[child_cnt]=${#tr_children_tmp[@]}
             else
                 tr_node_info[child_cnt]=0
@@ -1149,10 +1231,10 @@ _x_token_to_node_id ()
         fi
 
         tr_node_info+=(
-            [node_id]="$TR_ROOT_ID"
+            [node_id]="$X_ROOT_ID"
             [physical_full_key]=""
             [index_full_key]=""
-            [type]=${tr_t[$TR_ROOT_ID.type]}
+            [type]=${tr_t[$X_ROOT_ID.type]}
             [value]=""
             )
             #@if at_k_var_substitution==1
@@ -1161,7 +1243,7 @@ _x_token_to_node_id ()
             #@if at_k_var_substitution==0
         array_to_kv_q_str tr_node_info ; REPLY=$REPLY
             #@endif
-        return ${TR_RET_ENUM_OK}
+        return ${X_RET_ENUM_OK}
     }
 
     x_key_is_invalid "$tr_full_key" || return $?
@@ -1175,7 +1257,7 @@ _x_token_to_node_id ()
     eval "${_ret_s_/o/tr_tokens_str}"
         #@endif
     local -a "tr_tokens=($tr_tokens_str)"
-    local tr_node=$TR_ROOT_ID tr_token tr_child_id tr_token_raw tr_real_full_key=''
+    local tr_node=$X_ROOT_ID tr_token tr_child_id tr_token_raw tr_real_full_key=''
     local tr_token_index= tr_index_full_key=
     for tr_token in "${tr_tokens[@]}" ; do
         tr_token_raw=$tr_token
@@ -1186,8 +1268,8 @@ _x_token_to_node_id ()
         tr_resolve_index_token "$1" "$tr_token" "$tr_node" ; eval "${_ret_s_/o/tr_token}"
             #@endif
         [[ -z "$tr_token" ]] && {
-            die "node:${tr_node}(token:${tr_token_raw}) is not found physical token!"
-            return $TR_RET_ENUM_KEY_IS_NOTFOUND
+            die ERR "node:${tr_node}(token:${tr_token_raw}) is not found physical token!"
+            return $X_RET_ENUM_KEY_IS_NOTFOUND
         }
         tr_real_full_key+="$tr_token$X"
 
@@ -1199,16 +1281,16 @@ _x_token_to_node_id ()
             tr_resolve_physical_token "$1" "$tr_token" "$tr_node" ; evel "${_ret_s_/o/tr_token_index}"
                 #@endif
             [[ -z "$tr_token_index" ]] && {
-                die "node:${tr_node}(token:${tr_token_raw}) is not found index token!"
-                return $TR_RET_ENUM_KEY_IS_NOTFOUND
+                die ERR "node:${tr_node}(token:${tr_token_raw}) is not found index token!"
+                return $X_RET_ENUM_KEY_IS_NOTFOUND
             }
             tr_index_full_key+="$tr_token_index$X"
         }
 
         tr_child_id="${tr_t[$tr_node.child.$tr_token]}"
         [[ -z "$tr_child_id" ]] && {
-            die "node:${tr_node}(token:${tr_token}) key is not found!"
-            return "$TR_RET_ENUM_KEY_IS_NOTFOUND"
+            die ERR "node:${tr_node}(token:${tr_token}) key is not found!"
+            return "$X_RET_ENUM_KEY_IS_NOTFOUND"
         }
         tr_node=$tr_child_id
     done
@@ -1241,11 +1323,15 @@ _x_token_to_node_id ()
 #@if at_k_var_substitution==0
     array_to_kv_q_str tr_node_info ; REPLY=$REPLY
 #@endif
-    return ${TR_RET_ENUM_OK}
+    return ${X_RET_ENUM_OK}
 }
 
 #-------------------------------------------------------------------------------
 
+# 删除节点（含全部子树）。空 key 会重置整棵树。
+# @in  $1=树名  $2=物理全 key（空=清空树）
+# @out REPLY=列表 "node_id physical_key"（被删除的子树根）
+# @ret 0=OK  4=X_RET_ENUM_KEY_IS_INVALID
 x_delete () 
 {
     REPLY=
@@ -1257,14 +1343,14 @@ x_delete ()
     # Empty key is legal. Only ROOT nodes are reserved.
     [[ -z "$tr_full_key" ]] && {
             #@if current_shell_process_replace==1
-        eval -- tr_t=(${|x_init "${tr_t[$TR_ROOT_ID.type]}";})
+        eval -- tr_t=(${|x_init "${tr_t[$X_ROOT_ID.type]}";})
             #@endif
             #@if current_shell_process_replace==0
-        x_init "${tr_t[$TR_ROOT_ID.type]}" ; eval -- tr_t=($REPLY)
+        x_init "${tr_t[$X_ROOT_ID.type]}" ; eval -- tr_t=($REPLY)
             #@endif
-        tr_delete_reply=("$TR_ROOT_ID" "")
+        tr_delete_reply=("$X_ROOT_ID" "")
         REPLY=${tr_delete_reply[*]@Q}
-        return ${TR_RET_ENUM_OK}
+        return ${X_RET_ENUM_OK}
     }
 
     x_key_is_invalid "$tr_full_key" || return $?
@@ -1280,7 +1366,7 @@ x_delete ()
     local -a "tr_tokens=($tr_tokens_str)"
 
     # 2. Path search: go all the way from root to the node to be deleted
-    local tr_node=$TR_ROOT_ID
+    local tr_node=$X_ROOT_ID
     local -a tr_path_nodes=("$tr_node")
     local -a tr_path_tokens=("")
 
@@ -1292,13 +1378,13 @@ x_delete ()
             #@if current_shell_process_replace==0
         tr_resolve_index_token "$1" "$tr_token" "$tr_node" ; eval "${_ret_s_/o/tr_token}"
             #@endif
-        [[ -z "$tr_token" ]] && return $TR_RET_ENUM_OK
+        [[ -z "$tr_token" ]] && return $X_RET_ENUM_OK
 
         tr_child_id="${tr_t[$tr_node.child.$tr_token]}"
         [[ -z "$tr_child_id" ]] && {
-            # die "key is not found!"
+            # die ERR "key is not found!"
             # Keys that do not exist are returned directly.
-            return "$TR_RET_ENUM_OK"
+            return "$X_RET_ENUM_OK"
         }
         tr_path_nodes+=("$tr_child_id")
         tr_path_tokens+=("$tr_token")
@@ -1359,11 +1445,16 @@ x_delete ()
     tr_delete_reply=("$tr_node" "$tr_full_key")
     REPLY=${tr_delete_reply[*]@Q}
 
-    return "$TR_RET_ENUM_OK"
+    return "$X_RET_ENUM_OK"
 }
 
 #-------------------------------------------------------------------------------
 
+# 获取叶节点的值。
+# @in  $1=树名  $2=物理全 key
+# @out REPLY=叶值
+# @ret 0=OK  6=X_RET_ENUM_KEY_IS_NOT_LEAF  7=X_RET_ENUM_KEY_IS_NULL
+#      3=X_RET_ENUM_KEY_IS_NOTFOUND
 x_get_leaf ()
 {
     REPLY=
@@ -1372,8 +1463,8 @@ x_get_leaf ()
     local tr_full_key=$2
 
     [[ -z "$tr_full_key" ]] && {
-        die "key is null."
-        return $TR_RET_ENUM_KEY_IS_NULL
+        die ERR "key is null."
+        return $X_RET_ENUM_KEY_IS_NULL
     }
     local tr_node_info
 #@if current_shell_process_replace==1
@@ -1387,15 +1478,19 @@ x_get_leaf ()
     local tr_physical_full_key=${tr_node_info[physical_full_key]}
     if [[ ${tr_t["$tr_physical_full_key"]+_} ]] ; then
         REPLY=${tr_t["$tr_physical_full_key"]}
-        return $TR_RET_ENUM_OK
+        return $X_RET_ENUM_OK
     else
-        die "full key:${tr_full_key} physical full key:${tr_physical_full_key} not found leaf!"
-        return $TR_RET_ENUM_KEY_IS_NOT_LEAF
+        die ERR "full key:${tr_full_key} physical full key:${tr_physical_full_key} not found leaf!"
+        return $X_RET_ENUM_KEY_IS_NOT_LEAF
     fi
 }
 
 #-------------------------------------------------------------------------------
 
+# 获取子树（返回一棵新树）。空 key 返回整棵树。
+# @in  $1=树名  $2=物理全 key（空=整棵树）
+# @out REPLY=新树（关联数组 KV 格式）
+# @ret 0=OK  2=X_RET_ENUM_KEY_IS_LEAF  3=KEY_IS_NOTFOUND  4=KEY_IS_INVALID
 x_get_tree ()
 {
     REPLY=
@@ -1418,7 +1513,7 @@ x_get_tree ()
         #@if at_k_var_substitution==0
             array_to_kv_q_str tr_t ; REPLY=$REPLY
         #@endif
-            return ${TR_RET_ENUM_OK}
+            return ${X_RET_ENUM_OK}
         }
         
         # 2. Determine whether tr_full_key is legal
@@ -1439,8 +1534,8 @@ x_get_tree ()
     fi
 
     [[ ${tr_t[$tr_real_full_key]+_} ]] && {
-        die "key is leaf!"
-        return ${TR_RET_ENUM_KEY_IS_LEAF}
+        die ERR "key is leaf!"
+        return ${X_RET_ENUM_KEY_IS_LEAF}
     }
 
     # 5. Get the children of the node (the first-level node of the subtree)
@@ -1457,23 +1552,23 @@ x_get_tree ()
     # If the subtree root is empty, it is returned directly.
     ((${#tr_root_children[@]})) || {
     #@if at_k_var_substitution==1
-        REPLY=${tr_new[*]@K} ; return ${TR_RET_ENUM_OK}
+        REPLY=${tr_new[*]@K} ; return ${X_RET_ENUM_OK}
     #@endif
     #@if at_k_var_substitution==0
         array_to_kv_q_str tr_new ; REPLY=$REPLY
-        return $TR_RET_ENUM_OK
+        return $X_RET_ENUM_OK
     #@endif
     }
     
     # 7. The children of the new tree are reset to the current tr_root_children
-    tr_new[$TR_ROOT_ID.children]=${tr_root_children[*]@Q}
+    tr_new[$X_ROOT_ID.children]=${tr_root_children[*]@Q}
 
     # 8. Mount all root children
     local tr_tk tr_cid
     local -a tr_stack=()
     for tr_tk in "${tr_root_children[@]}" ; do
         tr_cid=${tr_t[$tr_node.child.$tr_tk]}
-        tr_new["$TR_ROOT_ID.child.$tr_tk"]="$tr_cid"
+        tr_new["$X_ROOT_ID.child.$tr_tk"]="$tr_cid"
         tr_stack+=("$tr_cid")
     done
 
@@ -1515,7 +1610,7 @@ x_get_tree ()
 #@if at_k_var_substitution==0
     array_to_kv_q_str tr_new ; REPLY=$REPLY
 #@endif
-    return ${TR_RET_ENUM_OK}
+    return ${X_RET_ENUM_OK}
 }
 
 #-------------------------------------------------------------------------------
@@ -1525,6 +1620,14 @@ x_get_tree ()
 #                   phy_token type index_token value node 
 # default               1       1       0        0    0
 # bit                   0       1       2        3    4
+#
+# 遍历子节点，每行元组："phy_token type index_token value node"。
+# 未请求的字段为空串。
+# @in  $1=树名  $2=物理前缀（默认空=根）  $3=迭代掩码
+#      （bit0=phy_token bit1=type bit2=index_token bit3=value bit4=node）
+#      $4=节点 ID（可选，省略则按前缀解析）
+# @out REPLY=多行元组（@Q 格式，行内字段空格分隔）
+# @ret 0=OK  4=X_RET_ENUM_KEY_IS_INVALID
 x_iter ()
 {
     REPLY=
@@ -1558,7 +1661,7 @@ x_iter ()
     }
 
     # If tr_node_id is empty, traverse the root node
-    tr_node_id=${tr_node_id:-"$TR_ROOT_ID"}
+    tr_node_id=${tr_node_id:-"$X_ROOT_ID"}
 
     local -a "tr_children=(${tr_t[$tr_node_id.children]})"
 
@@ -1583,7 +1686,7 @@ x_iter ()
         fi
 
         if ((tr_is_iter_index_token)) ; then
-            if [[ "$tr_parent_type" == "$TR_TYPE_ARR" ]] ; then
+            if [[ "$tr_parent_type" == "$X_TYPE_ARR" ]] ; then
                 tr_index_tk_p=${tr_index@Q}
             else
                 tr_index_tk_p=${tr_tk@Q}
@@ -1600,8 +1703,8 @@ x_iter ()
 
             # Empty objects and empty arrays return simulated values
             case "$tr_type" in
-            $TR_NODE_KIND_OBJ_EMPTY)    tr_value_p="$TR_VALUE_NULL_OBJ" ;;
-            $TR_NODE_KIND_ARR_EMPTY)    tr_value_p=$"$TR_VALUE_NULL_ARR" ;;
+            $X_NODE_KIND_OBJ_EMPTY)    tr_value_p="$X_VALUE_NULL_OBJ" ;;
+            $X_NODE_KIND_ARR_EMPTY)    tr_value_p=$"$X_VALUE_NULL_ARR" ;;
             esac
             tr_value_p=${tr_value_p@Q}
         else
@@ -1616,13 +1719,15 @@ x_iter ()
         ((tr_index++))
     done
 
-    return ${TR_RET_ENUM_OK}
+    return ${X_RET_ENUM_OK}
 }
 
 #-------------------------------------------------------------------------------
 
 # This is just an example to demonstrate the callback function of x_walk,
 # processing the entire tree
+#
+# 示例回调：把遍历元组打印为一行。演示 x_walk 用法，不用于生产。
 x_cb_print ()
 {
     local node_kind=$1         # leaf / leaf_null / obj / obj_empty / arr / arr_empty
@@ -1643,11 +1748,15 @@ x_cb_print ()
     printf_info+="node id:$node_id "
     printf_info+="parent id:$parent_id"
     printf '%s\n' "$printf_info"
-    return $TR_RET_ENUM_OK
+    return $X_RET_ENUM_OK
 }
 
 #-------------------------------------------------------------------------------
 
+# 获取节点类型。
+# @in  $1=树名  $2=节点 ID
+# @ret X_NODE_KIND_OBJ=1 / ARR=2 / OBJ_EMPTY=3 / ARR_EMPTY=4
+#      / LEAF=5 / LEAF_NULL=6 / UNKNOWN=7
 x_get_node_type ()
 {
     # local - ; set +x
@@ -1657,34 +1766,37 @@ x_get_node_type ()
     
     if [[ ${tr_t[$tr_node.key]+_} ]] ; then
         tr_key="${tr_t["$tr_node.key"]}"
-        if [[ "${tr_t["$tr_key"]}" == "$TR_VALUE_NULL" ]] ; then
-            return $TR_NODE_KIND_LEAF_NULL
+        if [[ "${tr_t["$tr_key"]}" == "$X_VALUE_NULL" ]] ; then
+            return $X_NODE_KIND_LEAF_NULL
         else
-            return $TR_NODE_KIND_LEAF
+            return $X_NODE_KIND_LEAF
         fi
-    elif [[ "${tr_t[$tr_node.type]}" == "$TR_TYPE_OBJ" ]] ; then
+    elif [[ "${tr_t[$tr_node.type]}" == "$X_TYPE_OBJ" ]] ; then
         if [[ -n "${tr_t[$tr_node.children]}" ]] ; then
-            return $TR_NODE_KIND_OBJ
+            return $X_NODE_KIND_OBJ
         else
-            return $TR_NODE_KIND_OBJ_EMPTY
+            return $X_NODE_KIND_OBJ_EMPTY
         fi
-    elif [[ "${tr_t[$tr_node.type]}" == "$TR_TYPE_ARR" ]] ; then
+    elif [[ "${tr_t[$tr_node.type]}" == "$X_TYPE_ARR" ]] ; then
         if [[ -n "${tr_t[$tr_node.children]}" ]] ; then
-            return $TR_NODE_KIND_ARR
+            return $X_NODE_KIND_ARR
         else
-            return $TR_NODE_KIND_ARR_EMPTY
+            return $X_NODE_KIND_ARR_EMPTY
         fi
     else
-        return $TR_NODE_KIND_UNKNOWN
+        return $X_NODE_KIND_UNKNOWN
     fi
 }
 
 #-------------------------------------------------------------------------------
 
+# 判断节点是否"扁平"（叶/空容器）。用于 x_layer_get_flat。
+# @in  $1=X_NODE_KIND_*
+# @ret 0=扁平  1=非扁平
 x_layer_child_is_flat ()
 {
     case "$1" in
-    $TR_NODE_KIND_OBJ_EMPTY|$TR_NODE_KIND_ARR_EMPTY|$TR_NODE_KIND_LEAF_NULL|$TR_NODE_KIND_LEAF)
+    $X_NODE_KIND_OBJ_EMPTY|$X_NODE_KIND_ARR_EMPTY|$X_NODE_KIND_LEAF_NULL|$X_NODE_KIND_LEAF)
         return 0
         ;;
     esac
@@ -1694,6 +1806,11 @@ x_layer_child_is_flat ()
 
 #-------------------------------------------------------------------------------
 
+# 深度优先遍历子树，每个节点调用 $3 回调。
+# 回调参数：node_kind index_token index_full_key value
+#           physical_token physical_full_key node_id parent_id
+# @in  $1=树名  $2=起始物理全 key（空=根）  $3=回调函数名（默认 x_cb_print）
+# @ret 0=OK  其他=回调返回的非 0 值（提前终止）
 x_walk ()
 {
     # local - ; set +x
@@ -1737,10 +1854,10 @@ x_walk ()
             # There are special cases here. Empty arrays and empty
             # objects also return simulated values.
             case "$tr_node_kind" in
-            $TR_NODE_KIND_OBJ_EMPTY)
-                tr_value="$TR_VALUE_NULL_OBJ"   ;;
-            $TR_NODE_KIND_ARR_EMPTY)
-                tr_value="$TR_VALUE_NULL_ARR"   ;;
+            $X_NODE_KIND_OBJ_EMPTY)
+                tr_value="$X_VALUE_NULL_OBJ"   ;;
+            $X_NODE_KIND_ARR_EMPTY)
+                tr_value="$X_VALUE_NULL_ARR"   ;;
             esac
 
             tr_index_token=$tr_tk
@@ -1758,7 +1875,7 @@ x_walk ()
                             "$tr_node_id" || return $?
 
             case "$tr_node_kind" in
-            $TR_NODE_KIND_OBJ|$TR_NODE_KIND_ARR)
+            $X_NODE_KIND_OBJ|$X_NODE_KIND_ARR)
                 tr_stack+=("$tr_physical_full_key" "$tr_index_full_key" "$tr_child_id")
                 ;;
             esac
@@ -1766,11 +1883,15 @@ x_walk ()
             ((tr_index++))
         done
     done
-    return $TR_RET_ENUM_OK
+    return $X_RET_ENUM_OK
 }
 
 #-------------------------------------------------------------------------------
 
+# 重建节点 ID（紧凑化），默认 DFS 序重新编号。
+# @in  $1=树名
+# @out REPLY=新树（关联数组 KV 格式）
+# @ret 0=OK
 x_id_rebuild ()
 {
     REPLY=
@@ -1788,20 +1909,20 @@ x_id_rebuild ()
     # There is absolutely no need to waste time sorting here.
     # array_qsort tr_id_list '-gt'
     local -A tr_id_map=()
-    local tr_new_id=$((TR_ROOT_ID+1))
+    local tr_new_id=$((X_ROOT_ID+1))
     local tr_old_id
     for tr_old_id in "${tr_id_list[@]}" ; do
         tr_id_map[$tr_old_id]=$tr_new_id
         ((tr_new_id++))
     done
 
-    tr_id_map[$TR_ROOT_ID]=1
+    tr_id_map[$X_ROOT_ID]=1
 
         #@if current_shell_process_replace==1
-    local -A "tr_new=(${|x_init "${tr_old[$TR_ROOT_ID.type]}";})"
+    local -A "tr_new=(${|x_init "${tr_old[$X_ROOT_ID.type]}";})"
         #@endif
         #@if current_shell_process_replace==0
-    x_init "${tr_old[$TR_ROOT_ID.type]}" ; eval "${_ret_A/o/tr_new}"
+    x_init "${tr_old[$X_ROOT_ID.type]}" ; eval "${_ret_A/o/tr_new}"
         #@endif
 
     x_id_rebuild_cb ()
@@ -1816,10 +1937,10 @@ x_id_rebuild ()
         
         # write type tag
         case "$type" in
-        $TR_NODE_KIND_OBJ|$TR_NODE_KIND_OBJ_EMPTY)
-            tr_new[$new_id.type]=$TR_TYPE_OBJ   ;;
-        $TR_NODE_KIND_ARR|$TR_NODE_KIND_ARR_EMPTY)
-            tr_new[$new_id.type]=$TR_TYPE_ARR   ;;
+        $X_NODE_KIND_OBJ|$X_NODE_KIND_OBJ_EMPTY)
+            tr_new[$new_id.type]=$X_TYPE_OBJ   ;;
+        $X_NODE_KIND_ARR|$X_NODE_KIND_ARR_EMPTY)
+            tr_new[$new_id.type]=$X_TYPE_ARR   ;;
         # Other leaf keys need to write values
         *)  tr_new[$new_id.key]="$full_key"
             tr_new["$full_key"]="$value"
@@ -1847,11 +1968,14 @@ x_id_rebuild ()
         #@if at_k_var_substitution==0
     array_to_kv_q_str tr_new ; REPLY=$REPLY
         #@endif
-    return ${TR_RET_ENUM_OK}
+    return ${X_RET_ENUM_OK}
 }
 
 #-------------------------------------------------------------------------------
 
+# 比较两棵树是否完全等价（结构、路径、值全部一致）。
+# @in  $1=树 1 名  $2=树 2 名
+# @ret 0=OK  53=X_RET_ENUM_TREE_IS_NOT_SAME
 x_equals ()
 {
     # local - ; set +x
@@ -1864,11 +1988,11 @@ x_equals ()
 
     _x_equals_fail ()
     { 
-        die "$tr_x_equals_1_name $tr_x_equals_2_name is not the same!"
-        return $TR_RET_ENUM_TREE_IS_NOT_SAME
+        die ERR "$tr_x_equals_1_name $tr_x_equals_2_name is not the same!"
+        return $X_RET_ENUM_TREE_IS_NOT_SAME
     }
 
-    [[ "${tr_x_equals_1[$TR_ROOT_ID.type]}" == "${tr_x_equals_2[$TR_ROOT_ID.type]}" ]] || {
+    [[ "${tr_x_equals_1[$X_ROOT_ID.type]}" == "${tr_x_equals_2[$X_ROOT_ID.type]}" ]] || {
         _x_equals_fail ; return $?
     }
 
@@ -1882,7 +2006,7 @@ x_equals ()
         local kind=$1 index_full_key=$3 value=$4
         tr_x_equals_1_check["$index_full_key"]="$kind$X$value$X"
 
-        return $TR_RET_ENUM_OK
+        return $X_RET_ENUM_OK
     }
 
     x_walk "$tr_x_equals_1_name" '' x_equals_check_ab || return $?
@@ -1894,7 +2018,7 @@ x_equals ()
 
         tr_x_equals_2_check["$index_full_key"]="$kind$X$value$X"
 
-        return $TR_RET_ENUM_OK
+        return $X_RET_ENUM_OK
     }
 
     x_walk "$tr_x_equals_2_name" '' x_equals_check_ba || return $?
@@ -1921,11 +2045,16 @@ x_equals ()
         }
     done
 
-    return $TR_RET_ENUM_OK
+    return $X_RET_ENUM_OK
 }
 
 #-------------------------------------------------------------------------------
 
+# 数组操作目标位置计算：push/unshift/pop/shift 通用。
+# @in  $1=树名  $2=父路径物理全 key  $3=模式 push|unshift|pop|shift
+# @out REPLY=目标位置物理全 key
+# @ret 0=OK  9=X_RET_ENUM_KEY_CHILD_CNT_IS_ZERO
+#      8=X_RET_ENUM_KEY_UP_LEV_TYPE_MISMATCH
 _x_array_next_key ()
 {
     REPLY=
@@ -1949,7 +2078,7 @@ _x_array_next_key ()
         #@endif
 
     case "$tr_node_info_ret" in
-    $TR_RET_ENUM_KEY_IS_NOTFOUND)
+    $X_RET_ENUM_KEY_IS_NOTFOUND)
         case "$tr_mode" in
         push)   REPLY="$tr_up_key[0]$X" ;;
         unshift)
@@ -1958,11 +2087,11 @@ _x_array_next_key ()
                 return $tr_node_info_ret ;;
         esac
         ;;
-    $TR_RET_ENUM_OK)
+    $X_RET_ENUM_OK)
         # Get the up node type
         local -A "tr_node_info=($tr_node_info)"
-        if  [[ "${tr_node_info[type]}" == "$TR_TYPE_ARR" ]] ||
-            [[ "${tr_node_info[value]}" == "$TR_VALUE_NULL" ]] ; then
+        if  [[ "${tr_node_info[type]}" == "$X_TYPE_ARR" ]] ||
+            [[ "${tr_node_info[value]}" == "$X_VALUE_NULL" ]] ; then
             tr_child_cnt=${tr_node_info[child_cnt]}
             case "$tr_mode" in
             push)   REPLY="${tr_node_info[physical_full_key]}[$tr_child_cnt]$X" ;;
@@ -1971,16 +2100,16 @@ _x_array_next_key ()
             pop|shift)    
                 # First check if the child is empty
                 ((tr_child_cnt)) || {
-                    die "node:${tr_node_info[node_id]} child cnt is 0."
-                    return $TR_RET_ENUM_KEY_CHILD_CNT_IS_ZERO
+                    die ERR "node:${tr_node_info[node_id]} child cnt is 0."
+                    return $X_RET_ENUM_KEY_CHILD_CNT_IS_ZERO
                 }
                 ;;&
             pop)    REPLY="${tr_node_info[physical_full_key]}[$((tr_child_cnt-1))]$X" ;;
             shift)  REPLY="${tr_node_info[physical_full_key]}[0]$X" ;;
             esac
         else
-            die "node:${tr_node_info[node_id]} type is not array or null."
-            return $TR_RET_ENUM_KEY_UP_LEV_TYPE_MISMATCH
+            die ERR "node:${tr_node_info[node_id]} type is not array or null."
+            return $X_RET_ENUM_KEY_UP_LEV_TYPE_MISMATCH
         fi
         ;;
     *)
@@ -1988,12 +2117,18 @@ _x_array_next_key ()
         ;;
     esac
 
-    return ${TR_RET_ENUM_OK}
+    return ${X_RET_ENUM_OK}
 }
 
 #-------------------------------------------------------------------------------
 
 # Pushing empty leaves and empty arrays is OK
+#
+# 数组写入：push/unshift 叶或子树。
+# @in  $1=树名  $2=父路径物理全 key  $3=push|unshift
+#      $4=leaf|tree  $5=值/子树名
+# @out REPLY=插入节点 "node_id physical_key"（透传 x_insert/x_graft）
+# @ret 0=OK  其他=透传 x_insert/x_graft
 _x_array_write ()
 {
     # local - ; set +x
@@ -2020,6 +2155,11 @@ _x_array_write ()
 #-------------------------------------------------------------------------------
 
 # The return values of leaf and tree are the return values of insert and graft
+#
+# 数组 push/unshift 封装：
+# x_push_leaf/x_push_tree/x_unshift_leaf/x_unshift_tree
+# @in  $1=树名  $2=父路径物理全 key  $3=值 或 子树名
+# @out REPLY=列表 "node_id physical_key"
 x_push_leaf () { _x_array_write "$1" "$2" push leaf "$3" ; }
 x_push_tree () { _x_array_write "$1" "$2" push tree "$3" ; }
 x_unshift_leaf () { _x_array_write "$1" "$2" unshift leaf "$3" ; }
@@ -2027,6 +2167,10 @@ x_unshift_tree () { _x_array_write "$1" "$2" unshift tree "$3" ; }
 
 #-------------------------------------------------------------------------------
 
+# 数组 pop/shift 前的定位（内部）。
+# @in  $1=树名  $2=父路径物理全 key  $3=pop|shift  $4=leaf|tree
+# @out REPLY=叶值 或 子树
+# @ret 0=OK  其他=透传 x_get_leaf/x_get_tree
 _x_array_get ()
 {
     # local - ; set +x
@@ -2051,6 +2195,11 @@ _x_array_get ()
 
 #-------------------------------------------------------------------------------
 
+# 数组 pop/shift 封装：
+# x_pop_leaf/x_pop_tree/x_shift_leaf/x_shift_tree
+# @in  $1=树名  $2=父路径物理全 key
+# @out REPLY=弹出的叶值 或 子树
+# @ret 0=OK  其他=透传 _x_array_get/x_delete
 x_pop_leaf ()
 {
     REPLY=
@@ -2070,6 +2219,7 @@ x_pop_leaf ()
 
 #-------------------------------------------------------------------------------
 
+# 数组 pop 子树封装（同上）。
 x_pop_tree ()
 {
     REPLY=
@@ -2087,6 +2237,7 @@ x_pop_tree ()
 
 #-------------------------------------------------------------------------------
 
+# 数组 shift 叶封装（同上）。
 x_shift_leaf ()
 { 
     REPLY=
@@ -2104,6 +2255,7 @@ x_shift_leaf ()
 
 #-------------------------------------------------------------------------------
 
+# 数组 shift 子树封装（同上）。
 x_shift_tree ()
 {
     REPLY=
@@ -2121,6 +2273,11 @@ x_shift_tree ()
 
 #-------------------------------------------------------------------------------
 
+# 把节点扁平化为关联数组或数组（要求节点自身及子节点都是扁平叶）。
+# @in  $1='arr' 或 'obj'  $2=树名  $3=物理全 key  $4=节点 ID（可选）
+# @out REPLY=扁平结果（@Q / @K 格式）
+# @ret 0=X_FLAT_IS_MATCH  1=X_FLAT_IS_NOT_MATCH
+#      2=X_FLAT_ARRAY_NULL  3=X_FLAT_ASSOC_NULL
 x_layer_get_flat ()
 {
     REPLY=
@@ -2148,26 +2305,26 @@ x_layer_get_flat ()
     fi
 
     # If tr_node_id is empty, determine the root node
-    tr_node_id=${tr_node_id:-"$TR_ROOT_ID"}
+    tr_node_id=${tr_node_id:-"$X_ROOT_ID"}
 
     # First determine whether the current layer is null
     local tr_key=${tr_t[$tr_node_id.key]}
     if [[ -n "$tr_key" && ${tr_t[$tr_key]+_} ]] ; then
-        if [[ "${tr_t[$tr_key]}" == "$TR_VALUE_NULL" ]] ; then
-            return $TR_FLAT_IS_MATCH
+        if [[ "${tr_t[$tr_key]}" == "$X_VALUE_NULL" ]] ; then
+            return $X_FLAT_IS_MATCH
         else
-            die "node id:${tr_node_id} flat type not match."
-            return $TR_FLAT_IS_NOT_MATCH
+            die ERR "node id:${tr_node_id} flat type not match."
+            return $X_FLAT_IS_NOT_MATCH
         fi
     fi
 
     # Object or array to determine whether the child has children (non-flat)
     local tr_old_ifs=$IFS IFS=$'\n' tr_tuple 
     case "${tr_t[$tr_node_id.type]}" in
-    $TR_TYPE_ARR)
+    $X_TYPE_ARR)
         [[ "$tr_expect" == 'arr' ]] || {
-            die "node id:${tr_node_id} flat type not match."
-            return $TR_FLAT_IS_NOT_MATCH
+            die ERR "node id:${tr_node_id} flat type not match."
+            return $X_FLAT_IS_NOT_MATCH
         }
         local -a tr_plat_arr=()
         local tr_iter_str
@@ -2181,17 +2338,17 @@ x_layer_get_flat ()
         for tr_tuple in $tr_iter_str ; do
             IFS=$tr_old_ifs ; local -a "tr_tuple=($tr_tuple)"
             x_layer_child_is_flat "${tr_tuple[1]}" || {
-                die "node id:${tr_node_id} flat type not match."
-                return $TR_FLAT_IS_NOT_MATCH
+                die ERR "node id:${tr_node_id} flat type not match."
+                return $X_FLAT_IS_NOT_MATCH
             }
             tr_plat_arr+=("${tr_tuple[3]}")
         done
         REPLY=${tr_plat_arr[*]@Q}
         ;;
-    $TR_TYPE_OBJ)
+    $X_TYPE_OBJ)
         [[ "$tr_expect" == 'obj' ]] || {
-            die "node id:${tr_node_id} flat type not match."
-            return $TR_FLAT_IS_NOT_MATCH
+            die ERR "node id:${tr_node_id} flat type not match."
+            return $X_FLAT_IS_NOT_MATCH
         }
         local -A tr_plat_arr=()
         local tr_iter_str
@@ -2205,8 +2362,8 @@ x_layer_get_flat ()
         for tr_tuple in $tr_iter_str ; do
             IFS=$tr_old_ifs ; local -a "tr_tuple=($tr_tuple)"
             x_layer_child_is_flat "${tr_tuple[1]}" || {
-                die "node id:${tr_node_id} flat type not match."
-                return $TR_FLAT_IS_NOT_MATCH
+                die ERR "node id:${tr_node_id} flat type not match."
+                return $X_FLAT_IS_NOT_MATCH
             }
             tr_plat_arr["${tr_tuple[0]:1:-1}"]="${tr_tuple[3]}"
         done
@@ -2219,16 +2376,24 @@ x_layer_get_flat ()
         ;;
     esac
     
-    return $TR_FLAT_IS_MATCH
+    return $X_FLAT_IS_MATCH
 }
 
 #-------------------------------------------------------------------------------
 
+# 扁平化包装：
+# x_to_flat_array  $1=树名  $2=物理全 key  -> REPLY=数组
+# x_to_flat_assoc  $1=树名  $2=物理全 key  -> REPLY=关联数组
+# @ret 0=X_FLAT_IS_MATCH  其他=X_FLAT_*
 x_to_flat_array () { x_layer_get_flat 'arr' "$@" ; }
 x_to_flat_assoc () { x_layer_get_flat 'obj' "$@" ; }
 
 #-------------------------------------------------------------------------------
 
+# pop 后取扁平结果（数组 / 关联数组）。
+# @in  $1=树名  $2=父路径物理全 key
+# @out REPLY=扁平结果
+# @ret 0=X_FLAT_IS_MATCH  其他=X_FLAT_* 或 X_RET_ENUM_*
 x_pop_to_flat_array ()
 {
     REPLY=
@@ -2246,6 +2411,7 @@ x_pop_to_flat_array ()
 
 #-------------------------------------------------------------------------------
 
+# pop 关联数组（同上）。
 x_pop_to_flat_assoc ()
 {
     REPLY=
@@ -2263,6 +2429,8 @@ x_pop_to_flat_assoc ()
 
 #-------------------------------------------------------------------------------
 
+# shift 后取扁平结果（数组）。
+# @ret 0=X_FLAT_IS_MATCH  其他=X_FLAT_* 或 X_RET_ENUM_*
 x_shift_to_flat_array ()
 {
     REPLY=
@@ -2280,6 +2448,8 @@ x_shift_to_flat_array ()
 
 #-------------------------------------------------------------------------------
 
+# shift 后取扁平结果（关联数组）。
+# @ret 0=X_FLAT_IS_MATCH  其他=X_FLAT_* 或 X_RET_ENUM_*
 x_shift_to_flat_assoc ()
 {
     REPLY=
@@ -2298,6 +2468,10 @@ x_shift_to_flat_assoc ()
 #-------------------------------------------------------------------------------
 
 # Hooks have no deletion semantics, but writes to flat layers do
+#
+# 把扁平结构（数组/关联数组）写入为子树。
+# @in  $1=树名  $2=目标物理全 key  $3=扁平数组名
+# @ret 0=OK
 x_flat_to_tree ()
 {
     # local - ; set +x
@@ -2323,9 +2497,9 @@ x_flat_to_tree ()
 
     ((${#tr_params[@]})) || {
         if ((tr_array_is_assoc)) ; then
-            tr_params=("$TR_VALUE_NULL_OBJ")
+            tr_params=("$X_VALUE_NULL_OBJ")
         else
-            tr_params=("$TR_VALUE_NULL_ARR")
+            tr_params=("$X_VALUE_NULL_ARR")
         fi
     }
 
@@ -2335,10 +2509,13 @@ x_flat_to_tree ()
 #-------------------------------------------------------------------------------
 
 # Not implemented, users can define it themselves through x_walk
+#
+# 搜索（未实现，用户可通过 x_walk 自定义）。
 x_search () { : ; }
 
 #-------------------------------------------------------------------------------
 
+# 内部：把扁平数组 push/unshift 到数组节点。
 _x_flat_insert ()
 {
     # local - ; set +x
@@ -2365,9 +2542,9 @@ _x_flat_insert ()
 
     ((${#tr_array[@]})) || {
         if ((tr_is_assoc)) ; then
-            tr_params=("$TR_VALUE_NULL_OBJ")
+            tr_params=("$X_VALUE_NULL_OBJ")
         else
-            tr_params=("$TR_VALUE_NULL_ARR")
+            tr_params=("$X_VALUE_NULL_ARR")
         fi
     }
 
@@ -2376,12 +2553,22 @@ _x_flat_insert ()
 
 #-------------------------------------------------------------------------------
 
+# push/unshift 扁平结构到数组：
+# x_push_flat / x_unshift_flat
+# @in  $1=树名  $2=父路径物理全 key  $3=扁平数组名
+# @ret 0=OK
 x_push_flat () { _x_flat_insert "$1" "$2" push "$3" ; }
 x_unshift_flat () { _x_flat_insert "$1" "$2" unshift "$3" ; }
 
 #-------------------------------------------------------------------------------
 
 # This function is very slow and is only used for verification.
+#
+# 慢速 JSON 序列化（每条边 fork 一次 gobolt，仅作验证用）。
+# @in  $1=树名  $2=物理全 key（空=整棵树）
+# @out REPLY=JSON 字符串
+# @ret 0=OK  10=X_RET_ENUM_KEY_OTHER_TOOL_NOT_INSTALLED
+#      52=X_RET_ENUM_TREE_NOT_HAVE_ROOT
 x_to_json_slow ()
 {
     REPLY=
@@ -2394,15 +2581,15 @@ x_to_json_slow ()
     trap 'rm -f "$tr_temp_file"' RETURN
 
     command -v gobolt &>/dev/null || {
-        die "gobolt tool is not installed."
-        return $TR_RET_ENUM_KEY_OTHER_TOOL_NOT_INSTALLED
+        die ERR "gobolt tool is not installed."
+        return $X_RET_ENUM_KEY_OTHER_TOOL_NOT_INSTALLED
     }
 
-    [[ -z "${tr_t[$TR_ROOT_ID.children]}" ]] && {
-        case "${tr_t[$TR_ROOT_ID.type]}" in
-        $TR_TYPE_OBJ)   REPLY='{}' ; return $TR_RET_ENUM_OK ;;
-        $TR_TYPE_ARR)   REPLY='[]' ; return $TR_RET_ENUM_OK ;;
-        *)  return $TR_RET_ENUM_TREE_NOT_HAVE_ROOT  ;;
+    [[ -z "${tr_t[$X_ROOT_ID.children]}" ]] && {
+        case "${tr_t[$X_ROOT_ID.type]}" in
+        $X_TYPE_OBJ)   REPLY='{}' ; return $X_RET_ENUM_OK ;;
+        $X_TYPE_ARR)   REPLY='[]' ; return $X_RET_ENUM_OK ;;
+        *)  return $X_RET_ENUM_TREE_NOT_HAVE_ROOT  ;;
         esac
     }
 
@@ -2421,18 +2608,18 @@ x_to_json_slow ()
         local write_jstr_param='-f'
 
         case "$node_kind" in
-        $TR_NODE_KIND_LEAF)
+        $X_NODE_KIND_LEAF)
             case "$value" in
-            $TR_VALUE_TRUE) value='true'   ;;
-            $TR_VALUE_FALSE) value='false' ;;
+            $X_VALUE_TRUE) value='true'   ;;
+            $X_VALUE_FALSE) value='false' ;;
             *"$X")  value=${value%"$X"}    ;;
             *) write_jstr_param='-o'       ;;
             esac
             ;;
-        $TR_NODE_KIND_LEAF_NULL) value='null' ;;
-        $TR_NODE_KIND_ARR_EMPTY) value='[]'   ;;
-        $TR_NODE_KIND_OBJ_EMPTY) value='{}'   ;;
-        *)  return $TR_RET_ENUM_OK            ;;
+        $X_NODE_KIND_LEAF_NULL) value='null' ;;
+        $X_NODE_KIND_ARR_EMPTY) value='[]'   ;;
+        $X_NODE_KIND_OBJ_EMPTY) value='{}'   ;;
+        *)  return $X_RET_ENUM_OK            ;;
         esac
 
         for token in "${tokens[@]}" ; do
@@ -2455,7 +2642,7 @@ x_to_json_slow ()
             -P -- "${bjson_params[@]}" ) || return $?
     #@endif
 
-        return $TR_RET_ENUM_OK
+        return $X_RET_ENUM_OK
     }
 
     x_walk "$tr_name" "$tr_full_key" x_to_json_slow_cb || return $?
@@ -2464,6 +2651,11 @@ x_to_json_slow ()
 
 #-------------------------------------------------------------------------------
 
+# 快速 JSON 序列化（一次性 fork gobolt，超长参数自动降级到 slow）。
+# @in  $1=树名  $2=物理全 key（空=整棵树）
+# @out REPLY=JSON 字符串
+# @ret 0=OK  10=OTHER_TOOL_NOT_INSTALLED
+#      14=PARAMETER_LENGTH_EXCEEDS_LIMIT  52=TREE_NOT_HAVE_ROOT
 x_to_json ()
 {
     REPLY=
@@ -2474,15 +2666,15 @@ x_to_json ()
     local -a tr_gobolt_params=()
 
     command -v gobolt &>/dev/null || {
-        die "gobolt tool is not installed."
-        return $TR_RET_ENUM_KEY_OTHER_TOOL_NOT_INSTALLED
+        die ERR "gobolt tool is not installed."
+        return $X_RET_ENUM_KEY_OTHER_TOOL_NOT_INSTALLED
     }
 
-    [[ -z "${tr_t[$TR_ROOT_ID.children]}" ]] && {
-        case "${tr_t[$TR_ROOT_ID.type]}" in
-        $TR_TYPE_OBJ)   REPLY='{}' ; return $TR_RET_ENUM_OK ;;
-        $TR_TYPE_ARR)   REPLY='[]' ; return $TR_RET_ENUM_OK ;;
-        *)  return $TR_RET_ENUM_TREE_NOT_HAVE_ROOT  ;;
+    [[ -z "${tr_t[$X_ROOT_ID.children]}" ]] && {
+        case "${tr_t[$X_ROOT_ID.type]}" in
+        $X_TYPE_OBJ)   REPLY='{}' ; return $X_RET_ENUM_OK ;;
+        $X_TYPE_ARR)   REPLY='[]' ; return $X_RET_ENUM_OK ;;
+        *)  return $X_RET_ENUM_TREE_NOT_HAVE_ROOT  ;;
         esac
     }
 
@@ -2500,18 +2692,18 @@ x_to_json ()
         local token
 
         case "$node_kind" in
-        $TR_NODE_KIND_LEAF)
+        $X_NODE_KIND_LEAF)
             case "$value" in
-            $TR_VALUE_TRUE)     value='j:true'        ;;
-            $TR_VALUE_FALSE)    value='j:false'       ;;
+            $X_VALUE_TRUE)     value='j:true'        ;;
+            $X_VALUE_FALSE)    value='j:false'       ;;
             *"$X")              value=j:${value%"$X"} ;;
             *)                  value=s:${value}      ;;
             esac
             ;;
-        $TR_NODE_KIND_LEAF_NULL) value='j:null' ;;
-        $TR_NODE_KIND_ARR_EMPTY) value='j:[]'   ;;
-        $TR_NODE_KIND_OBJ_EMPTY) value='j:{}'   ;;
-        *)  return $TR_RET_ENUM_OK            ;;
+        $X_NODE_KIND_LEAF_NULL) value='j:null' ;;
+        $X_NODE_KIND_ARR_EMPTY) value='j:[]'   ;;
+        $X_NODE_KIND_OBJ_EMPTY) value='j:{}'   ;;
+        *)  return $X_RET_ENUM_OK            ;;
         esac
 
         for token in "${tokens[@]}" ; do
@@ -2537,7 +2729,7 @@ x_to_json ()
         printf -v 'tr_gobolt_params[${#tr_gobolt_params[@]}]' "%s" "${bjson_params[@]}"
         tr_gobolt_params+=("$value")
 
-        return $TR_RET_ENUM_OK
+        return $X_RET_ENUM_OK
     }
 
     x_walk "$tr_name" "$tr_full_key" x_to_json_cb || return $?
@@ -2564,8 +2756,8 @@ x_to_json ()
             #@endif
 
         ((  tr_key_len>=${tr_system_limits[MAX_ARG_STRLEN]} )) && {
-            die "Command line parameters exceed limit"
-            return $TR_RET_ENUM_KEY_PARAMETER_LENGTH_EXCEEDS_LIMIT
+            die ERR "Command line parameters exceed limit"
+            return $X_RET_ENUM_KEY_PARAMETER_LENGTH_EXCEEDS_LIMIT
         }
     done
 
@@ -2590,6 +2782,10 @@ x_to_json ()
 
 #-------------------------------------------------------------------------------
 
+# JSON 反序列化为树。
+# @in  $1=JSON 字符串  $2..=go 侧需要的 bjson 路径（可选）
+# @out REPLY=新树（关联数组 KV 格式）
+# @ret 0=OK  10=OTHER_TOOL_NOT_INSTALLED  11=BJSON_TYPE_INVALID
 x_from_json ()
 {
     REPLY=
@@ -2598,8 +2794,8 @@ x_from_json ()
     local tr_bjson_keys="${@:2}"
 
     command -v gobolt &>/dev/null || {
-        die "gobolt tool is not installed."
-        return $TR_RET_ENUM_KEY_OTHER_TOOL_NOT_INSTALLED
+        die ERR "gobolt tool is not installed."
+        return $X_RET_ENUM_KEY_OTHER_TOOL_NOT_INSTALLED
     }
 
     local tr_assoc
@@ -2612,25 +2808,25 @@ x_from_json ()
         gobolt json -m r -t txt -k stdin -F trie -x "$X" -P -- "${tr_bjson_keys[@]}" )
 #@endif
     case "$?" in
-    $TR_GOBOLT_JSONTYPEARRAY|$TR_GOBOLT_JSONTYPEOBJECT)
+    $X_GOBOLT_JSONTYPEARRAY|$X_GOBOLT_JSONTYPEOBJECT)
         local -A "tr_assoc=($tr_assoc)" ;;&
-    $TR_GOBOLT_JSONTYPEARRAY)
+    $X_GOBOLT_JSONTYPEARRAY)
             #@if current_shell_process_replace==1
-        local -A "tr_init_tree=(${|x_init "$TR_TYPE_ARR";})" ;;
+        local -A "tr_init_tree=(${|x_init "$X_TYPE_ARR";})" ;;
             #@endif
             #@if current_shell_process_replace==0
-        x_init "$TR_TYPE_ARR" ; eval "${_ret_A/o/tr_init_tree}" ;;
+        x_init "$X_TYPE_ARR" ; eval "${_ret_A/o/tr_init_tree}" ;;
             #@endif
-    $TR_GOBOLT_JSONTYPEOBJECT)
+    $X_GOBOLT_JSONTYPEOBJECT)
             #@if current_shell_process_replace==1
-        local -A "tr_init_tree=(${|x_init "$TR_TYPE_OBJ";})" ;;
+        local -A "tr_init_tree=(${|x_init "$X_TYPE_OBJ";})" ;;
             #@endif
             #@if current_shell_process_replace==0
-        x_init "$TR_TYPE_OBJ" ; eval "${_ret_A/o/tr_init_tree}" ;;
+        x_init "$X_TYPE_OBJ" ; eval "${_ret_A/o/tr_init_tree}" ;;
             #@endif
     *)
-        die "bjson key:${tr_bjson_keys[*]} type is known."
-        return $TR_RET_ENUM_KEY_BJSON_TYPE_INVALID
+        die ERR "bjson key:${tr_bjson_keys[*]} type is known."
+        return $X_RET_ENUM_KEY_BJSON_TYPE_INVALID
         ;;
     esac
 
@@ -2651,6 +2847,10 @@ x_from_json ()
 
 #-------------------------------------------------------------------------------
 
+# 探测系统命令行参数限制，用于 x_to_json 决定是否降级。
+# @in  $1=参数数量（默认 0）
+# @out REPLY=关联数组 KV：MAX_ARG_STRLEN AVAILABLE
+# @ret 0
 x_get_arg_limits ()
 {
     REPLY=
@@ -2667,7 +2867,7 @@ x_get_arg_limits ()
         local -i safety=1024
         # 32KB
         args[MAX_ARG_STRLEN]=$((32768-safety))
-        local -i msys_overhead=$(( current_param_count * 2 ))
+        local -i msys_overhead=$(( argc_cnt * 2 ))
         # 预扣空格和引号的开销（每个参数至少 1~2 个字符）
         args[AVAILABLE]=$((32768-safety-msys_overhead))
     else
@@ -2697,4 +2897,3 @@ x_get_arg_limits ()
 #-------------------------------------------------------------------------------
 
 return 0
-

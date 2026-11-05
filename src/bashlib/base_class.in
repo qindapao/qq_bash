@@ -19,7 +19,7 @@ setup_base_class ()
                             "{P1}" "$tr_value1" \
                             "{P2}" "$tr_value2" \
                             "{CNT}" "$tr_cnt_demo" \
-                            "{ELEMENTS}" "$TR_VALUE_NULL_ARR"
+                            "{ELEMENTS}" "$X_VALUE_NULL_ARR"
 }
 
 #-------------------------------------------------------------------------------
