@@ -2546,10 +2546,10 @@ x_to_json ()
 
     local tr_i
         #@if current_shell_process_replace==1
-    local -A "tr_system_limits=(${|x_get_arg_limits;})"
+    local -A "tr_system_limits=(${|x_get_arg_limits "${#tr_gobolt_params[@]}";})"
         #@endif
         #@if current_shell_process_replace==0
-    x_get_arg_limits ; eval "${_ret_A/o/tr_system_limits}"
+    x_get_arg_limits "${#tr_gobolt_params[@]}" ; eval "${_ret_A/o/tr_system_limits}"
         #@endif
 
     # Check if each parameter exceeds
@@ -2656,6 +2656,7 @@ x_get_arg_limits ()
     REPLY=
     # Linux: getconf ARG_MAX
     # Windows/MSYS2: fallback to 8191
+    local -i argc_cnt=${1:-0}
     local -A args=()
     local argmax=$( getconf ARG_MAX 2>/dev/null )
 
@@ -2665,8 +2666,10 @@ x_get_arg_limits ()
         # printf '' | gobolt json -m w -k stdin -s "$x" -P -- :key1
         local -i safety=1024
         # 32KB
-        args[AVAILABLE]=$((32768-safety))
         args[MAX_ARG_STRLEN]=$((32768-safety))
+        local -i msys_overhead=$(( current_param_count * 2 ))
+        # 预扣空格和引号的开销（每个参数至少 1~2 个字符）
+        args[AVAILABLE]=$((32768-safety-msys_overhead))
     else
         # Linux Kernel constants MAX_ARG_STRLEN = 131072(128KB)
         local -i safety=4096
@@ -2676,8 +2679,11 @@ x_get_arg_limits ()
             #@if current_shell_process_replace==0
         str_bytes "$( export -p )" ; eval "${_ret_i/o/env_bytes}"
             #@endif
+        # 扣除指针数组开销, 64位系统每个指针 8 字节
+        local -i ptr_overhead=$((argc_cnt * 8))
+        # 128k MAX_ARG_STRLEN 内核头文件中
         args[MAX_ARG_STRLEN]=$((131072-safety))
-        args[AVAILABLE]=$((argmax-env_bytes-safety))
+        args[AVAILABLE]=$((argmax-env_bytes-safety-ptr_overhead))
     fi
 
 #@if at_k_var_substitution==1
