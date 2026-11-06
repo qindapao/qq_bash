@@ -182,6 +182,10 @@ _ret_a='declare -a "o=($REPLY)" ; REPLY='
 _ret_A='declare -A "o=($REPLY)" ; REPLY='
 _ret_e='set -- "$?" ; REPLY= ; return $1'
 
+_ret_g_s='declare -g o=$REPLY ; REPLY='
+_ret_g_i='declare -gi o=$REPLY ; REPLY='
+_ret_g_a='declare -ga "o=($REPLY)" ; REPLY='
+_ret_g_A='declare -gA "o=($REPLY)" ; REPLY='
 #-------------------------------------------------------------------------------
 
 return 0

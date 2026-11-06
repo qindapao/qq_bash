@@ -154,22 +154,22 @@ _split_tokens ()
         '()')
             # Must have insertion semantics and must be a positive integer
             ((is_insertion_semantics)) || {
-                die ERR "now are not in insertion semantics. key:$1 is invalid!"
+                die ERR "now are not in insertion semantics. key:${1@Q} is invalid!"
                 return $X_RET_ENUM_KEY_IS_INVALID
             }
             str_is_decimal_positive_int "${token:1:-1}" || {
-                die ERR "key:$1 is invalid!"
+                die ERR "key:${1@Q} is invalid!"
                 return $X_RET_ENUM_KEY_IS_INVALID
             }
             ;;
         '[]')
             str_is_decimal_int "${token:1:-1}" || {
-                die ERR "key:$1 is invalid!"
+                die ERR "key:${1@Q} is invalid!"
                 return $X_RET_ENUM_KEY_IS_INVALID
             }
             ;;
         '{}'|'<>')  : ;;
-        *)  die ERR "key:$1 is invalid!"
+        *)  die ERR "key:${1@Q} is invalid!"
             return $X_RET_ENUM_KEY_IS_INVALID
             ;;
         esac
@@ -196,7 +196,7 @@ tr_resolve_index_token ()
     local -n tr_t=$1
     local tr_token=$2 tr_node=$3
     if [[ "${tr_token:0:1}${tr_token: -1}" == '[]' ]] ; then
-        local -a "tr_child_ids=(${tr_t[$tr_node.children]})"
+        local -a "tr_child_ids=(${tr_t[$tr_node.s]})"
             #@if current_shell_process_replace==1
         tr_token=${|_negative_token_to_positive "$tr_token" "${#tr_child_ids[@]}" "$tr_node";} || return $?
             #@endif
@@ -224,7 +224,7 @@ tr_resolve_physical_token ()
     local tr_token=$2 tr_node=$3
 
     if [[ "${tr_token:0:1}${tr_token: -1}" == '<>' ]] ; then
-        local -a "tr_child_ids=(${tr_t[$tr_node.children]})"
+        local -a "tr_child_ids=(${tr_t[$tr_node.s]})"
         #@if current_shell_process_replace==1
         local -i tr_index=${|array_index "${tr_token}" ${tr_child_ids[@]};}
         #@endif
@@ -232,7 +232,7 @@ tr_resolve_physical_token ()
         array_index "${tr_token}" ${tr_child_ids[@]} ; local -i tr_index=$REPLY
         #@endif
         ((tr_index==-1)) && {
-            die ERR "node:${tr_node}(token:${tr_token}) can not find index."
+            die ERR "node:${tr_node}(token:${tr_token@Q}) can not find index."
             return $X_RET_ENUM_KEY_IS_INVALID
         }
         tr_token="[$tr_index]"
@@ -257,7 +257,7 @@ _negative_token_to_positive ()
         local -i tr_token_abs=${tr_token:1:-1}
         ((tr_token_abs=-tr_token_abs))
         ((tr_token_abs>tr_array_len)) && {
-            die ERR "node:${tr_node}(token:${tr_token}) index:${tr_token:1:-1} is out of index."
+            die ERR "node:${tr_node}(token:${tr_token@Q}) index:${tr_token:1:-1} is out of index."
             return $X_RET_ENUM_KEY_OUT_OF_INDEX
         }
         ((tr_token_abs=tr_array_len-tr_token_abs))
@@ -270,6 +270,10 @@ _negative_token_to_positive ()
 
 #-------------------------------------------------------------------------------
 
+# children -> s
+# child    -> c
+# key      -> k
+# type     -> t
 # 初始化一棵空树。
 # @in  $1=根类型（X_TYPE_OBJ=1 或 X_TYPE_ARR=2，默认 OBJ）
 # @out REPLY=新树（关联数组 KV 格式，含根节点和 max_index=2）
@@ -279,9 +283,9 @@ x_init ()
     REPLY=
     local -A t=()
     # t[$X_ROOT_ID]=1
-    t[$X_ROOT_ID.type]=${1:-"$X_TYPE_OBJ"}
-    # t[$X_ROOT_ID.children]=''
-    # t[$X_ROOT_ID.key]=''
+    t[$X_ROOT_ID.t]=${1:-"$X_TYPE_OBJ"}
+    # t[$X_ROOT_ID.s]=''
+    # t[$X_ROOT_ID.k]=''
 
     # Next available node ID
     t[max_index]=2
@@ -314,7 +318,7 @@ _x_tree_is_valid ()
         return ${X_RET_ENUM_TREE_IS_EMPTY}
     }
 
-    [[ ${tr_tree[$X_ROOT_ID.type]+_} ]] || {
+    [[ ${tr_tree[$X_ROOT_ID.t]+_} ]] || {
         die ERR "invalid tree: $1 not have root node!"
         return ${X_RET_ENUM_TREE_NOT_HAVE_ROOT}
     }
@@ -425,7 +429,7 @@ x_key_is_invalid ()
         [[ "$1" == *"$X$X"* ]] ||
         [[ "$1" == "$X" ]] ||
         [[ "$1" != *"$X" ]] ; then
-        die ERR "key is null or invalid!"
+        die ERR "key:${1@Q} is null or invalid!"
         return $X_RET_ENUM_KEY_IS_NULL
     else
         return $X_RET_ENUM_OK
@@ -588,7 +592,7 @@ x_push_leaf_fast ()
         tr_node=${tr_node_info[node_id]}
     }
 
-    local -a "tr_children=(${tr_t[$tr_node.children]})"
+    local -a "tr_children=(${tr_t[$tr_node.s]})"
 
     # Traverse the list of leaves that need to be pushed
     for tr_leaf in "${@:4}" ; do
@@ -597,19 +601,19 @@ x_push_leaf_fast ()
         tr_children+=("$tr_token")
         ((tr_t[max_index]++))
         case "$tr_leaf" in
-        $X_VALUE_NULL_OBJ) tr_t[$tr_child_id.type]=$X_TYPE_OBJ ;;
-        $X_VALUE_NULL_ARR) tr_t[$tr_child_id.type]=$X_TYPE_ARR ;;
+        $X_VALUE_NULL_OBJ) tr_t[$tr_child_id.t]=$X_TYPE_OBJ ;;
+        $X_VALUE_NULL_ARR) tr_t[$tr_child_id.t]=$X_TYPE_ARR ;;
         *)
-            tr_t[$tr_child_id.key]=$tr_prefix$tr_token$X
+            tr_t[$tr_child_id.k]=$tr_prefix$tr_token$X
             tr_t[$tr_prefix$tr_token$X]=$tr_leaf
             ;;
         esac
-        tr_t[$tr_node.child.$tr_token]=$tr_child_id
+        tr_t[$tr_node.c.$tr_token]=$tr_child_id
         tr_ret+=("$tr_child_id" "$tr_prefix$tr_token$X")
     done
     
     # Update the parent node's children list
-    tr_t[$tr_node.children]=${tr_children[*]@Q}
+    tr_t[$tr_node.s]=${tr_children[*]@Q}
     REPLY=${tr_ret[*]@Q}
 }
 
@@ -646,24 +650,24 @@ x_insert_token_dict ()
         }
 
         tr_child_id="${tr_t[max_index]}" ; ((tr_t[max_index]++))
-        tr_t["$tr_node.child.$tr_token"]=$tr_child_id
+        tr_t["$tr_node.c.$tr_token"]=$tr_child_id
         tr_tokens+=("$tr_token")
 
         case "$tr_value" in
         "$X_VALUE_NULL_ARR")
-            tr_t[$tr_child_id.type]="$X_TYPE_ARR"
+            tr_t[$tr_child_id.t]="$X_TYPE_ARR"
             ;;
         "$X_VALUE_NULL_OBJ")
-            tr_t[$tr_child_id.type]="$X_TYPE_OBJ"
+            tr_t[$tr_child_id.t]="$X_TYPE_OBJ"
             ;;
         *)
-            tr_t[$tr_child_id.key]=$tr_path_key
+            tr_t[$tr_child_id.k]=$tr_path_key
             tr_t["$tr_path_key"]=$tr_value
             ;;
         esac
     done
     
-    ((${#tr_tokens[@]})) && tr_t[$tr_node.children]+=" ${tr_tokens[*]@Q}"
+    ((${#tr_tokens[@]})) && tr_t[$tr_node.s]+=" ${tr_tokens[*]@Q}"
     return $X_RET_ENUM_OK
 }
 
@@ -704,13 +708,13 @@ x_insert_dict ()
     local tr_node=${tr_start_node_id}
 
     for tr_token in "${tr_tokens[@]}" ; do
-        tr_child_key="$tr_node.child.$tr_token"
+        tr_child_key="$tr_node.c.$tr_token"
         tr_child_id="${tr_t[$tr_child_key]}"
 
         # Child node does not exist -> create
         [[ -z "$tr_child_id" ]] && {
             tr_child_id="${tr_t[max_index]}" ; ((tr_t[max_index]++))
-            tr_t[$tr_node.children]+=" ${tr_token@Q}"
+            tr_t[$tr_node.s]+=" ${tr_token@Q}"
             tr_t["$tr_child_key"]=$tr_child_id
         }
 
@@ -720,15 +724,15 @@ x_insert_dict ()
 
     case "$tr_value" in
     "$X_VALUE_NULL_ARR")
-        tr_t[$tr_node.type]="$X_TYPE_ARR"
+        tr_t[$tr_node.t]="$X_TYPE_ARR"
         return $X_RET_ENUM_OK
         ;;
     "$X_VALUE_NULL_OBJ")
-        tr_t[$tr_node.type]="$X_TYPE_OBJ"
+        tr_t[$tr_node.t]="$X_TYPE_OBJ"
         return $X_RET_ENUM_OK
         ;;
     *)
-        tr_t[$tr_node.key]=$tr_path_key
+        tr_t[$tr_node.k]=$tr_path_key
         tr_t["$tr_path_key"]=$tr_value
         return $X_RET_ENUM_OK
     esac
@@ -762,7 +766,7 @@ x_insert ()
         x_key_is_invalid "$tr_path_key" || return $?
 
         [[ "$tr_path_key" == *"]$X"* || "$tr_path_key" == *")$X"* ]] && {
-            die ERR "path key:${tr_path_key} is not physical key."
+            die ERR "path key:${tr_path_key@Q} is not physical key."
             return $X_RET_ENUM_KEY_IS_INVALID
         }
     fi
@@ -788,7 +792,7 @@ x_insert ()
     # Here tr_full_key needs to remove the tr_path_key prefix and start traversing
     tr_tokens_str=${tr_full_key#"$tr_path_key"}
     [[ -n "$tr_path_key" && "$tr_tokens_str" == "$tr_full_key" ]] && {
-        die ERR "path_key:${tr_path_key} is not part of full key:${tr_full_key}."
+        die ERR "path_key:${tr_path_key@Q} is not part of full key:${tr_full_key@Q}."
         return $X_RET_ENUM_KEY_IS_INVALID
     }
         #@if current_shell_process_replace==1
@@ -815,27 +819,27 @@ x_insert ()
     }
 
     for tr_token in "${tr_tokens[@]}" ; do
-        local tr_key="${tr_t[$tr_node.key]}"
+        local tr_key="${tr_t[$tr_node.k]}"
         local -i tr_array_index=-1
         local tr_token_pack="${tr_token:0:1}${tr_token: -1}"
         case "$tr_token_pack" in
         '{}') 
             # The previous level must be null or obj or nothing (only nodes have tags)
-            if [[ "${tr_t[$tr_node.type]}" == "$X_TYPE_OBJ" ]] ; then
+            if [[ "${tr_t[$tr_node.t]}" == "$X_TYPE_OBJ" ]] ; then
                 :
             elif [[ -n "$tr_key" ]] && [[ "${tr_t[$tr_key]}" == "$X_VALUE_NULL" ]] ; then
                 # Become path empty obj
-                unset -v 'tr_t[$tr_node.key]'
+                unset -v 'tr_t[$tr_node.k]'
                 unset -v 'tr_t[$tr_key]'
-                tr_t[$tr_node.type]=$X_TYPE_OBJ
+                tr_t[$tr_node.t]=$X_TYPE_OBJ
             # If tr_node has only node tags, then turn it into empty obj
             elif [[ ${tr_t[$tr_node]+_} ]] &&
-                [[ -z ${tr_t[$tr_node.key]+_} ]] &&
-                [[ -z ${tr_t[$tr_node.children]+_} ]] &&
-                [[ "${tr_t[$tr_node.type]}" != "$X_TYPE_ARR" ]] ; then
-                tr_t[$tr_node.type]=$X_TYPE_OBJ
+                [[ -z ${tr_t[$tr_node.k]+_} ]] &&
+                [[ -z ${tr_t[$tr_node.s]+_} ]] &&
+                [[ "${tr_t[$tr_node.t]}" != "$X_TYPE_ARR" ]] ; then
+                tr_t[$tr_node.t]=$X_TYPE_OBJ
             else
-                die ERR "node:${tr_node}(token:${tr_token}) is not obj or null."
+                die ERR "node:${tr_node}(token:${tr_token@Q}) is not obj or null."
                 _x_insert_delete_tmp_node_ids
                 return $X_RET_ENUM_KEY_UP_LEV_TYPE_MISMATCH
             fi
@@ -843,25 +847,25 @@ x_insert ()
         '[]'|'()')
             # If the previous layer is null, create an empty array path node.
             if [[ -n "$tr_key" ]] && [[ "${tr_t[$tr_key]}" == "$X_VALUE_NULL" ]] ; then
-                unset -v 'tr_t[$tr_node.key]'
+                unset -v 'tr_t[$tr_node.k]'
                 unset -v 'tr_t[$tr_key]'
-                tr_t[$tr_node.type]=$X_TYPE_ARR
+                tr_t[$tr_node.t]=$X_TYPE_ARR
             # Contains only node existence flags
             elif [[ ${tr_t[$tr_node]+_} ]] &&
-                [[ -z ${tr_t[$tr_node.key]+_} ]] &&
-                [[ -z ${tr_t[$tr_node.children]+_} ]] &&
-                [[ "${tr_t[$tr_node.type]}" != "$X_TYPE_OBJ" ]] ; then
-                tr_t[$tr_node.type]=$X_TYPE_ARR
+                [[ -z ${tr_t[$tr_node.k]+_} ]] &&
+                [[ -z ${tr_t[$tr_node.s]+_} ]] &&
+                [[ "${tr_t[$tr_node.t]}" != "$X_TYPE_OBJ" ]] ; then
+                tr_t[$tr_node.t]=$X_TYPE_ARR
             fi
 
-            [[ "${tr_t[$tr_node.type]}" != "$X_TYPE_ARR" ]] && {
-                die ERR "node:${tr_node}(token:${tr_token}) up layer is not array or null."
+            [[ "${tr_t[$tr_node.t]}" != "$X_TYPE_ARR" ]] && {
+                die ERR "node:${tr_node}(token:${tr_token@Q}) up layer is not array or null."
                 _x_insert_delete_tmp_node_ids
                 return $X_RET_ENUM_KEY_UP_LEV_TYPE_MISMATCH
             }
 
             # Fill incomplete null nodes and update tr_token
-            local -a "tr_array=(${tr_t[$tr_node.children]})"
+            local -a "tr_array=(${tr_t[$tr_node.s]})"
             local -i tr_i tr_array_len=${#tr_array[@]}
             local -a tr_add_token=()
             
@@ -881,10 +885,10 @@ x_insert ()
             for((tr_i=tr_array_len;tr_i<${tr_token:1:-1};tr_i++)) ; do
                 local tr_new_id=${tr_t[max_index]} ; ((tr_t[max_index]++))
                 # tr_t[$tr_new_id]=1
-                tr_t[$tr_new_id.key]="$tr_path_key<$tr_new_id>$X"
+                tr_t[$tr_new_id.k]="$tr_path_key<$tr_new_id>$X"
                 tr_t["$tr_path_key<$tr_new_id>$X"]="$X_VALUE_NULL"
                 # Attach parent node children
-                tr_t["$tr_node.child.<$tr_new_id>"]=$tr_new_id
+                tr_t["$tr_node.c.<$tr_new_id>"]=$tr_new_id
                 tr_add_token+=("<$tr_new_id>")
             done
 
@@ -893,7 +897,7 @@ x_insert ()
             if ((${#tr_add_token[@]})) ; then
                 # Populate the parent node's children list
                 tr_array=("${tr_array[@]:0:tr_array_len}" "${tr_add_token[@]}" "${tr_array[@]:tr_array_len}")
-                tr_t[$tr_node.children]=${tr_array[*]@Q}
+                tr_t[$tr_node.s]=${tr_array[*]@Q}
                 tr_token="<${tr_t[max_index]}>"
             else
                 tr_token="${tr_array[tr_array_index]}"
@@ -906,21 +910,21 @@ x_insert ()
             ;;
         '<>')
             # The previous level must be an array and elements must exist
-            if [[ "${tr_t[$tr_node.type]}" != "$X_TYPE_ARR" ]] ; then
-                die ERR "node:${tr_node}(token:${tr_token}) up layer is not array."
+            if [[ "${tr_t[$tr_node.t]}" != "$X_TYPE_ARR" ]] ; then
+                die ERR "node:${tr_node}(token:${tr_token@Q}) up layer is not array."
                 _x_insert_delete_tmp_node_ids
                 return $X_RET_ENUM_KEY_UP_LEV_TYPE_MISMATCH
             fi
 
-            if [[ -z "${tr_t[$tr_node.child.$tr_token]}" ]] ; then
-                die ERR "node:${tr_node}(token:${tr_token}) is not exist."
+            if [[ -z "${tr_t[$tr_node.c.$tr_token]}" ]] ; then
+                die ERR "node:${tr_node}(token:${tr_token@Q}) is not exist."
                 _x_insert_delete_tmp_node_ids
                 return $X_RET_ENUM_KEY_UP_LEV_TYPE_MISMATCH
             fi
             ;;
         esac
             
-        tr_child_key="$tr_node.child.$tr_token"
+        tr_child_key="$tr_node.c.$tr_token"
         tr_child_id="${tr_t[$tr_child_key]}"
 
         # Child node does not exist -> create
@@ -928,10 +932,10 @@ x_insert ()
             tr_child_id="${tr_t[max_index]}" ; ((tr_t[max_index]++))
             tr_t[$tr_child_id]=1
             tr_tmp_node_ids+=("$tr_child_id")
-            # tr_t[$tr_child_id.children]=''
-            # tr_t[$tr_child_id.key]=''
+            # tr_t[$tr_child_id.s]=''
+            # tr_t[$tr_child_id.k]=''
 
-            local -a "tr_children=(${tr_t[$tr_node.children]})"
+            local -a "tr_children=(${tr_t[$tr_node.s]})"
             
             if ((tr_array_index!=-1)) ; then
                 if [[ "$tr_token_pack" == '()' ]] ; then
@@ -945,7 +949,7 @@ x_insert ()
                 tr_children+=("$tr_token")
             fi
 
-            tr_t[$tr_node.children]=${tr_children[*]@Q}
+            tr_t[$tr_node.s]=${tr_children[*]@Q}
             tr_t["$tr_child_key"]=$tr_child_id
         fi
 
@@ -960,8 +964,8 @@ x_insert ()
     # If it is found at the end that there are children at the inserted place,
     # it proves to be an existing structure node,
     # and the leaf is not allowed to be inserted.
-    [[ -n "${tr_t[$tr_node.children]}" ]] && {
-        die ERR "node:${tr_node}(token:${tr_token}) have children."
+    [[ -n "${tr_t[$tr_node.s]}" ]] && {
+        die ERR "node:${tr_node}(token:${tr_token@Q}) have children."
         _x_insert_delete_tmp_node_ids
         return $X_RET_ENUM_KEY_UP_LEV_TYPE_MISMATCH
     }
@@ -969,16 +973,16 @@ x_insert ()
     # If it is found at the end that the inserted place is an empty obj or an
     # empty array, but the content to be inserted does not match,
     # an error will be reported.
-    if  [[ "${tr_t[$tr_node.type]}" == "$X_TYPE_OBJ" ]] &&
+    if  [[ "${tr_t[$tr_node.t]}" == "$X_TYPE_OBJ" ]] &&
         [[ "$tr_value" != "$X_VALUE_NULL_OBJ" ]] ; then
-        die ERR "node:${tr_node}(token:${tr_token}) is null obj,but insert is not."
+        die ERR "node:${tr_node}(token:${tr_token@Q}) is null obj,but insert is not."
         _x_insert_delete_tmp_node_ids
         return $X_RET_ENUM_KEY_UP_LEV_TYPE_MISMATCH
     fi
 
-    if  [[ "${tr_t[$tr_node.type]}" == "$X_TYPE_ARR" ]] &&
+    if  [[ "${tr_t[$tr_node.t]}" == "$X_TYPE_ARR" ]] &&
         [[ "$tr_value" != "$X_VALUE_NULL_ARR" ]] ; then
-        die ERR "node:${tr_node}(token:${tr_token}) is null array,but insert is not."
+        die ERR "node:${tr_node}(token:${tr_token@Q}) is null array,but insert is not."
         _x_insert_delete_tmp_node_ids
         return $X_RET_ENUM_KEY_UP_LEV_TYPE_MISMATCH
     fi
@@ -988,7 +992,7 @@ x_insert ()
         "$X_VALUE_NULL_ARR")   tr_new_type="$X_TYPE_ARR" ;;
         "$X_VALUE_NULL_OBJ")   tr_new_type="$X_TYPE_OBJ" ;;
         *)
-            tr_t[$tr_node.key]=$tr_path_key
+            tr_t[$tr_node.k]=$tr_path_key
             tr_t["$tr_path_key"]=$tr_value
             # 返回节点 ID
             tr_insert_reply=("$tr_node" "$tr_path_key")
@@ -1000,10 +1004,10 @@ x_insert ()
     # The current leaf strings, values and bool can be overwritten into
     # empty objects and empty arrays.
     # Leaves null are naturally OK
-    local tr_key="${tr_t[$tr_node.key]}"
-    unset -v 'tr_t[$tr_node.key]'
+    local tr_key="${tr_t[$tr_node.k]}"
+    unset -v 'tr_t[$tr_node.k]'
     [[ -n "$tr_key" ]] && unset -v 'tr_t[$tr_key]'
-    tr_t[$tr_node.type]="$tr_new_type"
+    tr_t[$tr_node.t]="$tr_new_type"
     tr_insert_reply=("$tr_node" "$tr_path_key")
     REPLY=${tr_insert_reply[*]@Q}
     _x_insert_delete_tmp_node_ids
@@ -1054,14 +1058,14 @@ x_dump ()
 
     printf '%s(%s) -> %s\n' "$tr_t_name" "$tr_node" "${tr_node_info[physical_full_key]}"
 
-    [[ "${tr_t[$tr_node.type]}" == "$X_TYPE_OBJ" ]] &&
-    [[ -z "${tr_t[$tr_node.children]}" ]] && {
+    [[ "${tr_t[$tr_node.t]}" == "$X_TYPE_OBJ" ]] &&
+    [[ -z "${tr_t[$tr_node.s]}" ]] && {
         printf '%s%s\n' "$tr_indent" "$X_VALUE_NULL_OBJ"
         return
     }
 
-    [[ "${tr_t[$tr_node.type]}" == "$X_TYPE_ARR" ]] &&
-    [[ -z "${tr_t[$tr_node.children]}" ]] && {
+    [[ "${tr_t[$tr_node.t]}" == "$X_TYPE_ARR" ]] &&
+    [[ -z "${tr_t[$tr_node.s]}" ]] && {
         printf '%s%s\n' "$tr_indent" "$X_VALUE_NULL_ARR"
         return
     }
@@ -1093,7 +1097,7 @@ _x_dump ()
     tr_indent_new+="$tr_indent"
 
     # Traverse children
-    local -a "tr_children=(${tr_t[$tr_node.children]})"
+    local -a "tr_children=(${tr_t[$tr_node.s]})"
     local -i tr_index=0
 
     # There cannot be duplicate elements in the array
@@ -1114,12 +1118,12 @@ _x_dump ()
 
     local tr_token tr_mark='=>'
     for tr_token in "${tr_children[@]}"; do
-        local tr_child_id="${tr_t[$tr_node.child.$tr_token]}"
+        local tr_child_id="${tr_t[$tr_node.c.$tr_token]}"
         local tr_child_id_p='' tr_value_p=''
         local tr_token_safe tr_token_disp
 
         tr_mark='=>'
-        if [[ "${tr_t[$tr_node.type]}" == "${X_TYPE_ARR}" ]]; then
+        if [[ "${tr_t[$tr_node.t]}" == "${X_TYPE_ARR}" ]]; then
             tr_mark='='
             ((tr_print_array_index)) && tr_token=$tr_index || tr_token='o'
             # 数组 token 是索引或 'o'，无危险字符，直接透传
@@ -1137,8 +1141,8 @@ _x_dump ()
 
         ((tr_id_need_print)) && tr_child_id_p="($tr_child_id)"
 
-        if [[ -n "${tr_t[$tr_child_id.key]}" ]]; then
-            local tr_key=${tr_t[$tr_child_id.key]}
+        if [[ -n "${tr_t[$tr_child_id.k]}" ]]; then
+            local tr_key=${tr_t[$tr_child_id.k]}
             local tr_value=${tr_t["$tr_key"]}
             ((tr_value_need_print)) && {
                 local tr_value_indent="${tr_token_safe}"
@@ -1167,7 +1171,7 @@ _x_dump ()
                 "$tr_child_id_p" \
                 "$tr_mark" \
                 "$tr_value_p"
-        elif [[ "${tr_t[$tr_child_id.type]}" == "$X_TYPE_ARR" ]] && [[ -z "${tr_t[$tr_child_id.children]}" ]] ; then
+        elif [[ "${tr_t[$tr_child_id.t]}" == "$X_TYPE_ARR" ]] && [[ -z "${tr_t[$tr_child_id.s]}" ]] ; then
             ((tr_value_need_print)) && tr_value_p="$X_VALUE_NULL_ARR"
             printf '%s%s%s %s %s\n' \
                 "$tr_indent" \
@@ -1175,7 +1179,7 @@ _x_dump ()
                 "$tr_child_id_p" \
                 "$tr_mark" \
                 "$tr_value_p"
-        elif [[ "${tr_t[$tr_child_id.type]}" == "$X_TYPE_OBJ" ]] && [[ -z "${tr_t[$tr_child_id.children]}" ]] ; then
+        elif [[ "${tr_t[$tr_child_id.t]}" == "$X_TYPE_OBJ" ]] && [[ -z "${tr_t[$tr_child_id.s]}" ]] ; then
             ((tr_value_need_print)) && tr_value_p="$X_VALUE_NULL_OBJ"
             printf '%s%s%s %s %s\n' \
                 "$tr_indent" \
@@ -1222,8 +1226,8 @@ _x_token_to_node_id ()
     [[ -z "$tr_full_key" ]] && {
         # ROOT
         if ((tr_need_child_cnt)) ; then
-            if [[ -n "${tr_t[$X_ROOT_ID.children]}" ]] ; then
-                local -a "tr_children_tmp=(${tr_t[$X_ROOT_ID.children]})"
+            if [[ -n "${tr_t[$X_ROOT_ID.s]}" ]] ; then
+                local -a "tr_children_tmp=(${tr_t[$X_ROOT_ID.s]})"
                 tr_node_info[child_cnt]=${#tr_children_tmp[@]}
             else
                 tr_node_info[child_cnt]=0
@@ -1234,7 +1238,7 @@ _x_token_to_node_id ()
             [node_id]="$X_ROOT_ID"
             [physical_full_key]=""
             [index_full_key]=""
-            [type]=${tr_t[$X_ROOT_ID.type]}
+            [type]=${tr_t[$X_ROOT_ID.t]}
             [value]=""
             )
             #@if at_k_var_substitution==1
@@ -1268,7 +1272,7 @@ _x_token_to_node_id ()
         tr_resolve_index_token "$1" "$tr_token" "$tr_node" ; eval "${_ret_s_/o/tr_token}"
             #@endif
         [[ -z "$tr_token" ]] && {
-            die ERR "node:${tr_node}(token:${tr_token_raw}) is not found physical token!"
+            die ERR "node:${tr_node}(token:${tr_token_raw@Q}) is not found physical token!"
             return $X_RET_ENUM_KEY_IS_NOTFOUND
         }
         tr_real_full_key+="$tr_token$X"
@@ -1281,15 +1285,15 @@ _x_token_to_node_id ()
             tr_resolve_physical_token "$1" "$tr_token" "$tr_node" ; evel "${_ret_s_/o/tr_token_index}"
                 #@endif
             [[ -z "$tr_token_index" ]] && {
-                die ERR "node:${tr_node}(token:${tr_token_raw}) is not found index token!"
+                die ERR "node:${tr_node}(token:${tr_token_raw@Q}) is not found index token!"
                 return $X_RET_ENUM_KEY_IS_NOTFOUND
             }
             tr_index_full_key+="$tr_token_index$X"
         }
 
-        tr_child_id="${tr_t[$tr_node.child.$tr_token]}"
+        tr_child_id="${tr_t[$tr_node.c.$tr_token]}"
         [[ -z "$tr_child_id" ]] && {
-            die ERR "node:${tr_node}(token:${tr_token}) key is not found!"
+            die ERR "node:${tr_node}(token:${tr_token@Q}) key is not found!"
             return "$X_RET_ENUM_KEY_IS_NOTFOUND"
         }
         tr_node=$tr_child_id
@@ -1298,8 +1302,8 @@ _x_token_to_node_id ()
     ((tr_need_index_full_key)) && tr_node_info[index_full_key]=$tr_index_full_key
 
     if ((tr_need_child_cnt)) ; then
-        if [[ -n "${tr_t[$tr_node.children]}" ]] ; then
-            local -a "tr_children_tmp=(${tr_t[$tr_node.children]})"
+        if [[ -n "${tr_t[$tr_node.s]}" ]] ; then
+            local -a "tr_children_tmp=(${tr_t[$tr_node.s]})"
             tr_node_info[child_cnt]=${#tr_children_tmp[@]}
         else
             tr_node_info[child_cnt]=0
@@ -1307,7 +1311,7 @@ _x_token_to_node_id ()
     fi
 
     ((tr_need_value)) && {
-        local tr_key=${tr_t[$tr_node.key]} tr_value=
+        local tr_key=${tr_t[$tr_node.k]} tr_value=
         [[ -n "$tr_key" ]] && tr_value=${tr_t["$tr_key"]}
         tr_node_info[value]=$tr_value
     }
@@ -1315,7 +1319,7 @@ _x_token_to_node_id ()
     tr_node_info+=(
         [node_id]="$tr_node"
         [physical_full_key]="$tr_real_full_key"
-        [type]=${tr_t[$tr_node.type]}
+        [type]=${tr_t[$tr_node.t]}
         )
 #@if at_k_var_substitution==1
     REPLY=${tr_node_info[*]@K}
@@ -1343,10 +1347,10 @@ x_delete ()
     # Empty key is legal. Only ROOT nodes are reserved.
     [[ -z "$tr_full_key" ]] && {
             #@if current_shell_process_replace==1
-        eval -- tr_t=(${|x_init "${tr_t[$X_ROOT_ID.type]}";})
+        eval -- tr_t=(${|x_init "${tr_t[$X_ROOT_ID.t]}";})
             #@endif
             #@if current_shell_process_replace==0
-        x_init "${tr_t[$X_ROOT_ID.type]}" ; eval -- tr_t=($REPLY)
+        x_init "${tr_t[$X_ROOT_ID.t]}" ; eval -- tr_t=($REPLY)
             #@endif
         tr_delete_reply=("$X_ROOT_ID" "")
         REPLY=${tr_delete_reply[*]@Q}
@@ -1380,7 +1384,7 @@ x_delete ()
             #@endif
         [[ -z "$tr_token" ]] && return $X_RET_ENUM_OK
 
-        tr_child_id="${tr_t[$tr_node.child.$tr_token]}"
+        tr_child_id="${tr_t[$tr_node.c.$tr_token]}"
         [[ -z "$tr_child_id" ]] && {
             # die ERR "key is not found!"
             # Keys that do not exist are returned directly.
@@ -1398,8 +1402,8 @@ x_delete ()
 
     # 3. First delete the value/key attached to the current node
     unset -v 'tr_t["$tr_full_key"]'   # delete value
-    unset -v 'tr_t["$tr_node.key"]'   # delete key
-    unset -v 'tr_t["$tr_node.type"]'  # delete type
+    unset -v 'tr_t["$tr_node.k"]'   # delete key
+    unset -v 'tr_t["$tr_node.t"]'  # delete type
 
     # 4. Kill all subtrees rooted at the current node
     #   (even if it is a single leaf)
@@ -1410,20 +1414,20 @@ x_delete ()
         unset -v 'tr_stack[-1]'
 
         # Get the current node children tr_token list
-        local -a "tr_children=(${tr_t[$tr_cur.children]})"
+        local -a "tr_children=(${tr_t[$tr_cur.s]})"
 
         for tr_tk in "${tr_children[@]}"; do
-            tr_cid="${tr_t[$tr_cur.child.$tr_tk]}"
+            tr_cid="${tr_t[$tr_cur.c.$tr_tk]}"
             tr_stack+=("$tr_cid")
-            unset -v 'tr_t["$tr_cur.child.$tr_tk"]'
+            unset -v 'tr_t["$tr_cur.c.$tr_tk"]'
         done
 
         # If this node has its own key/value, clear it as well.
-        local tr_key=${tr_t["$tr_cur.key"]}
+        local tr_key=${tr_t["$tr_cur.k"]}
         [[ -n "$tr_key" ]] && unset -v 'tr_t[$tr_key]'
-        unset -v 'tr_t["$tr_cur.key"]'
-        unset -v 'tr_t["$tr_cur.children"]'
-        unset -v 'tr_t["$tr_cur.type"]'
+        unset -v 'tr_t["$tr_cur.k"]'
+        unset -v 'tr_t["$tr_cur.s"]'
+        unset -v 'tr_t["$tr_cur.t"]'
 
         # Do not delete the root node itself
         # unset -v "tr_t[$tr_cur]"
@@ -1432,15 +1436,15 @@ x_delete ()
     # Update the children of the upper node
     local tr_parent=${tr_path_nodes[-2]}
     tr_token=${tr_path_tokens[-1]}
-    local -a "tr_children=(${tr_t[$tr_parent.children]})"
+    local -a "tr_children=(${tr_t[$tr_parent.s]})"
     array_delete_first_e tr_children "$tr_token"
     if ((${#tr_children[@]})) ; then
-        tr_t[$tr_parent.children]=${tr_children[*]@Q}
+        tr_t[$tr_parent.s]=${tr_children[*]@Q}
     else
-        unset -v 'tr_t[$tr_parent.children]'
+        unset -v 'tr_t[$tr_parent.s]'
     fi
 
-    unset -v 'tr_t["$tr_parent.child.$tr_token"]'
+    unset -v 'tr_t["$tr_parent.c.$tr_token"]'
     
     tr_delete_reply=("$tr_node" "$tr_full_key")
     REPLY=${tr_delete_reply[*]@Q}
@@ -1480,7 +1484,7 @@ x_get_leaf ()
         REPLY=${tr_t["$tr_physical_full_key"]}
         return $X_RET_ENUM_OK
     else
-        die ERR "full key:${tr_full_key} physical full key:${tr_physical_full_key} not found leaf!"
+        die ERR "full key:${tr_full_key@Q} physical full key:${tr_physical_full_key@Q} not found leaf!"
         return $X_RET_ENUM_KEY_IS_NOT_LEAF
     fi
 }
@@ -1534,19 +1538,19 @@ x_get_tree ()
     fi
 
     [[ ${tr_t[$tr_real_full_key]+_} ]] && {
-        die ERR "key is leaf!"
+        die ERR "key:${tr_real_full_key@Q} is leaf!"
         return ${X_RET_ENUM_KEY_IS_LEAF}
     }
 
     # 5. Get the children of the node (the first-level node of the subtree)
-    local -a "tr_root_children=(${tr_t[$tr_node.children]})"
+    local -a "tr_root_children=(${tr_t[$tr_node.s]})"
 
     # 6. Create a new tree
         #@if current_shell_process_replace==1
-    local -A "tr_new=(${|x_init "${tr_t[$tr_node.type]}";})"
+    local -A "tr_new=(${|x_init "${tr_t[$tr_node.t]}";})"
         #@endif
         #@if current_shell_process_replace==0
-    x_init "${tr_t[$tr_node.type]}" ; eval "${_ret_A/o/tr_new}"
+    x_init "${tr_t[$tr_node.t]}" ; eval "${_ret_A/o/tr_new}"
         #@endif
 
     # If the subtree root is empty, it is returned directly.
@@ -1561,14 +1565,14 @@ x_get_tree ()
     }
     
     # 7. The children of the new tree are reset to the current tr_root_children
-    tr_new[$X_ROOT_ID.children]=${tr_root_children[*]@Q}
+    tr_new[$X_ROOT_ID.s]=${tr_root_children[*]@Q}
 
     # 8. Mount all root children
     local tr_tk tr_cid
     local -a tr_stack=()
     for tr_tk in "${tr_root_children[@]}" ; do
-        tr_cid=${tr_t[$tr_node.child.$tr_tk]}
-        tr_new["$X_ROOT_ID.child.$tr_tk"]="$tr_cid"
+        tr_cid=${tr_t[$tr_node.c.$tr_tk]}
+        tr_new["$X_ROOT_ID.c.$tr_tk"]="$tr_cid"
         tr_stack+=("$tr_cid")
     done
 
@@ -1580,24 +1584,24 @@ x_get_tree ()
         ((tr_max_id=(tr_cur>tr_max_id)?tr_cur:tr_max_id))
 
         # tr_new[$tr_cur]=1
-        [[ -n "${tr_t[$tr_cur.children]}" ]] && tr_new[$tr_cur.children]=${tr_t[$tr_cur.children]}
-        [[ -n "${tr_t[$tr_cur.type]}" ]] && tr_new[$tr_cur.type]=${tr_t[$tr_cur.type]}
+        [[ -n "${tr_t[$tr_cur.s]}" ]] && tr_new[$tr_cur.s]=${tr_t[$tr_cur.s]}
+        [[ -n "${tr_t[$tr_cur.t]}" ]] && tr_new[$tr_cur.t]=${tr_t[$tr_cur.t]}
 
         # The key here cannot be copied directly from the old tree, and 
         # the prefix needs to be cut off.
-        local tr_key=${tr_t["$tr_cur.key"]}
+        local tr_key=${tr_t["$tr_cur.k"]}
 
         if [[ -n "$tr_key" ]] ; then
-            tr_new[$tr_cur.key]=${tr_key#"$tr_real_full_key"}
-            local tr_new_key=${tr_new["$tr_cur.key"]}
+            tr_new[$tr_cur.k]=${tr_key#"$tr_real_full_key"}
+            local tr_new_key=${tr_new["$tr_cur.k"]}
             tr_new["$tr_new_key"]=${tr_t["$tr_key"]}
         fi
 
-        local -a "tr_children=(${tr_t[$tr_cur.children]})"
+        local -a "tr_children=(${tr_t[$tr_cur.s]})"
 
         for tr_tk in "${tr_children[@]}" ; do
-            tr_cid="${tr_t["$tr_cur.child.$tr_tk"]}"
-            tr_new["$tr_cur.child.$tr_tk"]="$tr_cid"
+            tr_cid="${tr_t["$tr_cur.c.$tr_tk"]}"
+            tr_new["$tr_cur.c.$tr_tk"]="$tr_cid"
             tr_stack+=("$tr_cid")
         done
     done
@@ -1663,13 +1667,13 @@ x_iter ()
     # If tr_node_id is empty, traverse the root node
     tr_node_id=${tr_node_id:-"$X_ROOT_ID"}
 
-    local -a "tr_children=(${tr_t[$tr_node_id.children]})"
+    local -a "tr_children=(${tr_t[$tr_node_id.s]})"
 
     local tr_tk tr_child_id tr_type tr_key
     local tr_tk_p tr_type_p tr_value_p tr_node_p tr_index_tk_p
 
     local -i tr_index=0
-    local tr_parent_type=${tr_t[$tr_node_id.type]}
+    local tr_parent_type=${tr_t[$tr_node_id.t]}
     
     # The safest method for REPLY can only be separate assignment. If you want
     # to append a string to it, it is best to use a separate intermediate
@@ -1677,7 +1681,7 @@ x_iter ()
     # or you must clear the value of REPLY first.
     REPLY=
     for tr_tk in "${tr_children[@]}"; do
-        tr_child_id=${tr_t["$tr_node_id.child.$tr_tk"]}
+        tr_child_id=${tr_t["$tr_node_id.c.$tr_tk"]}
         if ((tr_is_iter_type)) ; then
             x_get_node_type "$1" "$tr_child_id" ; tr_type=$?
             tr_type_p=${tr_type@Q}
@@ -1696,7 +1700,7 @@ x_iter ()
         fi
         
         if ((tr_is_iter_value)) ; then
-            tr_key="${tr_t["$tr_child_id.key"]}"
+            tr_key="${tr_t["$tr_child_id.k"]}"
             [[ -n "$tr_key" ]] && tr_value_p=${tr_t["$tr_key"]}
 
             ((tr_is_iter_type)) || { x_get_node_type "$1" "$tr_child_id" ; tr_type=$? ; }
@@ -1764,21 +1768,21 @@ x_get_node_type ()
     local tr_node=$2
     local tr_key
     
-    if [[ ${tr_t[$tr_node.key]+_} ]] ; then
-        tr_key="${tr_t["$tr_node.key"]}"
+    if [[ ${tr_t[$tr_node.k]+_} ]] ; then
+        tr_key="${tr_t["$tr_node.k"]}"
         if [[ "${tr_t["$tr_key"]}" == "$X_VALUE_NULL" ]] ; then
             return $X_NODE_KIND_LEAF_NULL
         else
             return $X_NODE_KIND_LEAF
         fi
-    elif [[ "${tr_t[$tr_node.type]}" == "$X_TYPE_OBJ" ]] ; then
-        if [[ -n "${tr_t[$tr_node.children]}" ]] ; then
+    elif [[ "${tr_t[$tr_node.t]}" == "$X_TYPE_OBJ" ]] ; then
+        if [[ -n "${tr_t[$tr_node.s]}" ]] ; then
             return $X_NODE_KIND_OBJ
         else
             return $X_NODE_KIND_OBJ_EMPTY
         fi
-    elif [[ "${tr_t[$tr_node.type]}" == "$X_TYPE_ARR" ]] ; then
-        if [[ -n "${tr_t[$tr_node.children]}" ]] ; then
+    elif [[ "${tr_t[$tr_node.t]}" == "$X_TYPE_ARR" ]] ; then
+        if [[ -n "${tr_t[$tr_node.s]}" ]] ; then
             return $X_NODE_KIND_ARR
         else
             return $X_NODE_KIND_ARR_EMPTY
@@ -1840,15 +1844,15 @@ x_walk ()
         local tr_index_prefix=${tr_stack[-1]} ; unset -v 'tr_stack[-1]'
         local tr_physical_prefix=${tr_stack[-1]} ; unset -v 'tr_stack[-1]'
 
-        local -a "tr_children=(${tr_t[$tr_node_id.children]})"
+        local -a "tr_children=(${tr_t[$tr_node_id.s]})"
         local tr_tk tr_child_id tr_value tr_index_token
 
         local -i tr_index=0
         for tr_tk in "${tr_children[@]}"; do
-            tr_child_id=${tr_t["$tr_node_id.child.$tr_tk"]}
+            tr_child_id=${tr_t["$tr_node_id.c.$tr_tk"]}
 
             x_get_node_type "$1" "$tr_child_id" ; tr_node_kind=$?
-            local tr_key="${tr_t["$tr_child_id.key"]}"
+            local tr_key="${tr_t["$tr_child_id.k"]}"
             [[ -n "$tr_key" ]] && tr_value=${tr_t["$tr_key"]} || tr_value=''
             
             # There are special cases here. Empty arrays and empty
@@ -1919,10 +1923,10 @@ x_id_rebuild ()
     tr_id_map[$X_ROOT_ID]=1
 
         #@if current_shell_process_replace==1
-    local -A "tr_new=(${|x_init "${tr_old[$X_ROOT_ID.type]}";})"
+    local -A "tr_new=(${|x_init "${tr_old[$X_ROOT_ID.t]}";})"
         #@endif
         #@if current_shell_process_replace==0
-    x_init "${tr_old[$X_ROOT_ID.type]}" ; eval "${_ret_A/o/tr_new}"
+    x_init "${tr_old[$X_ROOT_ID.t]}" ; eval "${_ret_A/o/tr_new}"
         #@endif
 
     # 辅助函数：用 tr_id_map 重建物理全 key（把 <old_id> 换成 <new_id>）
@@ -1978,18 +1982,18 @@ x_id_rebuild ()
         # write type tag
         case "$type" in
         $X_NODE_KIND_OBJ|$X_NODE_KIND_OBJ_EMPTY)
-            tr_new[$new_id.type]=$X_TYPE_OBJ   ;;
+            tr_new[$new_id.t]=$X_TYPE_OBJ   ;;
         $X_NODE_KIND_ARR|$X_NODE_KIND_ARR_EMPTY)
-            tr_new[$new_id.type]=$X_TYPE_ARR   ;;
+            tr_new[$new_id.t]=$X_TYPE_ARR   ;;
         # Other leaf keys need to write values
-        *)  tr_new[$new_id.key]="$new_full_key"
+        *)  tr_new[$new_id.k]="$new_full_key"
             tr_new["$new_full_key"]="$value"
             ;;
         esac
 
         # 父节点的 children 和 child 映射，统一使用新 token
-        tr_new["$new_parent_id.child.$new_token"]="$new_id"
-        tr_new[$new_parent_id.children]+=" ${new_token@Q}"
+        tr_new["$new_parent_id.c.$new_token"]="$new_id"
+        tr_new[$new_parent_id.s]+=" ${new_token@Q}"
     }
     x_walk $1 '' x_id_rebuild_cb
 
@@ -2025,7 +2029,7 @@ x_equals ()
         return $X_RET_ENUM_TREE_IS_NOT_SAME
     }
 
-    [[ "${tr_x_equals_1[$X_ROOT_ID.type]}" == "${tr_x_equals_2[$X_ROOT_ID.type]}" ]] || {
+    [[ "${tr_x_equals_1[$X_ROOT_ID.t]}" == "${tr_x_equals_2[$X_ROOT_ID.t]}" ]] || {
         _x_equals_fail ; return $?
     }
 
@@ -2341,7 +2345,7 @@ x_layer_get_flat ()
     tr_node_id=${tr_node_id:-"$X_ROOT_ID"}
 
     # First determine whether the current layer is null
-    local tr_key=${tr_t[$tr_node_id.key]}
+    local tr_key=${tr_t[$tr_node_id.k]}
     if [[ -n "$tr_key" && ${tr_t[$tr_key]+_} ]] ; then
         if [[ "${tr_t[$tr_key]}" == "$X_VALUE_NULL" ]] ; then
             return $X_FLAT_IS_MATCH
@@ -2353,7 +2357,7 @@ x_layer_get_flat ()
 
     # Object or array to determine whether the child has children (non-flat)
     local tr_old_ifs=$IFS IFS=$'\n' tr_tuple 
-    case "${tr_t[$tr_node_id.type]}" in
+    case "${tr_t[$tr_node_id.t]}" in
     $X_TYPE_ARR)
         [[ "$tr_expect" == 'arr' ]] || {
             die ERR "node id:${tr_node_id} flat type not match."
@@ -2618,8 +2622,8 @@ x_to_json_slow ()
         return $X_RET_ENUM_KEY_OTHER_TOOL_NOT_INSTALLED
     }
 
-    [[ -z "${tr_t[$X_ROOT_ID.children]}" ]] && {
-        case "${tr_t[$X_ROOT_ID.type]}" in
+    [[ -z "${tr_t[$X_ROOT_ID.s]}" ]] && {
+        case "${tr_t[$X_ROOT_ID.t]}" in
         $X_TYPE_OBJ)   REPLY='{}' ; return $X_RET_ENUM_OK ;;
         $X_TYPE_ARR)   REPLY='[]' ; return $X_RET_ENUM_OK ;;
         *)  return $X_RET_ENUM_TREE_NOT_HAVE_ROOT  ;;
@@ -2703,8 +2707,8 @@ x_to_json ()
         return $X_RET_ENUM_KEY_OTHER_TOOL_NOT_INSTALLED
     }
 
-    [[ -z "${tr_t[$X_ROOT_ID.children]}" ]] && {
-        case "${tr_t[$X_ROOT_ID.type]}" in
+    [[ -z "${tr_t[$X_ROOT_ID.s]}" ]] && {
+        case "${tr_t[$X_ROOT_ID.t]}" in
         $X_TYPE_OBJ)   REPLY='{}' ; return $X_RET_ENUM_OK ;;
         $X_TYPE_ARR)   REPLY='[]' ; return $X_RET_ENUM_OK ;;
         *)  return $X_RET_ENUM_TREE_NOT_HAVE_ROOT  ;;

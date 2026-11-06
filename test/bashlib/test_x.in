@@ -16,7 +16,7 @@ test_case1 ()
         x_init "$X_TYPE_OBJ" ; local -A "t1=($REPLY)"
     #@endif
         local -A t1_init_spec=(
-            [1.type]=1
+            [1.t]=1
             [max_index]=2
             )
         if assert_array 'A' t1 t1_init_spec ; then
@@ -27,11 +27,11 @@ test_case1 ()
 
         x_insert t1 "{key1}$X" "value1"
         local -A t1_insert_spec=(
-            [1.type]=1
-            [1.children]="'{key1}'"
-            ["1.child.{key1}"]=2
+            [1.t]=1
+            [1.s]="'{key1}'"
+            ["1.c.{key1}"]=2
             ["{key1}$X"]=value1
-            [2.key]="{key1}$X"
+            [2.k]="{key1}$X"
             [max_index]=3
             )
 
@@ -1105,7 +1105,7 @@ test_case16 ()
                     "{aage}$X" "value2"
 
 
-    # echo "${t1[5.children]}"
+    # echo "${t1[5.s]}"
 
     local t1_json
 #@if current_shell_process_replace==1
