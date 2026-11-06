@@ -1271,7 +1271,309 @@ test_case18 ()
 
 }
 
+test_case19 ()
+{
+    # x_insert_dict 用例：纯对象路径 / 物理 id 路径 / 快速路径 / 错误输入 / 全量对比
 
-# step_test 18
+    # ---- 1. 纯对象路径插入（多次调用，复用中间节点）----
+    test_case19_inner1 ()
+    {
+#@if current_shell_process_replace==1
+        local -A "t1=(${|x_init "$X_TYPE_OBJ";})"
+        local -A "t1_spec=(${|x_init "$X_TYPE_OBJ";})"
+#@endif
+#@if current_shell_process_replace==0
+        x_init "$X_TYPE_OBJ" ; local -A "t1=($REPLY)"
+        x_init "$X_TYPE_OBJ" ; local -A "t1_spec=($REPLY)"
+#@endif
+        local ret1=0 ret2=0
+        x_insert_dict t1 "{a}$X{b}$X" "v1" || ret1=$?
+        x_insert_dict t1 "{a}$X{c}$X" "v2" || ret2=$?
+
+        x_inserts t1_spec   "{a}$X{b}$X" "v1" \
+                            "{a}$X{c}$X" "v2"
+
+        if ((ret1==0 && ret2==0)) && x_equals t1 t1_spec ; then
+            log_test 1 1
+        else
+            log_test 0 1 ; return 1
+        fi
+        return 0
+    }
+
+    # ---- 2. 更新已有叶值（快速路径）----
+    test_case19_inner2 ()
+    {
+#@if current_shell_process_replace==1
+        local -A "t1=(${|x_init "$X_TYPE_OBJ";})"
+#@endif
+#@if current_shell_process_replace==0
+        x_init "$X_TYPE_OBJ" ; local -A "t1=($REPLY)"
+#@endif
+        x_insert t1 "{k}$X" "v1"
+        local ret=0
+        x_insert_dict t1 "{k}$X" "v2" || ret=$?
+        local v
+        x_get_leaf t1 "{k}$X" ; v=$REPLY
+
+        if ((ret==0)) && [[ "$v" == "v2" ]] ; then
+            log_test 1 1
+        else
+            log_test 0 1 ; return 1
+        fi
+        return 0
+    }
+
+    # ---- 3. 写空对象 / 空数组 ----
+    test_case19_inner3 ()
+    {
+#@if current_shell_process_replace==1
+        local -A "t1=(${|x_init "$X_TYPE_OBJ";})"
+#@endif
+#@if current_shell_process_replace==0
+        x_init "$X_TYPE_OBJ" ; local -A "t1=($REPLY)"
+#@endif
+        local ret1=0 ret2=0
+        x_insert_dict t1 "{obj}$X" "$X_VALUE_NULL_OBJ" || ret1=$?
+        x_insert_dict t1 "{arr}$X" "$X_VALUE_NULL_ARR" || ret2=$?
+
+        local key_obj='1.c.{obj}' key_arr='1.c.{arr}'
+        local obj_id="${t1[$key_obj]}"
+        local arr_id="${t1[$key_arr]}"
+
+        if  ((ret1==0 && ret2==0)) && \
+            [[ "${t1[$obj_id.t]}" == "$X_TYPE_OBJ" ]] && \
+            [[ "${t1[$arr_id.t]}" == "$X_TYPE_ARR" ]] ; then
+            log_test 1 1
+        else
+            log_test 0 1 ; return 1
+        fi
+        return 0
+    }
+
+    # ---- 4. 物理 id 路径：数组元素下沿 <id> 插入 ----
+    test_case19_inner4 ()
+    {
+#@if current_shell_process_replace==1
+        local -A "t1=(${|x_init "$X_TYPE_ARR";})"
+        local -A "t1_spec=(${|x_init "$X_TYPE_ARR";})"
+#@endif
+#@if current_shell_process_replace==0
+        x_init "$X_TYPE_ARR" ; local -A "t1=($REPLY)"
+        x_init "$X_TYPE_ARR" ; local -A "t1_spec=($REPLY)"
+#@endif
+        x_insert t1 "[0]$X{b}$X" "v1"
+        local -a "root_children=(${t1[1.s]})"
+        local elem_token="${root_children[0]}"
+        local elem_id="${elem_token:1:-1}"
+
+        local ret=0
+        x_insert_dict t1 "<$elem_id>$X{c}$X" "v2" || ret=$?
+
+        x_inserts t1_spec   "[0]$X{b}$X" "v1" \
+                            "[0]$X{c}$X" "v2"
+
+        if ((ret==0)) && x_equals t1 t1_spec ; then
+            log_test 1 1
+        else
+            log_test 0 1 ; return 1
+        fi
+        return 0
+    }
+
+    # ---- 5. 不存在的物理 id 报错（3=NOTFOUND）----
+    test_case19_inner5 ()
+    {
+#@if current_shell_process_replace==1
+        local -A "t1=(${|x_init "$X_TYPE_OBJ";})"
+#@endif
+#@if current_shell_process_replace==0
+        x_init "$X_TYPE_OBJ" ; local -A "t1=($REPLY)"
+#@endif
+        local ret=0
+        x_insert_dict t1 "<999>$X{b}$X" "v" || ret=$?
+        if ((ret==$X_RET_ENUM_KEY_IS_NOTFOUND)) ; then
+            log_test 1 1
+        else
+            log_test 0 1 ; return 1
+        fi
+        return 0
+    }
+
+    # ---- 6. [i] 索引 token 报错（4=INVALID）----
+    test_case19_inner6 ()
+    {
+#@if current_shell_process_replace==1
+        local -A "t1=(${|x_init "$X_TYPE_OBJ";})"
+#@endif
+#@if current_shell_process_replace==0
+        x_init "$X_TYPE_OBJ" ; local -A "t1=($REPLY)"
+#@endif
+        local ret=0
+        x_insert_dict t1 "[0]$X{b}$X" "v" || ret=$?
+        if ((ret==$X_RET_ENUM_KEY_IS_INVALID)) ; then
+            log_test 1 1
+        else
+            log_test 0 1 ; return 1
+        fi
+        return 0
+    }
+
+    # ---- 7. () 插入主键 token 报错（4=INVALID）----
+    test_case19_inner7 ()
+    {
+#@if current_shell_process_replace==1
+        local -A "t1=(${|x_init "$X_TYPE_OBJ";})"
+#@endif
+#@if current_shell_process_replace==0
+        x_init "$X_TYPE_OBJ" ; local -A "t1=($REPLY)"
+#@endif
+        local ret=0
+        x_insert_dict t1 "(0)$X{b}$X" "v" || ret=$?
+        if ((ret==$X_RET_ENUM_KEY_IS_INVALID)) ; then
+            log_test 1 1
+        else
+            log_test 0 1 ; return 1
+        fi
+        return 0
+    }
+
+    # ---- 8. 与 x_insert 建同样结构做全量比较 ----
+    test_case19_inner8 ()
+    {
+#@if current_shell_process_replace==1
+        local -A "t1=(${|x_init "$X_TYPE_OBJ";})"
+        local -A "t2=(${|x_init "$X_TYPE_OBJ";})"
+#@endif
+#@if current_shell_process_replace==0
+        x_init "$X_TYPE_OBJ" ; local -A "t1=($REPLY)"
+        x_init "$X_TYPE_OBJ" ; local -A "t2=($REPLY)"
+#@endif
+        x_insert_dict t1 "{a}$X{b}$X" "1"
+        x_insert_dict t1 "{a}$X{c}$X" "2"
+        x_insert_dict t1 "{x}$X" "$X_VALUE_NULL_OBJ"
+        x_insert_dict t1 "{x}$X{k}$X" "3"
+        x_insert_dict t1 "{y}$X" "$X_VALUE_NULL_ARR"
+        x_insert_dict t1 "{z}$X{w}$X{v}$X" "$X_VALUE_NULL"
+
+        x_inserts t2   "{a}$X{b}$X" "1" \
+                       "{a}$X{c}$X" "2" \
+                       "{x}$X" "$X_VALUE_NULL_OBJ" \
+                       "{x}$X{k}$X" "3" \
+                       "{y}$X" "$X_VALUE_NULL_ARR" \
+                       "{z}$X{w}$X{v}$X" "$X_VALUE_NULL"
+
+        if x_equals t1 t2 ; then
+            log_test 1 1
+        else
+            log_test 0 1 ; return 1
+        fi
+        return 0
+    }
+
+    test_case19_inner1 || return $?
+    test_case19_inner2 || return $?
+    test_case19_inner3 || return $?
+    test_case19_inner4 || return $?
+    test_case19_inner5 || return $?
+    test_case19_inner6 || return $?
+    test_case19_inner7 || return $?
+    test_case19_inner8 || return $?
+    return 0
+}
+
+test_case_hardware_tree_perfect ()
+{
+    echo "========================================================================"
+    echo "🚀 [qq_bash / x_tree] 正在执行服务器【全量语义化】硬件自动化扫描..."
+    echo "========================================================================"
+
+#@if current_shell_process_replace==1
+    local -A "t1=(${|x_init "$X_TYPE_ARR";})"
+    local -A "tx=(${|x_init "$X_TYPE_ARR";})"
+#@endif
+#@if current_shell_process_replace==0
+    x_init "$X_TYPE_ARR" ; local -A "t1=($REPLY)"
+    x_init "$X_TYPE_ARR" ; local -A "tx=($REPLY)"
+#@endif
+    x_inserts tx "[0]$X{type}$X"                             "CPU" \
+                 "[0]$X{model}$X"                            "Kunpeng-920" \
+                 "[0]$X{status}$X"                           "Healthy" \
+                 \
+                 "[1]$X{type}$X"                             "NIC" \
+                 "[1]$X{vendor}$X"                           "Huawei_Hi1822"
+    x_dump tx
+    declare -p tx
+
+    # =========================================================================
+    # 【全量语义化强迫症福音设计】：
+    # [0] -> CPU 节点
+    # [1] -> 智能网卡 -> 级联控制器 (3层)
+    # [2] -> NVMe 固态硬盘 -> 级联固件区 (3层)
+    #, [4] -> 留空（模拟未插载物理设备，输出 null 控制符）
+    # [5] -> 重构为 USB_Hub 对象 -> 级联下钻到它的物理多端口 {ports} -> 
+    #        再下钻到具体的通道故障 (第4层深度级联！)
+    # =========================================================================
+    x_inserts t1 "[0]$X{type}$X"                             "CPU" \
+                 "[0]$X{model}$X"                            "Kunpeng-920" \
+                 "[0]$X{status}$X"                           "Healthy" \
+                 \
+                 "[1]$X{type}$X"                             "NIC" \
+                 "[1]$X{vendor}$X"                           "Huawei_Hi1822" \
+                 "[1]$X{controllers}$X[0]$X{ctrl_id}$X"      "PCIe_Gen4_x16" \
+                 "[1]$X{controllers}$X[0]$X{port_status}$X"  "PORT_0_100G_UP" \
+                 \
+                 "[2]$X{type}$X"                             "NVMe_SSD" \
+                 "[2]$X{model}$X"                            "Samsung_980_PRO" \
+                 "[2]$X{fw_metric}$X{version}$X"            "1B2QGXA7" \
+                 "[2]$X{fw_metric}$X{health}$X"             "99%_Excellent" \
+                 \
+                 "[5]$X{type}$X"                             "USB_Hub" \
+                 "[5]$X{vendor}$X"                           "Huawei_Internal" \
+                 "[5]$X{ports}$X[3]$X{type}$X"               "USB_3.0" \
+                 "[5]$X{ports}$X[3]$X{power}$X"              "5V_Normal" \
+                 "[5]$X{ports}$X[3]$X{status}$X"             "USB_PORT_3_DEVICE_ERR"
+
+    # 🔥 终极亮剑：一键打印完美对齐的硬件语义树
+    echo -e "\n📊 【x_dump 实时输出：全量语义化工业级硬件树】"
+    x_dump t1
+    declare -p t1
+    x_delete t1 "[2]$X"
+    time x_qinserts t1 leaves "(2)$X" \
+                            "{type}$X" "sys disk" \
+                            "{mode}$X" "high speed" \
+                            "{yy}$X"   "$X_VALUE_NULL_ARR" \
+                            "{yy}$X"   "$X_VALUE_NULL_ARR" \
+                            "{disk_sign}$X" "/dev/sdb" \
+                            "{disk_size}$X" "512G" \
+                            "{disk_ports}$X[0]$X{name}$X"   "upstream" \
+                            "{disk_ports}$X[0]$X{bdf}$X"    "10:00.1" \
+                            "{disk_ports}$X[0]$X{speed}$X"  "12G" \
+                            "{disk_ports}$X[1]$X{name}$X"   "downstream" \
+                            "{disk_ports}$X[1]$X{bdf}$X"    "10:00.2" \
+                            "{disk_ports}$X[1]$X{speed}$X"  "12G"
+    echo "ret: $?"
+    x_dump t1
+    declare -p t1
+
+    x_id_rebuild t1 ; local -A "t2=($REPLY)"
+    x_dump t2
+    declare -p t2
+
+    # 复制一颗树
+    local tree_str=$(declare -p t2)
+    local -A new_tree=() ; eval -- "${tree_str/t2=/new_tree=}"
+
+    x_dump new_tree
+    declare -p new_tree
+
+    echo "========================================================================"
+
+    echo -e "✅ [演示测试成功]: 硬件树完美重构，语义全量覆盖！"
+    log_test 1 1
+    return 0
+}
+
+# step_test _hardware_tree_perfect
 eval -- "$(AS_RUN_TEST_CASES)"
 

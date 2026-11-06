@@ -621,13 +621,42 @@ x_push_leaf_fast ()
 
 #-------------------------------------------------------------------------------
 
+#-------------------------------------------------------------------------------
+
 # Only insert and do not return any data
-# Fast writing of associative arrays that can be used directly for flat layers
-# local -A assoc=(['{1 2}']='a b' ['{3 4}']='c d')
-# x_insert_token_dict my_tree '134' '{lev1}' "${assoc[@]@k}"
 #
-# 从 "token value token value ..." 关联数组快速插入到指定节点（仅插入不返回）。
-# @in  $1=树名  $2=起始节点 ID  $3=物理前缀  $4..=token,value 交错
+# 在已存在的容器节点下批量挂子节点 / 更新叶子值（仅插入不返回）——最快写入路径。
+# 零校验：不解析路径、不创建中间节点、不检查父节点类型、不检查 token 类型。
+#
+# 支持的 token：
+#   '{k}'  —— 对象键。挂为父节点的直接子节点；若已存在则更新其值。
+#   '<id>' —— 物理 id。分两种情况：
+#              · 该 id 是叶子 / 预分配节点（物理 path 已存在）：
+#                守卫命中，快速更新其值，不建子节点 —— 可用于批量改一批已知叶子的值。
+#              · 该 id 是容器节点（无物理 path 值）：
+#                守卫失效，会创建影子节点、max_index 虚增、children 重复追加。
+#                函数不报错，但结构会坏，调用方须避免。
+#
+# 不支持的 token：
+#   '[i]' / '()' —— 索引 token。会被当作对象键写入，路径与索引语义错位（不报错）。
+#
+# 调用方须保证：
+#   - $2 是树中已存在的容器节点 ID（OBJ 或 ARR）
+#   - $3 是该节点的物理全 key
+#   - $4.. 的 token 为 '{k}'，或指向叶子/预分配节点的 '<id>'
+# 需要校验/自动建中间节点请用 x_insert_dict 或 x_insert。
+#
+# 用法示例（批量挂一层对象键）：
+#   local -A assoc=(['{1 2}']='a b' ['{3 4}']='c d')
+#   x_insert_token_dict my_tree "$node_id" "$physical_prefix" "${assoc[@]@k}"
+#
+# 用法示例（批量更新一批已知叶子 id 的值）：
+#   x_insert_token_dict my_tree "$node_id" "$physical_prefix" \
+#       "<5>" "new_v5" "<6>" "new_v6"
+#
+# @in  $1=树名  $2=已存在的父节点 ID  $3=父节点物理全 key
+#      $4..=token,value 交错（token 为 '{k}' 或叶子 '<id>'）
+# @out REPLY 不变
 # @ret 0=OK
 x_insert_token_dict ()
 {
@@ -652,7 +681,9 @@ x_insert_token_dict ()
         }
 
         tr_child_id="${tr_t[max_index]}" ; ((tr_t[max_index]++))
-        tr_t["$tr_node.c.$tr_token"]=$tr_child_id
+        if [[ "$tr_token" != '<'*'>' ]] ; then
+            tr_t["$tr_node.c.$tr_token"]=$tr_child_id
+        fi
         tr_tokens+=("$tr_token")
 
         case "$tr_value" in
@@ -677,9 +708,40 @@ x_insert_token_dict ()
 
 # Only insert and do not return any data
 #
-# 单点快速插入（仅插入不返回）。
-# @in  $1=树名  $2=物理全 key  $3=值  $4=起始节点 ID（默认 ROOT）
-#      $5=已遍历物理前缀（默认空）
+# 批量挂子节点（仅插入不返回）——全库最快的写入路径，零校验。
+#
+# 用途：父节点已确定、且父节点确实是容器时，一次性把一批
+#       "对象键 '{k}' → 值" 作为它的直接子节点挂上。
+#       适合扁平字典层（如从关联数组批量灌入一层 KV）。
+#
+# 本函数不做任何拦截：
+#   - 不解析路径，不创建中间节点
+#   - 不校验父节点是否存在、是否为容器
+#   - 不校验 token 类型、不校验路径是否重复
+#   调用方必须自行保证：
+#     $2 是树中已存在的容器节点 ID（OBJ 或 ARR）
+#     $3 是该节点的物理全 key（与 $2 对应，用于拼子节点路径）
+#     $4.. 的每个 token 均为对象键 '{k}'
+#
+# 传错的后果（函数不报错，但结构会坏）：
+#   - token 传 '<id>'（容器节点）：$tr_path_key 不存在于树中，
+#     守卫失效，会创建影子节点、max_index 虚增、children 重复追加
+#   - token 传 '[i]' / '()'：会当作对象键写入，路径与索引语义错位
+#   - 父节点传叶子：会把子节点挂到叶子节点上，产生 .k 与 .s 混合
+#   以上均需调用方避免。需要校验或自动建中间节点时，请用
+#   x_insert_dict（单点深层写，轻校验）或 x_insert（完整校验，返回 node_id）。
+#
+# 与 x_insert_dict 的区别：
+#   x_insert_dict       —— 接受完整物理路径，逐级自动建 '{k}' 节点，单点写入
+#   x_insert_token_dict —— 父节点已定，只铺一层，批量写入，零校验、最快
+#
+# 用法示例：
+#   local -A assoc=(['{1 2}']='a b' ['{3 4}']='c d')
+#   x_insert_token_dict my_tree "$node_id" "$physical_prefix" "${assoc[@]@k}"
+#
+# @in  $1=树名  $2=已存在的父节点 ID  $3=父节点物理全 key
+#      $4..=token,value 交错（token 必须是 '{k}'）
+# @out REPLY 不变
 # @ret 0=OK
 x_insert_dict ()
 {
@@ -710,15 +772,38 @@ x_insert_dict ()
     local tr_node=${tr_start_node_id}
 
     for tr_token in "${tr_tokens[@]}" ; do
-        tr_child_key="$tr_node.c.$tr_token"
-        tr_child_id="${tr_t[$tr_child_key]}"
+        local tr_token_pack="${tr_token:0:1}${tr_token: -1}"
+        case "$tr_token_pack" in
+        '<>')
+            # 物理 id：直接取，必须已存在。物理 id 不能凭空创建，
+            # 出现不存在的 <id> 说明调用者传了非物理路径或结构已坏。
+            tr_child_id=${tr_token:1:-1}
+            if [[ -z "${tr_t[$tr_child_id.k]+_}" ]] && \
+               [[ -z "${tr_t[$tr_child_id.t]+_}" ]] && \
+               [[ -z "${tr_t[$tr_child_id.s]+_}" ]] ; then
+                die ERR "node:${tr_node}(token:${tr_token@Q}) is not exist."
+                return $X_RET_ENUM_KEY_IS_NOTFOUND
+            fi
+            ;;
+        '{}')
+            # 快速定型：只补缺失的 OBJ 类型，不做叶子/ARR 校验（快速语义）
+            [[ -z "${tr_t[$tr_node.t]+_}" ]] && tr_t[$tr_node.t]="$X_TYPE_OBJ"
 
-        # Child node does not exist -> create
-        [[ -z "$tr_child_id" ]] && {
-            tr_child_id="${tr_t[max_index]}" ; ((tr_t[max_index]++))
-            tr_t[$tr_node.s]+=" ${tr_token@Q}"
-            tr_t["$tr_child_key"]=$tr_child_id
-        }
+            # 对象键：查 .c，缺失则建 .c
+            tr_child_key="$tr_node.c.$tr_token"
+            tr_child_id="${tr_t[$tr_child_key]}"
+            [[ -z "$tr_child_id" ]] && {
+                tr_child_id="${tr_t[max_index]}" ; ((tr_t[max_index]++))
+                tr_t[$tr_node.s]+=" ${tr_token@Q}"
+                tr_t["$tr_child_key"]=$tr_child_id
+            }
+            ;;
+        *)
+            # [i] / () 不在本函数支持范围：本函数不做索引解析
+            die ERR "token:${tr_token@Q} is not supported by x_insert_dict (only '{k}' or '<id>')."
+            return $X_RET_ENUM_KEY_IS_INVALID
+            ;;
+        esac
 
         tr_node=$tr_child_id
         tr_path_key+="$tr_token$X"
@@ -1308,7 +1393,7 @@ _x_token_to_node_id ()
             tr_token_index=${|tr_resolve_physical_token "$1" "$tr_token" "$tr_node";}
                 #@endif
                 #@if current_shell_process_replace==0
-            tr_resolve_physical_token "$1" "$tr_token" "$tr_node" ; evel "${_ret_s_/o/tr_token_index}"
+            tr_resolve_physical_token "$1" "$tr_token" "$tr_node" ; eval "${_ret_s_/o/tr_token_index}"
                 #@endif
             [[ -z "$tr_token_index" ]] && {
                 die ERR "node:${tr_node}(token:${tr_token_raw@Q}) is not found index token!"
