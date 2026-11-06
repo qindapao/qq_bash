@@ -1925,16 +1925,56 @@ x_id_rebuild ()
     x_init "${tr_old[$X_ROOT_ID.type]}" ; eval "${_ret_A/o/tr_new}"
         #@endif
 
+    # 辅助函数：用 tr_id_map 重建物理全 key（把 <old_id> 换成 <new_id>）
+    _x_id_rebuild_key ()
+    {
+        local old_key=$1
+        local new_key=''
+        local tk
+        local -a tokens=()
+
+        if [[ -n "$old_key" ]] ; then
+            #@if current_shell_process_replace==1
+            local -a "tokens=(${|_split_tokens "$old_key";})"
+            #@endif
+            #@if current_shell_process_replace==0
+            _split_tokens "$old_key" ; eval "${_ret_a/o/tokens}"
+            #@endif
+        fi
+
+        for tk in "${tokens[@]}" ; do
+            if [[ "$tk" == '<'*'>' ]] ; then
+                local old_id=${tk:1:-1}
+                local new_id=${tr_id_map[$old_id]:-$old_id}
+                new_key+="<$new_id>$X"
+            else
+                new_key+="$tk$X"
+            fi
+        done
+        REPLY=$new_key
+    }
+
     x_id_rebuild_cb ()
     {
         local type=$1 value=$4 token=$5 full_key=$6 old_id=$7 parent_old_id=$8 
-        local index_token=$2
+        # index_token $2 本次不需要
 
         local new_id=${tr_id_map[$old_id]}
         local new_parent_id=${tr_id_map[$parent_old_id]}
 
-        # tr_new[$new_id]=1
-        
+        # 重建 full_key（内部 <old_id> 换成 <new_id>）
+        local new_full_key
+        _x_id_rebuild_key "$full_key"
+        new_full_key=$REPLY
+
+        # 重建 token（数组是 <old_id> 换成 <new_id>，对象是 {key} 不变）
+        local new_token
+        if [[ "$token" == '<'*'>' ]] ; then
+            new_token="<$new_id>"
+        else
+            new_token=$token
+        fi
+
         # write type tag
         case "$type" in
         $X_NODE_KIND_OBJ|$X_NODE_KIND_OBJ_EMPTY)
@@ -1942,26 +1982,19 @@ x_id_rebuild ()
         $X_NODE_KIND_ARR|$X_NODE_KIND_ARR_EMPTY)
             tr_new[$new_id.type]=$X_TYPE_ARR   ;;
         # Other leaf keys need to write values
-        *)  tr_new[$new_id.key]="$full_key"
-            tr_new["$full_key"]="$value"
+        *)  tr_new[$new_id.key]="$new_full_key"
+            tr_new["$new_full_key"]="$value"
             ;;
         esac
 
-        # If the parent is an array, special handling is required.
-        if str_is_decimal_positive_int "$index_token" ; then
-            # Update new token
-            tr_new["$new_parent_id.child.<$new_id>"]="$new_id"
-            local tr_real_token="<$new_id>"
-            tr_new[$new_parent_id.children]+=" ${tr_real_token@Q}"
-        else
-            tr_new[$new_parent_id.child.$token]="$new_id"
-            tr_new[$new_parent_id.children]+=" ${token@Q}"
-        fi
+        # 父节点的 children 和 child 映射，统一使用新 token
+        tr_new["$new_parent_id.child.$new_token"]="$new_id"
+        tr_new[$new_parent_id.children]+=" ${new_token@Q}"
     }
     x_walk $1 '' x_id_rebuild_cb
 
     tr_new[max_index]=$tr_new_id
-    
+
         #@if at_k_var_substitution==1
     REPLY=${tr_new[*]@K}
         #@endif

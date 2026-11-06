@@ -1246,7 +1246,32 @@ test_case17 ()
     x_dump t1 '' 4 $((2#111))
 }
 
+test_case18 ()
+{
+#@if current_shell_process_replace==1
+    local -A "t1=(${|x_init "$X_TYPE_ARR";})"
+#@endif
+#@if current_shell_process_replace==0
+    x_init "$X_TYPE_ARR" ; local -A "t1=($REPLY)"
+#@endif
 
-# step_test 9
+    x_inserts t1    "[0]$X" "value1" \
+                    "[1]$X" "value2" \
+                    "[2]$X" "value3" \
+                    "[3]$X" "value4" \
+                    "[4]$X" "value5" \
+                    "[5]$X" "value6"
+    x_delete t1 "[2]$X"
+    x_delete t1 "[2]$X"
+    x_dump t1
+    declare -p t1
+    x_id_rebuild t1 ; eval "${_ret_A/o/t2}"
+    x_dump t2
+    declare -p t2
+
+}
+
+
+# step_test 18
 eval -- "$(AS_RUN_TEST_CASES)"
 
