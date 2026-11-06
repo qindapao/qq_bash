@@ -125,24 +125,26 @@ test_case5 ()
     return 0
 }
 
-test_case6 ()
-{
-    echo "test_case6 ret----------"
-    local a=1 b=2
-    local -n c=a d=b
-    # The reason why the local command here does not print anything is that the
-    # syntax of ${ cmd;} and ${|cmd;} is equivalent to creating an anonymous
-    # function to execute the command. Since the current local command here
-    # does not print for the new function.
-    local all_var_info=${ local;}
-    if [[ -z "$all_var_info" ]] ; then
-        log_test 1 1
-    else
-        log_test 0 1 ; return 1
-    fi
+if [[ "${BASH_GRAMMAR[current_shell_process_replace]}" == 1 ]] ; then
+    test_case6 ()
+    {
+        echo "test_case6 ret----------"
+        local a=1 b=2
+        local -n c=a d=b
+        # The reason why the local command here does not print anything is that the
+        # syntax of ${ cmd;} and ${|cmd;} is equivalent to creating an anonymous
+        # function to execute the command. Since the current local command here
+        # does not print for the new function.
+        local all_var_info=${ local;}
+        if [[ -z "$all_var_info" ]] ; then
+            log_test 1 1
+        else
+            log_test 0 1 ; return 1
+        fi
 
-    return 0
-}
+        return 0
+    }
+fi
 
 test_case7 ()
 {

@@ -2,6 +2,7 @@
 
 . ../libs/test_utils.sh
 
+if [[ "${BASH_GRAMMAR[current_shell_process_replace]}" == 1 ]] ; then
 test_case1 ()
 {
     test_case1_innser ()
@@ -19,6 +20,9 @@ test_case1 ()
     
     return 0
 }
+fi
+
+test_case2 () { : ; }
 
 eval -- "$(AS_RUN_TEST_CASES)"
 

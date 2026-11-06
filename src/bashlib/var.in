@@ -72,7 +72,7 @@ var_params_to_set ()
 #   But the logic is completely safe, controllable, and maintainable.
 #
 # More complex example:
-# trie_bitmap_unpack "$tr_iter_bitmap" \
+# var_bitmap_unpack "$tr_iter_bitmap" \
 #     tr_is_iter_token:0 \
 #     tr_is_iter_type:1 \
 #     tr_is_iter_full_key:2 \

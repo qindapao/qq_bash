@@ -1,6 +1,6 @@
 ((_META_IMPORTED++)) && return 0
 
-. "${BASH_SOURCE[0]%/*}/trie.sh"
+. "${BASH_SOURCE[0]%/*}/x.sh"
 
 
 # Maintain a global resource pool and save the mapping relationship of
@@ -67,18 +67,6 @@ bless ()
             FN[$tr_class_key.SUPER.$tr_fn_name]=${tr_super:-:}
             ;;
         esac
-    done
-}
-
-#-------------------------------------------------------------------------------
-
-die ()
-{
-    echo "[ERROR] $*" >&2
-    echo "Call stack:" >&2
-    local i
-    for ((i=1; i<${#FUNCNAME[@]}; i++)); do
-        echo "  $i: ${FUNCNAME[$i]}() at ${BASH_SOURCE[$i]}:${BASH_LINENO[$((i-1))]}" >&2
     done
 }
 

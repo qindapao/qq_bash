@@ -34,7 +34,7 @@ test.sh
     测试失败的脚本名字和用例名字，还有子用例名字都应该要收集起来在最后的地方呈现给用户。
     方便回查问题。
 
-trie.sh
+x.sh
     性能优化
         *. 从 children 数组中找 token 的数字索引不需要先把它转换成数组然后再找，可以考虑使用类似下面
             这种方法，效率非常高
@@ -62,10 +62,10 @@ trie.sh
         my_class.sh 如果创建 150 个对象，需要 15秒。1秒只能创建 10 个对象, bless的速度太慢了。
     
     函数限制
-        trie_to_json
-        trie_to_json_slow
+        x_to_json
+        x_to_json_slow
         这两个函数最大的问题是，我们直接把要写入的 JSON 的值通过 $value 参数的形式
-        传递给 gobolt 工具。那么如果这个值很大，或者很多(trie_to_json)传递多组值，
+        传递给 gobolt 工具。那么如果这个值很大，或者很多(x_to_json)传递多组值，
         可能超过命令行的最大限制(ARG_MAX)
         虽然 ARG_MAX 限制的是“总长度”，但单个参数也不能超过 128KB 左右
         （glibc 的内部实现限制）。

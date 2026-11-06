@@ -53,11 +53,11 @@ test_case2 ()
 
     test_case2_innner ()
     {
-        REPLY=$((9+1))
+        echo "$((9+1))"
     }
 
     # 双圆括号中可以执行命令，但是命令的返回值必须是整数，不然就会出现语法错误
-    if ((a=${|test_case2_innner;})) ; then
+    if ((a=$(test_case2_innner))) ; then
         :
     fi
 

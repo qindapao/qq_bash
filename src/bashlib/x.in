@@ -1,4 +1,4 @@
-((_TRIE_IMPORTED++)) && return 0
+((_X_IMPORTED++)) && return 0
 
 . "${BASH_SOURCE[0]%/*}/grammar.sh"
 . "${BASH_SOURCE[0]%/*}/array.sh"
@@ -7,9 +7,9 @@
 . "${BASH_SOURCE[0]%/*}/meta.sh"
 
 # ================================================================================
-# Importantly, if you want to save trie data, it is recommended to directly
-# serialize it into JSON standard format(trie_to_json), and then convert JSON
-# into trie(trie_from_json) before use. Because the implementation details inside
+# Importantly, if you want to save x data, it is recommended to directly
+# serialize it into JSON standard format(x_to_json), and then convert JSON
+# into x(x_from_json) before use. Because the implementation details inside
 # the tree may change, If directly `declare -p tree` saves it to a file and reuses
 # it through the source method. If the implementation details of the tree change,
 # it will cause failure.
@@ -17,8 +17,6 @@
 # Be careful to avoid external variables.
 # tr_
 # ================================================================================
-
-
 
 #-------------------------------------------------------------------------------
 
@@ -28,71 +26,75 @@
 # The semantics will change after importing
 # readonly X=$'\034\035\036\037'
 readonly X=$'\034'
-readonly TR_ROOT_ID=1
+readonly X_ROOT_ID=1
 
-readonly TR_RET_ENUM_OK=0
+readonly X_RET_ENUM_OK=0
 
-readonly TR_RET_ENUM_KEY_IS_TREE=1
-readonly TR_RET_ENUM_KEY_IS_LEAF=2
-readonly TR_RET_ENUM_KEY_IS_NOTFOUND=3
-readonly TR_RET_ENUM_KEY_IS_INVALID=4
-readonly TR_RET_ENUM_KEY_OUT_OF_INDEX=5
-readonly TR_RET_ENUM_KEY_IS_NOT_LEAF=6
-readonly TR_RET_ENUM_KEY_IS_NULL=7
-readonly TR_RET_ENUM_KEY_UP_LEV_TYPE_MISMATCH=8
-readonly TR_RET_ENUM_KEY_CHILD_CNT_IS_ZERO=9
-readonly TR_RET_ENUM_KEY_OTHER_TOOL_NOT_INSTALLED=10
-readonly TR_RET_ENUM_KEY_BJSON_TYPE_INVALID=11
-readonly TR_RET_ENUM_KEY_BJSON_TYPE_OBJ=12
-readonly TR_RET_ENUM_KEY_BJSON_TYPE_ARR=13
-readonly TR_RET_ENUM_KEY_PARAMETER_LENGTH_EXCEEDS_LIMIT=14
+readonly X_RET_ENUM_KEY_IS_TREE=1
+readonly X_RET_ENUM_KEY_IS_LEAF=2
+readonly X_RET_ENUM_KEY_IS_NOTFOUND=3
+readonly X_RET_ENUM_KEY_IS_INVALID=4
+readonly X_RET_ENUM_KEY_OUT_OF_INDEX=5
+readonly X_RET_ENUM_KEY_IS_NOT_LEAF=6
+readonly X_RET_ENUM_KEY_IS_NULL=7
+readonly X_RET_ENUM_KEY_UP_LEV_TYPE_MISMATCH=8
+readonly X_RET_ENUM_KEY_CHILD_CNT_IS_ZERO=9
+readonly X_RET_ENUM_KEY_OTHER_TOOL_NOT_INSTALLED=10
+readonly X_RET_ENUM_KEY_BJSON_TYPE_INVALID=11
+readonly X_RET_ENUM_KEY_BJSON_TYPE_OBJ=12
+readonly X_RET_ENUM_KEY_BJSON_TYPE_ARR=13
+readonly X_RET_ENUM_KEY_PARAMETER_LENGTH_EXCEEDS_LIMIT=14
 
-readonly TR_RET_ENUM_TREE_IS_INVALID=50
-readonly TR_RET_ENUM_TREE_IS_EMPTY=51
-readonly TR_RET_ENUM_TREE_NOT_HAVE_ROOT=52
-readonly TR_RET_ENUM_TREE_IS_NOT_SAME=53
+readonly X_RET_ENUM_TREE_IS_INVALID=50
+readonly X_RET_ENUM_TREE_IS_EMPTY=51
+readonly X_RET_ENUM_TREE_NOT_HAVE_ROOT=52
+readonly X_RET_ENUM_TREE_IS_NOT_SAME=53
 
 # type field (dedicated to container identification)
-readonly TR_TYPE_OBJ=1
-readonly TR_TYPE_ARR=2
+readonly X_TYPE_OBJ=1
+readonly X_TYPE_ARR=2
 
 # Node type (walk-specific)
-readonly TR_NODE_KIND_OBJ=1
-readonly TR_NODE_KIND_ARR=2
-readonly TR_NODE_KIND_OBJ_EMPTY=3
-readonly TR_NODE_KIND_ARR_EMPTY=4
-readonly TR_NODE_KIND_LEAF=5
-readonly TR_NODE_KIND_LEAF_NULL=6
-readonly TR_NODE_KIND_UNKNOWN=7
+readonly X_NODE_KIND_OBJ=1
+readonly X_NODE_KIND_ARR=2
+readonly X_NODE_KIND_OBJ_EMPTY=3
+readonly X_NODE_KIND_ARR_EMPTY=4
+readonly X_NODE_KIND_LEAF=5
+readonly X_NODE_KIND_LEAF_NULL=6
+readonly X_NODE_KIND_UNKNOWN=7
 
 # Value types (only for writing and printing)
-readonly TR_VALUE_NULL="null$X"
-readonly TR_VALUE_TRUE="true$X"
-readonly TR_VALUE_FALSE="false$X"
-readonly TR_VALUE_NULL_OBJ="{}$X"
-readonly TR_VALUE_NULL_ARR="[]$X"
+readonly X_VALUE_NULL="null$X"
+readonly X_VALUE_TRUE="true$X"
+readonly X_VALUE_FALSE="false$X"
+readonly X_VALUE_NULL_OBJ="{}$X"
+readonly X_VALUE_NULL_ARR="[]$X"
 
 # Flat layer judgment
-readonly TR_FLAT_IS_MATCH=0
-readonly TR_FLAT_IS_NOT_MATCH=1
-readonly TR_FLAT_ARRAY_NULL=2
-readonly TR_FLAT_ASSOC_NULL=3
+readonly X_FLAT_IS_MATCH=0
+readonly X_FLAT_IS_NOT_MATCH=1
+readonly X_FLAT_ARRAY_NULL=2
+readonly X_FLAT_ASSOC_NULL=3
 
 # gobolt JSON Object type return value
-readonly TR_GOBOLT_JSONTYPENULL=1
-readonly TR_GOBOLT_JSONTYPETRUE=2
-readonly TR_GOBOLT_JSONTYPEFALSE=3
-readonly TR_GOBOLT_JSONTYPENUMBER=4
-readonly TR_GOBOLT_JSONTYPESTRING=5
-readonly TR_GOBOLT_JSONTYPEARRAY=6
-readonly TR_GOBOLT_JSONTYPEOBJECT=7
-readonly TR_GOBOLT_JSONTYPEUNKNOWN=8
+readonly X_GOBOLT_JSONTYPENULL=1
+readonly X_GOBOLT_JSONTYPETRUE=2
+readonly X_GOBOLT_JSONTYPEFALSE=3
+readonly X_GOBOLT_JSONTYPENUMBER=4
+readonly X_GOBOLT_JSONTYPESTRING=5
+readonly X_GOBOLT_JSONTYPEARRAY=6
+readonly X_GOBOLT_JSONTYPEOBJECT=7
+readonly X_GOBOLT_JSONTYPEUNKNOWN=8
 
 #-------------------------------------------------------------------------------
 
 # $1: The value of the string that needs to be converted
 # $2: Variable name saved after conversion
-trie_bjson_key_escape ()
+#
+# JSON 路径键转义：转义 [ ] . * ? | @ # { } ! 为带反斜杠的形态。
+# @in  $1=原始字符串  $2=输出变量名（nameref）
+# @ret 0（始终成功）
+x_bjson_key_escape ()
 {
     local -n bjsonKeyEscapeR_ekey="$2"
 
@@ -133,6 +135,10 @@ trie_bjson_key_escape ()
 
 #-------------------------------------------------------------------------------
 
+# 拆分 "$X" 分隔的 token 串为数组，校验每个 token 是否合法（'{k}'/'[]'/'()'/'<>'）。
+# @in  $1=token 串  $2=插入语义标志(1=允许 '()' 主键)
+# @out REPLY=token 数组（@Q 格式）
+# @ret 0=OK  4=X_RET_ENUM_KEY_IS_INVALID
 _split_tokens ()
 {
     REPLY=
@@ -143,28 +149,28 @@ _split_tokens ()
 
     while [[ -n "$tokens_str" ]] ; do
         token=${tokens_str%%"$X"*}
-        ((${#token}<=2)) && return $TR_RET_ENUM_KEY_IS_INVALID
+        ((${#token}<=2)) && return $X_RET_ENUM_KEY_IS_INVALID
         case "${token:0:1}${token: -1}" in
         '()')
             # Must have insertion semantics and must be a positive integer
             ((is_insertion_semantics)) || {
-                die "now are not in insertion semantics. key:$1 is invalid!"
-                return $TR_RET_ENUM_KEY_IS_INVALID
+                die ERR "now are not in insertion semantics. key:${1@Q} is invalid!"
+                return $X_RET_ENUM_KEY_IS_INVALID
             }
             str_is_decimal_positive_int "${token:1:-1}" || {
-                die "key:$1 is invalid!"
-                return $TR_RET_ENUM_KEY_IS_INVALID
+                die ERR "key:${1@Q} is invalid!"
+                return $X_RET_ENUM_KEY_IS_INVALID
             }
             ;;
         '[]')
             str_is_decimal_int "${token:1:-1}" || {
-                die "key:$1 is invalid!"
-                return $TR_RET_ENUM_KEY_IS_INVALID
+                die ERR "key:${1@Q} is invalid!"
+                return $X_RET_ENUM_KEY_IS_INVALID
             }
             ;;
         '{}'|'<>')  : ;;
-        *)  die "key:$1 is invalid!"
-            return $TR_RET_ENUM_KEY_IS_INVALID
+        *)  die ERR "key:${1@Q} is invalid!"
+            return $X_RET_ENUM_KEY_IS_INVALID
             ;;
         esac
         tokens+=("$token")
@@ -173,19 +179,24 @@ _split_tokens ()
     done
     
     REPLY="${tokens[*]@Q}"
-    return $TR_RET_ENUM_OK
+    return $X_RET_ENUM_OK
 }
 
 #-------------------------------------------------------------------------------
 
 # index -> physical
+#
+# 索引 token 转物理 token（如 '[0]' -> '<n>'）。
+# @in  $1=树名  $2=token  $3=父节点 ID
+# @out REPLY=物理 token
+# @ret 0=OK  5=X_RET_ENUM_KEY_OUT_OF_INDEX
 tr_resolve_index_token ()
 {
     REPLY=
     local -n tr_t=$1
     local tr_token=$2 tr_node=$3
     if [[ "${tr_token:0:1}${tr_token: -1}" == '[]' ]] ; then
-        local -a "tr_child_ids=(${tr_t[$tr_node.children]})"
+        local -a "tr_child_ids=(${tr_t[$tr_node.s]})"
             #@if current_shell_process_replace==1
         tr_token=${|_negative_token_to_positive "$tr_token" "${#tr_child_ids[@]}" "$tr_node";} || return $?
             #@endif
@@ -201,6 +212,11 @@ tr_resolve_index_token ()
 #-------------------------------------------------------------------------------
 
 # physical -> index
+#
+# 物理 token 转索引 token（如 '<n>' -> '[i]'）。
+# @in  $1=树名  $2=token  $3=父节点 ID
+# @out REPLY=索引 token
+# @ret 0=OK  4=X_RET_ENUM_KEY_IS_INVALID
 tr_resolve_physical_token ()
 {
     REPLY=
@@ -208,7 +224,7 @@ tr_resolve_physical_token ()
     local tr_token=$2 tr_node=$3
 
     if [[ "${tr_token:0:1}${tr_token: -1}" == '<>' ]] ; then
-        local -a "tr_child_ids=(${tr_t[$tr_node.children]})"
+        local -a "tr_child_ids=(${tr_t[$tr_node.s]})"
         #@if current_shell_process_replace==1
         local -i tr_index=${|array_index "${tr_token}" ${tr_child_ids[@]};}
         #@endif
@@ -216,8 +232,8 @@ tr_resolve_physical_token ()
         array_index "${tr_token}" ${tr_child_ids[@]} ; local -i tr_index=$REPLY
         #@endif
         ((tr_index==-1)) && {
-            die "node:${tr_node}(token:${tr_token}) can not find index."
-            return $TR_RET_ENUM_KEY_IS_INVALID
+            die ERR "node:${tr_node}(token:${tr_token@Q}) can not find index."
+            return $X_RET_ENUM_KEY_IS_INVALID
         }
         tr_token="[$tr_index]"
     fi
@@ -229,6 +245,10 @@ tr_resolve_physical_token ()
 # Convert negative index of array to positive index
 # a=(1 2 3 4) index=-1 -> index=3
 #                         index=(($len+index))
+# 负索引归一化：'[-1]' -> '[(len-1)]'。
+# @in  $1=token  $2=数组长度  $3=父节点 ID
+# @out REPLY=归一化后的 token
+# @ret 0=OK  5=X_RET_ENUM_KEY_OUT_OF_INDEX
 _negative_token_to_positive ()
 {
     REPLY=
@@ -237,27 +257,35 @@ _negative_token_to_positive ()
         local -i tr_token_abs=${tr_token:1:-1}
         ((tr_token_abs=-tr_token_abs))
         ((tr_token_abs>tr_array_len)) && {
-            die "node:${tr_node}(token:${tr_token}) index:${tr_token:1:-1} is out of index."
-            return $TR_RET_ENUM_KEY_OUT_OF_INDEX
+            die ERR "node:${tr_node}(token:${tr_token@Q}) index:${tr_token:1:-1} is out of index."
+            return $X_RET_ENUM_KEY_OUT_OF_INDEX
         }
         ((tr_token_abs=tr_array_len-tr_token_abs))
         REPLY="${tr_token:0:1}$tr_token_abs${tr_token: -1}"
     else
         REPLY="$tr_token"
     fi
-    return $TR_RET_ENUM_OK
+    return $X_RET_ENUM_OK
 }
 
 #-------------------------------------------------------------------------------
 
-trie_init ()
+# children -> s
+# child    -> c
+# key      -> k
+# type     -> t
+# 初始化一棵空树。
+# @in  $1=根类型（X_TYPE_OBJ=1 或 X_TYPE_ARR=2，默认 OBJ）
+# @out REPLY=新树（关联数组 KV 格式，含根节点和 max_index=2）
+# @ret 0
+x_init ()
 {
     REPLY=
     local -A t=()
-    # t[$TR_ROOT_ID]=1
-    t[$TR_ROOT_ID.type]=${1:-"$TR_TYPE_OBJ"}
-    # t[$TR_ROOT_ID.children]=''
-    # t[$TR_ROOT_ID.key]=''
+    # t[$X_ROOT_ID]=1
+    t[$X_ROOT_ID.t]=${1:-"$X_TYPE_OBJ"}
+    # t[$X_ROOT_ID.s]=''
+    # t[$X_ROOT_ID.k]=''
 
     # Next available node ID
     t[max_index]=2
@@ -271,36 +299,44 @@ trie_init ()
 
 #-------------------------------------------------------------------------------
 
-# Verify whether the subtree is a basic trie
-_trie_tree_is_valid ()
+# Verify whether the subtree is a basic x
+#
+# 校验子树是否合法（关联数组、非空、有根节点）。
+# @in  $1=树名
+# @ret 0=OK  50=X_RET_ENUM_TREE_IS_INVALID  51=TREE_IS_EMPTY  52=TREE_NOT_HAVE_ROOT
+_x_tree_is_valid ()
 {
     local -n tr_tree=$1
 
     [[ "${tr_tree@a}" != *A* ]] && {
-        die "invalid tree: $1 is not an associative array!"
-        return ${TR_RET_ENUM_TREE_IS_INVALID}
+        die ERR "invalid tree: $1 is not an associative array!"
+        return ${X_RET_ENUM_TREE_IS_INVALID}
     }
 
     ((${#tr_tree[@]})) || {
-        die "invalid tree: $1 is empty!"
-        return ${TR_RET_ENUM_TREE_IS_EMPTY}
+        die ERR "invalid tree: $1 is empty!"
+        return ${X_RET_ENUM_TREE_IS_EMPTY}
     }
 
-    [[ ${tr_tree[$TR_ROOT_ID.type]+_} ]] || {
-        die "invalid tree: $1 not have root node!"
-        return ${TR_RET_ENUM_TREE_NOT_HAVE_ROOT}
+    [[ ${tr_tree[$X_ROOT_ID.t]+_} ]] || {
+        die ERR "invalid tree: $1 not have root node!"
+        return ${X_RET_ENUM_TREE_NOT_HAVE_ROOT}
     }
 
-    return ${TR_RET_ENUM_OK}
+    return ${X_RET_ENUM_OK}
 }
 
 #-------------------------------------------------------------------------------
 
+# 将 '()' 主键语义转为 '[]' 索引语义（用于 x_qinserts 的前缀归一化）。
+# @in  $1=token 串
+# @out REPLY=转换后的 token 串
+# @ret 0
 _tokens_insert_to_overwrite ()
 {
     REPLY=
     local tokens_str=$1
-    [[ -z "$tokens_str" ]] && return $TR_RET_ENUM_OK
+    [[ -z "$tokens_str" ]] && return $X_RET_ENUM_OK
     local -a tokens=()
     local token
     while [[ -n "$tokens_str" ]] ; do
@@ -310,17 +346,22 @@ _tokens_insert_to_overwrite ()
         tokens_str="${tokens_str#*"$X"}"
     done
     printf -v REPLY "%s$X" "${tokens[@]}"
-    return $TR_RET_ENUM_OK
+    return $X_RET_ENUM_OK
 }
 
 #-------------------------------------------------------------------------------
 
 # Subtree mount
-# Reuse trie_insert, so it is not the most efficient implementation version
+# Reuse x_insert, so it is not the most efficient implementation version
 # is the simplest implementation
 #
 # REPLY: (node_id node_phy_path)
-trie_graft ()
+#
+# 子树挂载：把子树 $3 的全部叶挂到 $1 的 $2 前缀下。
+# @in  $1=目标树名  $2=挂载前缀  $3=子树名
+# @out REPLY=列表 "node_id physical_key"
+# @ret 0=OK  其他=透传 _x_tree_is_valid / x_insert 的返回码
+x_graft ()
 {
     REPLY=
     # local - ; set +x
@@ -329,15 +370,15 @@ trie_graft ()
     local tr_graft_prefix=$2
     local tr_sub_name=$3
     local tr_graft_is_first_insert=1
-    local tr_graft_start_token_id=${TR_ROOT_ID}
+    local tr_graft_start_token_id=${X_ROOT_ID}
     local tr_graft_start_path_token=""
     local tr_graft_reply=()
 
     # 2. Simply check the legality of the subtree
-    _trie_tree_is_valid "$3" || return $?
+    _x_tree_is_valid "$3" || return $?
 
-    # 3. Use the trie_walk function to traverse a subtree
-    trie_graft_walk_callback ()
+    # 3. Use the x_walk function to traverse a subtree
+    x_graft_walk_cb ()
     {
         local tr_node_kind=$1
         local tr_index_full_key=$3
@@ -345,9 +386,9 @@ trie_graft ()
         local tr_prefix=$tr_graft_prefix
 
         case "$tr_node_kind" in
-        $TR_NODE_KIND_LEAF|$TR_NODE_KIND_LEAF_NULL|$TR_NODE_KIND_OBJ_EMPTY|$TR_NODE_KIND_ARR_EMPTY)
+        $X_NODE_KIND_LEAF|$X_NODE_KIND_LEAF_NULL|$X_NODE_KIND_OBJ_EMPTY|$X_NODE_KIND_ARR_EMPTY)
 
-            trie_insert "$tr_target_name" \
+            x_insert "$tr_target_name" \
                         "$tr_prefix$tr_index_full_key" \
                         "$tr_value" \
                         "$tr_graft_start_token_id" \
@@ -357,11 +398,11 @@ trie_graft ()
                 tr_graft_is_first_insert=0
                     #@if current_shell_process_replace==1
                 tr_graft_prefix=${|_tokens_insert_to_overwrite "$tr_graft_prefix";}
-                local -A "tr_prefix_token_info=(${|_trie_token_to_node_id "$tr_target_name" "$tr_graft_prefix";})"
+                local -A "tr_prefix_token_info=(${|_x_token_to_node_id "$tr_target_name" "$tr_graft_prefix";})"
                     #@endif
                     #@if current_shell_process_replace==0
                 _tokens_insert_to_overwrite "$tr_graft_prefix" ; eval "${_ret_s_/o/tr_graft_prefix}"
-                _trie_token_to_node_id "$tr_target_name" "$tr_graft_prefix" ; eval "${_ret_A/o/tr_prefix_token_info}"
+                _x_token_to_node_id "$tr_target_name" "$tr_graft_prefix" ; eval "${_ret_A/o/tr_prefix_token_info}"
                     #@endif
                 tr_graft_start_token_id=${tr_prefix_token_info[node_id]}
                 tr_graft_start_path_token=${tr_prefix_token_info[physical_full_key]}
@@ -372,33 +413,42 @@ trie_graft ()
         return 0
     }
     
-    trie_walk "$tr_sub_name" "" trie_graft_walk_callback || return $?
+    x_walk "$tr_sub_name" "" x_graft_walk_cb || return $?
     tr_graft_reply=("$tr_graft_start_token_id" "$tr_graft_start_path_token")
     REPLY=${tr_graft_reply[*]@Q}
 }
 
 #-------------------------------------------------------------------------------
 
-trie_key_is_invalid ()
+# 校验物理键格式：非空、不以 $X 开头、不含连续的 $X、必须含 $X。
+# @in  $1=物理键字符串
+# @ret 0=OK  7=X_RET_ENUM_KEY_IS_NULL
+x_key_is_invalid ()
 {
     if [[ "$1" == "$X"* ]] ||
         [[ "$1" == *"$X$X"* ]] ||
         [[ "$1" == "$X" ]] ||
         [[ "$1" != *"$X" ]] ; then
-        die "key is null or invalid!"
-        return $TR_RET_ENUM_KEY_IS_NULL
+        die ERR "key:${1@Q} is null or invalid!"
+        return $X_RET_ENUM_KEY_IS_NULL
     else
-        return $TR_RET_ENUM_OK
+        return $X_RET_ENUM_OK
     fi
 }
 
 #-------------------------------------------------------------------------------
 
 # Insert with public prefix
-# trie_inserts t1 "{prefix1}$X{prefix2}$X" "[0]$X" "array_value1" \
+# x_inserts t1 "{prefix1}$X{prefix2}$X" "[0]$X" "array_value1" \
 #                                          "[1]$X" "array_value2" \
 #                                          "[2]$X" "array_value3"
-trie_qinserts ()
+#
+# 批量带公共前缀插入多个叶，自动处理首个 '()' 语义转 '[]' 加速后续插入。
+# @in  $1=树名  $2=返回模式(leaves/common)  $3=公共前缀 token 串
+#      $4..=成对的 {key value}
+# @out REPLY=按返回模式拼接的 "node_id physical_key ..." 列表
+# @ret 0=OK  其他=透传 x_insert 的返回码
+x_qinserts ()
 {
     REPLY=
     # local - ; set +x
@@ -414,24 +464,24 @@ trie_qinserts ()
     # If the number of parameters is 1, it means only writing a single value, not a key
     ((${#tr_insert_kv[@]}==1)) && {
     #@if current_shell_process_replace==1
-        REPLY=${|trie_insert "$tr_t_name" "$tr_common_prefix" "${tr_insert_kv[0]}";}
+        REPLY=${|x_insert "$tr_t_name" "$tr_common_prefix" "${tr_insert_kv[0]}";}
         return $?
     #@endif
     #@if current_shell_process_replace==0
-        trie_insert "$tr_t_name" "$tr_common_prefix" "${tr_insert_kv[0]}"
-        local tr_trie_qinserts_ret=$? ; REPLY=$REPLY
-        return $tr_trie_qinserts_ret
+        x_insert "$tr_t_name" "$tr_common_prefix" "${tr_insert_kv[0]}"
+        local tr_x_qinserts_ret=$? ; REPLY=$REPLY
+        return $tr_x_qinserts_ret
     #@endif
     }
 
-    ((${#tr_insert_kv[@]}<2)) && return $TR_RET_ENUM_OK
+    ((${#tr_insert_kv[@]}<2)) && return $X_RET_ENUM_OK
 
     # The first insertion uses the original KEY
         #@if current_shell_process_replace==1
-    tr_insert_info=${|trie_insert "$tr_t_name" "$tr_common_prefix${tr_insert_kv[0]}" "${tr_insert_kv[1]}";} || return $?
+    tr_insert_info=${|x_insert "$tr_t_name" "$tr_common_prefix${tr_insert_kv[0]}" "${tr_insert_kv[1]}";} || return $?
         #@endif
         #@if current_shell_process_replace==0
-    trie_insert "$tr_t_name" "$tr_common_prefix${tr_insert_kv[0]}" "${tr_insert_kv[1]}" || eval "$_ret_e"
+    x_insert "$tr_t_name" "$tr_common_prefix${tr_insert_kv[0]}" "${tr_insert_kv[1]}" || eval "$_ret_e"
     eval "${_ret_s_/o/tr_insert_info}"
         #@endif
     local -a "tr_insert_info=($tr_insert_info)"
@@ -443,11 +493,11 @@ trie_qinserts ()
 
         #@if current_shell_process_replace==1
     tr_common_prefix=${|_tokens_insert_to_overwrite "$tr_common_prefix";}
-    local -A "tr_prefix_token_info=(${|_trie_token_to_node_id "$tr_t_name" "$tr_common_prefix";})"
+    local -A "tr_prefix_token_info=(${|_x_token_to_node_id "$tr_t_name" "$tr_common_prefix";})"
         #@endif
         #@if current_shell_process_replace==0
     _tokens_insert_to_overwrite "$tr_common_prefix" ; eval "${_ret_s_/o/tr_common_prefix}"
-    _trie_token_to_node_id "$tr_t_name" "$tr_common_prefix" ; eval "${_ret_A/o/tr_prefix_token_info}"
+    _x_token_to_node_id "$tr_t_name" "$tr_common_prefix" ; eval "${_ret_A/o/tr_prefix_token_info}"
         #@endif
     tr_common_prefix=${tr_prefix_token_info[physical_full_key]}
     local tr_common_id=${tr_prefix_token_info[node_id]}
@@ -459,14 +509,14 @@ trie_qinserts ()
 
     for((tr_k_index=2,tr_v_index=3;tr_v_index<${#tr_insert_kv[@]};tr_k_index+=2,tr_v_index+=2)) ; do
             #@if current_shell_process_replace==1
-        tr_insert_info=${|trie_insert "$tr_t_name" \
+        tr_insert_info=${|x_insert "$tr_t_name" \
                                     "${tr_common_prefix}${tr_insert_kv[tr_k_index]}" \
                                     "${tr_insert_kv[tr_v_index]}" \
                                     "$tr_common_id" \
                                     "$tr_common_prefix";} || return $?
             #@endif
             #@if current_shell_process_replace==0
-        trie_insert "$tr_t_name" \
+        x_insert "$tr_t_name" \
                     "${tr_common_prefix}${tr_insert_kv[tr_k_index]}" \
                     "${tr_insert_kv[tr_v_index]}" \
                     "$tr_common_id" \
@@ -480,13 +530,17 @@ trie_qinserts ()
     done
 
     REPLY=${tr_qinserts_reply[*]@Q}
-    return $TR_RET_ENUM_OK
+    return $X_RET_ENUM_OK
 }
 
 #-------------------------------------------------------------------------------
 
 # Returns an array of node IDs
-trie_inserts ()
+# 批量插入叶（参数顺序：{k v} 成对在前，树名在最后）。
+# @in  $1=第一个键  $2=第一个值  ...  最后一个参数=树名
+# @out REPLY=叶节点 "node_id physical_key" 列表
+# @ret 0=OK  其他=透传 x_insert 的返回码
+x_inserts ()
 {
     REPLY=
     # local - ; set +x
@@ -495,10 +549,10 @@ trie_inserts ()
     local -a tr_inserts_reply=()
     while (($#>1)) ; do
             #@if current_shell_process_replace==1
-        tr_insert_info=${|trie_insert "${!#}" "$1" "$2";} || return $?
+        tr_insert_info=${|x_insert "${!#}" "$1" "$2";} || return $?
             #@endif
             #@if current_shell_process_replace==0
-        trie_insert "${!#}" "$1" "$2" || eval "${_ret_e}"
+        x_insert "${!#}" "$1" "$2" || eval "${_ret_e}"
         eval "${_ret_s_/o/tr_insert_info}"
             #@endif
         shift 2
@@ -507,14 +561,19 @@ trie_inserts ()
         tr_inserts_reply+=("${tr_insert_info[@]}")
     done
     REPLY=${tr_inserts_reply[*]@Q}
-    return $TR_RET_ENUM_OK
+    return $X_RET_ENUM_OK
 }
 
 #-------------------------------------------------------------------------------
 
 # Quickly push a series of leaf keys into an existing physical key array and
 # return an array of their IDs and physical keys (ID physical keys) tuples
-trie_push_leaf_fast ()
+#
+# 快速向现有数组节点追加多个叶，只返回新节点 ID 列表。
+# @in  $1=树名  $2=数组节点 ID 或空  $3=物理前缀  $4..=叶值列表
+# @out REPLY=新叶 "node_id physical_key" 列表
+# @ret 0=OK
+x_push_leaf_fast ()
 {
     REPLY=
     local -n tr_t=$1
@@ -525,15 +584,15 @@ trie_push_leaf_fast ()
 
     [[ -z "$tr_node" ]] && {
             #@if current_shell_process_replace==1
-        local -A "tr_node_info=(${|_trie_token_to_node_id "$1" "$tr_prefix";})"
+        local -A "tr_node_info=(${|_x_token_to_node_id "$1" "$tr_prefix";})"
             #@endif
             #@if current_shell_process_replace==0
-        _trie_token_to_node_id "$1" "$tr_prefix" ; eval "${_ret_A/o/tr_node_info}"
+        _x_token_to_node_id "$1" "$tr_prefix" ; eval "${_ret_A/o/tr_node_info}"
             #@endif
         tr_node=${tr_node_info[node_id]}
     }
 
-    local -a "tr_children=(${tr_t[$tr_node.children]})"
+    local -a "tr_children=(${tr_t[$tr_node.s]})"
 
     # Traverse the list of leaves that need to be pushed
     for tr_leaf in "${@:4}" ; do
@@ -542,19 +601,19 @@ trie_push_leaf_fast ()
         tr_children+=("$tr_token")
         ((tr_t[max_index]++))
         case "$tr_leaf" in
-        $TR_VALUE_NULL_OBJ) tr_t[$tr_child_id.type]=$TR_TYPE_OBJ ;;
-        $TR_VALUE_NULL_ARR) tr_t[$tr_child_id.type]=$TR_TYPE_ARR ;;
+        $X_VALUE_NULL_OBJ) tr_t[$tr_child_id.t]=$X_TYPE_OBJ ;;
+        $X_VALUE_NULL_ARR) tr_t[$tr_child_id.t]=$X_TYPE_ARR ;;
         *)
-            tr_t[$tr_child_id.key]=$tr_prefix$tr_token$X
+            tr_t[$tr_child_id.k]=$tr_prefix$tr_token$X
             tr_t[$tr_prefix$tr_token$X]=$tr_leaf
             ;;
         esac
-        tr_t[$tr_node.child.$tr_token]=$tr_child_id
+        tr_t[$tr_node.c.$tr_token]=$tr_child_id
         tr_ret+=("$tr_child_id" "$tr_prefix$tr_token$X")
     done
     
     # Update the parent node's children list
-    tr_t[$tr_node.children]=${tr_children[*]@Q}
+    tr_t[$tr_node.s]=${tr_children[*]@Q}
     REPLY=${tr_ret[*]@Q}
 }
 
@@ -563,8 +622,12 @@ trie_push_leaf_fast ()
 # Only insert and do not return any data
 # Fast writing of associative arrays that can be used directly for flat layers
 # local -A assoc=(['{1 2}']='a b' ['{3 4}']='c d')
-# trie_insert_token_dict my_tree '134' '{lev1}' "${assoc[@]@k}"
-trie_insert_token_dict ()
+# x_insert_token_dict my_tree '134' '{lev1}' "${assoc[@]@k}"
+#
+# 从 "token value token value ..." 数组快速插入到指定节点（仅插入不返回）。
+# @in  $1=树名  $2=起始节点 ID  $3=物理前缀  $4..=token,value 交错
+# @ret 0=OK
+x_insert_token_dict ()
 {
     local -n tr_t=$1
 
@@ -587,42 +650,47 @@ trie_insert_token_dict ()
         }
 
         tr_child_id="${tr_t[max_index]}" ; ((tr_t[max_index]++))
-        tr_t["$tr_node.child.$tr_token"]=$tr_child_id
+        tr_t["$tr_node.c.$tr_token"]=$tr_child_id
         tr_tokens+=("$tr_token")
 
         case "$tr_value" in
-        "$TR_VALUE_NULL_ARR")
-            tr_t[$tr_child_id.type]="$TR_TYPE_ARR"
+        "$X_VALUE_NULL_ARR")
+            tr_t[$tr_child_id.t]="$X_TYPE_ARR"
             ;;
-        "$TR_VALUE_NULL_OBJ")
-            tr_t[$tr_child_id.type]="$TR_TYPE_OBJ"
+        "$X_VALUE_NULL_OBJ")
+            tr_t[$tr_child_id.t]="$X_TYPE_OBJ"
             ;;
         *)
-            tr_t[$tr_child_id.key]=$tr_path_key
+            tr_t[$tr_child_id.k]=$tr_path_key
             tr_t["$tr_path_key"]=$tr_value
             ;;
         esac
     done
     
-    ((${#tr_tokens[@]})) && tr_t[$tr_node.children]+=" ${tr_tokens[*]@Q}"
-    return $TR_RET_ENUM_OK
+    ((${#tr_tokens[@]})) && tr_t[$tr_node.s]+=" ${tr_tokens[*]@Q}"
+    return $X_RET_ENUM_OK
 }
 
 #-------------------------------------------------------------------------------
 
 # Only insert and do not return any data
-trie_insert_dict ()
+#
+# 单点快速插入（仅插入不返回）。
+# @in  $1=树名  $2=物理全 key  $3=值  $4=起始节点 ID（默认 ROOT）
+#      $5=已遍历物理前缀（默认空）
+# @ret 0=OK
+x_insert_dict ()
 {
     local -n tr_t=$1
     local tr_full_key=$2
 
     local tr_value=$3
-    local tr_start_node_id=${4:-"$TR_ROOT_ID"}
+    local tr_start_node_id=${4:-"$X_ROOT_ID"}
     local tr_path_key=${5:-""}
 
     [[ ${tr_t["$tr_full_key"]+_} ]] && {
         tr_t["$tr_full_key"]=$tr_value
-        return ${TR_RET_ENUM_OK}
+        return ${X_RET_ENUM_OK}
     }
 
     local tr_token tr_child_key tr_child_id tr_tokens_str
@@ -640,13 +708,13 @@ trie_insert_dict ()
     local tr_node=${tr_start_node_id}
 
     for tr_token in "${tr_tokens[@]}" ; do
-        tr_child_key="$tr_node.child.$tr_token"
+        tr_child_key="$tr_node.c.$tr_token"
         tr_child_id="${tr_t[$tr_child_key]}"
 
         # Child node does not exist -> create
         [[ -z "$tr_child_id" ]] && {
             tr_child_id="${tr_t[max_index]}" ; ((tr_t[max_index]++))
-            tr_t[$tr_node.children]+=" ${tr_token@Q}"
+            tr_t[$tr_node.s]+=" ${tr_token@Q}"
             tr_t["$tr_child_key"]=$tr_child_id
         }
 
@@ -655,25 +723,31 @@ trie_insert_dict ()
     done
 
     case "$tr_value" in
-    "$TR_VALUE_NULL_ARR")
-        tr_t[$tr_node.type]="$TR_TYPE_ARR"
-        return $TR_RET_ENUM_OK
+    "$X_VALUE_NULL_ARR")
+        tr_t[$tr_node.t]="$X_TYPE_ARR"
+        return $X_RET_ENUM_OK
         ;;
-    "$TR_VALUE_NULL_OBJ")
-        tr_t[$tr_node.type]="$TR_TYPE_OBJ"
-        return $TR_RET_ENUM_OK
+    "$X_VALUE_NULL_OBJ")
+        tr_t[$tr_node.t]="$X_TYPE_OBJ"
+        return $X_RET_ENUM_OK
         ;;
     *)
-        tr_t[$tr_node.key]=$tr_path_key
+        tr_t[$tr_node.k]=$tr_path_key
         tr_t["$tr_path_key"]=$tr_value
-        return $TR_RET_ENUM_OK
+        return $X_RET_ENUM_OK
     esac
 }
 
 #-------------------------------------------------------------------------------
 
 # Returns the inserted node ID, used by external or object tracking systems to track the ID of the object.
-trie_insert ()
+#
+# 核心插入：把 $3 插入到 $1 的 $2 位置，支持自动创建路径节点。
+# @in  $1=树名  $2=物理全 key  $3=值（X_VALUE_NULL_OBJ/ARR 或叶值）
+#      $4=起始节点 ID（默认 ROOT）  $5=已遍历物理前缀（默认空）
+# @out REPLY=列表 "node_id physical_key"
+# @ret 0=OK  4=X_RET_ENUM_KEY_IS_INVALID  8=X_RET_ENUM_KEY_UP_LEV_TYPE_MISMATCH
+x_insert ()
 {
     REPLY=
     # local - ; set +x
@@ -682,35 +756,35 @@ trie_insert ()
     local -i tr_array_index=-1
     local -a tr_insert_reply=()
 
-    trie_key_is_invalid "$tr_full_key" || return $?
+    x_key_is_invalid "$tr_full_key" || return $?
 
     local tr_value=$3
-    local tr_start_node_id=${4:-"$TR_ROOT_ID"}
+    local tr_start_node_id=${4:-"$X_ROOT_ID"}
     local tr_path_key=${5:-""}
 
     if [[ -n "$tr_path_key" ]] ; then
-        trie_key_is_invalid "$tr_path_key" || return $?
+        x_key_is_invalid "$tr_path_key" || return $?
 
         [[ "$tr_path_key" == *"]$X"* || "$tr_path_key" == *")$X"* ]] && {
-            die "path key:${tr_path_key} is not physical key."
-            return $TR_RET_ENUM_KEY_IS_INVALID
+            die ERR "path key:${tr_path_key@Q} is not physical key."
+            return $X_RET_ENUM_KEY_IS_INVALID
         }
     fi
 
     # If it is a leaf node, update the value directly
     if  [[ ${tr_t["$tr_full_key"]+_} ]] &&
-        [[ "$tr_value" != "$TR_VALUE_NULL_ARR" ]] &&
-        [[ "$tr_value" != "$TR_VALUE_NULL_OBJ" ]] ; then
+        [[ "$tr_value" != "$X_VALUE_NULL_ARR" ]] &&
+        [[ "$tr_value" != "$X_VALUE_NULL_OBJ" ]] ; then
         tr_t["$tr_full_key"]=$tr_value
             #@if current_shell_process_replace==1
-        local -A "tr_node_info=(${|_trie_token_to_node_id "$1" "$tr_full_key";})"
+        local -A "tr_node_info=(${|_x_token_to_node_id "$1" "$tr_full_key";})"
             #@endif
             #@if current_shell_process_replace==0
-        _trie_token_to_node_id "$1" "$tr_full_key" ; eval "${_ret_A/o/tr_node_info}"
+        _x_token_to_node_id "$1" "$tr_full_key" ; eval "${_ret_A/o/tr_node_info}"
             #@endif
         tr_insert_reply=("${tr_node_info[node_id]}" "${tr_node_info[physical_full_key]}")
         REPLY=${tr_insert_reply[*]@Q}
-        return ${TR_RET_ENUM_OK}
+        return ${X_RET_ENUM_OK}
     fi
 
     local tr_token tr_child_key tr_child_id tr_tokens_str
@@ -718,8 +792,8 @@ trie_insert ()
     # Here tr_full_key needs to remove the tr_path_key prefix and start traversing
     tr_tokens_str=${tr_full_key#"$tr_path_key"}
     [[ -n "$tr_path_key" && "$tr_tokens_str" == "$tr_full_key" ]] && {
-        die "path_key:${tr_path_key} is not part of full key:${tr_full_key}."
-        return $TR_RET_ENUM_KEY_IS_INVALID
+        die ERR "path_key:${tr_path_key@Q} is not part of full key:${tr_full_key@Q}."
+        return $X_RET_ENUM_KEY_IS_INVALID
     }
         #@if current_shell_process_replace==1
     tr_tokens_str=${|_split_tokens "$tr_tokens_str" 1;} || return $?
@@ -735,7 +809,7 @@ trie_insert ()
     # Record the ID key of the created intermediate node, all need to be deleted
     local -a tr_tmp_node_ids=()
 
-    _trie_insert_delete_tmp_node_ids ()
+    _x_insert_delete_tmp_node_ids ()
     {
         local tr_tmp_node
 
@@ -745,53 +819,53 @@ trie_insert ()
     }
 
     for tr_token in "${tr_tokens[@]}" ; do
-        local tr_key="${tr_t[$tr_node.key]}"
+        local tr_key="${tr_t[$tr_node.k]}"
         local -i tr_array_index=-1
         local tr_token_pack="${tr_token:0:1}${tr_token: -1}"
         case "$tr_token_pack" in
         '{}') 
             # The previous level must be null or obj or nothing (only nodes have tags)
-            if [[ "${tr_t[$tr_node.type]}" == "$TR_TYPE_OBJ" ]] ; then
+            if [[ "${tr_t[$tr_node.t]}" == "$X_TYPE_OBJ" ]] ; then
                 :
-            elif [[ -n "$tr_key" ]] && [[ "${tr_t[$tr_key]}" == "$TR_VALUE_NULL" ]] ; then
+            elif [[ -n "$tr_key" ]] && [[ "${tr_t[$tr_key]}" == "$X_VALUE_NULL" ]] ; then
                 # Become path empty obj
-                unset -v 'tr_t[$tr_node.key]'
+                unset -v 'tr_t[$tr_node.k]'
                 unset -v 'tr_t[$tr_key]'
-                tr_t[$tr_node.type]=$TR_TYPE_OBJ
+                tr_t[$tr_node.t]=$X_TYPE_OBJ
             # If tr_node has only node tags, then turn it into empty obj
             elif [[ ${tr_t[$tr_node]+_} ]] &&
-                [[ -z ${tr_t[$tr_node.key]+_} ]] &&
-                [[ -z ${tr_t[$tr_node.children]+_} ]] &&
-                [[ "${tr_t[$tr_node.type]}" != "$TR_TYPE_ARR" ]] ; then
-                tr_t[$tr_node.type]=$TR_TYPE_OBJ
+                [[ -z ${tr_t[$tr_node.k]+_} ]] &&
+                [[ -z ${tr_t[$tr_node.s]+_} ]] &&
+                [[ "${tr_t[$tr_node.t]}" != "$X_TYPE_ARR" ]] ; then
+                tr_t[$tr_node.t]=$X_TYPE_OBJ
             else
-                die "node:${tr_node}(token:${tr_token}) is not obj or null."
-                _trie_insert_delete_tmp_node_ids
-                return $TR_RET_ENUM_KEY_UP_LEV_TYPE_MISMATCH
+                die ERR "node:${tr_node}(token:${tr_token@Q}) is not obj or null."
+                _x_insert_delete_tmp_node_ids
+                return $X_RET_ENUM_KEY_UP_LEV_TYPE_MISMATCH
             fi
             ;;
         '[]'|'()')
             # If the previous layer is null, create an empty array path node.
-            if [[ -n "$tr_key" ]] && [[ "${tr_t[$tr_key]}" == "$TR_VALUE_NULL" ]] ; then
-                unset -v 'tr_t[$tr_node.key]'
+            if [[ -n "$tr_key" ]] && [[ "${tr_t[$tr_key]}" == "$X_VALUE_NULL" ]] ; then
+                unset -v 'tr_t[$tr_node.k]'
                 unset -v 'tr_t[$tr_key]'
-                tr_t[$tr_node.type]=$TR_TYPE_ARR
+                tr_t[$tr_node.t]=$X_TYPE_ARR
             # Contains only node existence flags
             elif [[ ${tr_t[$tr_node]+_} ]] &&
-                [[ -z ${tr_t[$tr_node.key]+_} ]] &&
-                [[ -z ${tr_t[$tr_node.children]+_} ]] &&
-                [[ "${tr_t[$tr_node.type]}" != "$TR_TYPE_OBJ" ]] ; then
-                tr_t[$tr_node.type]=$TR_TYPE_ARR
+                [[ -z ${tr_t[$tr_node.k]+_} ]] &&
+                [[ -z ${tr_t[$tr_node.s]+_} ]] &&
+                [[ "${tr_t[$tr_node.t]}" != "$X_TYPE_OBJ" ]] ; then
+                tr_t[$tr_node.t]=$X_TYPE_ARR
             fi
 
-            [[ "${tr_t[$tr_node.type]}" != "$TR_TYPE_ARR" ]] && {
-                die "node:${tr_node}(token:${tr_token}) up layer is not array or null."
-                _trie_insert_delete_tmp_node_ids
-                return $TR_RET_ENUM_KEY_UP_LEV_TYPE_MISMATCH
+            [[ "${tr_t[$tr_node.t]}" != "$X_TYPE_ARR" ]] && {
+                die ERR "node:${tr_node}(token:${tr_token@Q}) up layer is not array or null."
+                _x_insert_delete_tmp_node_ids
+                return $X_RET_ENUM_KEY_UP_LEV_TYPE_MISMATCH
             }
 
             # Fill incomplete null nodes and update tr_token
-            local -a "tr_array=(${tr_t[$tr_node.children]})"
+            local -a "tr_array=(${tr_t[$tr_node.s]})"
             local -i tr_i tr_array_len=${#tr_array[@]}
             local -a tr_add_token=()
             
@@ -804,17 +878,17 @@ trie_insert ()
             eval "${_ret_s_/o/tr_token}"
                 #@endif
             ((tr_token_ret)) && {
-                _trie_insert_delete_tmp_node_ids
+                _x_insert_delete_tmp_node_ids
                 return $tr_token_ret
             }
 
             for((tr_i=tr_array_len;tr_i<${tr_token:1:-1};tr_i++)) ; do
                 local tr_new_id=${tr_t[max_index]} ; ((tr_t[max_index]++))
                 # tr_t[$tr_new_id]=1
-                tr_t[$tr_new_id.key]="$tr_path_key<$tr_new_id>$X"
-                tr_t["$tr_path_key<$tr_new_id>$X"]="$TR_VALUE_NULL"
+                tr_t[$tr_new_id.k]="$tr_path_key<$tr_new_id>$X"
+                tr_t["$tr_path_key<$tr_new_id>$X"]="$X_VALUE_NULL"
                 # Attach parent node children
-                tr_t["$tr_node.child.<$tr_new_id>"]=$tr_new_id
+                tr_t["$tr_node.c.<$tr_new_id>"]=$tr_new_id
                 tr_add_token+=("<$tr_new_id>")
             done
 
@@ -823,7 +897,7 @@ trie_insert ()
             if ((${#tr_add_token[@]})) ; then
                 # Populate the parent node's children list
                 tr_array=("${tr_array[@]:0:tr_array_len}" "${tr_add_token[@]}" "${tr_array[@]:tr_array_len}")
-                tr_t[$tr_node.children]=${tr_array[*]@Q}
+                tr_t[$tr_node.s]=${tr_array[*]@Q}
                 tr_token="<${tr_t[max_index]}>"
             else
                 tr_token="${tr_array[tr_array_index]}"
@@ -836,21 +910,21 @@ trie_insert ()
             ;;
         '<>')
             # The previous level must be an array and elements must exist
-            if [[ "${tr_t[$tr_node.type]}" != "$TR_TYPE_ARR" ]] ; then
-                die "node:${tr_node}(token:${tr_token}) up layer is not array."
-                _trie_insert_delete_tmp_node_ids
-                return $TR_RET_ENUM_KEY_UP_LEV_TYPE_MISMATCH
+            if [[ "${tr_t[$tr_node.t]}" != "$X_TYPE_ARR" ]] ; then
+                die ERR "node:${tr_node}(token:${tr_token@Q}) up layer is not array."
+                _x_insert_delete_tmp_node_ids
+                return $X_RET_ENUM_KEY_UP_LEV_TYPE_MISMATCH
             fi
 
-            if [[ -z "${tr_t[$tr_node.child.$tr_token]}" ]] ; then
-                die "node:${tr_node}(token:${tr_token}) is not exist."
-                _trie_insert_delete_tmp_node_ids
-                return $TR_RET_ENUM_KEY_UP_LEV_TYPE_MISMATCH
+            if [[ -z "${tr_t[$tr_node.c.$tr_token]}" ]] ; then
+                die ERR "node:${tr_node}(token:${tr_token@Q}) is not exist."
+                _x_insert_delete_tmp_node_ids
+                return $X_RET_ENUM_KEY_UP_LEV_TYPE_MISMATCH
             fi
             ;;
         esac
             
-        tr_child_key="$tr_node.child.$tr_token"
+        tr_child_key="$tr_node.c.$tr_token"
         tr_child_id="${tr_t[$tr_child_key]}"
 
         # Child node does not exist -> create
@@ -858,10 +932,10 @@ trie_insert ()
             tr_child_id="${tr_t[max_index]}" ; ((tr_t[max_index]++))
             tr_t[$tr_child_id]=1
             tr_tmp_node_ids+=("$tr_child_id")
-            # tr_t[$tr_child_id.children]=''
-            # tr_t[$tr_child_id.key]=''
+            # tr_t[$tr_child_id.s]=''
+            # tr_t[$tr_child_id.k]=''
 
-            local -a "tr_children=(${tr_t[$tr_node.children]})"
+            local -a "tr_children=(${tr_t[$tr_node.s]})"
             
             if ((tr_array_index!=-1)) ; then
                 if [[ "$tr_token_pack" == '()' ]] ; then
@@ -875,7 +949,7 @@ trie_insert ()
                 tr_children+=("$tr_token")
             fi
 
-            tr_t[$tr_node.children]=${tr_children[*]@Q}
+            tr_t[$tr_node.s]=${tr_children[*]@Q}
             tr_t["$tr_child_key"]=$tr_child_id
         fi
 
@@ -886,63 +960,67 @@ trie_insert ()
     # Write leaf key
     # Leaf nodes may be empty obj or empty array
     # Leaf nodes are set to provide better coverage.
-    # Intermediate nodes are strictly limited. trie_graft also maintain the same semantics.
+    # Intermediate nodes are strictly limited. x_graft also maintain the same semantics.
     # If it is found at the end that there are children at the inserted place,
     # it proves to be an existing structure node,
     # and the leaf is not allowed to be inserted.
-    [[ -n "${tr_t[$tr_node.children]}" ]] && {
-        die "node:${tr_node}(token:${tr_token}) have children."
-        _trie_insert_delete_tmp_node_ids
-        return $TR_RET_ENUM_KEY_UP_LEV_TYPE_MISMATCH
+    [[ -n "${tr_t[$tr_node.s]}" ]] && {
+        die ERR "node:${tr_node}(token:${tr_token@Q}) have children."
+        _x_insert_delete_tmp_node_ids
+        return $X_RET_ENUM_KEY_UP_LEV_TYPE_MISMATCH
     }
 
     # If it is found at the end that the inserted place is an empty obj or an
     # empty array, but the content to be inserted does not match,
     # an error will be reported.
-    if  [[ "${tr_t[$tr_node.type]}" == "$TR_TYPE_OBJ" ]] &&
-        [[ "$tr_value" != "$TR_VALUE_NULL_OBJ" ]] ; then
-        die "node:${tr_node}(token:${tr_token}) is null obj,but insert is not."
-        _trie_insert_delete_tmp_node_ids
-        return $TR_RET_ENUM_KEY_UP_LEV_TYPE_MISMATCH
+    if  [[ "${tr_t[$tr_node.t]}" == "$X_TYPE_OBJ" ]] &&
+        [[ "$tr_value" != "$X_VALUE_NULL_OBJ" ]] ; then
+        die ERR "node:${tr_node}(token:${tr_token@Q}) is null obj,but insert is not."
+        _x_insert_delete_tmp_node_ids
+        return $X_RET_ENUM_KEY_UP_LEV_TYPE_MISMATCH
     fi
 
-    if  [[ "${tr_t[$tr_node.type]}" == "$TR_TYPE_ARR" ]] &&
-        [[ "$tr_value" != "$TR_VALUE_NULL_ARR" ]] ; then
-        die "node:${tr_node}(token:${tr_token}) is null array,but insert is not."
-        _trie_insert_delete_tmp_node_ids
-        return $TR_RET_ENUM_KEY_UP_LEV_TYPE_MISMATCH
+    if  [[ "${tr_t[$tr_node.t]}" == "$X_TYPE_ARR" ]] &&
+        [[ "$tr_value" != "$X_VALUE_NULL_ARR" ]] ; then
+        die ERR "node:${tr_node}(token:${tr_token@Q}) is null array,but insert is not."
+        _x_insert_delete_tmp_node_ids
+        return $X_RET_ENUM_KEY_UP_LEV_TYPE_MISMATCH
     fi
 
     local tr_new_type
     case "$tr_value" in
-        "$TR_VALUE_NULL_ARR")   tr_new_type="$TR_TYPE_ARR" ;;
-        "$TR_VALUE_NULL_OBJ")   tr_new_type="$TR_TYPE_OBJ" ;;
+        "$X_VALUE_NULL_ARR")   tr_new_type="$X_TYPE_ARR" ;;
+        "$X_VALUE_NULL_OBJ")   tr_new_type="$X_TYPE_OBJ" ;;
         *)
-            tr_t[$tr_node.key]=$tr_path_key
+            tr_t[$tr_node.k]=$tr_path_key
             tr_t["$tr_path_key"]=$tr_value
             # 返回节点 ID
             tr_insert_reply=("$tr_node" "$tr_path_key")
             REPLY=${tr_insert_reply[*]@Q}
-            _trie_insert_delete_tmp_node_ids
-            return $TR_RET_ENUM_OK
+            _x_insert_delete_tmp_node_ids
+            return $X_RET_ENUM_OK
     esac
 
     # The current leaf strings, values and bool can be overwritten into
     # empty objects and empty arrays.
     # Leaves null are naturally OK
-    local tr_key="${tr_t[$tr_node.key]}"
-    unset -v 'tr_t[$tr_node.key]'
+    local tr_key="${tr_t[$tr_node.k]}"
+    unset -v 'tr_t[$tr_node.k]'
     [[ -n "$tr_key" ]] && unset -v 'tr_t[$tr_key]'
-    tr_t[$tr_node.type]="$tr_new_type"
+    tr_t[$tr_node.t]="$tr_new_type"
     tr_insert_reply=("$tr_node" "$tr_path_key")
     REPLY=${tr_insert_reply[*]@Q}
-    _trie_insert_delete_tmp_node_ids
-    return $TR_RET_ENUM_OK
+    _x_insert_delete_tmp_node_ids
+    return $X_RET_ENUM_OK
 }
 
 #-------------------------------------------------------------------------------
 
-trie_dump ()
+# 打印整棵树（调试用）。
+# @in  $1=树名  $2=起始物理全 key（空=根）  $3=缩进宽度（默认 4）
+#      $4=打印掩码（bit0=ID，bit1=值，bit2=数组索引，默认 0b111）
+# @ret 0
+x_dump ()
 {
     # local - ; set +x
     local tr_t_name=$1
@@ -962,10 +1040,10 @@ trie_dump ()
 
     local tr_node tr_node_info
         #@if current_shell_process_replace==1
-    tr_node_info=${|_trie_token_to_node_id "$tr_t_name" "$tr_full_key";} || return $?
+    tr_node_info=${|_x_token_to_node_id "$tr_t_name" "$tr_full_key";} || return $?
         #@endif
         #@if current_shell_process_replace==0
-    _trie_token_to_node_id "$tr_t_name" "$tr_full_key" || eval "$_ret_e"
+    _x_token_to_node_id "$tr_t_name" "$tr_full_key" || eval "$_ret_e"
     eval "${_ret_s_/o/tr_node_info}"
         #@endif
     local -A "tr_node_info=($tr_node_info)"
@@ -980,19 +1058,19 @@ trie_dump ()
 
     printf '%s(%s) -> %s\n' "$tr_t_name" "$tr_node" "${tr_node_info[physical_full_key]}"
 
-    [[ "${tr_t[$tr_node.type]}" == "$TR_TYPE_OBJ" ]] &&
-    [[ -z "${tr_t[$tr_node.children]}" ]] && {
-        printf '%s%s\n' "$tr_indent" "$TR_VALUE_NULL_OBJ"
+    [[ "${tr_t[$tr_node.t]}" == "$X_TYPE_OBJ" ]] &&
+    [[ -z "${tr_t[$tr_node.s]}" ]] && {
+        printf '%s%s\n' "$tr_indent" "$X_VALUE_NULL_OBJ"
         return
     }
 
-    [[ "${tr_t[$tr_node.type]}" == "$TR_TYPE_ARR" ]] &&
-    [[ -z "${tr_t[$tr_node.children]}" ]] && {
-        printf '%s%s\n' "$tr_indent" "$TR_VALUE_NULL_ARR"
+    [[ "${tr_t[$tr_node.t]}" == "$X_TYPE_ARR" ]] &&
+    [[ -z "${tr_t[$tr_node.s]}" ]] && {
+        printf '%s%s\n' "$tr_indent" "$X_VALUE_NULL_ARR"
         return
     }
 
-    _trie_dump  "$tr_t_name" "$tr_node" "$tr_indent_cnt" "$tr_indent" \
+    _x_dump  "$tr_t_name" "$tr_node" "$tr_indent_cnt" "$tr_indent" \
                 "$tr_id_need_print" "$tr_value_need_print" \
                 "$tr_print_array_index"
     printf '%smax_index => %s\n' "$tr_indent" "${tr_t[max_index]}"
@@ -1000,7 +1078,8 @@ trie_dump ()
 
 #-------------------------------------------------------------------------------
 
-_trie_dump ()
+# 递归打印内部引擎，由 x_dump 调用，不建议直接使用。
+_x_dump ()
 {
     local -n tr_t=$1
     local tr_node=$2
@@ -1018,7 +1097,7 @@ _trie_dump ()
     tr_indent_new+="$tr_indent"
 
     # Traverse children
-    local -a "tr_children=(${tr_t[$tr_node.children]})"
+    local -a "tr_children=(${tr_t[$tr_node.s]})"
     local -i tr_index=0
 
     # There cannot be duplicate elements in the array
@@ -1039,61 +1118,83 @@ _trie_dump ()
 
     local tr_token tr_mark='=>'
     for tr_token in "${tr_children[@]}"; do
-        local tr_child_id="${tr_t[$tr_node.child.$tr_token]}"
+        local tr_child_id="${tr_t[$tr_node.c.$tr_token]}"
         local tr_child_id_p='' tr_value_p=''
+        local tr_token_safe tr_token_disp
 
         tr_mark='=>'
-        [[ "${tr_t[$tr_node.type]}" == "${TR_TYPE_ARR}" ]] && {
+        if [[ "${tr_t[$tr_node.t]}" == "${X_TYPE_ARR}" ]]; then
             tr_mark='='
             ((tr_print_array_index)) && tr_token=$tr_index || tr_token='o'
-        }
-            
+            # 数组 token 是索引或 'o'，无危险字符，直接透传
+            tr_token_safe=$tr_token
+            tr_token_disp=$tr_token
+        else
+            # 字典键：统一走自定义转义（保留 \n），不再用 %q/@Q
+            local _XDump_tr_token_safe
+            str_escape_keep_nl "$tr_token" _XDump_tr_token_safe
+            tr_token_safe=$_XDump_tr_token_safe
+            # 多行键的续行加 | 补位：| 与第一行的 { 对齐，
+            # 使行首空格明确属于键内容而非缩进
+            tr_token_disp="${tr_token_safe//$'\n'/$'\n'$tr_indent|}"
+        fi
+
         ((tr_id_need_print)) && tr_child_id_p="($tr_child_id)"
 
-        if [[ -n "${tr_t[$tr_child_id.key]}" ]]; then
-            local tr_key=${tr_t[$tr_child_id.key]}
+        if [[ -n "${tr_t[$tr_child_id.k]}" ]]; then
+            local tr_key=${tr_t[$tr_child_id.k]}
             local tr_value=${tr_t["$tr_key"]}
-            # :TODO: Double-width aligned display of Chinese has not been considered for
-            # the time being.
             ((tr_value_need_print)) && {
-                local tr_value_indent="${tr_token}"
+                local tr_value_indent="${tr_token_safe}"
                 ((tr_id_need_print)) && tr_value_indent+="(${tr_child_id})"
                 tr_value_indent=${tr_value_indent##*$'\n'}
-                tr_value_indent=${tr_value_indent//?/ }
-                tr_value_indent+="${tr_indent}    "
+                local _XDump_w ; str_display_width "$tr_value_indent" _XDump_w
+                printf -v tr_value_indent '%*s' "$_XDump_w" ''
+
+                # 多行键最后一行多了 |，值续行补偿加一个空格
+                [[ $tr_token_safe == *$'\n'* ]] && tr_value_indent+=" "
+                # 值除了第一行其它的行都由 | 开头
+                if [[ "$tr_mark" == '=' ]]; then
+                    tr_value_indent+="${tr_indent}  |"
+                else
+                    tr_value_indent+="${tr_indent}   |"
+                fi
                 tr_value_p="${tr_value//$'\n'/$'\n'$tr_value_indent}"
+                local _XDump_tr_value_p
+                str_escape_keep_nl "$tr_value_p" _XDump_tr_value_p
+                tr_value_p=$_XDump_tr_value_p
             }
 
             printf '%s%s%s %s %s\n' \
                 "$tr_indent" \
-                "${tr_token//$'\n'/$'\n'$tr_indent}" \
+                "$tr_token_disp" \
                 "$tr_child_id_p" \
                 "$tr_mark" \
                 "$tr_value_p"
-        elif [[ "${tr_t[$tr_child_id.type]}" == "$TR_TYPE_ARR" ]] && [[ -z "${tr_t[$tr_child_id.children]}" ]] ; then
-            ((tr_value_need_print)) && tr_value_p="$TR_VALUE_NULL_ARR"
+        elif [[ "${tr_t[$tr_child_id.t]}" == "$X_TYPE_ARR" ]] && [[ -z "${tr_t[$tr_child_id.s]}" ]] ; then
+            ((tr_value_need_print)) && tr_value_p="$X_VALUE_NULL_ARR"
             printf '%s%s%s %s %s\n' \
                 "$tr_indent" \
-                "${tr_token//$'\n'/$'\n'$tr_indent}" \
+                "$tr_token_disp" \
                 "$tr_child_id_p" \
                 "$tr_mark" \
                 "$tr_value_p"
-        elif [[ "${tr_t[$tr_child_id.type]}" == "$TR_TYPE_OBJ" ]] && [[ -z "${tr_t[$tr_child_id.children]}" ]] ; then
-            ((tr_value_need_print)) && tr_value_p="$TR_VALUE_NULL_OBJ"
+        elif [[ "${tr_t[$tr_child_id.t]}" == "$X_TYPE_OBJ" ]] && [[ -z "${tr_t[$tr_child_id.s]}" ]] ; then
+            ((tr_value_need_print)) && tr_value_p="$X_VALUE_NULL_OBJ"
             printf '%s%s%s %s %s\n' \
                 "$tr_indent" \
-                "${tr_token//$'\n'/$'\n'$tr_indent}" \
+                "$tr_token_disp" \
                 "$tr_child_id_p" \
                 "$tr_mark" \
                 "$tr_value_p"
         else
             printf '%s%s%s\n' \
-                "${tr_indent}" \
-                "${tr_token//$'\n'/$'\n'$tr_indent}" \
+                "$tr_indent" \
+                "$tr_token_disp" \
                 "$tr_child_id_p"
         fi
 
-        _trie_dump "$1" "$tr_child_id" "$tr_indent_cnt" "$tr_indent_new" "$tr_id_need_print" "$tr_value_need_print" "$tr_print_array_index"
+        _x_dump "$1" "$tr_child_id" "$tr_indent_cnt" "$tr_indent_new" "$tr_id_need_print" "$tr_value_need_print" "$tr_print_array_index"
         ((tr_index++))
     done
 }
@@ -1105,7 +1206,14 @@ _trie_dump ()
 # the children and write them back to the original associative array. Because
 # there is no addition or subtraction of elements, there is no deletion or addition
 # of elements involved, only children need to be updated.
-_trie_token_to_node_id ()
+#
+# 物理/索引 token 解析为节点 ID，可选返回子节点数或值。
+# @in  $1=树名  $2=物理全 key  $3=需要 index_full_key(0/1)
+#      $4=需要 child_cnt(0/1)  $5=需要 value(0/1)
+# @out REPLY=关联数组 KV：node_id physical_full_key index_full_key type
+#             child_cnt(可选) value(可选)
+# @ret 0=OK  3=X_RET_ENUM_KEY_IS_NOTFOUND  4=X_RET_ENUM_KEY_IS_INVALID
+_x_token_to_node_id ()
 {
     REPLY=
     local -n tr_t=$1
@@ -1118,8 +1226,8 @@ _trie_token_to_node_id ()
     [[ -z "$tr_full_key" ]] && {
         # ROOT
         if ((tr_need_child_cnt)) ; then
-            if [[ -n "${tr_t[$TR_ROOT_ID.children]}" ]] ; then
-                local -a "tr_children_tmp=(${tr_t[$TR_ROOT_ID.children]})"
+            if [[ -n "${tr_t[$X_ROOT_ID.s]}" ]] ; then
+                local -a "tr_children_tmp=(${tr_t[$X_ROOT_ID.s]})"
                 tr_node_info[child_cnt]=${#tr_children_tmp[@]}
             else
                 tr_node_info[child_cnt]=0
@@ -1127,10 +1235,10 @@ _trie_token_to_node_id ()
         fi
 
         tr_node_info+=(
-            [node_id]="$TR_ROOT_ID"
+            [node_id]="$X_ROOT_ID"
             [physical_full_key]=""
             [index_full_key]=""
-            [type]=${tr_t[$TR_ROOT_ID.type]}
+            [type]=${tr_t[$X_ROOT_ID.t]}
             [value]=""
             )
             #@if at_k_var_substitution==1
@@ -1139,10 +1247,10 @@ _trie_token_to_node_id ()
             #@if at_k_var_substitution==0
         array_to_kv_q_str tr_node_info ; REPLY=$REPLY
             #@endif
-        return ${TR_RET_ENUM_OK}
+        return ${X_RET_ENUM_OK}
     }
 
-    trie_key_is_invalid "$tr_full_key" || return $?
+    x_key_is_invalid "$tr_full_key" || return $?
 
     local tr_tokens_str
         #@if current_shell_process_replace==1
@@ -1153,7 +1261,7 @@ _trie_token_to_node_id ()
     eval "${_ret_s_/o/tr_tokens_str}"
         #@endif
     local -a "tr_tokens=($tr_tokens_str)"
-    local tr_node=$TR_ROOT_ID tr_token tr_child_id tr_token_raw tr_real_full_key=''
+    local tr_node=$X_ROOT_ID tr_token tr_child_id tr_token_raw tr_real_full_key=''
     local tr_token_index= tr_index_full_key=
     for tr_token in "${tr_tokens[@]}" ; do
         tr_token_raw=$tr_token
@@ -1164,8 +1272,8 @@ _trie_token_to_node_id ()
         tr_resolve_index_token "$1" "$tr_token" "$tr_node" ; eval "${_ret_s_/o/tr_token}"
             #@endif
         [[ -z "$tr_token" ]] && {
-            die "node:${tr_node}(token:${tr_token_raw}) is not found physical token!"
-            return $TR_RET_ENUM_KEY_IS_NOTFOUND
+            die ERR "node:${tr_node}(token:${tr_token_raw@Q}) is not found physical token!"
+            return $X_RET_ENUM_KEY_IS_NOTFOUND
         }
         tr_real_full_key+="$tr_token$X"
 
@@ -1177,16 +1285,16 @@ _trie_token_to_node_id ()
             tr_resolve_physical_token "$1" "$tr_token" "$tr_node" ; evel "${_ret_s_/o/tr_token_index}"
                 #@endif
             [[ -z "$tr_token_index" ]] && {
-                die "node:${tr_node}(token:${tr_token_raw}) is not found index token!"
-                return $TR_RET_ENUM_KEY_IS_NOTFOUND
+                die ERR "node:${tr_node}(token:${tr_token_raw@Q}) is not found index token!"
+                return $X_RET_ENUM_KEY_IS_NOTFOUND
             }
             tr_index_full_key+="$tr_token_index$X"
         }
 
-        tr_child_id="${tr_t[$tr_node.child.$tr_token]}"
+        tr_child_id="${tr_t[$tr_node.c.$tr_token]}"
         [[ -z "$tr_child_id" ]] && {
-            die "node:${tr_node}(token:${tr_token}) key is not found!"
-            return "$TR_RET_ENUM_KEY_IS_NOTFOUND"
+            die ERR "node:${tr_node}(token:${tr_token@Q}) key is not found!"
+            return "$X_RET_ENUM_KEY_IS_NOTFOUND"
         }
         tr_node=$tr_child_id
     done
@@ -1194,8 +1302,8 @@ _trie_token_to_node_id ()
     ((tr_need_index_full_key)) && tr_node_info[index_full_key]=$tr_index_full_key
 
     if ((tr_need_child_cnt)) ; then
-        if [[ -n "${tr_t[$tr_node.children]}" ]] ; then
-            local -a "tr_children_tmp=(${tr_t[$tr_node.children]})"
+        if [[ -n "${tr_t[$tr_node.s]}" ]] ; then
+            local -a "tr_children_tmp=(${tr_t[$tr_node.s]})"
             tr_node_info[child_cnt]=${#tr_children_tmp[@]}
         else
             tr_node_info[child_cnt]=0
@@ -1203,7 +1311,7 @@ _trie_token_to_node_id ()
     fi
 
     ((tr_need_value)) && {
-        local tr_key=${tr_t[$tr_node.key]} tr_value=
+        local tr_key=${tr_t[$tr_node.k]} tr_value=
         [[ -n "$tr_key" ]] && tr_value=${tr_t["$tr_key"]}
         tr_node_info[value]=$tr_value
     }
@@ -1211,7 +1319,7 @@ _trie_token_to_node_id ()
     tr_node_info+=(
         [node_id]="$tr_node"
         [physical_full_key]="$tr_real_full_key"
-        [type]=${tr_t[$tr_node.type]}
+        [type]=${tr_t[$tr_node.t]}
         )
 #@if at_k_var_substitution==1
     REPLY=${tr_node_info[*]@K}
@@ -1219,12 +1327,16 @@ _trie_token_to_node_id ()
 #@if at_k_var_substitution==0
     array_to_kv_q_str tr_node_info ; REPLY=$REPLY
 #@endif
-    return ${TR_RET_ENUM_OK}
+    return ${X_RET_ENUM_OK}
 }
 
 #-------------------------------------------------------------------------------
 
-trie_delete () 
+# 删除节点（含全部子树）。空 key 会重置整棵树。
+# @in  $1=树名  $2=物理全 key（空=清空树）
+# @out REPLY=列表 "node_id physical_key"（被删除的子树根）
+# @ret 0=OK  4=X_RET_ENUM_KEY_IS_INVALID
+x_delete () 
 {
     REPLY=
     # local - ; set +x
@@ -1235,17 +1347,17 @@ trie_delete ()
     # Empty key is legal. Only ROOT nodes are reserved.
     [[ -z "$tr_full_key" ]] && {
             #@if current_shell_process_replace==1
-        eval -- tr_t=(${|trie_init "${tr_t[$TR_ROOT_ID.type]}";})
+        eval -- tr_t=(${|x_init "${tr_t[$X_ROOT_ID.t]}";})
             #@endif
             #@if current_shell_process_replace==0
-        trie_init "${tr_t[$TR_ROOT_ID.type]}" ; eval -- tr_t=($REPLY)
+        x_init "${tr_t[$X_ROOT_ID.t]}" ; eval -- tr_t=($REPLY)
             #@endif
-        tr_delete_reply=("$TR_ROOT_ID" "")
+        tr_delete_reply=("$X_ROOT_ID" "")
         REPLY=${tr_delete_reply[*]@Q}
-        return ${TR_RET_ENUM_OK}
+        return ${X_RET_ENUM_OK}
     }
 
-    trie_key_is_invalid "$tr_full_key" || return $?
+    x_key_is_invalid "$tr_full_key" || return $?
     
     local tr_tokens_str
 #@if current_shell_process_replace==1
@@ -1258,7 +1370,7 @@ trie_delete ()
     local -a "tr_tokens=($tr_tokens_str)"
 
     # 2. Path search: go all the way from root to the node to be deleted
-    local tr_node=$TR_ROOT_ID
+    local tr_node=$X_ROOT_ID
     local -a tr_path_nodes=("$tr_node")
     local -a tr_path_tokens=("")
 
@@ -1270,13 +1382,13 @@ trie_delete ()
             #@if current_shell_process_replace==0
         tr_resolve_index_token "$1" "$tr_token" "$tr_node" ; eval "${_ret_s_/o/tr_token}"
             #@endif
-        [[ -z "$tr_token" ]] && return $TR_RET_ENUM_OK
+        [[ -z "$tr_token" ]] && return $X_RET_ENUM_OK
 
-        tr_child_id="${tr_t[$tr_node.child.$tr_token]}"
+        tr_child_id="${tr_t[$tr_node.c.$tr_token]}"
         [[ -z "$tr_child_id" ]] && {
-            # die "key is not found!"
+            # die ERR "key is not found!"
             # Keys that do not exist are returned directly.
-            return "$TR_RET_ENUM_OK"
+            return "$X_RET_ENUM_OK"
         }
         tr_path_nodes+=("$tr_child_id")
         tr_path_tokens+=("$tr_token")
@@ -1290,8 +1402,8 @@ trie_delete ()
 
     # 3. First delete the value/key attached to the current node
     unset -v 'tr_t["$tr_full_key"]'   # delete value
-    unset -v 'tr_t["$tr_node.key"]'   # delete key
-    unset -v 'tr_t["$tr_node.type"]'  # delete type
+    unset -v 'tr_t["$tr_node.k"]'   # delete key
+    unset -v 'tr_t["$tr_node.t"]'  # delete type
 
     # 4. Kill all subtrees rooted at the current node
     #   (even if it is a single leaf)
@@ -1302,20 +1414,20 @@ trie_delete ()
         unset -v 'tr_stack[-1]'
 
         # Get the current node children tr_token list
-        local -a "tr_children=(${tr_t[$tr_cur.children]})"
+        local -a "tr_children=(${tr_t[$tr_cur.s]})"
 
         for tr_tk in "${tr_children[@]}"; do
-            tr_cid="${tr_t[$tr_cur.child.$tr_tk]}"
+            tr_cid="${tr_t[$tr_cur.c.$tr_tk]}"
             tr_stack+=("$tr_cid")
-            unset -v 'tr_t["$tr_cur.child.$tr_tk"]'
+            unset -v 'tr_t["$tr_cur.c.$tr_tk"]'
         done
 
         # If this node has its own key/value, clear it as well.
-        local tr_key=${tr_t["$tr_cur.key"]}
+        local tr_key=${tr_t["$tr_cur.k"]}
         [[ -n "$tr_key" ]] && unset -v 'tr_t[$tr_key]'
-        unset -v 'tr_t["$tr_cur.key"]'
-        unset -v 'tr_t["$tr_cur.children"]'
-        unset -v 'tr_t["$tr_cur.type"]'
+        unset -v 'tr_t["$tr_cur.k"]'
+        unset -v 'tr_t["$tr_cur.s"]'
+        unset -v 'tr_t["$tr_cur.t"]'
 
         # Do not delete the root node itself
         # unset -v "tr_t[$tr_cur]"
@@ -1324,25 +1436,30 @@ trie_delete ()
     # Update the children of the upper node
     local tr_parent=${tr_path_nodes[-2]}
     tr_token=${tr_path_tokens[-1]}
-    local -a "tr_children=(${tr_t[$tr_parent.children]})"
+    local -a "tr_children=(${tr_t[$tr_parent.s]})"
     array_delete_first_e tr_children "$tr_token"
     if ((${#tr_children[@]})) ; then
-        tr_t[$tr_parent.children]=${tr_children[*]@Q}
+        tr_t[$tr_parent.s]=${tr_children[*]@Q}
     else
-        unset -v 'tr_t[$tr_parent.children]'
+        unset -v 'tr_t[$tr_parent.s]'
     fi
 
-    unset -v 'tr_t["$tr_parent.child.$tr_token"]'
+    unset -v 'tr_t["$tr_parent.c.$tr_token"]'
     
     tr_delete_reply=("$tr_node" "$tr_full_key")
     REPLY=${tr_delete_reply[*]@Q}
 
-    return "$TR_RET_ENUM_OK"
+    return "$X_RET_ENUM_OK"
 }
 
 #-------------------------------------------------------------------------------
 
-trie_get_leaf ()
+# 获取叶节点的值。
+# @in  $1=树名  $2=物理全 key
+# @out REPLY=叶值
+# @ret 0=OK  6=X_RET_ENUM_KEY_IS_NOT_LEAF  7=X_RET_ENUM_KEY_IS_NULL
+#      3=X_RET_ENUM_KEY_IS_NOTFOUND
+x_get_leaf ()
 {
     REPLY=
     # local - ; set +x
@@ -1350,31 +1467,35 @@ trie_get_leaf ()
     local tr_full_key=$2
 
     [[ -z "$tr_full_key" ]] && {
-        die "key is null."
-        return $TR_RET_ENUM_KEY_IS_NULL
+        die ERR "key is null."
+        return $X_RET_ENUM_KEY_IS_NULL
     }
     local tr_node_info
 #@if current_shell_process_replace==1
-    tr_node_info=${|_trie_token_to_node_id "$1" "$tr_full_key";} || return $?
+    tr_node_info=${|_x_token_to_node_id "$1" "$tr_full_key";} || return $?
 #@endif
 #@if current_shell_process_replace==0
-    _trie_token_to_node_id "$1" "$tr_full_key" || eval "$_ret_e"
+    _x_token_to_node_id "$1" "$tr_full_key" || eval "$_ret_e"
     eval "${_ret_s_/o/tr_node_info}"
 #@endif
     local -A "tr_node_info=($tr_node_info)"
     local tr_physical_full_key=${tr_node_info[physical_full_key]}
     if [[ ${tr_t["$tr_physical_full_key"]+_} ]] ; then
         REPLY=${tr_t["$tr_physical_full_key"]}
-        return $TR_RET_ENUM_OK
+        return $X_RET_ENUM_OK
     else
-        die "full key:${tr_full_key} physical full key:${tr_physical_full_key} not found leaf!"
-        return $TR_RET_ENUM_KEY_IS_NOT_LEAF
+        die ERR "full key:${tr_full_key@Q} physical full key:${tr_physical_full_key@Q} not found leaf!"
+        return $X_RET_ENUM_KEY_IS_NOT_LEAF
     fi
 }
 
 #-------------------------------------------------------------------------------
 
-trie_get_tree ()
+# 获取子树（返回一棵新树）。空 key 返回整棵树。
+# @in  $1=树名  $2=物理全 key（空=整棵树）
+# @out REPLY=新树（关联数组 KV 格式）
+# @ret 0=OK  2=X_RET_ENUM_KEY_IS_LEAF  3=KEY_IS_NOTFOUND  4=KEY_IS_INVALID
+x_get_tree ()
 {
     REPLY=
     # local - ; set +x
@@ -1386,7 +1507,7 @@ trie_get_tree ()
 
     if [[ -n "$tr_node" && -n "$tr_real_full_key" ]] ; then
         # 2. Determine whether tr_full_key is legal
-        trie_key_is_invalid "$tr_full_key" || return $?
+        x_key_is_invalid "$tr_full_key" || return $?
     else
         # 1. If tr_full_key is empty, return the entire tree directly
         [[ -z "$tr_full_key" ]] && {
@@ -1396,19 +1517,19 @@ trie_get_tree ()
         #@if at_k_var_substitution==0
             array_to_kv_q_str tr_t ; REPLY=$REPLY
         #@endif
-            return ${TR_RET_ENUM_OK}
+            return ${X_RET_ENUM_OK}
         }
         
         # 2. Determine whether tr_full_key is legal
-        trie_key_is_invalid "$tr_full_key" || return $?
+        x_key_is_invalid "$tr_full_key" || return $?
 
         # 4. Find the node ID corresponding to tr_full_key
         local tr_node_info
             #@if current_shell_process_replace==1
-        tr_node_info=${|_trie_token_to_node_id "$tr_t_name" "$tr_full_key";} || return $?
+        tr_node_info=${|_x_token_to_node_id "$tr_t_name" "$tr_full_key";} || return $?
             #@endif
             #@if current_shell_process_replace==0
-        _trie_token_to_node_id "$tr_t_name" "$tr_full_key" || eval "$_ret_e"
+        _x_token_to_node_id "$tr_t_name" "$tr_full_key" || eval "$_ret_e"
         eval "${_ret_s_/o/tr_node_info}"
             #@endif
         local -A "tr_node_info=($tr_node_info)"
@@ -1417,41 +1538,41 @@ trie_get_tree ()
     fi
 
     [[ ${tr_t[$tr_real_full_key]+_} ]] && {
-        die "key is leaf!"
-        return ${TR_RET_ENUM_KEY_IS_LEAF}
+        die ERR "key:${tr_real_full_key@Q} is leaf!"
+        return ${X_RET_ENUM_KEY_IS_LEAF}
     }
 
     # 5. Get the children of the node (the first-level node of the subtree)
-    local -a "tr_root_children=(${tr_t[$tr_node.children]})"
+    local -a "tr_root_children=(${tr_t[$tr_node.s]})"
 
     # 6. Create a new tree
         #@if current_shell_process_replace==1
-    local -A "tr_new=(${|trie_init "${tr_t[$tr_node.type]}";})"
+    local -A "tr_new=(${|x_init "${tr_t[$tr_node.t]}";})"
         #@endif
         #@if current_shell_process_replace==0
-    trie_init "${tr_t[$tr_node.type]}" ; eval "${_ret_A/o/tr_new}"
+    x_init "${tr_t[$tr_node.t]}" ; eval "${_ret_A/o/tr_new}"
         #@endif
 
     # If the subtree root is empty, it is returned directly.
     ((${#tr_root_children[@]})) || {
     #@if at_k_var_substitution==1
-        REPLY=${tr_new[*]@K} ; return ${TR_RET_ENUM_OK}
+        REPLY=${tr_new[*]@K} ; return ${X_RET_ENUM_OK}
     #@endif
     #@if at_k_var_substitution==0
         array_to_kv_q_str tr_new ; REPLY=$REPLY
-        return $TR_RET_ENUM_OK
+        return $X_RET_ENUM_OK
     #@endif
     }
     
     # 7. The children of the new tree are reset to the current tr_root_children
-    tr_new[$TR_ROOT_ID.children]=${tr_root_children[*]@Q}
+    tr_new[$X_ROOT_ID.s]=${tr_root_children[*]@Q}
 
     # 8. Mount all root children
     local tr_tk tr_cid
     local -a tr_stack=()
     for tr_tk in "${tr_root_children[@]}" ; do
-        tr_cid=${tr_t[$tr_node.child.$tr_tk]}
-        tr_new["$TR_ROOT_ID.child.$tr_tk"]="$tr_cid"
+        tr_cid=${tr_t[$tr_node.c.$tr_tk]}
+        tr_new["$X_ROOT_ID.c.$tr_tk"]="$tr_cid"
         tr_stack+=("$tr_cid")
     done
 
@@ -1463,24 +1584,24 @@ trie_get_tree ()
         ((tr_max_id=(tr_cur>tr_max_id)?tr_cur:tr_max_id))
 
         # tr_new[$tr_cur]=1
-        [[ -n "${tr_t[$tr_cur.children]}" ]] && tr_new[$tr_cur.children]=${tr_t[$tr_cur.children]}
-        [[ -n "${tr_t[$tr_cur.type]}" ]] && tr_new[$tr_cur.type]=${tr_t[$tr_cur.type]}
+        [[ -n "${tr_t[$tr_cur.s]}" ]] && tr_new[$tr_cur.s]=${tr_t[$tr_cur.s]}
+        [[ -n "${tr_t[$tr_cur.t]}" ]] && tr_new[$tr_cur.t]=${tr_t[$tr_cur.t]}
 
         # The key here cannot be copied directly from the old tree, and 
         # the prefix needs to be cut off.
-        local tr_key=${tr_t["$tr_cur.key"]}
+        local tr_key=${tr_t["$tr_cur.k"]}
 
         if [[ -n "$tr_key" ]] ; then
-            tr_new[$tr_cur.key]=${tr_key#"$tr_real_full_key"}
-            local tr_new_key=${tr_new["$tr_cur.key"]}
+            tr_new[$tr_cur.k]=${tr_key#"$tr_real_full_key"}
+            local tr_new_key=${tr_new["$tr_cur.k"]}
             tr_new["$tr_new_key"]=${tr_t["$tr_key"]}
         fi
 
-        local -a "tr_children=(${tr_t[$tr_cur.children]})"
+        local -a "tr_children=(${tr_t[$tr_cur.s]})"
 
         for tr_tk in "${tr_children[@]}" ; do
-            tr_cid="${tr_t["$tr_cur.child.$tr_tk"]}"
-            tr_new["$tr_cur.child.$tr_tk"]="$tr_cid"
+            tr_cid="${tr_t["$tr_cur.c.$tr_tk"]}"
+            tr_new["$tr_cur.c.$tr_tk"]="$tr_cid"
             tr_stack+=("$tr_cid")
         done
     done
@@ -1493,7 +1614,7 @@ trie_get_tree ()
 #@if at_k_var_substitution==0
     array_to_kv_q_str tr_new ; REPLY=$REPLY
 #@endif
-    return ${TR_RET_ENUM_OK}
+    return ${X_RET_ENUM_OK}
 }
 
 #-------------------------------------------------------------------------------
@@ -1503,7 +1624,15 @@ trie_get_tree ()
 #                   phy_token type index_token value node 
 # default               1       1       0        0    0
 # bit                   0       1       2        3    4
-trie_iter ()
+#
+# 遍历子节点，每行元组："phy_token type index_token value node"。
+# 未请求的字段为空串。
+# @in  $1=树名  $2=物理前缀（默认空=根）  $3=迭代掩码
+#      （bit0=phy_token bit1=type bit2=index_token bit3=value bit4=node）
+#      $4=节点 ID（可选，省略则按前缀解析）
+# @out REPLY=多行元组（@Q 格式，行内字段空格分隔）
+# @ret 0=OK  4=X_RET_ENUM_KEY_IS_INVALID
+x_iter ()
 {
     REPLY=
     # local - ; set +x
@@ -1521,14 +1650,14 @@ trie_iter ()
 
     [[ -z "$tr_node_id" ]] && {
         [[ -n "$tr_prefix" ]] && {
-            trie_key_is_invalid "$tr_prefix" || return $?
+            x_key_is_invalid "$tr_prefix" || return $?
         }
         local tr_node_info
             #@if current_shell_process_replace==1
-        tr_node_info=${|_trie_token_to_node_id "$1" "$tr_prefix";} || return $?
+        tr_node_info=${|_x_token_to_node_id "$1" "$tr_prefix";} || return $?
             #@endif
             #@if current_shell_process_replace==0
-        _trie_token_to_node_id "$1" "$tr_prefix" || eval "$_ret_e"
+        _x_token_to_node_id "$1" "$tr_prefix" || eval "$_ret_e"
         eval "${_ret_s_/o/tr_node_info}"
             #@endif
         local -A "tr_node_info=($tr_node_info)"
@@ -1536,15 +1665,15 @@ trie_iter ()
     }
 
     # If tr_node_id is empty, traverse the root node
-    tr_node_id=${tr_node_id:-"$TR_ROOT_ID"}
+    tr_node_id=${tr_node_id:-"$X_ROOT_ID"}
 
-    local -a "tr_children=(${tr_t[$tr_node_id.children]})"
+    local -a "tr_children=(${tr_t[$tr_node_id.s]})"
 
     local tr_tk tr_child_id tr_type tr_key
     local tr_tk_p tr_type_p tr_value_p tr_node_p tr_index_tk_p
 
     local -i tr_index=0
-    local tr_parent_type=${tr_t[$tr_node_id.type]}
+    local tr_parent_type=${tr_t[$tr_node_id.t]}
     
     # The safest method for REPLY can only be separate assignment. If you want
     # to append a string to it, it is best to use a separate intermediate
@@ -1552,16 +1681,16 @@ trie_iter ()
     # or you must clear the value of REPLY first.
     REPLY=
     for tr_tk in "${tr_children[@]}"; do
-        tr_child_id=${tr_t["$tr_node_id.child.$tr_tk"]}
+        tr_child_id=${tr_t["$tr_node_id.c.$tr_tk"]}
         if ((tr_is_iter_type)) ; then
-            trie_get_node_type "$1" "$tr_child_id" ; tr_type=$?
+            x_get_node_type "$1" "$tr_child_id" ; tr_type=$?
             tr_type_p=${tr_type@Q}
         else
             tr_type_p=''
         fi
 
         if ((tr_is_iter_index_token)) ; then
-            if [[ "$tr_parent_type" == "$TR_TYPE_ARR" ]] ; then
+            if [[ "$tr_parent_type" == "$X_TYPE_ARR" ]] ; then
                 tr_index_tk_p=${tr_index@Q}
             else
                 tr_index_tk_p=${tr_tk@Q}
@@ -1571,15 +1700,15 @@ trie_iter ()
         fi
         
         if ((tr_is_iter_value)) ; then
-            tr_key="${tr_t["$tr_child_id.key"]}"
+            tr_key="${tr_t["$tr_child_id.k"]}"
             [[ -n "$tr_key" ]] && tr_value_p=${tr_t["$tr_key"]}
 
-            ((tr_is_iter_type)) || { trie_get_node_type "$1" "$tr_child_id" ; tr_type=$? ; }
+            ((tr_is_iter_type)) || { x_get_node_type "$1" "$tr_child_id" ; tr_type=$? ; }
 
             # Empty objects and empty arrays return simulated values
             case "$tr_type" in
-            $TR_NODE_KIND_OBJ_EMPTY)    tr_value_p="$TR_VALUE_NULL_OBJ" ;;
-            $TR_NODE_KIND_ARR_EMPTY)    tr_value_p=$"$TR_VALUE_NULL_ARR" ;;
+            $X_NODE_KIND_OBJ_EMPTY)    tr_value_p="$X_VALUE_NULL_OBJ" ;;
+            $X_NODE_KIND_ARR_EMPTY)    tr_value_p=$"$X_VALUE_NULL_ARR" ;;
             esac
             tr_value_p=${tr_value_p@Q}
         else
@@ -1594,14 +1723,16 @@ trie_iter ()
         ((tr_index++))
     done
 
-    return ${TR_RET_ENUM_OK}
+    return ${X_RET_ENUM_OK}
 }
 
 #-------------------------------------------------------------------------------
 
-# This is just an example to demonstrate the callback function of trie_walk,
+# This is just an example to demonstrate the callback function of x_walk,
 # processing the entire tree
-trie_callback_print ()
+#
+# 示例回调：把遍历元组打印为一行。演示 x_walk 用法，不用于生产。
+x_cb_print ()
 {
     local node_kind=$1         # leaf / leaf_null / obj / obj_empty / arr / arr_empty
     local index_token=$2       # "{k}" or "[0]"
@@ -1621,48 +1752,55 @@ trie_callback_print ()
     printf_info+="node id:$node_id "
     printf_info+="parent id:$parent_id"
     printf '%s\n' "$printf_info"
-    return $TR_RET_ENUM_OK
+    return $X_RET_ENUM_OK
 }
 
 #-------------------------------------------------------------------------------
 
-trie_get_node_type ()
+# 获取节点类型。
+# @in  $1=树名  $2=节点 ID
+# @ret X_NODE_KIND_OBJ=1 / ARR=2 / OBJ_EMPTY=3 / ARR_EMPTY=4
+#      / LEAF=5 / LEAF_NULL=6 / UNKNOWN=7
+x_get_node_type ()
 {
     # local - ; set +x
     local -n tr_t=$1
     local tr_node=$2
     local tr_key
     
-    if [[ ${tr_t[$tr_node.key]+_} ]] ; then
-        tr_key="${tr_t["$tr_node.key"]}"
-        if [[ "${tr_t["$tr_key"]}" == "$TR_VALUE_NULL" ]] ; then
-            return $TR_NODE_KIND_LEAF_NULL
+    if [[ ${tr_t[$tr_node.k]+_} ]] ; then
+        tr_key="${tr_t["$tr_node.k"]}"
+        if [[ "${tr_t["$tr_key"]}" == "$X_VALUE_NULL" ]] ; then
+            return $X_NODE_KIND_LEAF_NULL
         else
-            return $TR_NODE_KIND_LEAF
+            return $X_NODE_KIND_LEAF
         fi
-    elif [[ "${tr_t[$tr_node.type]}" == "$TR_TYPE_OBJ" ]] ; then
-        if [[ -n "${tr_t[$tr_node.children]}" ]] ; then
-            return $TR_NODE_KIND_OBJ
+    elif [[ "${tr_t[$tr_node.t]}" == "$X_TYPE_OBJ" ]] ; then
+        if [[ -n "${tr_t[$tr_node.s]}" ]] ; then
+            return $X_NODE_KIND_OBJ
         else
-            return $TR_NODE_KIND_OBJ_EMPTY
+            return $X_NODE_KIND_OBJ_EMPTY
         fi
-    elif [[ "${tr_t[$tr_node.type]}" == "$TR_TYPE_ARR" ]] ; then
-        if [[ -n "${tr_t[$tr_node.children]}" ]] ; then
-            return $TR_NODE_KIND_ARR
+    elif [[ "${tr_t[$tr_node.t]}" == "$X_TYPE_ARR" ]] ; then
+        if [[ -n "${tr_t[$tr_node.s]}" ]] ; then
+            return $X_NODE_KIND_ARR
         else
-            return $TR_NODE_KIND_ARR_EMPTY
+            return $X_NODE_KIND_ARR_EMPTY
         fi
     else
-        return $TR_NODE_KIND_UNKNOWN
+        return $X_NODE_KIND_UNKNOWN
     fi
 }
 
 #-------------------------------------------------------------------------------
 
-trie_layer_child_is_flat ()
+# 判断节点是否"扁平"（叶/空容器）。用于 x_layer_get_flat。
+# @in  $1=X_NODE_KIND_*
+# @ret 0=扁平  1=非扁平
+x_layer_child_is_flat ()
 {
     case "$1" in
-    $TR_NODE_KIND_OBJ_EMPTY|$TR_NODE_KIND_ARR_EMPTY|$TR_NODE_KIND_LEAF_NULL|$TR_NODE_KIND_LEAF)
+    $X_NODE_KIND_OBJ_EMPTY|$X_NODE_KIND_ARR_EMPTY|$X_NODE_KIND_LEAF_NULL|$X_NODE_KIND_LEAF)
         return 0
         ;;
     esac
@@ -1672,20 +1810,25 @@ trie_layer_child_is_flat ()
 
 #-------------------------------------------------------------------------------
 
-trie_walk ()
+# 深度优先遍历子树，每个节点调用 $3 回调。
+# 回调参数：node_kind index_token index_full_key value
+#           physical_token physical_full_key node_id parent_id
+# @in  $1=树名  $2=起始物理全 key（空=根）  $3=回调函数名（默认 x_cb_print）
+# @ret 0=OK  其他=回调返回的非 0 值（提前终止）
+x_walk ()
 {
     # local - ; set +x
     local -n tr_t=$1
     local tr_prefix=$2
-    local tr_callback=${3:-trie_callback_print}
+    local tr_cb=${3:-x_cb_print}
 
     local tr_root_id tr_physical_full_key tr_index_full_key
     local tr_node_info tr_node_kind
         #@if current_shell_process_replace==1
-    tr_node_info=${|_trie_token_to_node_id "$1" "$tr_prefix" 1;} || return $?
+    tr_node_info=${|_x_token_to_node_id "$1" "$tr_prefix" 1;} || return $?
         #@endif
         #@if current_shell_process_replace==0
-    _trie_token_to_node_id "$1" "$tr_prefix" 1 || eval "$_ret_e"
+    _x_token_to_node_id "$1" "$tr_prefix" 1 || eval "$_ret_e"
     eval "${_ret_s_/o/tr_node_info}"
         #@endif
     local -A "tr_node_info=($tr_node_info)"
@@ -1701,24 +1844,24 @@ trie_walk ()
         local tr_index_prefix=${tr_stack[-1]} ; unset -v 'tr_stack[-1]'
         local tr_physical_prefix=${tr_stack[-1]} ; unset -v 'tr_stack[-1]'
 
-        local -a "tr_children=(${tr_t[$tr_node_id.children]})"
+        local -a "tr_children=(${tr_t[$tr_node_id.s]})"
         local tr_tk tr_child_id tr_value tr_index_token
 
         local -i tr_index=0
         for tr_tk in "${tr_children[@]}"; do
-            tr_child_id=${tr_t["$tr_node_id.child.$tr_tk"]}
+            tr_child_id=${tr_t["$tr_node_id.c.$tr_tk"]}
 
-            trie_get_node_type "$1" "$tr_child_id" ; tr_node_kind=$?
-            local tr_key="${tr_t["$tr_child_id.key"]}"
+            x_get_node_type "$1" "$tr_child_id" ; tr_node_kind=$?
+            local tr_key="${tr_t["$tr_child_id.k"]}"
             [[ -n "$tr_key" ]] && tr_value=${tr_t["$tr_key"]} || tr_value=''
             
             # There are special cases here. Empty arrays and empty
             # objects also return simulated values.
             case "$tr_node_kind" in
-            $TR_NODE_KIND_OBJ_EMPTY)
-                tr_value="$TR_VALUE_NULL_OBJ"   ;;
-            $TR_NODE_KIND_ARR_EMPTY)
-                tr_value="$TR_VALUE_NULL_ARR"   ;;
+            $X_NODE_KIND_OBJ_EMPTY)
+                tr_value="$X_VALUE_NULL_OBJ"   ;;
+            $X_NODE_KIND_ARR_EMPTY)
+                tr_value="$X_VALUE_NULL_ARR"   ;;
             esac
 
             tr_index_token=$tr_tk
@@ -1726,7 +1869,7 @@ trie_walk ()
             tr_index_full_key="$tr_index_prefix$tr_index_token$X"
             tr_physical_full_key="$tr_physical_prefix$tr_tk$X"
 
-            "$tr_callback"  "$tr_node_kind" \
+            "$tr_cb"  "$tr_node_kind" \
                             "$tr_index_token" \
                             "$tr_index_full_key" \
                             "$tr_value" \
@@ -1736,7 +1879,7 @@ trie_walk ()
                             "$tr_node_id" || return $?
 
             case "$tr_node_kind" in
-            $TR_NODE_KIND_OBJ|$TR_NODE_KIND_ARR)
+            $X_NODE_KIND_OBJ|$X_NODE_KIND_ARR)
                 tr_stack+=("$tr_physical_full_key" "$tr_index_full_key" "$tr_child_id")
                 ;;
             esac
@@ -1744,167 +1887,212 @@ trie_walk ()
             ((tr_index++))
         done
     done
-    return $TR_RET_ENUM_OK
+    return $X_RET_ENUM_OK
 }
 
 #-------------------------------------------------------------------------------
 
-trie_id_rebuild ()
+# 重建节点 ID（紧凑化），默认 DFS 序重新编号。
+# @in  $1=树名
+# @out REPLY=新树（关联数组 KV 格式）
+# @ret 0=OK
+x_id_rebuild ()
 {
     REPLY=
     # local - ; set +x
     local -n tr_old=$1
     local -a tr_id_list=()
 
-    trie_id_rebuild_collect_ids_callback ()
+    x_id_rebuild_collect_ids_cb ()
     {
         local old_id=$7
         tr_id_list+=("$old_id")
     }
-    trie_walk "$1" '' trie_id_rebuild_collect_ids_callback
+    x_walk "$1" '' x_id_rebuild_collect_ids_cb
 
     # There is absolutely no need to waste time sorting here.
     # array_qsort tr_id_list '-gt'
     local -A tr_id_map=()
-    local tr_new_id=$((TR_ROOT_ID+1))
+    local tr_new_id=$((X_ROOT_ID+1))
     local tr_old_id
     for tr_old_id in "${tr_id_list[@]}" ; do
         tr_id_map[$tr_old_id]=$tr_new_id
         ((tr_new_id++))
     done
 
-    tr_id_map[$TR_ROOT_ID]=1
+    tr_id_map[$X_ROOT_ID]=1
 
         #@if current_shell_process_replace==1
-    local -A "tr_new=(${|trie_init "${tr_old[$TR_ROOT_ID.type]}";})"
+    local -A "tr_new=(${|x_init "${tr_old[$X_ROOT_ID.t]}";})"
         #@endif
         #@if current_shell_process_replace==0
-    trie_init "${tr_old[$TR_ROOT_ID.type]}" ; eval "${_ret_A/o/tr_new}"
+    x_init "${tr_old[$X_ROOT_ID.t]}" ; eval "${_ret_A/o/tr_new}"
         #@endif
 
-    trie_id_rebuild_callback ()
+    # 辅助函数：用 tr_id_map 重建物理全 key（把 <old_id> 换成 <new_id>）
+    _x_id_rebuild_key ()
+    {
+        local old_key=$1
+        local new_key=''
+        local tk
+        local -a tokens=()
+
+        if [[ -n "$old_key" ]] ; then
+            #@if current_shell_process_replace==1
+            local -a "tokens=(${|_split_tokens "$old_key";})"
+            #@endif
+            #@if current_shell_process_replace==0
+            _split_tokens "$old_key" ; eval "${_ret_a/o/tokens}"
+            #@endif
+        fi
+
+        for tk in "${tokens[@]}" ; do
+            if [[ "$tk" == '<'*'>' ]] ; then
+                local old_id=${tk:1:-1}
+                local new_id=${tr_id_map[$old_id]:-$old_id}
+                new_key+="<$new_id>$X"
+            else
+                new_key+="$tk$X"
+            fi
+        done
+        REPLY=$new_key
+    }
+
+    x_id_rebuild_cb ()
     {
         local type=$1 value=$4 token=$5 full_key=$6 old_id=$7 parent_old_id=$8 
-        local index_token=$2
+        # index_token $2 本次不需要
 
         local new_id=${tr_id_map[$old_id]}
         local new_parent_id=${tr_id_map[$parent_old_id]}
 
-        # tr_new[$new_id]=1
-        
+        # 重建 full_key（内部 <old_id> 换成 <new_id>）
+        local new_full_key
+        _x_id_rebuild_key "$full_key"
+        new_full_key=$REPLY
+
+        # 重建 token（数组是 <old_id> 换成 <new_id>，对象是 {key} 不变）
+        local new_token
+        if [[ "$token" == '<'*'>' ]] ; then
+            new_token="<$new_id>"
+        else
+            new_token=$token
+        fi
+
         # write type tag
         case "$type" in
-        $TR_NODE_KIND_OBJ|$TR_NODE_KIND_OBJ_EMPTY)
-            tr_new[$new_id.type]=$TR_TYPE_OBJ   ;;
-        $TR_NODE_KIND_ARR|$TR_NODE_KIND_ARR_EMPTY)
-            tr_new[$new_id.type]=$TR_TYPE_ARR   ;;
+        $X_NODE_KIND_OBJ|$X_NODE_KIND_OBJ_EMPTY)
+            tr_new[$new_id.t]=$X_TYPE_OBJ   ;;
+        $X_NODE_KIND_ARR|$X_NODE_KIND_ARR_EMPTY)
+            tr_new[$new_id.t]=$X_TYPE_ARR   ;;
         # Other leaf keys need to write values
-        *)  tr_new[$new_id.key]="$full_key"
-            tr_new["$full_key"]="$value"
+        *)  tr_new[$new_id.k]="$new_full_key"
+            tr_new["$new_full_key"]="$value"
             ;;
         esac
 
-        # If the parent is an array, special handling is required.
-        if str_is_decimal_positive_int "$index_token" ; then
-            # Update new token
-            tr_new["$new_parent_id.child.<$new_id>"]="$new_id"
-            local tr_real_token="<$new_id>"
-            tr_new[$new_parent_id.children]+=" ${tr_real_token@Q}"
-        else
-            tr_new[$new_parent_id.child.$token]="$new_id"
-            tr_new[$new_parent_id.children]+=" ${token@Q}"
-        fi
+        # 父节点的 children 和 child 映射，统一使用新 token
+        tr_new["$new_parent_id.c.$new_token"]="$new_id"
+        tr_new[$new_parent_id.s]+=" ${new_token@Q}"
     }
-    trie_walk $1 '' trie_id_rebuild_callback
+    x_walk $1 '' x_id_rebuild_cb
 
     tr_new[max_index]=$tr_new_id
-    
+
         #@if at_k_var_substitution==1
     REPLY=${tr_new[*]@K}
         #@endif
         #@if at_k_var_substitution==0
     array_to_kv_q_str tr_new ; REPLY=$REPLY
         #@endif
-    return ${TR_RET_ENUM_OK}
+    return ${X_RET_ENUM_OK}
 }
 
 #-------------------------------------------------------------------------------
 
-trie_equals ()
+# 比较两棵树是否完全等价（结构、路径、值全部一致）。
+# @in  $1=树 1 名  $2=树 2 名
+# @ret 0=OK  53=X_RET_ENUM_TREE_IS_NOT_SAME
+x_equals ()
 {
     # local - ; set +x
-    local -n tr_trie_equals_1=$1 tr_trie_equals_2=$2
-    local tr_trie_equals_1_name=$1 tr_trie_equals_2_name=$2
+    local -n tr_x_equals_1=$1 tr_x_equals_2=$2
+    local tr_x_equals_1_name=$1 tr_x_equals_2_name=$2
     local tr_ok=1
-    local -A tr_trie_equals_1_check=()
-    local -A tr_trie_equals_2_check=()
+    local -A tr_x_equals_1_check=()
+    local -A tr_x_equals_2_check=()
     local tr_key
 
-    _trie_equals_fail ()
+    _x_equals_fail ()
     { 
-        die "$tr_trie_equals_1_name $tr_trie_equals_2_name is not the same!"
-        return $TR_RET_ENUM_TREE_IS_NOT_SAME
+        die ERR "$tr_x_equals_1_name $tr_x_equals_2_name is not the same!"
+        return $X_RET_ENUM_TREE_IS_NOT_SAME
     }
 
-    [[ "${tr_trie_equals_1[$TR_ROOT_ID.type]}" == "${tr_trie_equals_2[$TR_ROOT_ID.type]}" ]] || {
-        _trie_equals_fail ; return $?
+    [[ "${tr_x_equals_1[$X_ROOT_ID.t]}" == "${tr_x_equals_2[$X_ROOT_ID.t]}" ]] || {
+        _x_equals_fail ; return $?
     }
 
-    [[ "${#tr_trie_equals_1[@]}" == "${#tr_trie_equals_2[@]}" ]] || {
-        _trie_equals_fail ; return $?
+    [[ "${#tr_x_equals_1[@]}" == "${#tr_x_equals_2[@]}" ]] || {
+        _x_equals_fail ; return $?
     }
 
     # Iterate over tr_1, check tr_2
-    trie_equals_check_ab ()
+    x_equals_check_ab ()
     {
         local kind=$1 index_full_key=$3 value=$4
-        tr_trie_equals_1_check["$index_full_key"]="$kind$X$value$X"
+        tr_x_equals_1_check["$index_full_key"]="$kind$X$value$X"
 
-        return $TR_RET_ENUM_OK
+        return $X_RET_ENUM_OK
     }
 
-    trie_walk "$tr_trie_equals_1_name" '' trie_equals_check_ab || return $?
+    x_walk "$tr_x_equals_1_name" '' x_equals_check_ab || return $?
 
     # Iterate over tr_2, check tr_1
-    trie_equals_check_ba ()
+    x_equals_check_ba ()
     {
         local kind=$1 index_full_key=$3 value=$4
 
-        tr_trie_equals_2_check["$index_full_key"]="$kind$X$value$X"
+        tr_x_equals_2_check["$index_full_key"]="$kind$X$value$X"
 
-        return $TR_RET_ENUM_OK
+        return $X_RET_ENUM_OK
     }
 
-    trie_walk "$tr_trie_equals_2_name" '' trie_equals_check_ba || return $?
+    x_walk "$tr_x_equals_2_name" '' x_equals_check_ba || return $?
 
-    [[ "${#tr_trie_equals_1_check[@]}" == "${#tr_trie_equals_2_check[@]}" ]] || {
-        _trie_equals_fail ; return $?
+    [[ "${#tr_x_equals_1_check[@]}" == "${#tr_x_equals_2_check[@]}" ]] || {
+        _x_equals_fail ; return $?
     }
 
-    for tr_key in "${!tr_trie_equals_1_check[@]}" ; do
-        [[ ${tr_trie_equals_2_check[$tr_key]+_} ]] || {
-            _trie_equals_fail ; return $?
+    for tr_key in "${!tr_x_equals_1_check[@]}" ; do
+        [[ ${tr_x_equals_2_check[$tr_key]+_} ]] || {
+            _x_equals_fail ; return $?
         }
-        [[ "${tr_trie_equals_1_check[$tr_key]}" == "${tr_trie_equals_2_check[$tr_key]}" ]] || {
-            _trie_equals_fail ; return $?
+        [[ "${tr_x_equals_1_check[$tr_key]}" == "${tr_x_equals_2_check[$tr_key]}" ]] || {
+            _x_equals_fail ; return $?
         }
     done
 
-    for tr_key in "${!tr_trie_equals_2_check[@]}" ; do
-        [[ ${tr_trie_equals_1_check[$tr_key]+_} ]] || {
-            _trie_equals_fail ; return $?
+    for tr_key in "${!tr_x_equals_2_check[@]}" ; do
+        [[ ${tr_x_equals_1_check[$tr_key]+_} ]] || {
+            _x_equals_fail ; return $?
         }
-        [[ "${tr_trie_equals_1_check[$tr_key]}" == "${tr_trie_equals_2_check[$tr_key]}" ]] || {
-            _trie_equals_fail ; return $?
+        [[ "${tr_x_equals_1_check[$tr_key]}" == "${tr_x_equals_2_check[$tr_key]}" ]] || {
+            _x_equals_fail ; return $?
         }
     done
 
-    return $TR_RET_ENUM_OK
+    return $X_RET_ENUM_OK
 }
 
 #-------------------------------------------------------------------------------
 
-_trie_array_next_key ()
+# 数组操作目标位置计算：push/unshift/pop/shift 通用。
+# @in  $1=树名  $2=父路径物理全 key  $3=模式 push|unshift|pop|shift
+# @out REPLY=目标位置物理全 key
+# @ret 0=OK  9=X_RET_ENUM_KEY_CHILD_CNT_IS_ZERO
+#      8=X_RET_ENUM_KEY_UP_LEV_TYPE_MISMATCH
+_x_array_next_key ()
 {
     REPLY=
     local tr_name=$1
@@ -1917,17 +2105,17 @@ _trie_array_next_key ()
     # If it does not exist create an array and write position 0
     local tr_node_info tr_node_info_ret
         #@if current_shell_process_replace==1
-    tr_node_info=${|_trie_token_to_node_id "$tr_name" "$tr_up_key" 0 1 1 2>/dev/null;}
+    tr_node_info=${|_x_token_to_node_id "$tr_name" "$tr_up_key" 0 1 1 2>/dev/null;}
     tr_node_info_ret=$?
         #@endif
         #@if current_shell_process_replace==0
-    _trie_token_to_node_id "$tr_name" "$tr_up_key" 0 1 1 2>/dev/null
+    _x_token_to_node_id "$tr_name" "$tr_up_key" 0 1 1 2>/dev/null
     tr_node_info_ret=$?
     eval "${_ret_s_/o/tr_node_info}"
         #@endif
 
     case "$tr_node_info_ret" in
-    $TR_RET_ENUM_KEY_IS_NOTFOUND)
+    $X_RET_ENUM_KEY_IS_NOTFOUND)
         case "$tr_mode" in
         push)   REPLY="$tr_up_key[0]$X" ;;
         unshift)
@@ -1936,11 +2124,11 @@ _trie_array_next_key ()
                 return $tr_node_info_ret ;;
         esac
         ;;
-    $TR_RET_ENUM_OK)
+    $X_RET_ENUM_OK)
         # Get the up node type
         local -A "tr_node_info=($tr_node_info)"
-        if  [[ "${tr_node_info[type]}" == "$TR_TYPE_ARR" ]] ||
-            [[ "${tr_node_info[value]}" == "$TR_VALUE_NULL" ]] ; then
+        if  [[ "${tr_node_info[type]}" == "$X_TYPE_ARR" ]] ||
+            [[ "${tr_node_info[value]}" == "$X_VALUE_NULL" ]] ; then
             tr_child_cnt=${tr_node_info[child_cnt]}
             case "$tr_mode" in
             push)   REPLY="${tr_node_info[physical_full_key]}[$tr_child_cnt]$X" ;;
@@ -1949,16 +2137,16 @@ _trie_array_next_key ()
             pop|shift)    
                 # First check if the child is empty
                 ((tr_child_cnt)) || {
-                    die "node:${tr_node_info[node_id]} child cnt is 0."
-                    return $TR_RET_ENUM_KEY_CHILD_CNT_IS_ZERO
+                    die ERR "node:${tr_node_info[node_id]} child cnt is 0."
+                    return $X_RET_ENUM_KEY_CHILD_CNT_IS_ZERO
                 }
                 ;;&
             pop)    REPLY="${tr_node_info[physical_full_key]}[$((tr_child_cnt-1))]$X" ;;
             shift)  REPLY="${tr_node_info[physical_full_key]}[0]$X" ;;
             esac
         else
-            die "node:${tr_node_info[node_id]} type is not array or null."
-            return $TR_RET_ENUM_KEY_UP_LEV_TYPE_MISMATCH
+            die ERR "node:${tr_node_info[node_id]} type is not array or null."
+            return $X_RET_ENUM_KEY_UP_LEV_TYPE_MISMATCH
         fi
         ;;
     *)
@@ -1966,13 +2154,19 @@ _trie_array_next_key ()
         ;;
     esac
 
-    return ${TR_RET_ENUM_OK}
+    return ${X_RET_ENUM_OK}
 }
 
 #-------------------------------------------------------------------------------
 
 # Pushing empty leaves and empty arrays is OK
-_trie_array_write ()
+#
+# 数组写入：push/unshift 叶或子树。
+# @in  $1=树名  $2=父路径物理全 key  $3=push|unshift
+#      $4=leaf|tree  $5=值/子树名
+# @out REPLY=插入节点 "node_id physical_key"（透传 x_insert/x_graft）
+# @ret 0=OK  其他=透传 x_insert/x_graft
+_x_array_write ()
 {
     # local - ; set +x
     local tr_name=$1 tr_up_key=$2
@@ -1982,30 +2176,39 @@ _trie_array_write ()
 
     local tr_next_key
         #@if current_shell_process_replace==1
-    tr_next_key=${|_trie_array_next_key "$tr_name" "$tr_up_key" "$tr_mode";} || return $?
+    tr_next_key=${|_x_array_next_key "$tr_name" "$tr_up_key" "$tr_mode";} || return $?
         #@endif
         #@if current_shell_process_replace==0
-    _trie_array_next_key "$tr_name" "$tr_up_key" "$tr_mode" || eval "$_ret_e"
+    _x_array_next_key "$tr_name" "$tr_up_key" "$tr_mode" || eval "$_ret_e"
     eval "${_ret_s_/o/tr_next_key}"
         #@endif
 
     case "$tr_write" in
-    leaf)   trie_insert "$tr_name" "$tr_next_key" "$tr_value" ;;
-    tree)   trie_graft "$tr_name" "$tr_next_key" "$tr_value" ;;
+    leaf)   x_insert "$tr_name" "$tr_next_key" "$tr_value" ;;
+    tree)   x_graft "$tr_name" "$tr_next_key" "$tr_value" ;;
     esac
 }
 
 #-------------------------------------------------------------------------------
 
 # The return values of leaf and tree are the return values of insert and graft
-trie_push_leaf () { _trie_array_write "$1" "$2" push leaf "$3" ; }
-trie_push_tree () { _trie_array_write "$1" "$2" push tree "$3" ; }
-trie_unshift_leaf () { _trie_array_write "$1" "$2" unshift leaf "$3" ; }
-trie_unshift_tree () { _trie_array_write "$1" "$2" unshift tree "$3" ; }
+#
+# 数组 push/unshift 封装：
+# x_push_leaf/x_push_tree/x_unshift_leaf/x_unshift_tree
+# @in  $1=树名  $2=父路径物理全 key  $3=值 或 子树名
+# @out REPLY=列表 "node_id physical_key"
+x_push_leaf () { _x_array_write "$1" "$2" push leaf "$3" ; }
+x_push_tree () { _x_array_write "$1" "$2" push tree "$3" ; }
+x_unshift_leaf () { _x_array_write "$1" "$2" unshift leaf "$3" ; }
+x_unshift_tree () { _x_array_write "$1" "$2" unshift tree "$3" ; }
 
 #-------------------------------------------------------------------------------
 
-_trie_array_get ()
+# 数组 pop/shift 前的定位（内部）。
+# @in  $1=树名  $2=父路径物理全 key  $3=pop|shift  $4=leaf|tree
+# @out REPLY=叶值 或 子树
+# @ret 0=OK  其他=透传 x_get_leaf/x_get_tree
+_x_array_get ()
 {
     # local - ; set +x
     local tr_name=$1 tr_up_key=$2
@@ -2014,92 +2217,105 @@ _trie_array_get ()
 
     local tr_next_key
         #@if current_shell_process_replace==1
-    tr_next_key=${|_trie_array_next_key "$tr_name" "$tr_up_key" "$tr_mode";} || return $?
+    tr_next_key=${|_x_array_next_key "$tr_name" "$tr_up_key" "$tr_mode";} || return $?
         #@endif
         #@if current_shell_process_replace==0
-    _trie_array_next_key "$tr_name" "$tr_up_key" "$tr_mode" || eval "$_ret_e"
+    _x_array_next_key "$tr_name" "$tr_up_key" "$tr_mode" || eval "$_ret_e"
     eval "${_ret_s_/o/tr_next_key}"
         #@endif
 
     case "$tr_read" in
-    leaf)   trie_get_leaf "$tr_name" "$tr_next_key" ;;
-    tree)   trie_get_tree "$tr_name" "$tr_next_key" ;;
+    leaf)   x_get_leaf "$tr_name" "$tr_next_key" ;;
+    tree)   x_get_tree "$tr_name" "$tr_next_key" ;;
     esac
 }
 
 #-------------------------------------------------------------------------------
 
-trie_pop_leaf ()
+# 数组 pop/shift 封装：
+# x_pop_leaf/x_pop_tree/x_shift_leaf/x_shift_tree
+# @in  $1=树名  $2=父路径物理全 key
+# @out REPLY=弹出的叶值 或 子树
+# @ret 0=OK  其他=透传 _x_array_get/x_delete
+x_pop_leaf ()
 {
     REPLY=
     # REPLY It will be rewritten directly in the sub-function. The explicit
     # assignment here is just for higher readability.
     local tr_pop_leaf_reply=
         #@if current_shell_process_replace==1
-    tr_pop_leaf_reply=${|_trie_array_get "$1" "$2" pop leaf;} || return $?
+    tr_pop_leaf_reply=${|_x_array_get "$1" "$2" pop leaf;} || return $?
         #@endif
         #@if current_shell_process_replace==0
-    _trie_array_get "$1" "$2" pop leaf || eval "$_ret_e"
+    _x_array_get "$1" "$2" pop leaf || eval "$_ret_e"
     eval "${_ret_s_/o/tr_pop_leaf_reply}"
         #@endif
-    trie_delete "$1" "$2[-1]$X" || return $?
+    x_delete "$1" "$2[-1]$X" || return $?
     REPLY=$tr_pop_leaf_reply
 }
 
 #-------------------------------------------------------------------------------
 
-trie_pop_tree ()
+# 数组 pop 子树封装（同上）。
+x_pop_tree ()
 {
     REPLY=
     local tr_pop_tree_reply=
         #@if current_shell_process_replace==1
-    tr_pop_tree_reply=${|_trie_array_get "$1" "$2" pop tree;} || return $?
+    tr_pop_tree_reply=${|_x_array_get "$1" "$2" pop tree;} || return $?
         #@endif
         #@if current_shell_process_replace==0
-    _trie_array_get "$1" "$2" pop tree || eval "$_ret_e"
+    _x_array_get "$1" "$2" pop tree || eval "$_ret_e"
     eval "${_ret_s_/o/tr_pop_tree_reply}"
         #@endif
-    trie_delete "$1" "$2[-1]$X" || return $?
+    x_delete "$1" "$2[-1]$X" || return $?
     REPLY=$tr_pop_tree_reply
 }
 
 #-------------------------------------------------------------------------------
 
-trie_shift_leaf ()
+# 数组 shift 叶封装（同上）。
+x_shift_leaf ()
 { 
     REPLY=
     local tr_shift_leaf_reply=
         #@if current_shell_process_replace==1
-    tr_shift_leaf_reply=${|_trie_array_get "$1" "$2" shift leaf;} || return $?
+    tr_shift_leaf_reply=${|_x_array_get "$1" "$2" shift leaf;} || return $?
         #@endif
         #@if current_shell_process_replace==0
-    _trie_array_get "$1" "$2" shift leaf || eval "$_ret_e"
+    _x_array_get "$1" "$2" shift leaf || eval "$_ret_e"
     eval "${_ret_s_/o/tr_shift_leaf_reply}"
         #@endif
-    trie_delete "$1" "$2[0]$X" || return $?
+    x_delete "$1" "$2[0]$X" || return $?
     REPLY=$tr_shift_leaf_reply
 }
 
 #-------------------------------------------------------------------------------
 
-trie_shift_tree ()
+# 数组 shift 子树封装（同上）。
+x_shift_tree ()
 {
     REPLY=
     local tr_shift_tree_reply=
         #@if current_shell_process_replace==1
-    tr_shift_tree_reply=${|_trie_array_get "$1" "$2" shift tree;} || return $?
+    tr_shift_tree_reply=${|_x_array_get "$1" "$2" shift tree;} || return $?
         #@endif
         #@if current_shell_process_replace==0
-    _trie_array_get "$1" "$2" shift tree || eval "$_ret_e"
+    _x_array_get "$1" "$2" shift tree || eval "$_ret_e"
     eval "${_ret_s_/o/tr_shift_tree_reply}"
         #@endif
-    trie_delete "$1" "$2[0]$X" || return $?
+    x_delete "$1" "$2[0]$X" || return $?
     REPLY=$tr_shift_tree_reply
 }
 
 #-------------------------------------------------------------------------------
 
-trie_layer_get_flat ()
+# 把节点扁平化为关联数组或数组（要求节点自身及子节点都是扁平叶）。
+# @in  $1='arr' 或 'obj'  $2=树名  $3=物理全 key  $4=节点 ID（可选）
+# @out REPLY=扁平结果（@Q / @K 格式）
+# @ret 0=X_FLAT_IS_MATCH  1=X_FLAT_IS_NOT_MATCH
+#      2=X_FLAT_ARRAY_NULL  3=X_FLAT_ASSOC_NULL
+x_layer_get_flat ()
 {
     REPLY=
     # local - ; set +x
@@ -2111,14 +2327,14 @@ trie_layer_get_flat ()
 
     if [[ -z "$tr_node_id" ]] ; then
         [[ -n "$tr_full_key" ]] && {
-            trie_key_is_invalid "$tr_full_key" || return $?
+            x_key_is_invalid "$tr_full_key" || return $?
         }
         local tr_node_info
             #@if current_shell_process_replace==1
-        tr_node_info=${|_trie_token_to_node_id "$2" "$tr_full_key";} || return $?
+        tr_node_info=${|_x_token_to_node_id "$2" "$tr_full_key";} || return $?
             #@endif
             #@if current_shell_process_replace==0
-        _trie_token_to_node_id "$2" "$tr_full_key" || eval "$_ret_e"
+        _x_token_to_node_id "$2" "$tr_full_key" || eval "$_ret_e"
         eval "${_ret_s_/o/tr_node_info}"
             #@endif
         local -A "tr_node_info=($tr_node_info)"
@@ -2126,65 +2342,65 @@ trie_layer_get_flat ()
     fi
 
     # If tr_node_id is empty, determine the root node
-    tr_node_id=${tr_node_id:-"$TR_ROOT_ID"}
+    tr_node_id=${tr_node_id:-"$X_ROOT_ID"}
 
     # First determine whether the current layer is null
-    local tr_key=${tr_t[$tr_node_id.key]}
+    local tr_key=${tr_t[$tr_node_id.k]}
     if [[ -n "$tr_key" && ${tr_t[$tr_key]+_} ]] ; then
-        if [[ "${tr_t[$tr_key]}" == "$TR_VALUE_NULL" ]] ; then
-            return $TR_FLAT_IS_MATCH
+        if [[ "${tr_t[$tr_key]}" == "$X_VALUE_NULL" ]] ; then
+            return $X_FLAT_IS_MATCH
         else
-            die "node id:${tr_node_id} flat type not match."
-            return $TR_FLAT_IS_NOT_MATCH
+            die ERR "node id:${tr_node_id} flat type not match."
+            return $X_FLAT_IS_NOT_MATCH
         fi
     fi
 
     # Object or array to determine whether the child has children (non-flat)
     local tr_old_ifs=$IFS IFS=$'\n' tr_tuple 
-    case "${tr_t[$tr_node_id.type]}" in
-    $TR_TYPE_ARR)
+    case "${tr_t[$tr_node_id.t]}" in
+    $X_TYPE_ARR)
         [[ "$tr_expect" == 'arr' ]] || {
-            die "node id:${tr_node_id} flat type not match."
-            return $TR_FLAT_IS_NOT_MATCH
+            die ERR "node id:${tr_node_id} flat type not match."
+            return $X_FLAT_IS_NOT_MATCH
         }
         local -a tr_plat_arr=()
         local tr_iter_str
             #@if current_shell_process_replace==1
-        tr_iter_str=${|trie_iter "$2" '' $((2#11111)) "$tr_node_id";}
+        tr_iter_str=${|x_iter "$2" '' $((2#11111)) "$tr_node_id";}
             #@endif
             #@if current_shell_process_replace==0
-        trie_iter "$2" '' $((2#11111)) "$tr_node_id" ; eval "${_ret_s_/o/tr_iter_str}"
+        x_iter "$2" '' $((2#11111)) "$tr_node_id" ; eval "${_ret_s_/o/tr_iter_str}"
             #@endif
 
         for tr_tuple in $tr_iter_str ; do
             IFS=$tr_old_ifs ; local -a "tr_tuple=($tr_tuple)"
-            trie_layer_child_is_flat "${tr_tuple[1]}" || {
-                die "node id:${tr_node_id} flat type not match."
-                return $TR_FLAT_IS_NOT_MATCH
+            x_layer_child_is_flat "${tr_tuple[1]}" || {
+                die ERR "node id:${tr_node_id} flat type not match."
+                return $X_FLAT_IS_NOT_MATCH
             }
             tr_plat_arr+=("${tr_tuple[3]}")
         done
         REPLY=${tr_plat_arr[*]@Q}
         ;;
-    $TR_TYPE_OBJ)
+    $X_TYPE_OBJ)
         [[ "$tr_expect" == 'obj' ]] || {
-            die "node id:${tr_node_id} flat type not match."
-            return $TR_FLAT_IS_NOT_MATCH
+            die ERR "node id:${tr_node_id} flat type not match."
+            return $X_FLAT_IS_NOT_MATCH
         }
         local -A tr_plat_arr=()
         local tr_iter_str
     #@if current_shell_process_replace==1
-        tr_iter_str=${|trie_iter "$2" '' $((2#11111)) "$tr_node_id";}
+        tr_iter_str=${|x_iter "$2" '' $((2#11111)) "$tr_node_id";}
     #@endif
     #@if current_shell_process_replace==0
-        trie_iter "$2" '' $((2#11111)) "$tr_node_id"
+        x_iter "$2" '' $((2#11111)) "$tr_node_id"
         tr_iter_str=$REPLY
     #@endif
         for tr_tuple in $tr_iter_str ; do
             IFS=$tr_old_ifs ; local -a "tr_tuple=($tr_tuple)"
-            trie_layer_child_is_flat "${tr_tuple[1]}" || {
-                die "node id:${tr_node_id} flat type not match."
-                return $TR_FLAT_IS_NOT_MATCH
+            x_layer_child_is_flat "${tr_tuple[1]}" || {
+                die ERR "node id:${tr_node_id} flat type not match."
+                return $X_FLAT_IS_NOT_MATCH
             }
             tr_plat_arr["${tr_tuple[0]:1:-1}"]="${tr_tuple[3]}"
         done
@@ -2197,86 +2413,103 @@ trie_layer_get_flat ()
         ;;
     esac
     
-    return $TR_FLAT_IS_MATCH
+    return $X_FLAT_IS_MATCH
 }
 
 #-------------------------------------------------------------------------------
 
-trie_to_flat_array () { trie_layer_get_flat 'arr' "$@" ; }
-trie_to_flat_assoc () { trie_layer_get_flat 'obj' "$@" ; }
+# 扁平化包装：
+# x_to_flat_array  $1=树名  $2=物理全 key  -> REPLY=数组
+# x_to_flat_assoc  $1=树名  $2=物理全 key  -> REPLY=关联数组
+# @ret 0=X_FLAT_IS_MATCH  其他=X_FLAT_*
+x_to_flat_array () { x_layer_get_flat 'arr' "$@" ; }
+x_to_flat_assoc () { x_layer_get_flat 'obj' "$@" ; }
 
 #-------------------------------------------------------------------------------
 
-trie_pop_to_flat_array ()
+# pop 后取扁平结果（数组 / 关联数组）。
+# @in  $1=树名  $2=父路径物理全 key
+# @out REPLY=扁平结果
+# @ret 0=X_FLAT_IS_MATCH  其他=X_FLAT_* 或 X_RET_ENUM_*
+x_pop_to_flat_array ()
 {
     REPLY=
     local tr_pop_fa_reply=
         #@if current_shell_process_replace==1
-    tr_pop_fa_reply=${|trie_to_flat_array "$1" "$2[-1]$X";} || return $?
+    tr_pop_fa_reply=${|x_to_flat_array "$1" "$2[-1]$X";} || return $?
         #@endif
         #@if current_shell_process_replace==0
-    trie_to_flat_array "$1" "$2[-1]$X" || eval "$_ret_e"
+    x_to_flat_array "$1" "$2[-1]$X" || eval "$_ret_e"
     eval "${_ret_s_/o/tr_pop_fa_reply}"
         #@endif
-    trie_delete "$1" "$2[-1]$X" || return $?
+    x_delete "$1" "$2[-1]$X" || return $?
     REPLY=$tr_pop_fa_reply
 }
 
 #-------------------------------------------------------------------------------
 
-trie_pop_to_flat_assoc ()
+# pop 关联数组（同上）。
+x_pop_to_flat_assoc ()
 {
     REPLY=
     local tr_pop_fs_reply=
         #@if current_shell_process_replace==1
-    tr_pop_fs_reply=${|trie_to_flat_assoc "$1" "$2[-1]$X";} || return $?
+    tr_pop_fs_reply=${|x_to_flat_assoc "$1" "$2[-1]$X";} || return $?
         #@endif
         #@if current_shell_process_replace==0
-    trie_to_flat_assoc "$1" "$2[-1]$X" || eval "$_ret_e"
+    x_to_flat_assoc "$1" "$2[-1]$X" || eval "$_ret_e"
     eval "${_ret_s_/o/tr_pop_fs_reply}"
         #@endif
-    trie_delete "$1" "$2[-1]$X" || return $?
+    x_delete "$1" "$2[-1]$X" || return $?
     REPLY=$tr_pop_fs_reply
 }
 
 #-------------------------------------------------------------------------------
 
-trie_shift_to_flat_array ()
+# shift 后取扁平结果（数组）。
+# @ret 0=X_FLAT_IS_MATCH  其他=X_FLAT_* 或 X_RET_ENUM_*
+x_shift_to_flat_array ()
 {
     REPLY=
     local tr_shif_fa_reply=
         #@if current_shell_process_replace==1
-    tr_shif_fa_reply=${|trie_to_flat_array "$1" "$2[0]$X";} || return $?
+    tr_shif_fa_reply=${|x_to_flat_array "$1" "$2[0]$X";} || return $?
         #@endif
         #@if current_shell_process_replace==0
-    trie_to_flat_array "$1" "$2[0]$X" || eval "$_ret_e"
+    x_to_flat_array "$1" "$2[0]$X" || eval "$_ret_e"
     eval "${_ret_s_/o/tr_shif_fa_reply}"
         #@endif
-    trie_delete "$1" "$2[0]$X" || return $?
+    x_delete "$1" "$2[0]$X" || return $?
     REPLY=$tr_shif_fa_reply
 }
 
 #-------------------------------------------------------------------------------
 
-trie_shift_to_flat_assoc ()
+# shift 后取扁平结果（关联数组）。
+# @ret 0=X_FLAT_IS_MATCH  其他=X_FLAT_* 或 X_RET_ENUM_*
+x_shift_to_flat_assoc ()
 {
     REPLY=
     local tr_shift_fs_reply=
         #@if current_shell_process_replace==1
-    tr_shift_fs_reply=${|trie_to_flat_assoc "$1" "$2[0]$X";} || return $?
+    tr_shift_fs_reply=${|x_to_flat_assoc "$1" "$2[0]$X";} || return $?
         #@endif
         #@if current_shell_process_replace==0
-    trie_to_flat_assoc "$1" "$2[0]$X" || eval "$_ret_e"
+    x_to_flat_assoc "$1" "$2[0]$X" || eval "$_ret_e"
     eval "${_ret_s_/o/tr_shift_fs_reply}"
         #@endif
-    trie_delete "$1" "$2[0]$X" || return $?
+    x_delete "$1" "$2[0]$X" || return $?
     REPLY=$tr_shift_fs_reply
 }
 
 #-------------------------------------------------------------------------------
 
 # Hooks have no deletion semantics, but writes to flat layers do
-trie_flat_to_tree ()
+#
+# 把扁平结构（数组/关联数组）写入为子树。
+# @in  $1=树名  $2=目标物理全 key  $3=扁平数组名
+# @ret 0=OK
+x_flat_to_tree ()
 {
     # local - ; set +x
     local tr_prefix=$2
@@ -2286,7 +2519,7 @@ trie_flat_to_tree ()
     [[ "${tr_array@a}" == *A* ]] && tr_array_is_assoc=1
 
     [[ "$tr_prefix" == *")$X"* ]] || {
-        trie_delete "$1" "$tr_prefix" || return $?
+        x_delete "$1" "$tr_prefix" || return $?
     }
 
     local tr_index
@@ -2301,31 +2534,34 @@ trie_flat_to_tree ()
 
     ((${#tr_params[@]})) || {
         if ((tr_array_is_assoc)) ; then
-            tr_params=("$TR_VALUE_NULL_OBJ")
+            tr_params=("$X_VALUE_NULL_OBJ")
         else
-            tr_params=("$TR_VALUE_NULL_ARR")
+            tr_params=("$X_VALUE_NULL_ARR")
         fi
     }
 
-    trie_qinserts "$1" common "$tr_prefix" "${tr_params[@]}"
+    x_qinserts "$1" common "$tr_prefix" "${tr_params[@]}"
 }
 
 #-------------------------------------------------------------------------------
 
-# Not implemented, users can define it themselves through trie_walk
-trie_search () { : ; }
+# Not implemented, users can define it themselves through x_walk
+#
+# 搜索（未实现，用户可通过 x_walk 自定义）。
+x_search () { : ; }
 
 #-------------------------------------------------------------------------------
 
-_trie_flat_insert ()
+# 内部：把扁平数组 push/unshift 到数组节点。
+_x_flat_insert ()
 {
     # local - ; set +x
     local tr_next_key
         #@if current_shell_process_replace==1
-    tr_next_key=${|_trie_array_next_key "$1" "$2" "$3";} || return $?
+    tr_next_key=${|_x_array_next_key "$1" "$2" "$3";} || return $?
         #@endif
         #@if current_shell_process_replace==0
-    _trie_array_next_key "$1" "$2" "$3" || eval "$_ret_e"
+    _x_array_next_key "$1" "$2" "$3" || eval "$_ret_e"
     eval "${_ret_s_/o/tr_next_key}"
         #@endif
 
@@ -2343,24 +2579,34 @@ _trie_flat_insert ()
 
     ((${#tr_array[@]})) || {
         if ((tr_is_assoc)) ; then
-            tr_params=("$TR_VALUE_NULL_OBJ")
+            tr_params=("$X_VALUE_NULL_OBJ")
         else
-            tr_params=("$TR_VALUE_NULL_ARR")
+            tr_params=("$X_VALUE_NULL_ARR")
         fi
     }
 
-    trie_qinserts "$1" common "$tr_next_key" "${tr_params[@]}"
+    x_qinserts "$1" common "$tr_next_key" "${tr_params[@]}"
 }
 
 #-------------------------------------------------------------------------------
 
-trie_push_flat () { _trie_flat_insert "$1" "$2" push "$3" ; }
-trie_unshift_flat () { _trie_flat_insert "$1" "$2" unshift "$3" ; }
+# push/unshift 扁平结构到数组：
+# x_push_flat / x_unshift_flat
+# @in  $1=树名  $2=父路径物理全 key  $3=扁平数组名
+# @ret 0=OK
+x_push_flat () { _x_flat_insert "$1" "$2" push "$3" ; }
+x_unshift_flat () { _x_flat_insert "$1" "$2" unshift "$3" ; }
 
 #-------------------------------------------------------------------------------
 
 # This function is very slow and is only used for verification.
-trie_to_json_slow ()
+#
+# 慢速 JSON 序列化（每条边 fork 一次 gobolt，仅作验证用）。
+# @in  $1=树名  $2=物理全 key（空=整棵树）
+# @out REPLY=JSON 字符串
+# @ret 0=OK  10=X_RET_ENUM_KEY_OTHER_TOOL_NOT_INSTALLED
+#      52=X_RET_ENUM_TREE_NOT_HAVE_ROOT
+x_to_json_slow ()
 {
     REPLY=
     # local - ; set +x
@@ -2372,19 +2618,19 @@ trie_to_json_slow ()
     trap 'rm -f "$tr_temp_file"' RETURN
 
     command -v gobolt &>/dev/null || {
-        die "gobolt tool is not installed."
-        return $TR_RET_ENUM_KEY_OTHER_TOOL_NOT_INSTALLED
+        die ERR "gobolt tool is not installed."
+        return $X_RET_ENUM_KEY_OTHER_TOOL_NOT_INSTALLED
     }
 
-    [[ -z "${tr_t[$TR_ROOT_ID.children]}" ]] && {
-        case "${tr_t[$TR_ROOT_ID.type]}" in
-        $TR_TYPE_OBJ)   REPLY='{}' ; return $TR_RET_ENUM_OK ;;
-        $TR_TYPE_ARR)   REPLY='[]' ; return $TR_RET_ENUM_OK ;;
-        *)  return $TR_RET_ENUM_TREE_NOT_HAVE_ROOT  ;;
+    [[ -z "${tr_t[$X_ROOT_ID.s]}" ]] && {
+        case "${tr_t[$X_ROOT_ID.t]}" in
+        $X_TYPE_OBJ)   REPLY='{}' ; return $X_RET_ENUM_OK ;;
+        $X_TYPE_ARR)   REPLY='[]' ; return $X_RET_ENUM_OK ;;
+        *)  return $X_RET_ENUM_TREE_NOT_HAVE_ROOT  ;;
         esac
     }
 
-    trie_to_json_slow_callback ()
+    x_to_json_slow_cb ()
     {
         local node_kind=$1
         local index_full_key=$3 value=$4
@@ -2399,18 +2645,18 @@ trie_to_json_slow ()
         local write_jstr_param='-f'
 
         case "$node_kind" in
-        $TR_NODE_KIND_LEAF)
+        $X_NODE_KIND_LEAF)
             case "$value" in
-            $TR_VALUE_TRUE) value='true'   ;;
-            $TR_VALUE_FALSE) value='false' ;;
+            $X_VALUE_TRUE) value='true'   ;;
+            $X_VALUE_FALSE) value='false' ;;
             *"$X")  value=${value%"$X"}    ;;
             *) write_jstr_param='-o'       ;;
             esac
             ;;
-        $TR_NODE_KIND_LEAF_NULL) value='null' ;;
-        $TR_NODE_KIND_ARR_EMPTY) value='[]'   ;;
-        $TR_NODE_KIND_OBJ_EMPTY) value='{}'   ;;
-        *)  return $TR_RET_ENUM_OK            ;;
+        $X_NODE_KIND_LEAF_NULL) value='null' ;;
+        $X_NODE_KIND_ARR_EMPTY) value='[]'   ;;
+        $X_NODE_KIND_OBJ_EMPTY) value='{}'   ;;
+        *)  return $X_RET_ENUM_OK            ;;
         esac
 
         for token in "${tokens[@]}" ; do
@@ -2433,16 +2679,21 @@ trie_to_json_slow ()
             -P -- "${bjson_params[@]}" ) || return $?
     #@endif
 
-        return $TR_RET_ENUM_OK
+        return $X_RET_ENUM_OK
     }
 
-    trie_walk "$tr_name" "$tr_full_key" trie_to_json_slow_callback || return $?
+    x_walk "$tr_name" "$tr_full_key" x_to_json_slow_cb || return $?
     REPLY=$tr_jstr
 }
 
 #-------------------------------------------------------------------------------
 
-trie_to_json ()
+# 快速 JSON 序列化（一次性 fork gobolt，超长参数自动降级到 slow）。
+# @in  $1=树名  $2=物理全 key（空=整棵树）
+# @out REPLY=JSON 字符串
+# @ret 0=OK  10=OTHER_TOOL_NOT_INSTALLED
+#      14=PARAMETER_LENGTH_EXCEEDS_LIMIT  52=TREE_NOT_HAVE_ROOT
+x_to_json ()
 {
     REPLY=
     # local - ; set +x
@@ -2452,19 +2703,19 @@ trie_to_json ()
     local -a tr_gobolt_params=()
 
     command -v gobolt &>/dev/null || {
-        die "gobolt tool is not installed."
-        return $TR_RET_ENUM_KEY_OTHER_TOOL_NOT_INSTALLED
+        die ERR "gobolt tool is not installed."
+        return $X_RET_ENUM_KEY_OTHER_TOOL_NOT_INSTALLED
     }
 
-    [[ -z "${tr_t[$TR_ROOT_ID.children]}" ]] && {
-        case "${tr_t[$TR_ROOT_ID.type]}" in
-        $TR_TYPE_OBJ)   REPLY='{}' ; return $TR_RET_ENUM_OK ;;
-        $TR_TYPE_ARR)   REPLY='[]' ; return $TR_RET_ENUM_OK ;;
-        *)  return $TR_RET_ENUM_TREE_NOT_HAVE_ROOT  ;;
+    [[ -z "${tr_t[$X_ROOT_ID.s]}" ]] && {
+        case "${tr_t[$X_ROOT_ID.t]}" in
+        $X_TYPE_OBJ)   REPLY='{}' ; return $X_RET_ENUM_OK ;;
+        $X_TYPE_ARR)   REPLY='[]' ; return $X_RET_ENUM_OK ;;
+        *)  return $X_RET_ENUM_TREE_NOT_HAVE_ROOT  ;;
         esac
     }
 
-    trie_to_json_callback ()
+    x_to_json_cb ()
     {
         local node_kind=$1
         local index_full_key=$3 value=$4
@@ -2478,24 +2729,24 @@ trie_to_json ()
         local token
 
         case "$node_kind" in
-        $TR_NODE_KIND_LEAF)
+        $X_NODE_KIND_LEAF)
             case "$value" in
-            $TR_VALUE_TRUE)     value='j:true'        ;;
-            $TR_VALUE_FALSE)    value='j:false'       ;;
+            $X_VALUE_TRUE)     value='j:true'        ;;
+            $X_VALUE_FALSE)    value='j:false'       ;;
             *"$X")              value=j:${value%"$X"} ;;
             *)                  value=s:${value}      ;;
             esac
             ;;
-        $TR_NODE_KIND_LEAF_NULL) value='j:null' ;;
-        $TR_NODE_KIND_ARR_EMPTY) value='j:[]'   ;;
-        $TR_NODE_KIND_OBJ_EMPTY) value='j:{}'   ;;
-        *)  return $TR_RET_ENUM_OK            ;;
+        $X_NODE_KIND_LEAF_NULL) value='j:null' ;;
+        $X_NODE_KIND_ARR_EMPTY) value='j:[]'   ;;
+        $X_NODE_KIND_OBJ_EMPTY) value='j:{}'   ;;
+        *)  return $X_RET_ENUM_OK            ;;
         esac
 
         for token in "${tokens[@]}" ; do
             case "$token" in
             '{'*'}')
-                trie_bjson_key_escape "${token:1:-1}" token
+                x_bjson_key_escape "${token:1:-1}" token
                 if ((${#bjson_params[@]})) ; then
                     bjson_params+=(".:$token")
                 else
@@ -2515,19 +2766,19 @@ trie_to_json ()
         printf -v 'tr_gobolt_params[${#tr_gobolt_params[@]}]' "%s" "${bjson_params[@]}"
         tr_gobolt_params+=("$value")
 
-        return $TR_RET_ENUM_OK
+        return $X_RET_ENUM_OK
     }
 
-    trie_walk "$tr_name" "$tr_full_key" trie_to_json_callback || return $?
+    x_walk "$tr_name" "$tr_full_key" x_to_json_cb || return $?
 
     # printf '%s\n' "${tr_gobolt_params[@]}"
 
     local tr_i
         #@if current_shell_process_replace==1
-    local -A "tr_system_limits=(${|trie_get_arg_limits;})"
+    local -A "tr_system_limits=(${|x_get_arg_limits "${#tr_gobolt_params[@]}";})"
         #@endif
         #@if current_shell_process_replace==0
-    trie_get_arg_limits ; eval "${_ret_A/o/tr_system_limits}"
+    x_get_arg_limits "${#tr_gobolt_params[@]}" ; eval "${_ret_A/o/tr_system_limits}"
         #@endif
 
     # Check if each parameter exceeds
@@ -2542,8 +2793,8 @@ trie_to_json ()
             #@endif
 
         ((  tr_key_len>=${tr_system_limits[MAX_ARG_STRLEN]} )) && {
-            die "Command line parameters exceed limit"
-            return $TR_RET_ENUM_KEY_PARAMETER_LENGTH_EXCEEDS_LIMIT
+            die ERR "Command line parameters exceed limit"
+            return $X_RET_ENUM_KEY_PARAMETER_LENGTH_EXCEEDS_LIMIT
         }
     done
 
@@ -2555,7 +2806,7 @@ trie_to_json ()
         #@endif
 
     if ((tr_all_param_byte_len>=${tr_system_limits[AVAILABLE]})) ; then
-        trie_to_json_slow "$tr_name" "$tr_full_key" ; return $?
+        x_to_json_slow "$tr_name" "$tr_full_key" ; return $?
     else
     #@if current_shell_process_replace==1
         REPLY=${ printf '' | gobolt json -m w -k stdin -s '' -M -- "${tr_gobolt_params[@]}";}
@@ -2568,7 +2819,11 @@ trie_to_json ()
 
 #-------------------------------------------------------------------------------
 
-trie_from_json ()
+# JSON 反序列化为树。
+# @in  $1=JSON 字符串  $2..=go 侧需要的 bjson 路径（可选）
+# @out REPLY=新树（关联数组 KV 格式）
+# @ret 0=OK  10=OTHER_TOOL_NOT_INSTALLED  11=BJSON_TYPE_INVALID
+x_from_json ()
 {
     REPLY=
     # local - ; set +x
@@ -2576,8 +2831,8 @@ trie_from_json ()
     local tr_bjson_keys="${@:2}"
 
     command -v gobolt &>/dev/null || {
-        die "gobolt tool is not installed."
-        return $TR_RET_ENUM_KEY_OTHER_TOOL_NOT_INSTALLED
+        die ERR "gobolt tool is not installed."
+        return $X_RET_ENUM_KEY_OTHER_TOOL_NOT_INSTALLED
     }
 
     local tr_assoc
@@ -2590,34 +2845,34 @@ trie_from_json ()
         gobolt json -m r -t txt -k stdin -F trie -x "$X" -P -- "${tr_bjson_keys[@]}" )
 #@endif
     case "$?" in
-    $TR_GOBOLT_JSONTYPEARRAY|$TR_GOBOLT_JSONTYPEOBJECT)
+    $X_GOBOLT_JSONTYPEARRAY|$X_GOBOLT_JSONTYPEOBJECT)
         local -A "tr_assoc=($tr_assoc)" ;;&
-    $TR_GOBOLT_JSONTYPEARRAY)
+    $X_GOBOLT_JSONTYPEARRAY)
             #@if current_shell_process_replace==1
-        local -A "tr_init_tree=(${|trie_init "$TR_TYPE_ARR";})" ;;
+        local -A "tr_init_tree=(${|x_init "$X_TYPE_ARR";})" ;;
             #@endif
             #@if current_shell_process_replace==0
-        trie_init "$TR_TYPE_ARR" ; eval "${_ret_A/o/tr_init_tree}" ;;
+        x_init "$X_TYPE_ARR" ; eval "${_ret_A/o/tr_init_tree}" ;;
             #@endif
-    $TR_GOBOLT_JSONTYPEOBJECT)
+    $X_GOBOLT_JSONTYPEOBJECT)
             #@if current_shell_process_replace==1
-        local -A "tr_init_tree=(${|trie_init "$TR_TYPE_OBJ";})" ;;
+        local -A "tr_init_tree=(${|x_init "$X_TYPE_OBJ";})" ;;
             #@endif
             #@if current_shell_process_replace==0
-        trie_init "$TR_TYPE_OBJ" ; eval "${_ret_A/o/tr_init_tree}" ;;
+        x_init "$X_TYPE_OBJ" ; eval "${_ret_A/o/tr_init_tree}" ;;
             #@endif
     *)
-        die "bjson key:${tr_bjson_keys[*]} type is known."
-        return $TR_RET_ENUM_KEY_BJSON_TYPE_INVALID
+        die ERR "bjson key:${tr_bjson_keys[*]} type is known."
+        return $X_RET_ENUM_KEY_BJSON_TYPE_INVALID
         ;;
     esac
 
     local tr_key
     for tr_key in "${!tr_assoc[@]}" ; do
-        trie_insert tr_init_tree "$tr_key" "${tr_assoc[$tr_key]}"
+        x_insert tr_init_tree "$tr_key" "${tr_assoc[$tr_key]}"
     done
     
-    # trie_dump tr_init_tree
+    # x_dump tr_init_tree
 
 #@if at_k_var_substitution==1
     REPLY=${tr_init_tree[*]@K}
@@ -2629,11 +2884,16 @@ trie_from_json ()
 
 #-------------------------------------------------------------------------------
 
-trie_get_arg_limits ()
+# 探测系统命令行参数限制，用于 x_to_json 决定是否降级。
+# @in  $1=参数数量（默认 0）
+# @out REPLY=关联数组 KV：MAX_ARG_STRLEN AVAILABLE
+# @ret 0
+x_get_arg_limits ()
 {
     REPLY=
     # Linux: getconf ARG_MAX
     # Windows/MSYS2: fallback to 8191
+    local -i argc_cnt=${1:-0}
     local -A args=()
     local argmax=$( getconf ARG_MAX 2>/dev/null )
 
@@ -2643,8 +2903,10 @@ trie_get_arg_limits ()
         # printf '' | gobolt json -m w -k stdin -s "$x" -P -- :key1
         local -i safety=1024
         # 32KB
-        args[AVAILABLE]=$((32768-safety))
         args[MAX_ARG_STRLEN]=$((32768-safety))
+        local -i msys_overhead=$(( argc_cnt * 2 ))
+        # 预扣空格和引号的开销（每个参数至少 1~2 个字符）
+        args[AVAILABLE]=$((32768-safety-msys_overhead))
     else
         # Linux Kernel constants MAX_ARG_STRLEN = 131072(128KB)
         local -i safety=4096
@@ -2654,8 +2916,11 @@ trie_get_arg_limits ()
             #@if current_shell_process_replace==0
         str_bytes "$( export -p )" ; eval "${_ret_i/o/env_bytes}"
             #@endif
+        # 扣除指针数组开销, 64位系统每个指针 8 字节
+        local -i ptr_overhead=$((argc_cnt * 8))
+        # 128k MAX_ARG_STRLEN 内核头文件中
         args[MAX_ARG_STRLEN]=$((131072-safety))
-        args[AVAILABLE]=$((argmax-env_bytes-safety))
+        args[AVAILABLE]=$((argmax-env_bytes-safety-ptr_overhead))
     fi
 
 #@if at_k_var_substitution==1
@@ -2669,4 +2934,3 @@ trie_get_arg_limits ()
 #-------------------------------------------------------------------------------
 
 return 0
-

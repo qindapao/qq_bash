@@ -4,7 +4,7 @@
 # so the properties of the current design object are independent.
 # Cannot inherit from parent class
 
-. "${BASH_SOURCE[0]%/*}/trie.sh"
+. "${BASH_SOURCE[0]%/*}/x.sh"
 . "${BASH_SOURCE[0]%/*}/meta.sh"
 . "${BASH_SOURCE[0]%/*}/mid_class.sh"
 
@@ -17,13 +17,13 @@ setup_my_class ()
     local tr_value2=$5
     local tr_cnt_demo=$6
 
-    trie_insert_token_dict  "$tr_s" "$tr_i" "$tr_k" \
+    x_insert_token_dict  "$tr_s" "$tr_i" "$tr_k" \
                             "{CLASS}" "my_class" \
                             "{SELF}" "$tr_s $tr_i" \
                             "{P1}" "$tr_value1" \
                             "{P2}" "$tr_value2" \
                             "{CNT}" "$tr_cnt_demo" \
-                            "{ELEMENTS}" "$TR_VALUE_NULL_ARR"
+                            "{ELEMENTS}" "$X_VALUE_NULL_ARR"
 }
 
 #-------------------------------------------------------------------------------

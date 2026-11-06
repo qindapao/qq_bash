@@ -5,10 +5,10 @@
 
 test_case1 ()
 {
-    local arr=(1 2 3 4 6)
+    local TestCase1_arr=(1 2 3 4 6)
     local value=5
-    array_sorted_insert arr "$value" '-gt'
-    if [[ "${arr[*]}" == "1 2 3 4 5 6" ]] ; then
+    array_sorted_insert TestCase1_arr "$value" '-gt'
+    if [[ "${TestCase1_arr[*]}" == "1 2 3 4 5 6" ]] ; then
         echo "${FUNCNAME[0]} test pass."
     else
         echo "${FUNCNAME[0]} test fail."
@@ -19,10 +19,10 @@ test_case1 ()
 
 test_case2 ()
 {
-    local arr=(10 9 7 6 5 4 2 1)
+    local TestCase2_arr=(10 9 7 6 5 4 2 1)
     local value=2
-    array_sorted_insert arr "$value" '-lt'
-    if [[ "${arr[*]}" == "10 9 7 6 5 4 2 2 1" ]] ; then
+    array_sorted_insert TestCase2_arr "$value" '-lt'
+    if [[ "${TestCase2_arr[*]}" == "10 9 7 6 5 4 2 2 1" ]] ; then
         echo "${FUNCNAME[0]} test pass."
     else
         echo "${FUNCNAME[0]} test fail."
@@ -33,10 +33,10 @@ test_case2 ()
 
 test_case3 ()
 {
-    local arr=(a b c f g)
+    local TestCase3_arr=(a b c f g)
     local value=e
-    array_sorted_insert arr "$value" '>'
-    if [[ "${arr[*]}" == "a b c e f g" ]] ; then
+    array_sorted_insert TestCase3_arr "$value" '>'
+    if [[ "${TestCase3_arr[*]}" == "a b c e f g" ]] ; then
         echo "${FUNCNAME[0]} test pass."
     else
         echo "${FUNCNAME[0]} test fail."
@@ -47,10 +47,10 @@ test_case3 ()
 
 test_case4 ()
 {
-    local arr=(g f b a)
+    local TestCase4_arr=(g f b a)
     local value=d
-    array_sorted_insert arr "$value" '<'
-    if [[ "${arr[*]}" == "g f d b a" ]] ; then
+    array_sorted_insert TestCase4_arr "$value" '<'
+    if [[ "${TestCase4_arr[*]}" == "g f d b a" ]] ; then
         echo "${FUNCNAME[0]} test pass."
     else
         echo "${FUNCNAME[0]} test fail."
@@ -63,29 +63,29 @@ test_case6 ()
 {
     local -
     # set -x
-    local a=(1 2 "a 3" 4 5 "a 3" 6)
+    local TestCase6_a=(1 2 "a 3" 4 5 "a 3" 6)
     local e="a 3"
-    array_delete_first_e a "$e"
-    local a_spec=(
+    array_delete_first_e TestCase6_a "$e"
+    local TestCase6_a_spec=(
     1 2 
     [3]=4
     5 "a 3" 6)
 
-    if assert_array a a a_spec ; then
+    if assert_array a TestCase6_a TestCase6_a_spec ; then
         log_test 1 1
     else
         log_test 0 1 ; return 1
     fi
 
-    local a=(1 2 "a 3" 4 5 "a 3" 6)
-    array_delete_e a "$e"
-    local a_spec=(
+    local TestCase6_a=(1 2 "a 3" 4 5 "a 3" 6)
+    array_delete_e TestCase6_a "$e"
+    local TestCase6_a_spec=(
     1 2 
     [3]=4
     5
     [6]=6)
 
-    if assert_array a a a_spec ; then
+    if assert_array a TestCase6_a TestCase6_a_spec ; then
         log_test 1 2
     else
         log_test 0 2 ; return 1

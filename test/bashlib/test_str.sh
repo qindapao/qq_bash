@@ -326,8 +326,119 @@ test_case10 ()
     return 0
 }
 
+test_case11 ()
+{
+    local result
+    local -i pass=0 fail=0
+    local -a fail_msgs=()
 
-# step_test 10
+    local bs='\'   # 用于安全构造字面反斜杠
 
+    _t11_check ()
+    {
+        local _name=$1 _expected=$2
+        if [[ "$result" == "$_expected" ]]; then
+            ((pass++))
+        else
+            ((fail++))
+            fail_msgs+=("$_name: got [$result], expected [$_expected]")
+        fi
+    }
+
+    # ---- 1. 快速路径：纯 ASCII + 换行 ----
+    local input1=$'hello\nworld'
+    str_escape_keep_nl "$input1" result
+    _t11_check "case1_ascii_nl" "$input1"
+
+    # ---- 2. 快速路径：含中文 ----
+    local input2=$'我是中文hahah中\n\n文文'
+    str_escape_keep_nl "$input2" result
+    _t11_check "case2_chinese" "$input2"
+
+    # ---- 3. 快速路径：空字符串 ----
+    str_escape_keep_nl "" result
+    _t11_check "case3_empty" ""
+
+    # ---- 4. 中速路径：反斜杠 ----
+    local input4="a${bs}b${bs}c"
+    local expected4="a${bs}${bs}b${bs}${bs}c"
+    str_escape_keep_nl "$input4" result
+    _t11_check "case4_backslash" "$expected4"
+
+    # ---- 5. 中速路径：\b \f \r \t ----
+    local input5=$'a\bb\fc\rd\te'
+    local expected5="a${bs}bb${bs}fc${bs}rd${bs}te"
+    str_escape_keep_nl "$input5" result
+    _t11_check "case5_ctrl_shorthand" "$expected5"
+
+    # ---- 6. 慢速路径：C0 控制字符 (\x01, \x02) ----
+    local input6=$'a\x01b\x02c'
+    local expected6="a${bs}u0001b${bs}u0002c"
+    str_escape_keep_nl "$input6" result
+    _t11_check "case6_c0" "$expected6"
+
+    # ---- 7. 慢速路径：DEL (\x7f) ----
+    local input7=$'a\x7fb'
+    local expected7="a${bs}u007fb"
+    str_escape_keep_nl "$input7" result
+    _t11_check "case7_del" "$expected7"
+
+    # ---- 8. 慢速路径：C1 (CSI \x9b) ----
+    # 在 UTF-8 环境下 0x9b 是非法的，但函数应该能按码点正确处理
+    local input8=$'a\x9bb'
+    local expected8="a${bs}u009bb"
+    str_escape_keep_nl "$input8" result
+    _t11_check "case8_c1_csi" "$expected8"
+
+    # ---- 9. 慢速路径：单引号不崩溃 ----
+    local input9=$'a\'b\x01c'
+    local expected9="a'b${bs}u0001c"
+    str_escape_keep_nl "$input9" result
+    _t11_check "case9_quote" "$expected9"
+
+    # ---- 10. 混合场景：中文 + 反斜杠 + Tab + C0 + 单引号 + 双引号 + 换行符 ----
+    local input10=$'中文\\n\t\x01单引\'引号\nxx\n"'
+    local expected10=$'中文\\\\n\\t\\u0001单引\'引号\nxx\n"'
+    str_escape_keep_nl "$input10" result
+    _t11_check "case10_mixed" "$expected10"
+
+   # ---- 11. 慢速路径：单引号 + C0（确保 printf 容错生效） ----
+    local input11=$'\'\x01\''
+    local expected11="'${bs}u0001'"
+    str_escape_keep_nl "$input11" result
+    _t11_check "case11_quote_c0" "$expected11" 
+
+    # ---- 12. 终极混合大用例：包含所有控制字符（C0 / DEL / C1）----
+    local input12=$'中文abc\\\n\t\r\b\f单\'双"\x01\x02\x03\x04\x05\x06\x07\x0B\x0E\x0F\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1A\x1B\x1C\x1D\x1E\x1F\x7F'
+    local expected12=$'中文abc\\\\\n\\t\\r\\b\\f单\'双"\\u0001\\u0002\\u0003\\u0004\\u0005\\u0006\\u0007\\u000b\\u000e\\u000f\\u0010\\u0011\\u0012\\u0013\\u0014\\u0015\\u0016\\u0017\\u0018\\u0019\\u001a\\u001b\\u001c\\u001d\\u001e\\u001f\\u007f'
+
+    # 动态追加合法的 UTF-8 C1 控制字符 (\xC2\x80 到 \xC2\x9F)
+    local i hex
+    for i in {128..159}; do
+        printf -v hex '%02x' "$i"
+        input12+=$(printf "\\xC2\\x$hex")
+        printf -v hex '\\u%04x' "$i"
+        expected12+="$hex"
+    done
+
+    str_escape_keep_nl "$input12" result
+    _t11_check "case12_ultimate_all_ctrls" "$expected12"
+
+    # ---- 汇总 ----
+    if (( fail == 0 )); then
+        log_test 1 11
+    else
+        local m
+        for m in "${fail_msgs[@]}"; do
+            echo "$m" >&2
+        done
+        log_test 0 11
+        return 1
+    fi
+
+    return 0
+}
+
+# step_test 11
 eval -- "$(AS_RUN_TEST_CASES)"
 

@@ -8,11 +8,11 @@ FILES_TO_BE_PROCESSED=(
     "./src/bashlib/str.in"
     "./src/bashlib/float.in"
     "./src/bashlib/array.in"
-    "./src/bashlib/trie.in"
+    "./src/bashlib/x.in"
     "./src/bashlib/my_class.in"
     "./src/bashlib/mid_class.in"
     "./src/bashlib/base_class.in"
-    "./test/bashlib/test_trie.in"
+    "./test/bashlib/test_x.in"
     "./test/bashlib/test_my_class.in"
 )
 

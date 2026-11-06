@@ -210,7 +210,8 @@ test_case4 ()
 
     local my_arr=() i
     for i in {0..1000} ; do
-        my_arr+=("${|rand_str;}$SI")
+        rand_str
+        my_arr+=("${REPLY}$SI")
     done
 
     echo "str build end."

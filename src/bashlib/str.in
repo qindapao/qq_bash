@@ -1,5 +1,6 @@
 ((_STR_IMPORTED++)) && return 0
 
+. "${BASH_SOURCE[0]%/*}/grammar.sh"
 
 readonly _STR_BUILT_IN_THRESHOLDS=3000
 # readonly _STR_BUILT_IN_THRESHOLDS=-1
@@ -406,6 +407,137 @@ str_cuts ()
 # 中 -> 3
 # 😊 -> 4
 str_bytes () { local LC_ALL=C; REPLY=${#1}; }
+
+#-------------------------------------------------------------------------------
+# JSON 风格转义（简化版）：保留 \n 真换行；\b \f \r \t 用简写；
+# 反斜杠转 \\；C0(0x00-0x1F) / DEL(0x7F) / C1(0x80-0x9F) 转 \uXXXX；
+# 双引号、中文等可打印字符原样（不转义 "，不输出外层引号）
+#
+# 【执行机制】
+#   1. 快速路径：若字符串不含反斜杠，且除换行外全为可打印字符，
+#      直接原样返回（免除后续开销）。
+#   2. 中速路径：使用 Bash 内置模式替换（C 底层实现，极快）处理
+#      高频字符（反斜杠、\b \f \r \t）。注意：反斜杠必须排在第一位
+#      处理，防止后续插入的字面量被二次转义。
+#   3. 慢速路径：替换后若仍残留罕见控制字符（C0/DEL/C1），逐字符
+#      计算码点并转为 \uXXXX 格式。
+#
+# 【注意】C1 中 0x9B=CSI、0x9D=OSC、0x90=DCS，终端安全风险高于 C0。
+#
+# 用法: str_escape_keep_nl <输入字符串> <输出变量名>
+str_escape_keep_nl ()
+{
+    local s=$1 i ch code hex
+    local -n out=$2
+
+    # 快速路径：无控制字符（除换行），无反斜杠，直接返回
+    if [[ $s != *\\* && $s != *[!$'\n'[:print:]]* ]]; then
+        out=$s ; return
+    fi
+
+    s=${s//'\'/'\\'}
+    s=${s//$'\b'/'\b'}
+    s=${s//$'\f'/'\f'}
+    s=${s//$'\r'/'\r'}
+    s=${s//$'\t'/'\t'}
+
+    # 如果替换后只剩可打印 ASCII和回车,直接返回
+    [[ $s != *[!$'\n'[:print:]]* ]] && { out=$s ; return ; }
+
+    out=''
+    for ((i = 0; i < ${#s}; i++)); do
+        ch=${s:i:1}
+        case $ch in
+            $'\n')  out+=$'\n'   ;;   # 保留真换行
+            *)
+                # 显式按码点判断，不依赖 [[:cntrl:]] 对 C1 的 locale 行为：
+                printf -v code '%d' "'$ch"
+                if (( code < 32 || (code >= 127 && code <= 159) )); then
+                    printf -v hex '\\u%04x' "$code"
+                    out+=$hex
+                else
+                    out+=$ch
+                fi
+                ;;
+        esac
+    done
+}
+
+#-------------------------------------------------------------------------------
+# 计算字符串在终端下的显示宽度（以终端字符单元格为准）
+# 用法: str_display_width <字符串> <输出变量名>
+#
+# 【计算规则】
+#   - 纯 ASCII 字符：宽度 = 字符数（例如已转义的 \u0001 序列是 6 个
+#     ASCII 字符，宽度为 6）。
+#   - CJK / 全角 / Emoji：宽度 = 2。
+#   - 原始控制字符（C0/DEL/C1）：宽度 = 0。
+#   - 残留的真换行 \n：宽度 = 0（换行表示上一行结束）。
+#
+# 【注意】入参通常应是已经过 str_escape_keep_nl 转义的字符串：
+#   - 转义后，原始控制字符已变成 \uXXXX 这 6 个可打印 ASCII 字符，
+#     宽度为 6 而非 0。
+#   - str_escape_keep_nl 唯一保留的原始控制字符是真换行 \n，宽度按 0 计。
+#   - 若值多行，调用方应先取最后一行（例如 ${s##*$'\n'}）再计算宽度。
+#   - 若直接传入未转义的原始控制字符，慢速路径虽按码点算 0 宽，但
+#     会造成终端显示混乱，属用法错误。建议先过 str_escape_keep_nl 再传。
+str_display_width ()
+{
+    local s=$1
+    local -n out_w=$2
+    local total=0 i ch cp
+
+    # 快速路径：纯 ASCII（0x00-0x7F），宽度 = 字符数
+    # 用 [[:ascii:]] 而非 [ -~] 或 [[:print:]]：后两者在多字节 locale 下
+    # 会漏判或误判中文，[[:ascii:]] 与 locale 无关，最稳。
+    if [[ $s != *[![:ascii:]]* ]]; then
+        out_w=${#s}
+        return
+    fi
+
+    # 慢速路径：逐字符判断码点范围
+    # 宽字符（宽度 2）范围：
+    #   0x1100-0x115F   Hangul Jamo
+    #   0x2E80-0x303E   CJK 部首扩展、符号
+    #   0x3041-0x33FF   Hiragana, Katakana, Bopomofo, 兼容
+    #   0x3400-0x4DBF   CJK 扩展 A
+    #   0x4E00-0x9FFF   CJK 统一表意文字
+    #   0xA000-0xA4CF   Yi
+    #   0xAC00-0xD7A3   Hangul 音节
+    #   0xF900-0xFAFF   CJK 兼容表意文字
+    #   0xFE30-0xFE4F   CJK 兼容形式
+    #   0xFF00-0xFF60   全角 ASCII
+    #   0xFFE0-0xFFE6   全角符号
+    #   0x1F300-0x1F64F Emoji
+    #   0x1F900-0x1F9FF 补充 Emoji
+    #   0x20000-0x3FFFD CJK 扩展 B+
+    for (( i = 0; i < ${#s}; i++ )); do
+        ch=${s:i:1}
+        printf -v cp '%d' "'$ch"
+
+        if (( cp < 32 || (cp >= 127 && cp < 160) )); then
+            :                                        # 控制字符宽度 0
+        elif (( (cp >= 0x1100  && cp <= 0x115F) ||
+                (cp >= 0x2E80  && cp <= 0x303E) ||
+                (cp >= 0x3041  && cp <= 0x33FF) ||
+                (cp >= 0x3400  && cp <= 0x4DBF) ||
+                (cp >= 0x4E00  && cp <= 0x9FFF) ||
+                (cp >= 0xA000  && cp <= 0xA4CF) ||
+                (cp >= 0xAC00  && cp <= 0xD7A3) ||
+                (cp >= 0xF900  && cp <= 0xFAFF) ||
+                (cp >= 0xFE30  && cp <= 0xFE4F) ||
+                (cp >= 0xFF00  && cp <= 0xFF60) ||
+                (cp >= 0xFFE0  && cp <= 0xFFE6) ||
+                (cp >= 0x1F300 && cp <= 0x1F64F) ||
+                (cp >= 0x1F900 && cp <= 0x1F9FF) ||
+                (cp >= 0x20000 && cp <= 0x3FFFD) )); then
+            (( total += 2 ))
+        else
+            (( total += 1 ))
+        fi
+    done
+    out_w=$total
+}
 
 #-------------------------------------------------------------------------------
 
