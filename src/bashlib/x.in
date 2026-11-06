@@ -608,7 +608,9 @@ x_push_leaf_fast ()
             tr_t[$tr_prefix$tr_token$X]=$tr_leaf
             ;;
         esac
-        tr_t[$tr_node.c.$tr_token]=$tr_child_id
+        # ["1.c.<2>"]="2"
+        # array not need to contains child
+        # tr_t[$tr_node.c.$tr_token]=$tr_child_id
         tr_ret+=("$tr_child_id" "$tr_prefix$tr_token$X")
     done
     
@@ -624,7 +626,7 @@ x_push_leaf_fast ()
 # local -A assoc=(['{1 2}']='a b' ['{3 4}']='c d')
 # x_insert_token_dict my_tree '134' '{lev1}' "${assoc[@]@k}"
 #
-# 从 "token value token value ..." 数组快速插入到指定节点（仅插入不返回）。
+# 从 "token value token value ..." 关联数组快速插入到指定节点（仅插入不返回）。
 # @in  $1=树名  $2=起始节点 ID  $3=物理前缀  $4..=token,value 交错
 # @ret 0=OK
 x_insert_token_dict ()
@@ -888,7 +890,9 @@ x_insert ()
                 tr_t[$tr_new_id.k]="$tr_path_key<$tr_new_id>$X"
                 tr_t["$tr_path_key<$tr_new_id>$X"]="$X_VALUE_NULL"
                 # Attach parent node children
-                tr_t["$tr_node.c.<$tr_new_id>"]=$tr_new_id
+                # ["1.c.<2>"]="2"
+                # array not need to contains child
+                # tr_t["$tr_node.c.<$tr_new_id>"]=$tr_new_id
                 tr_add_token+=("<$tr_new_id>")
             done
 
@@ -916,7 +920,11 @@ x_insert ()
                 return $X_RET_ENUM_KEY_UP_LEV_TYPE_MISMATCH
             fi
 
-            if [[ -z "${tr_t[$tr_node.c.$tr_token]}" ]] ; then
+            # <id> 中的 id 是全局唯一节点 id，直接检查节点是否活跃即可
+            local tr_ref_id=${tr_token:1:-1}
+            if [[ -z "${tr_t[$tr_ref_id.k]+_}" ]] && \
+               [[ -z "${tr_t[$tr_ref_id.t]+_}" ]] && \
+               [[ -z "${tr_t[$tr_ref_id.s]+_}" ]] ; then
                 die ERR "node:${tr_node}(token:${tr_token@Q}) is not exist."
                 _x_insert_delete_tmp_node_ids
                 return $X_RET_ENUM_KEY_UP_LEV_TYPE_MISMATCH
@@ -924,16 +932,28 @@ x_insert ()
             ;;
         esac
             
-        tr_child_key="$tr_node.c.$tr_token"
-        tr_child_id="${tr_t[$tr_child_key]}"
+        if [[ "$tr_token" == '<'*'>' ]] ; then
+            tr_child_id=${tr_token:1:-1}
+        else
+            tr_child_key="$tr_node.c.$tr_token"
+            tr_child_id="${tr_t[$tr_child_key]}"
+        fi
 
         # Child node does not exist -> create
-        if [[ -z "$tr_child_id" ]] ; then
-            tr_child_id="${tr_t[max_index]}" ; ((tr_t[max_index]++))
+        #   - 非 <id> token：按 .c. 查不到
+        #   - <id> token：tr_t[id] 不存在（说明是 '[]'|'()' 分支预分配的新 id）
+        if [[ -z "$tr_child_id" ]] || \
+           { [[ "$tr_token" == '<'*'>' ]] && [[ -z "${tr_t[${tr_token:1:-1}]+_}" ]] ; } ; then
+            if [[ "$tr_token" == '<'*'>' ]] ; then
+                # 预分配的 id 就是 max_index，直接用并递增
+                tr_child_id=${tr_token:1:-1}
+                ((tr_t[max_index]++))
+            else
+                tr_child_id="${tr_t[max_index]}" ; ((tr_t[max_index]++))
+                tr_t["$tr_child_key"]=$tr_child_id    # 对象键才建 .c.
+            fi
             tr_t[$tr_child_id]=1
             tr_tmp_node_ids+=("$tr_child_id")
-            # tr_t[$tr_child_id.s]=''
-            # tr_t[$tr_child_id.k]=''
 
             local -a "tr_children=(${tr_t[$tr_node.s]})"
             
@@ -950,7 +970,6 @@ x_insert ()
             fi
 
             tr_t[$tr_node.s]=${tr_children[*]@Q}
-            tr_t["$tr_child_key"]=$tr_child_id
         fi
 
         tr_node=$tr_child_id
@@ -1118,7 +1137,11 @@ _x_dump ()
 
     local tr_token tr_mark='=>'
     for tr_token in "${tr_children[@]}"; do
-        local tr_child_id="${tr_t[$tr_node.c.$tr_token]}"
+        if [[ "$tr_token" == '<'*'>' ]] ; then
+            local tr_child_id=${tr_token:1:-1}
+        else
+            local tr_child_id="${tr_t[$tr_node.c.$tr_token]}"
+        fi
         local tr_child_id_p='' tr_value_p=''
         local tr_token_safe tr_token_disp
 
@@ -1291,7 +1314,11 @@ _x_token_to_node_id ()
             tr_index_full_key+="$tr_token_index$X"
         }
 
-        tr_child_id="${tr_t[$tr_node.c.$tr_token]}"
+        if [[ "$tr_token" == '<'*'>' ]] ; then
+            tr_child_id=${tr_token:1:-1}
+        else
+            tr_child_id="${tr_t[$tr_node.c.$tr_token]}"
+        fi
         [[ -z "$tr_child_id" ]] && {
             die ERR "node:${tr_node}(token:${tr_token@Q}) key is not found!"
             return "$X_RET_ENUM_KEY_IS_NOTFOUND"
@@ -1384,7 +1411,11 @@ x_delete ()
             #@endif
         [[ -z "$tr_token" ]] && return $X_RET_ENUM_OK
 
-        tr_child_id="${tr_t[$tr_node.c.$tr_token]}"
+        if [[ "$tr_token" == '<'*'>' ]] ;then
+            tr_child_id=${tr_token:1:-1}
+        else
+            tr_child_id="${tr_t[$tr_node.c.$tr_token]}"
+        fi
         [[ -z "$tr_child_id" ]] && {
             # die ERR "key is not found!"
             # Keys that do not exist are returned directly.
@@ -1417,9 +1448,13 @@ x_delete ()
         local -a "tr_children=(${tr_t[$tr_cur.s]})"
 
         for tr_tk in "${tr_children[@]}"; do
-            tr_cid="${tr_t[$tr_cur.c.$tr_tk]}"
+            if [[ "$tr_tk" == '<'*'>' ]] ; then
+                tr_cid=${tr_tk:1:-1}
+            else
+                tr_cid="${tr_t[$tr_cur.c.$tr_tk]}"
+                unset -v 'tr_t["$tr_cur.c.$tr_tk"]'
+            fi
             tr_stack+=("$tr_cid")
-            unset -v 'tr_t["$tr_cur.c.$tr_tk"]'
         done
 
         # If this node has its own key/value, clear it as well.
@@ -1571,8 +1606,12 @@ x_get_tree ()
     local tr_tk tr_cid
     local -a tr_stack=()
     for tr_tk in "${tr_root_children[@]}" ; do
-        tr_cid=${tr_t[$tr_node.c.$tr_tk]}
-        tr_new["$X_ROOT_ID.c.$tr_tk"]="$tr_cid"
+        if [[ "$tr_tk" == '<'*'>' ]] ; then
+            tr_cid=${tr_tk:1:-1}
+        else
+            tr_cid=${tr_t[$tr_node.c.$tr_tk]}
+            tr_new["$X_ROOT_ID.c.$tr_tk"]="$tr_cid"
+        fi
         tr_stack+=("$tr_cid")
     done
 
@@ -1600,8 +1639,12 @@ x_get_tree ()
         local -a "tr_children=(${tr_t[$tr_cur.s]})"
 
         for tr_tk in "${tr_children[@]}" ; do
-            tr_cid="${tr_t["$tr_cur.c.$tr_tk"]}"
-            tr_new["$tr_cur.c.$tr_tk"]="$tr_cid"
+            if [[ "$tr_tk" == '<'*'>' ]] ; then
+                tr_cid="${tr_tk:1:-1}"
+            else
+                tr_cid="${tr_t["$tr_cur.c.$tr_tk"]}"
+                tr_new["$tr_cur.c.$tr_tk"]="$tr_cid"
+            fi
             tr_stack+=("$tr_cid")
         done
     done
@@ -1681,7 +1724,11 @@ x_iter ()
     # or you must clear the value of REPLY first.
     REPLY=
     for tr_tk in "${tr_children[@]}"; do
-        tr_child_id=${tr_t["$tr_node_id.c.$tr_tk"]}
+        if [[ "$tr_tk" == '<'*'>' ]] ; then
+            tr_child_id=${tr_tk:1:-1}
+        else
+            tr_child_id=${tr_t["$tr_node_id.c.$tr_tk"]}
+        fi
         if ((tr_is_iter_type)) ; then
             x_get_node_type "$1" "$tr_child_id" ; tr_type=$?
             tr_type_p=${tr_type@Q}
@@ -1849,7 +1896,11 @@ x_walk ()
 
         local -i tr_index=0
         for tr_tk in "${tr_children[@]}"; do
-            tr_child_id=${tr_t["$tr_node_id.c.$tr_tk"]}
+            if [[ "$tr_tk" == '<'*'>' ]] ; then
+                tr_child_id=${tr_tk:1:-1}
+            else
+                tr_child_id=${tr_t["$tr_node_id.c.$tr_tk"]}
+            fi
 
             x_get_node_type "$1" "$tr_child_id" ; tr_node_kind=$?
             local tr_key="${tr_t["$tr_child_id.k"]}"
@@ -1992,7 +2043,9 @@ x_id_rebuild ()
         esac
 
         # 父节点的 children 和 child 映射，统一使用新 token
-        tr_new["$new_parent_id.c.$new_token"]="$new_id"
+        if [[ "$new_token" != '<'*'>' ]] ; then
+            tr_new["$new_parent_id.c.$new_token"]="$new_id"
+        fi
         tr_new[$new_parent_id.s]+=" ${new_token@Q}"
     }
     x_walk $1 '' x_id_rebuild_cb
