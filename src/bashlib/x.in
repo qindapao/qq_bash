@@ -941,11 +941,14 @@ x_insert ()
 
         # Child node does not exist -> create
         #   - 非 <id> token：按 .c. 查不到
-        #   - <id> token：tr_t[id] 不存在（说明是 '[]'|'()' 分支预分配的新 id）
+        #   - <id> token：节点三个标记键都不存在（预分配节点有 .k）
         if [[ -z "$tr_child_id" ]] || \
-           { [[ "$tr_token" == '<'*'>' ]] && [[ -z "${tr_t[${tr_token:1:-1}]+_}" ]] ; } ; then
+           { [[ "$tr_token" == '<'*'>' ]] && \
+             [[ -z "${tr_t[${tr_token:1:-1}.k]+_}" ]] && \
+             [[ -z "${tr_t[${tr_token:1:-1}.t]+_}" ]] && \
+             [[ -z "${tr_t[${tr_token:1:-1}.s]+_}" ]] ; } ; then
             if [[ "$tr_token" == '<'*'>' ]] ; then
-                # 预分配的 id 就是 max_index，直接用并递增
+                # 全新 <id> token（来自 tr_token="<max_index>"）：id 就是 max_index 当前值
                 tr_child_id=${tr_token:1:-1}
                 ((tr_t[max_index]++))
             else
