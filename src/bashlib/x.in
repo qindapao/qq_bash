@@ -1242,7 +1242,7 @@ _x_dump ()
         else
             # 字典键：统一走自定义转义（保留 \n），不再用 %q/@Q
             local _XDump_tr_token_safe
-            str_escape_keep_nl "$tr_token" _XDump_tr_token_safe
+            str_escape_key "$tr_token" _XDump_tr_token_safe
             tr_token_safe=$_XDump_tr_token_safe
             # 多行键的续行加 | 补位：| 与第一行的 { 对齐，
             # 使行首空格明确属于键内容而非缩进
@@ -3131,7 +3131,7 @@ x_get_arg_limits ()
 # 2. 把所有的叶子节点的键值对按照顺序插入树中
 # 3. 在处理每层叶子的时候使用 x_qinserts 使用公共前缀插入
 # 4. 支持节点注释: 以 # 开头的行不解析，直接忽略(先忽略行前面的空格缩进)
-x_rebuild_from_dump
+x_rebuild_from_dump ()
 {
     :
 }

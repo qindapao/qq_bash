@@ -464,6 +464,100 @@ test_case12 ()
     fi
 }
 
+test_case_escape_keep_nl ()
+{
+    local s v
+
+    # 1. 快速路径：纯可打印 + 中文 + 含 }，原样返回（值版不碰 }）
+    s='hello 中文 {"a":1}'
+    str_escape_keep_nl "$s" v
+    if [[ "$v" == "$s" ]] ; then
+        log_test 1 1
+    else
+        log_test 0 1 ; return 1
+    fi
+
+    # 2. 反斜杠 → \\（含字面 \} 也只转 \，不碰 }）
+    s='a\}b'
+    str_escape_keep_nl "$s" v
+    if [[ "$v" == 'a\\}b' ]] ; then
+        log_test 1 2
+    else
+        log_test 0 2 ; return 1
+    fi
+
+    # 3. 简写：\b \f \r \t
+    s=$'x\by\fz\rw\t'
+    str_escape_keep_nl "$s" v
+    if [[ "$v" == 'x\by\fz\rw\t' ]] ; then
+        log_test 1 3
+    else
+        log_test 0 3 ; return 1
+    fi
+
+    # 4. C0/C1 → \uXXXX；真换行保留
+    s=$'\x01\n\x9c'
+    str_escape_keep_nl "$s" v
+    if [[ "$v" == $'\\u0001\n\\u009c' ]] ; then
+        log_test 1 4
+    else
+        log_test 0 4 ; return 1
+    fi
+}
+
+test_case_escape_key ()
+{
+    local s v
+
+    # 1. 快速路径：无 \ 无 } 无控制符
+    s='plain key 中文'
+    str_escape_key "$s" v
+    if [[ "$v" == "$s" ]] ; then
+        log_test 1 1
+    else
+        log_test 0 1 ; return 1
+    fi
+
+    # 2. } → \}（值版不转，key 版转，这是分叉点）
+    s='a}b'
+    str_escape_key "$s" v
+    if [[ "$v" == 'a\}b' ]] ; then
+        log_test 1 2
+    else
+        log_test 0 2 ; return 1
+    fi
+
+    # 3. 顺序验证：字面 \} 必须变 \\\}（\ 先于 } 转）
+    s='a\}b'
+    str_escape_key "$s" v
+    if [[ "$v" == 'a\\\}b' ]] ; then
+        log_test 1 3
+    else
+        log_test 0 3 ; return 1
+    fi
+
+    # 4. 控制字符照常处理，} 也转
+    s=$'x\ty}z'
+    str_escape_key "$s" v
+    if [[ "$v" == 'x\ty\}z' ]] ; then
+        log_test 1 4
+    else
+        log_test 0 4 ; return 1
+    fi
+}
+
+test_case_str_unescape ()
+{
+    local s='A\\B\}C\nD\bE\fF\rG\tH\u4e2d\u001c\q\u12 tail\'
+    local expect=$'A\\B}C\nD\bE\fF\rG\tH中\034\\q\\u12 tail\\'
+    str_unescape "$s"
+    if [[ "$REPLY" == "$expect" ]] ; then
+        log_test 1 1
+    else
+        log_test 0 1 ; return 1
+    fi
+}
+
 
 # step_test 12
 eval -- "$(AS_RUN_TEST_CASES)"
