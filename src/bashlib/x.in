@@ -1027,11 +1027,10 @@ x_insert ()
         # Child node does not exist -> create
         #   - 非 <id> token：按 .c. 查不到
         #   - <id> token：节点三个标记键都不存在（预分配节点有 .k）
-        if [[ -z "$tr_child_id" ]] || \
-           { [[ "$tr_token" == '<'*'>' ]] && \
-             [[ -z "${tr_t[${tr_token:1:-1}.k]+_}" ]] && \
-             [[ -z "${tr_t[${tr_token:1:-1}.t]+_}" ]] && \
-             [[ -z "${tr_t[${tr_token:1:-1}.s]+_}" ]] ; } ; then
+        if [[ -z "$tr_child_id" || ( "$tr_token" == '<'*'>' &&
+            -z "${tr_t[${tr_token:1:-1}.k]+_}"  &&
+            -z "${tr_t[${tr_token:1:-1}.t]+_}"  &&
+            -z "${tr_t[${tr_token:1:-1}.s]+_}" ) ]] ; then
             if [[ "$tr_token" == '<'*'>' ]] ; then
                 # 全新 <id> token（来自 tr_token="<max_index>"）：id 就是 max_index 当前值
                 tr_child_id=${tr_token:1:-1}
@@ -2106,9 +2105,12 @@ x_id_rebuild ()
         local new_parent_id=${tr_id_map[$parent_old_id]}
 
         # 重建 full_key（内部 <old_id> 换成 <new_id>）
-        local new_full_key
-        _x_id_rebuild_key "$full_key"
-        new_full_key=$REPLY
+            #@if current_shell_process_replace==1
+        local new_full_key=${|_x_id_rebuild_key "$full_key";}
+            #@endif
+            #@if current_shell_process_replace==0
+        _x_id_rebuild_key "$full_key" ; eval "${_ret_s/o/new_full_key}"
+            #@endif
 
         # 重建 token（数组是 <old_id> 换成 <new_id>，对象是 {key} 不变）
         local new_token
