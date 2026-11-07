@@ -464,6 +464,56 @@ str_escape_keep_nl ()
 }
 
 #-------------------------------------------------------------------------------
+# 【Windows 限制】BMP 外字符（U+10000 以上，如 emoji 😊）在 Windows Bash
+# 下会被 wchar_t=16bit 拆成 UTF-16 代理对，导致 ${#s} 计数偏大、
+# ${s:i:1} 切分错位、printf '%d' "'$ch" 返回代理值，转义/往返可能失败。
+# 中文、日文、韩文、C0/C1 控制符均在 BMP 内，不受影响。
+# 如需处理 emoji 等 BMP 外字符，请改用字节语义版本（local LC_ALL=C
+#   + 手动 UTF-8 解码）。
+#
+# 反转：\\ \n \b \f \r \t \uXXXX（4位hex，大小写均可）
+# 未知 \X 宽松保留为 \X。
+# @in  $1=转义字符串  $2=输出变量名（nameref）
+# @ret 0
+str_unescape ()
+{
+    REPLY=
+    local s=$1
+    local out=''
+
+    # 快速路径：无反斜杠直接原样返回
+    [[ $s != *\\* ]] && { REPLY=$s ; return 0 ; }
+
+    local rest=$s head ch hex ch_out
+    while [[ $rest == *\\* ]]; do
+        head=${rest%%\\*}
+        out+=$head
+        rest=${rest:${#head}+1}          # 吃掉 head 和一个 '\'
+        [[ -z $rest ]] && { out+='\' ; break ; }
+        ch=${rest:0:1}
+        case $ch in
+            '\')  out+='\'   ; rest=${rest:1} ;;
+            'n')  out+=$'\n' ; rest=${rest:1} ;;
+            'b')  out+=$'\b' ; rest=${rest:1} ;;
+            'f')  out+=$'\f' ; rest=${rest:1} ;;
+            'r')  out+=$'\r' ; rest=${rest:1} ;;
+            't')  out+=$'\t' ; rest=${rest:1} ;;
+            'u')
+                hex=${rest:1:4}
+                if ((${#hex}==4)) && [[ $hex != *[!0-9a-fA-F]* ]] ; then
+                    printf -v ch_out '%b' "\\u$hex"
+                    out+=$ch_out ; rest=${rest:5}
+                else
+                    out+='\u' ; rest=${rest:1}
+                fi
+                ;;
+            *) out+="\\$ch" ; rest=${rest:1} ;;
+        esac
+    done
+    out+=$rest ; REPLY=$out ; return 0
+}
+
+#-------------------------------------------------------------------------------
 # 计算字符串在终端下的显示宽度（以终端字符单元格为准）
 # 用法: str_display_width <字符串> <输出变量名>
 #
