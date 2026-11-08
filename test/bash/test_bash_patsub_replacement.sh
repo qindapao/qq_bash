@@ -8,10 +8,11 @@ test_case1 ()
     (
         shopt -s patsub_replacement
         s="abc123xyz"
+        s=${s/[a-z]*/[&]}
         if [[ "$s" == '[abc123xyz]' ]] ; then
-            log_test 0 1
+            log_test 1 1
         else
-            log_test 1 1 ; return 1
+            log_test 0 1 ; return 1
         fi
     )
 }

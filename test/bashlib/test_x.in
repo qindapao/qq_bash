@@ -302,7 +302,7 @@ test_case3 ()
                         "{x}$X{a1}$X{b}$X{c}$X" "1" \
                         "{x}$X{b}$X{m}$X[5]$X" "$X_VALUE_NULL"
 
-    x_dump t1
+    x_dump t1 '' 4 2
     x_push_leaf t1 "{a}$X{beee}$X" 'x'
     x_push_leaf t1 "{a}$X{beee}$X" 'y'
     x_push_leaf t1 "{a}$X{beee}$X" "$X_VALUE_NULL_ARR"
@@ -1243,7 +1243,7 @@ test_case17 ()
                     "[5]$X[3]$X" "value5" \
                     "[6]$X{key1ggggggggg}$X{keeeeeeeey2}$X" "valueX"
 
-    x_dump t1 '' 4 $((2#111))
+    x_dump t1 '' 4 $((2#010))
 }
 
 test_case18 ()
@@ -1536,8 +1536,8 @@ test_case_hardware_tree_perfect ()
 
     # 🔥 终极亮剑：一键打印完美对齐的硬件语义树
     echo -e "\n📊 【x_dump 实时输出：全量语义化工业级硬件树】"
-    x_dump t1
-    declare -p t1
+    x_dump t1 '' 4 2
+    # declare -p t1
     x_delete t1 "[2]$X"
     time x_qinserts t1 leaves "(2)$X" \
                             "{type}$X" "sys disk" \
@@ -1553,19 +1553,19 @@ test_case_hardware_tree_perfect ()
                             "{disk_ports}$X[1]$X{bdf}$X"    "10:00.2" \
                             "{disk_ports}$X[1]$X{speed}$X"  "12G"
     echo "ret: $?"
-    x_dump t1
-    declare -p t1
+    x_dump t1 '' 4 2
+    # declare -p t1
 
     x_id_rebuild t1 ; local -A "t2=($REPLY)"
-    x_dump t2
-    declare -p t2
+    x_dump t2 '' 4 2
+    # declare -p t2
 
     # 复制一颗树
     local tree_str=$(declare -p t2)
     local -A new_tree=() ; eval -- "${tree_str/t2=/new_tree=}"
 
-    x_dump new_tree
-    declare -p new_tree
+    x_dump new_tree '' 4 2
+    # declare -p new_tree
 
     echo "========================================================================"
 
@@ -1574,6 +1574,176 @@ test_case_hardware_tree_perfect ()
     return 0
 }
 
-# step_test _hardware_tree_perfect
+test_case_x_rebuild_from_dump ()
+{
+    local tree_str1='
+t1(1) -> 
+    # 我是注释
+    {a}
+        {m} => null\u001c
+        {b}
+            {c} => 1
+    {x}
+        # 我是另外一格注释
+        {a1}
+            {b}
+                {c} => 1
+        {b}
+            {m}
+                o = null\u001c
+                o = null\u001c
+                o = null\u001c
+                o = null\u001c
+                o = null\u001c
+                o = null\u001c
+    max_index => 18
+    '
+
+    local tree_str2='
+    t1(1) -> 
+        o
+            {aa ge} => value2
+            {b} => value1
+        o
+            {c2} => []\u001c
+            {c8} => strwxx
+            {c7} => false\u001c
+            { gge
+            | gege g
+            # 我也是注释
+            |ggegg geg\t\t\u0002\u0003\u0004ge我是中文} => 
+                                                          | 响铃 geg
+                                                          | gg  ee\u0001\u0002\u0003\u0004\u0005\u0006\u0007\b\t
+                                                          |\u000b\f\r\u000e\u000f\u0010\u0011\u0012\u0013\u0014\u0015\u0016\u0017\u0018\u0019\u001a\u001b\u001c\u001d\u001e\u001f ;over
+            {
+            |key
+            |} => value_line1
+                 |value_line2
+            {c6} => true\u001c
+            {c5*[]@!{\}} => 190.23*[]@!{}
+            # 我还是注释
+            {c3} => null\u001c
+            {c4} => 190.22\u001c
+            {c1} => {}\u001c
+            {
+            | ge中各
+            | ge\\g
+            |}
+                o = null
+                o = 
+                   |gege
+                   |gege
+                   |
+                o = true\u001c
+                o = 1010\u001c
+                o = 1010.22
+                o = gegege
+        o
+            {x} => value3
+        o
+            {y} => value4
+        o
+            {z} => value5
+        o
+            o = null\u001c
+            o = null\u001c
+            o = null\u001c
+            o = value5
+        o
+            {key1ggggggggg}
+                {keeeeeeeey2} => valueX
+        max_index => 37
+    '
+    local -A "t1=(${|x_rebuild_from_dump "$tree_str1";})"
+    local -A "t2=(${|x_rebuild_from_dump "$tree_str2";})"
+
+    local spec_str1='t1(1) -> 
+    {a}
+        {m} => null\u001c
+        {b}
+            {c} => 1
+    {x}
+        {a1}
+            {b}
+                {c} => 1
+        {b}
+            {m}
+                o = null\u001c
+                o = null\u001c
+                o = null\u001c
+                o = null\u001c
+                o = null\u001c
+                o = null\u001c
+    max_index => 18'
+
+    local spec_str2='t2(1) -> 
+    o
+        {aa ge} => value2
+        {b} => value1
+    o
+        {c2} => []\u001c
+        {c8} => strwxx
+        {c7} => false\u001c
+        { gge
+        | gege g
+        |ggegg geg\t\t\u0002\u0003\u0004ge我是中文} => 
+                                                      | 响铃 geg
+                                                      | gg  ee\u0001\u0002\u0003\u0004\u0005\u0006\u0007\b\t
+                                                      |\u000b\f\r\u000e\u000f\u0010\u0011\u0012\u0013\u0014\u0015\u0016\u0017\u0018\u0019\u001a\u001b\u001c\u001d\u001e\u001f ;over
+        {
+        |key
+        |} => value_line1
+             |value_line2
+        {c6} => true\u001c
+        {c5*[]@!{\}} => 190.23*[]@!{}
+        {c3} => null\u001c
+        {c4} => 190.22\u001c
+        {c1} => {}\u001c
+        {
+        | ge中各
+        | ge\\g
+        |}
+            o = null
+            o = 
+               |gege
+               |gege
+               |
+            o = true\u001c
+            o = 1010\u001c
+            o = 1010.22
+            o = gegege
+    o
+        {x} => value3
+    o
+        {y} => value4
+    o
+        {z} => value5
+    o
+        o = null\u001c
+        o = null\u001c
+        o = null\u001c
+        o = value5
+    o
+        {key1ggggggggg}
+            {keeeeeeeey2} => valueX
+    max_index => 37'
+
+
+    local get_1=$(x_dump t1 '' 4 2)
+    local get_2=$(x_dump t2 '' 4 2)
+    # declare -p get_1 get_2
+    if [[ "$get_1" == "$spec_str1" &&
+        "$get_2" == "$spec_str2" ]] ; then
+        log_test 1 1
+    else
+        log_test 0 1 ; return 1
+    fi
+
+
+    return 0
+}
+
+# step_test _x_rebuild_from_dump
+
 eval -- "$(AS_RUN_TEST_CASES)"
 

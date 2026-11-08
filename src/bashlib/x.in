@@ -439,7 +439,7 @@ x_key_is_invalid ()
 #-------------------------------------------------------------------------------
 
 # Insert with public prefix
-# x_inserts t1 "{prefix1}$X{prefix2}$X" "[0]$X" "array_value1" \
+# x_qinserts t1 common "{prefix1}$X{prefix2}$X" "[0]$X" "array_value1" \
 #                                          "[1]$X" "array_value2" \
 #                                          "[2]$X" "array_value3"
 #
@@ -457,7 +457,24 @@ x_qinserts ()
     local tr_return_mode=$2
     local tr_common_prefix=$3
     shift 3
-    local -a tr_insert_kv=("${@}")
+    # 这里有个坑 ("${@}") 这种接收参数的方式
+    # windows 的 msys2 环境上会把 \r 给吞掉
+    #
+    # \r 并非被 Bash 的语法逻辑丢弃，而是在从 Windows 命令行到内部 POSIX 环境的
+    # 转换阶段，被 MSYS2 的运行时层（msys-2.0.dll）给剥离了。
+    # 这是 MSYS2 的一个历史特性：为了处理 Windows 的 CRLF 换行问题，MSYS2 的运行
+    # 时层会假定出现在参数或输入中的 \r 可能是 Windows 行尾的一部分，从而进行
+    # “自动清理”。不过，真正让 \r 被精准针对的，是2024年7月27日的 MSYS2 版本更
+    # 新，它改变了将 Windows 宽字符命令行参数翻译为内部参数的方式。在这个新的转
+    # 换逻辑中，\r 被当作需要剥离的字符，而 \n 和空格则被视为合法的数据内容被保留了下来。
+    # local -a tr_insert_kv=("${@}")
+    local -a tr_insert_kv=()
+    while (($#)) ; do
+        tr_insert_kv[${#tr_insert_kv[@]}]=$1
+        shift
+    done
+
+
     local tr_insert_info
     local -a tr_qinserts_reply=()
 
@@ -1166,13 +1183,19 @@ x_dump ()
 
     [[ "${tr_t[$tr_node.t]}" == "$X_TYPE_OBJ" ]] &&
     [[ -z "${tr_t[$tr_node.s]}" ]] && {
-        printf '%s%s\n' "$tr_indent" "$X_VALUE_NULL_OBJ"
+        local XDump_tr_value_p
+        str_escape_keep_nl "$X_VALUE_NULL_OBJ" XDump_tr_value_p
+        printf '%s%s\n' "$tr_indent" "$XDump_tr_value_p"
+        printf '%smax_index => %s\n' "$tr_indent" "${tr_t[max_index]}"
         return
     }
 
     [[ "${tr_t[$tr_node.t]}" == "$X_TYPE_ARR" ]] &&
     [[ -z "${tr_t[$tr_node.s]}" ]] && {
-        printf '%s%s\n' "$tr_indent" "$X_VALUE_NULL_ARR"
+        local XDump_tr_value_p
+        str_escape_keep_nl "$X_VALUE_NULL_ARR" XDump_tr_value_p
+        printf '%s%s\n' "$tr_indent" "$XDump_tr_value_p"
+        printf '%smax_index => %s\n' "$tr_indent" "${tr_t[max_index]}"
         return
     }
 
@@ -1240,10 +1263,10 @@ _x_dump ()
             tr_token_safe=$tr_token
             tr_token_disp=$tr_token
         else
-            # 字典键：统一走自定义转义（保留 \n），不再用 %q/@Q
+            # 字典键：统一走自定义转义（保留 \n，内部的 }转义），不再用 %q/@Q
             local _XDump_tr_token_safe
-            str_escape_key "$tr_token" _XDump_tr_token_safe
-            tr_token_safe=$_XDump_tr_token_safe
+            str_escape_key "${tr_token:1:-1}" _XDump_tr_token_safe
+            tr_token_safe="{$_XDump_tr_token_safe}"
             # 多行键的续行加 | 补位：| 与第一行的 { 对齐，
             # 使行首空格明确属于键内容而非缩进
             tr_token_disp="${tr_token_safe//$'\n'/$'\n'$tr_indent|}"
@@ -1282,7 +1305,13 @@ _x_dump ()
                 "$tr_mark" \
                 "$tr_value_p"
         elif [[ "${tr_t[$tr_child_id.t]}" == "$X_TYPE_ARR" ]] && [[ -z "${tr_t[$tr_child_id.s]}" ]] ; then
-            ((tr_value_need_print)) && tr_value_p="$X_VALUE_NULL_ARR"
+            ((tr_value_need_print)) && {
+                local _XDump_tr_value_p
+                str_escape_keep_nl "$X_VALUE_NULL_ARR" _XDump_tr_value_p
+                tr_value_p=$_XDump_tr_value_p
+
+            }
+
             printf '%s%s%s %s %s\n' \
                 "$tr_indent" \
                 "$tr_token_disp" \
@@ -1290,7 +1319,12 @@ _x_dump ()
                 "$tr_mark" \
                 "$tr_value_p"
         elif [[ "${tr_t[$tr_child_id.t]}" == "$X_TYPE_OBJ" ]] && [[ -z "${tr_t[$tr_child_id.s]}" ]] ; then
-            ((tr_value_need_print)) && tr_value_p="$X_VALUE_NULL_OBJ"
+            ((tr_value_need_print)) && {
+                local _XDump_tr_value_p
+                str_escape_keep_nl "$X_VALUE_NULL_OBJ" _XDump_tr_value_p
+                tr_value_p=$_XDump_tr_value_p
+            }
+
             printf '%s%s%s %s %s\n' \
                 "$tr_indent" \
                 "$tr_token_disp" \
@@ -2811,16 +2845,16 @@ x_to_json_slow ()
 
         printf '%s' "$value" >"$tr_temp_file"
         
-    #@if current_shell_process_replace==1
+            #@if current_shell_process_replace==1
         tr_jstr=${ printf '%s' "$tr_jstr" | \
             gobolt json -m w -k stdin "$write_jstr_param" "$tr_temp_file" \
             -P -- "${bjson_params[@]}";} || return $?
-    #@endif
-    #@if current_shell_process_replace==0
+            #@endif
+            #@if current_shell_process_replace==0
         tr_jstr=$( printf '%s' "$tr_jstr" | \
             gobolt json -m w -k stdin "$write_jstr_param" "$tr_temp_file" \
             -P -- "${bjson_params[@]}" ) || return $?
-    #@endif
+            #@endif
 
         return $X_RET_ENUM_OK
     }
@@ -2951,12 +2985,12 @@ x_to_json ()
     if ((tr_all_param_byte_len>=${tr_system_limits[AVAILABLE]})) ; then
         x_to_json_slow "$tr_name" "$tr_full_key" ; return $?
     else
-    #@if current_shell_process_replace==1
+            #@if current_shell_process_replace==1
         REPLY=${ printf '' | gobolt json -m w -k stdin -s '' -M -- "${tr_gobolt_params[@]}";}
-    #@endif
-    #@if current_shell_process_replace==0
+            #@endif
+            #@if current_shell_process_replace==0
         REPLY=$( printf '' | gobolt json -m w -k stdin -s '' -M -- "${tr_gobolt_params[@]}" )
-    #@endif
+            #@endif
     fi
 }
 
@@ -2979,14 +3013,14 @@ x_from_json ()
     }
 
     local tr_assoc
-#@if current_shell_process_replace==1
+        #@if current_shell_process_replace==1
     tr_assoc=${ printf '%s' "$tr_json_str" | \
         gobolt json -m r -t txt -k stdin -F trie -x "$X" -P -- "${tr_bjson_keys[@]}";}
-#@endif
-#@if current_shell_process_replace==0
+        #@endif
+        #@if current_shell_process_replace==0
     tr_assoc=$( printf '%s' "$tr_json_str" | \
         gobolt json -m r -t txt -k stdin -F trie -x "$X" -P -- "${tr_bjson_keys[@]}" )
-#@endif
+        #@endif
     case "$?" in
     $X_GOBOLT_JSONTYPEARRAY|$X_GOBOLT_JSONTYPEOBJECT)
         local -A "tr_assoc=($tr_assoc)" ;;&
@@ -3017,12 +3051,12 @@ x_from_json ()
     
     # x_dump tr_init_tree
 
-#@if at_k_var_substitution==1
+        #@if at_k_var_substitution==1
     REPLY=${tr_init_tree[*]@K}
-#@endif
-#@if at_k_var_substitution==0
+        #@endif
+        #@if at_k_var_substitution==0
     array_to_kv_q_str tr_init_tree ; REPLY=$REPLY
-#@endif
+        #@endif
 }
 
 #-------------------------------------------------------------------------------
@@ -3066,12 +3100,12 @@ x_get_arg_limits ()
         args[AVAILABLE]=$((argmax-env_bytes-safety-ptr_overhead))
     fi
 
-#@if at_k_var_substitution==1
+        #@if at_k_var_substitution==1
     REPLY=${args[*]@K}
-#@endif
-#@if at_k_var_substitution==0
+        #@endif
+        #@if at_k_var_substitution==0
     array_to_kv_q_str args ; REPLY=$REPLY
-#@endif
+        #@endif
 }
 
 #-------------------------------------------------------------------------------
@@ -3127,11 +3161,396 @@ x_get_arg_limits ()
 #             {keeeeeeeey2}(36) => valueX
 #     max_index => 37
 #
-# 1. 搜集所有的叶子节点的键值对
-# 2. 把所有的叶子节点的键值对按照顺序插入树中
-# 3. 在处理每层叶子的时候使用 x_qinserts 使用公共前缀插入
-# 4. 支持节点注释: 以 # 开头的行不解析，直接忽略(先忽略行前面的空格缩进)
+#
+#   实现的时候可以定义很多个数组，每个数组下标都是行号，内容放置每行的属性。
+#
+#   1. 初始化
+#       针对每行做清洗，满足下面条件的行先干掉
+#           a. 所有空行和全是空字符(空格\r\n)的行
+#           b. 所有的注释行(不含空格缩进的情况下的 # 开头的行)
+#   2. 按照第一行的缩进前置空格数，删除每一行的前面的这么多的空格，保持树缩进干净
+#   3. 删除最后一个 max_index 的行
+#   4. 当前的字符串做这样的替换
+#       `$'\n'   |` 替换成 `'\n'`
+#       这里解释下，可能需要多行替换模式，要考虑下怎么才能实现。大概意思就是
+#       `$'\n'` 这个真正的换行符换行后跟上若干个空格然后跟一个`|`竖线，这种东西替换
+#       成 `'\n'` 转义。
+#       这样所有的行都是单行的了。
+#   5. 初始化3个容器，一个是 tr_path_stack，一个是 tr_leafs，一个是 tr_array_indexs
+#       a. tr_path_stack 初始化一个元素为 ""，空字符串，代表根节点的路径，一旦遇到树节点，就把当前树
+#           节点压进去，如果树节点层级减少，就从尾部弹出相应层级的节点 token.
+#       b. tr_leafs 里面装当前扁平层的叶子节点键和值元组，如果是数组，键就是索引，
+#           结构是(0 element1 1 element2)。如果是字典，键就是字典的键，结构是
+#           (key1 value1 key2 value2)。
+#       c. tr_array_indexs 里面存的是每级数组当前索引最大值，键是每个数组层级的 full_key
+#           比如: 
+#               t1(1) -> 
+#                   0(2)           <--------- A(缓存 "" = 1)
+#                       {aa ge}(4) => value2
+#                       {b}(3) => value1
+#                   1(5)           <--------- B(缓存 "" = 2)
+#                       {c1}(7) => {}
+#                       {key1}(15)
+#                           0(16) = null    <---------- C(缓存 ""[1]$X{key1}$X = 1)
+#                           1(18) = true\u001c   <------- D(缓存 ""[1]$X{key1}$X = 2)
+#                           2(19)  <------- E(缓存 ""[1]$X{key1}$X = 3)
+#                               0(58) <------- F(缓存 ""[1]$X{key1}$X[2]$X = 1)
+#                                   {other_key}(69) => value1
+#                   2(29)   <------  G(缓存 "" = 3)
+#                       0(30) = null\u001c <-------  H(缓存 ""[2]$X = 1)
+#                       1(31) = null\u001c <-------  I(缓存 ""[2]$X = 2)
+#                   3(89) = xxvalue        <-------  J(缓存 "" = 4)
+#           就上面这棵树来说，只要遇到数组键，那么都要缓存它的当前最大索引。
+#           这样下次遍历到它的时候直接从缓存中取索引，如果发现缓存不存在，那么证明是第一次遇到
+#           这个数组，索引为0。
+#   6. 缓存每一行的缩进层级，以备后面方便使用。下面的情况中，空字典和空数组都属于叶子，不是树，记住这个约定。
+#       为了方便处理，其它的信息也可以用数组来缓存，每个数组缓存一个属性，比如：当前的键和值，当前的节点类
+#       型：字典树、数组树、键、值。
+#   7. 从第二行开始读行，策略是这样的：
+#       a. 如果当前行不是`{`开头(忽略前置空格)，那么证明是数组。
+#           1). 如果索引后面紧跟着 = ，那么是叶子节点，把叶子索引和值推进 tr_leafs 数组
+#               数组中的格式是 (0 element1 1 element2)，数组的索引从 tr_array_indexs 缓存中拿，
+#               索引的键 = tr_path_stack 中前 level 个元素（含根哨兵 ""，跳过它拼接） + $X。
+#               如果找不到缓存，证明是第一次，那么索引为0。缓存取完后记得让缓存计数增加1。
+#               tr_path_stack 更新变成 前 level 个元素。
+#               推入后判断是否触发 x_qinserts 写叶子的条件是三个。
+#               1>. (J)已经没有下一行
+#               2>. (I)下层的缩进层级发生改变(这里只可能减少，不可能增加！)
+#               3>. (E)下层是树节点(不管是字典树还是数组树都一样)
+#               使用 x_qinserts 把 tr_path_stack(剪枝后的) 和 tr_leafs 所有叶子节点处理掉，
+#               然后清空 tr_leafs 数组。
+#           2). 如果索引后面没有 = 标识，证明当前节点是数组树节点，那么需要做如下处理(长树枝和砍树枝)。
+#               1>. 长树枝(F)：如果当前的缩进层级比 tr_path_stack 多(大于等于它的数量)，先用 tr_path_stack 从缓存中拿索引，
+#                   拿不到就用0，拿完后更新缓存的最大索引，把当前拿到的索引压入 tr_path_stack 中。
+#               2>. 砍树枝(G)：如果当前的缩进层级比 tr_path_stack 少(小于它的数量)，那么弹出数组中
+#                   多出来的元素，使用剩余的键取 tr_array_indexs 索引缓存，并且更新索引缓存，再把当前的键压入
+#                   tr_path_stack 中。
+#       b. 如果当前行是`{`开头(忽略前置空格)，那么证明是字典。
+#          第一件事情是获取真实的字典的键。先取第一个 { 字符，然后从这个字符开始往后扫描，
+#          遇到 `\` 就放行后面的那个字符。直到遇到裸的 `}` 字符，我们取到的字典的键。如果这个键后面
+#          有 ` =>` 标识，标识当前是字典叶子；如果没有标识，证明是字典树。针对树和叶子，分别按照下面来
+#          处理。
+#           1). 如果是字典叶子：把叶子的键和值推进 tr_leafs 数组，数组中的格式是
+#               (key1 value1 key2 value2)，字典的键 = 解析出的原始 key 经 str_unescape 还原，
+#               token 为 {key}$X。tr_path_stack 更新为前 level 个元素（和数组叶子同一个砍树枝动作，
+#               叶子不压新 token）。字典不涉及 tr_array_indexs 缓存，不取索引、不更新缓存。推入后判
+#               断是否触发 x_qinserts 写叶子的条件是三个：
+#               1>. 已经没有下一行
+#               2>. 下层缩进层级发生改变(这里只可能减少，不可能增加！)
+#               3>. 下层是树节点(不管是字典树还是数组树都一样)
+#              使用 x_qinserts 把 tr_path_stack(剪枝后的) 和 tr_leafs 所有叶子节点处理掉，
+#              然后清空 tr_leafs 数组。
+#           2). 如果是字典树，证明当前节点是字典树节点，那么需要根据是长树枝还是砍树枝做下面的处理。
+#               1>. 长树枝：如果当前的缩进层级比 tr_path_stack 多(大于等于它的数量)，那么直接把当前树
+#                  节点压进去即可。
+#               2>. 砍树枝：如果当前的缩进层级比 tr_path_stack 少(小于它的数量)，那么弹出数组中
+#                  多出来的元素，然后把当前键压入进去。
+#   具体流程详解：
+#
+#               t1(1) -> 
+#                  0(2)           <--------- A(缓存 "" = 1)
+#                      {aa ge}(4) => value2
+#                      {b}(3) => value1          <------------ M
+#                  1(5)           <--------- B(缓存 "" = 2)
+#                      {c1}(7) => {}
+#                      {key1}(15)
+#                          0(16) = null    <---------- C(缓存 ""[1]$X{key1}$X = 1)
+#                          1(18) = true\u001c   <------- D(缓存 ""[1]$X{key1}$X = 2)
+#                          2(19)  <------- E(缓存 ""[1]$X{key1}$X = 3)
+#                              0(58) <------- F(缓存 ""[1]$X{key1}$X[2]$X = 1)
+#                                  {other_key}(69) => value1
+#                  2(29)   <------  G(缓存 "" = 3)
+#                      0(30) = null\u001c <-------  H(缓存 ""[2]$X = 1)
+#                      1(31) = null\u001c <-------  I(缓存 ""[2]$X = 2)
+#                  3(89) = xxvalue        <-------  J(缓存 "" = 4)
+#               E 处理前：path_stack = ["", "[1]", "{key1}"] , max_index = 2     路径缓存是三层
+#               E 走长树枝：我们的缩进也是三层，直接压 E 的 token → ["", "[1]", "{key1}", "[2]"]
+#               然后父节点 "" -> [1] -> {key1}, max_index = 3
+#               
+#               F 处理时：level = 4，max_index = 空    level4 = 缩进4 长树枝 ✓
+#               F 处理前：path_stack = ["", "[1], "{key1}", "[2]"], max_index = 0(空)
+#               F 走长树枝：取缓存拿索引，["", "[1]", "{key1}", "[2]"] 一定是拿不到的！这个成立，所以索引为 0
+#                   并且写入 缓存 ["", "[1]", "{key1}", "[2]"] , max_index = 1
+#                   压入 path_stack ["", "[1]", "{key1}", "[2]", "[0]"]
+#               
+#               G 处理时：level = 1, path_stack = ["", "[1]", "{key1}", "[2]", "[0]"], level5 > 缩进 1
+#               G 处理前：path_stack = ["", "[1]", "{key1}", "2", "[0]"]
+#               G 走砍树枝：
+#                   实际的弹出步骤应该是这样：
+#                       先弹出 "1", "{key1}", "2", "[0]"，剩下的路径 "" 取它的 tr_array_indexs 为 2，
+#                       并且更新剩下的路径(这里是 "")的 tr_array_indexs 为3.
+#                       然后，把新的路径索引压进去 path_stack = ["", "[2]"]。并且更新 tr_array_indexs 的 [""] 键 为 3.
+#               
+#               
+#               
+#               t1(1) -> 
+#                  {key1}
+#                      {aa ge}(4) => value2
+#                      {b}(3) => value1
+#                  {key2} <------------- A
+#                      {c1}(7) => {}
+#                      {key1}(15)
+#               
+#               A 处理时：level = 1, path_stack = ["", "{key1}"]，砍树枝，弹出 "{key1}"，压入我们的 "{key2}".
+
 x_rebuild_from_dump ()
 {
-    :
+    local tr_dump_str=$1
+    local tr_line tr_line_trim
+    local tr_old_ifs=$IFS
+    local IFS=$'\n'
+    local -i is_first_line=1
+    local tr_line1_indent=
+    local tr_line1_enter=0
+    local -a tr_dump_list=()
+
+    for tr_line in $tr_dump_str ; do
+        tr_line_trim="${tr_line//[[:space:]]/}"
+        if [[ -z "${tr_line_trim}" ||
+            "${tr_line_trim}" == '#'* ]] ; then
+            continue
+        fi
+
+        ((tr_line1_enter)) || {
+            tr_line1_indent=${tr_line%%[! ]*}
+            tr_line1_enter=1
+        }
+        tr_dump_list[${#tr_dump_list[@]}]="${tr_line#$tr_line1_indent}"
+    done
+    IFS=$tr_old_ifs
+
+    # 如果数组的最后一个元素是 max_index => 那么剔除它
+    if [[ "${tr_dump_list[-1]//[[:space:]]/}" == max_index* ]] ; then
+        unset -v 'tr_dump_list[-1]'
+    fi
+
+    # 通过 tr_dump_list[1] 的前置空格和 tr_dump_list[0] 的前置空格来判断当前的
+    # 缩进空格数
+
+    local tr_indent=${tr_dump_list[1]%%[! ]*}
+    local tr_indent_cnt=${#tr_indent}
+
+    # 先处理空字典和空列表
+    if ((${#tr_dump_list[@]}==2)) ; then
+        case "${tr_dump_list[1]}" in
+        *${X_VALUE_NULL_OBJ})
+            x_init "$X_TYPE_OBJ" ; REPLY=$REPLY ; return ${X_RET_ENUM_OK}
+        ;;
+        *${X_VALUE_NULL_ARR})
+            x_init "$X_TYPE_ARR" ; REPLY=$REPLY ; return ${X_RET_ENUM_OK}
+        ;;
+        esac
+    fi
+
+    # 多行字符串变单行字符串
+    # extglob 在 [[]] 中从 bash4.1 开始都是默认开启的，不需要显示启用
+    local IFS=$'\n' ; tr_dump_str=${tr_dump_list[*]} ; IFS="$tr_old_ifs"
+    local tr_extglob=0
+    shopt -q extglob || { shopt -s extglob ; tr_extglob=1 ; }
+    tr_dump_str=${tr_dump_str//$'\n'*( )|/'\n'}
+    ((tr_extglob)) && shopt -u extglob
+
+    local -a tr_path_stack=("$X") tr_leafs=()
+    local -A tr_array_indexs=()
+    # tr_type
+    #   a_tree 数组树
+    #   d_tree 字典树
+    #   a_leaf 数组叶子
+    #   d_leaf 字典叶子
+    local -a tr_lev=() tr_type=() tr_key=() tr_value=()
+    mapfile -t tr_dump_list <<<"$tr_dump_str"
+
+    _x_rebuild_from_dump_get_dict_kv ()
+    {
+        local tr_out_a=()
+        local -i tr_begin=0
+        local tr_s= tr_out= tr_rest=${tr_dump_list[tr_i]}
+        while [[ -n "$tr_rest" ]] ; do
+            tr_s=${tr_rest:0:1}
+            tr_rest=${tr_rest:1}
+            ((tr_begin)) || {
+                if [[ "$tr_s" == '{' ]] ; then tr_begin=1 ; fi
+                continue
+            }
+
+            if [[ "$tr_s" == '\' ]] ; then
+                tr_out_a+=("$tr_s")
+                if [[ -n "$tr_rest" ]] ; then
+                    tr_out_a+=("${tr_rest:0:1}")
+                    tr_rest=${tr_rest:1}
+                fi
+                continue
+            fi
+
+            [[ "$tr_s" == '}' ]] && break
+            tr_out_a+=("$tr_s")
+        done
+
+        printf -v tr_out "%s" "${tr_out_a[@]}"
+            #@if current_shell_process_replace==1
+        tr_out=${|str_unescape "$tr_out";}
+            #@endif
+            #@if current_shell_process_replace==0
+        str_unescape "$tr_out" ; eval "${_ret_s/o/tr_out}"
+            #@endif
+
+        tr_key[tr_i]="{$tr_out}$X"
+        
+        # 函数如果返回 0 表示有值(是叶子字典)
+        # 函数如果返回 1 表示无值(是字典树)
+        if [[ "$tr_rest" == *'=>'* ]] ; then
+                # 把值写了
+                tr_out=${tr_rest#*'=> '}
+                #@if current_shell_process_replace==1
+            tr_out=${|str_unescape "$tr_out";}
+                #@endif
+                #@if current_shell_process_replace==0
+            str_unescape "$tr_out" ; eval "${_ret_s/o/tr_out}"
+                #@endif
+            tr_value[tr_i]=$tr_out
+            return 0
+        else
+            return 1
+        fi
+    }
+
+    _x_rebuild_from_dump_get_array ()
+    {
+        # 数组的 key 在这里没有意义，我们只返回值
+        # 函数如果返回 0 表示有值(是叶子数组)
+        # 函数如果返回 1 表示无值(是数组树)
+
+        local tr_out=${tr_dump_list[tr_i]}
+        if [[ "$tr_out" == *'='* ]] ; then
+            tr_out=${tr_out#*'= '}
+                #@if current_shell_process_replace==1
+            tr_out=${|str_unescape "$tr_out";}
+                #@endif
+                #@if current_shell_process_replace==0
+            str_unescape "$tr_out" ; eval "${_ret_s/o/tr_out}"
+                #@endif
+            tr_value[tr_i]=$tr_out
+            return 0
+        else
+            return 1
+        fi
+    }
+
+    local tr_i tr_ret
+    for ((tr_i=1;tr_i<${#tr_dump_list[@]};tr_i++)) ; do
+        tr_indent=${tr_dump_list[tr_i]%%[! ]*}
+        tr_lev[tr_i]=$((${#tr_indent}/tr_indent_cnt))
+        if [[ "${tr_dump_list[tr_i]}" == *( )'{'* ]] ; then
+            # 字典
+            _x_rebuild_from_dump_get_dict_kv ; tr_ret=$?
+            if [[ "$tr_ret" == '0' ]] ; then
+                tr_type[tr_i]=d_leaf
+            else
+                tr_type[tr_i]=d_tree
+            fi
+        else
+            _x_rebuild_from_dump_get_array ; tr_ret=$?
+            if [[ "$tr_ret" == '0' ]] ; then
+                tr_type[tr_i]=a_leaf
+            else
+                tr_type[tr_i]=a_tree
+            fi
+        fi
+    done
+
+    # 先创建根节点
+    if [[   "${tr_type[1]}" == a_leaf ||
+            "${tr_type[1]}" == a_tree ]] ; then
+            #@if current_shell_process_replace==1
+        local -A "tr_out_r_tree=(${|x_init "$X_TYPE_ARR";})"
+            #@endif
+            #@if current_shell_process_replace==0
+        x_init "$X_TYPE_ARR" ; eval "${_ret_A/o/tr_out_r_tree}"
+            #@endif
+    else
+            #@if current_shell_process_replace==1
+        local -A "tr_out_r_tree=(${|x_init "$X_TYPE_OBJ";})"
+            #@endif
+            #@if current_shell_process_replace==0
+        x_init "$X_TYPE_OBJ" ; eval "${_ret_A/o/tr_out_r_tree}"
+            #@endif
+    fi
+
+    # local i
+    # for ((i=1;i<${#tr_dump_list[@]}; i++)) ; do
+    #     echo "i:$i lev:${tr_lev[i]} type:${tr_type[i]} k:${tr_key[i]} v:${tr_value[i]}"
+    # done
+    # return 0
+
+    # 开始处理
+    local tr_idx tr_idx_key tr_n_lev
+    for (( tr_i=1;tr_i<${#tr_dump_list[@]};tr_i++ )) ; do
+        case "${tr_type[tr_i]}" in
+        a_leaf)
+            tr_n_lev=${tr_lev[tr_i]}
+            tr_path_stack=("${tr_path_stack[@]:0:tr_n_lev}")
+            printf -v tr_idx_key "%s" "${tr_path_stack[@]}"
+            tr_idx=${tr_array_indexs[$tr_idx_key]:-0}
+            tr_array_indexs[$tr_idx_key]=$((tr_idx+1))
+            tr_leafs+=("[$tr_idx]$X" "${tr_value[tr_i]}")
+
+            # 判断是否触发写叶子
+            if ((tr_i+1==${#tr_dump_list[@]})) ||
+                [[ "$tr_n_lev" != "${tr_lev[tr_i+1]}" ]] ||
+                [[ "${tr_type[tr_i+1]}" == [ad]_tree ]] ; then
+                x_qinserts tr_out_r_tree common "${tr_idx_key#$X}" "${tr_leafs[@]}"
+                # 清空叶子缓存
+                tr_leafs=()
+            fi
+        ;;
+        a_tree)
+            tr_n_lev=${tr_lev[tr_i]}
+            if ((tr_n_lev>=${#tr_path_stack[@]})) ; then
+                printf -v tr_idx_key "%s" "${tr_path_stack[@]}"
+                tr_idx=${tr_array_indexs[$tr_idx_key]:-0}
+                tr_array_indexs[$tr_idx_key]=$((tr_idx+1))
+                tr_path_stack+=("[$tr_idx]$X")
+            else
+                tr_path_stack=("${tr_path_stack[@]:0:tr_n_lev}")
+                printf -v tr_idx_key "%s" "${tr_path_stack[@]}"
+                tr_idx=${tr_array_indexs[$tr_idx_key]:-0}
+                tr_array_indexs[$tr_idx_key]=$((tr_idx+1))
+                tr_path_stack+=("[$tr_idx]$X")
+            fi
+        ;;
+        d_leaf)
+            tr_n_lev=${tr_lev[tr_i]}
+            tr_path_stack=("${tr_path_stack[@]:0:tr_n_lev}")
+            printf -v tr_idx_key "%s" "${tr_path_stack[@]}"
+            tr_leafs+=("${tr_key[tr_i]}" "${tr_value[tr_i]}")
+            # 判断是否触发写叶子
+            if ((tr_i+1==${#tr_dump_list[@]})) ||
+                [[ "$tr_n_lev" != "${tr_lev[tr_i+1]}" ]] ||
+                [[ "${tr_type[tr_i+1]}" == [ad]_tree ]] ; then
+                x_qinserts tr_out_r_tree common "${tr_idx_key#$X}" "${tr_leafs[@]}"
+                # 清空叶子缓存
+                tr_leafs=()
+            fi
+        ;;
+        d_tree)
+            tr_n_lev=${tr_lev[tr_i]}
+            if ((tr_n_lev>=${#tr_path_stack[@]})) ; then
+                tr_path_stack+=("${tr_key[tr_i]}")
+            else
+                tr_path_stack=("${tr_path_stack[@]:0:tr_n_lev}")
+                tr_path_stack+=("${tr_key[tr_i]}")
+            fi
+        ;;
+        esac
+    done
+        #@if at_k_var_substitution==1
+    REPLY=${tr_out_r_tree[*]@K}
+        #@endif
+        #@if at_k_var_substitution==0
+    array_to_kv_q_str tr_out_r_tree ; REPLY=$REPLY
+        #@endif
+    return $X_RET_ENUM_OK
 }
+
+return 0
+
