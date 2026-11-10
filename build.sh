@@ -9,6 +9,7 @@ FILES_TO_BE_PROCESSED=(
     "./src/bashlib/float.in"
     "./src/bashlib/array.in"
     "./src/bashlib/x.in"
+    "./src/bashlib/xo.in"
     "./src/bashlib/my_class.in"
     "./src/bashlib/mid_class.in"
     "./src/bashlib/base_class.in"

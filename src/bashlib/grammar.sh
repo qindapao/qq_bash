@@ -155,6 +155,17 @@ grammar_detect ()
     # BASH_GRAMMAR[at_k_var_substitution]=0
     # BASH_GRAMMAR[patsub_replacement]=0
 
+    # *. compgen -V 数组导出（Bash 5.3+）
+    if ( unset -v _tmp_compgen_v ; \
+        compgen -V _tmp_compgen_v -A variable BASH >/dev/null 2>&1 &&
+        [[ -v _tmp_compgen_v ]] &&
+        ((${#_tmp_compgen_v[@]})) ) ; then
+        BASH_GRAMMAR[compgen_v]=1
+    else
+        BASH_GRAMMAR[compgen_v]=0
+    fi
+
+
     local -a bash_grammar=()
     local key
     for key in "${!BASH_GRAMMAR[@]}" ; do

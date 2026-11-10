@@ -1967,7 +1967,19 @@ x_layer_child_is_flat ()
 }
 
 #-------------------------------------------------------------------------------
-
+# 契约（调用方可依赖）：
+#   1. 回调签名：kind, index_token, index_full_key, value,
+#                phys_token, phys_full_key, node_id, parent_id
+#   2. 拓扑序：父节点回调一定早于其所有后代节点回调
+#   3. 每个节点回调恰好一次
+#   4. 回调返回非 0，遍历提前终止
+#
+# 实现细节（调用方不应依赖）：
+#   - 兄弟子树的相对展开顺序（当前是栈 LIFO，未来可能变）
+#   - 同层 children 的回调顺序（当前按 children 数组顺序）
+#
+# OOP 字段继承只依赖契约 2（拓扑序），不依赖实现细节。
+#
 # 深度优先遍历子树，每个节点调用 $3 回调。
 # 回调参数：node_kind index_token index_full_key value
 #           physical_token physical_full_key node_id parent_id
@@ -3489,7 +3501,8 @@ x_rebuild_from_dump ()
             if ((tr_i+1==${#tr_dump_list[@]})) ||
                 [[ "$tr_n_lev" != "${tr_lev[tr_i+1]}" ]] ||
                 [[ "${tr_type[tr_i+1]}" == [ad]_tree ]] ; then
-                x_qinserts tr_out_r_tree common "${tr_idx_key#$X}" "${tr_leafs[@]}"
+                x_qinserts tr_out_r_tree common \
+                    "${tr_idx_key#$X}" "${tr_leafs[@]}" || eval "$_ret_e"
                 # 清空叶子缓存
                 tr_leafs=()
             fi
@@ -3518,7 +3531,8 @@ x_rebuild_from_dump ()
             if ((tr_i+1==${#tr_dump_list[@]})) ||
                 [[ "$tr_n_lev" != "${tr_lev[tr_i+1]}" ]] ||
                 [[ "${tr_type[tr_i+1]}" == [ad]_tree ]] ; then
-                x_qinserts tr_out_r_tree common "${tr_idx_key#$X}" "${tr_leafs[@]}"
+                x_qinserts tr_out_r_tree common \
+                    "${tr_idx_key#$X}" "${tr_leafs[@]}" || eval "$_ret_e"
                 # 清空叶子缓存
                 tr_leafs=()
             fi

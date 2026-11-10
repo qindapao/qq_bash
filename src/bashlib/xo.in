@@ -1,0 +1,683 @@
+((_XO_IMPORTED++)) && return 0
+
+. "${BASH_SOURCE[0]%/*}/x.sh"
+
+# ==============================================================================
+# 【当前已实现】
+#   - 类对象字符串缓存：${cls}ObjStr，born 时避免重新序列化
+#   - 具名对象：xo_obj_born_named，固定句柄如 OBJ_plane / OBJ_canvas
+#   - Mixin 方法注入：见下方【Mixin 使用说明】
+# ==============================================================================
+
+# ==============================================================================
+# 【框架保留名（用户变量禁止使用）】
+#
+#   变量名后缀：
+#     *StaticTemplate   类模板 / Mixin 模板的变量名后缀
+#                       用户自定义普通变量不要以此结尾，会被 xo_init 当成模板解析
+#
+#   类对象变量名（由 ${类名} 推导）：
+#     ${类名}Obj        类对象（x_tree 关联数组）
+#     ${类名}ObjStr     类对象 KV 字符串缓存（born 时加速用）
+#                       用户变量不要用这两个名字，会被框架覆盖
+#
+#   对象句柄：
+#     OBJ_数字          自动分配句柄，如 OBJ_11，由 XO_OBJ_SEQ 递增
+#     OBJ_字母开头       具名句柄，如 OBJ_plane，由 xo_obj_born_named 分配
+#     整个 OBJ_ 前缀是框架保留的，用户变量不要以 OBJ_ 开头
+#
+#   函数名前缀：
+#     类名_方法名       公共方法
+#     类名__方法名      私有方法（双下划线）
+#     M_Mixin名_方法名  Mixin 公共方法
+#     M_Mixin名__方法名 Mixin 私有方法
+#     common_*          公共行为函数（手写转发的实现）
+#     xo_* / _xo_*      xo 框架内部函数
+#     x_* / _x_*        x 框架内部函数
+# ==============================================================================
+
+# ==============================================================================
+# 【Mixin 使用说明】
+#
+# 当前版本支持 Mixin「方法注入」：
+#   - {MIX} 字段：空格分隔的 Mixin 名列表，如 {MIX} => M_Swimmer M_Flyer
+#   - 只注入方法，不注入字段（字段注入留 TODO）
+#   - 不做 {REQUIRES} 校验（当前仅作文档）
+#
+# 自动注入的优先级（由 xo_init 的注入顺序保证）：
+#   类自身方法（含手写转发） > Mixin 方法 > 继承透传方法
+# 即：子类自己定义的 > Mixin 注入的 > 从父类透传下来的。
+#
+# ------------------------------------------------------------------------------
+# 【Mixin 当前实现状态】
+#
+#   已实现：
+#     - Mixin 方法注入：xo_init 时从全局函数空间收集 M_Mixin名_* 方法，注入到类
+#     - 优先级：类自身（含手写转发） > Mixin 注入 > 继承透传
+#     - 多 Mixin 按 {MIX} 列表顺序，前面的优先
+#
+#   未实现（留 TODO）：
+#     - Mixin 字段注入：Mixin Template 当前不参与构建，不建 M_XxxObj 对象
+#     - {REQUIRES} 依赖校验：当前仅作文档，不检查字段是否存在
+#
+#   M_XxxStaticTemplate 当前的作用：
+#     - 文档：声明 Mixin 名、{REQUIRES} 字段依赖
+#     - 未来字段注入的落点：将来做字段注入时，从这里读 {FIELDS} 子对象
+#     当前 xo_init 完全跳过 M_*StaticTemplate（不解析、不建对象）
+#
+# ------------------------------------------------------------------------------
+# 【推荐做法：优先手写转发，需要时再用 Mixin 自动注入】
+#
+# 两种方式并存，手写转发优先级最高（它就是「类自身方法」）：
+#
+# 1) 手写转发（推荐用于「少数类共享」）：
+#
+#      common_restart() {
+#          local -n self=$1
+#          local dev=${self[{device_id}$X]}
+#          do_reset "$dev"
+#      }
+#
+#      Device_restart() { common_restart "$@" ; }    # 手写转发
+#
+# 2) Mixin 自动注入（推荐用于「多个不相关类共享」）：
+#
+#      M_RestartableStaticTemplate='
+#          M_RestartableObj ->
+#              {CLS} => M_Restartable
+#              {MIX} =>
+#          '
+#
+#      M_Restartable_restart() {
+#          local -n self=$1
+#          local dev=${self[{device_id}$X]}
+#          do_reset "$dev"
+#      }
+#
+#      # 类模板中声明
+#      DeviceStaticTemplate='
+#          DeviceObj ->
+#              {CLS} => Device
+#              {SUP} => Base
+#              {MIX} => M_Restartable
+#      '
+#
+# 优先级：手写转发 > Mixin 注入 > 继承透传。同一方法名，手写转发优先。
+# 迁移到 Mixin 时，先删掉手写转发，再在 {MIX} 里声明 Mixin 名。
+#
+# ------------------------------------------------------------------------------
+# 【手写转发的 5 个优势（为什么仍推荐优先用它）】
+#
+#   - bash 函数天然全局可调用，手写转发只需一行，Mixin 省不了多少
+#   - 手写转发显式可见，Mixin 自动注入是 xo_init 时 eval 生成，代码里搜不到
+#   - 手写转发 set -x 一眼看到调用链，Mixin 需要理解优先级规则才能调试
+#   - 手写转发是局部修改，Mixin 是全局重算（改一个 Mixin 影响所有使用方）
+#   - 手写转发无「注入时机」概念，Mixin 要考虑 xo_init 前/后、字段/方法
+#
+# 判据：手写转发总数 < 30 行时，手写更划算；超过 30 行或需要声明式
+#       能力查询时，再迁移到 Mixin。
+#
+# ------------------------------------------------------------------------------
+# 【子类使用 Mixin 公共函数的规范】
+#
+#   - Mixin 公共方法命名：M_Mixin名_方法名（单下划线），注入到类
+#   - Mixin 私有方法命名：M_Mixin名__方法名（双下划线），不注入
+#   - 多 Mixin 同名方法：{MIX} 列表前面的优先（后处理时 declare -F 跳过已有）
+#   - Mixin 内部只依赖 self 的字段，字段由使用方保证（契约）：
+#       使用方类模板必须提供 Mixin 读取的字段，如 {device_id}
+#   - Mixin 不要依赖「自己属于哪个类」，它是纯粹的「行为实现」
+#   - Mixin 不要改 self 的元数据字段（{CLS}/{SUP}/{MIX}）
+#
+#   手写转发（common_* 函数）的临时状态：
+#       - 默认不往 self 写临时属性，用局部变量 + REPLY 返回值
+#       - 若确需跨调用保持状态，用 {_common_函数名}{...} 命名空间：
+#           如 {_common_restart}{call_cnt}
+#       - 类字段禁止 common_ 开头（避免跟公共函数临时状态撞车）：
+#           · 临时属性根 key 不能用 {_common_xxx}{...}
+#           · 公共属性不能用 {common_xxx}
+#           · 私有属性天然不冲突（{_大驼峰_字段}，common 是小写）
+#       - 类的临时属性推荐语义化小写类别：
+#           {_cache}{...}  {_tmp}{...}  {_state}{...}  {_retry}{...}
+#
+# ------------------------------------------------------------------------------
+# 【未来可选增强（当前未实现）】
+#
+#   Mixin 字段注入：Mixin 模板带 {FIELDS} 子对象，注入时合并字段默认值。
+#       优先级：类自身 > Mixin > 继承。留 TODO，真需要时再上。
+#
+#   Mixin 依赖校验：Mixin 模板中 {REQUIRES} => "field1 field2"，xo_init
+#       时校验使用方是否有这些字段，缺失即 die：
+#       "Class:X 使用 Mixin:M_Yyy，但缺少必需字段 {field1}"
+#
+#   若 Mixin 需要自己维护状态（惰性初始化，无需字段注入）：
+#       M_Cache_get() {
+#           local -n self=$1
+#           local k="{_M_Cache_get_data}$X"
+#           [[ -n "${self[$k]+_}" ]] || self[$k]='{}'
+#           ...
+#       }
+#
+# ==============================================================================
+#
+# 命名空间约定：
+#   - 用户类：大驼峰，如 Animal / NetworkCard
+#   - Mixin：M_ 前缀 + 大驼峰，如 M_Swimmer / M_Flyer
+#   - M_ 前缀是 Mixin 保留的命名空间，用户类不要用 M_ 开头
+#
+# 模板会自动生成类对象 BaseObj
+#
+# M_Swimmer_swim() { ... }
+
+# 类名      ->  大驼峰
+# 方法名    ->  小写蛇形
+# Mixin类   ->  M_大驼峰
+# Mixin方法 ->  小写蛇形
+#
+# 元类属性      {大写字段,如CLS等}  拷贝(除了定义该定义的值用户不要去乱设置值或者增删)
+# 公共属性      {小写蛇形}          拷贝
+# 私有属性      {_类名_小写字段}    拷贝（父类方法要用），类名大驼峰
+# 公共方法      类名_方法名         透传生成
+# 私有方法      类名__方法名        不生成（子类调不到）
+# 临时属性      {_小写类别}{...}    不继承（运行时对象的动态数据，真子容器）
+# Mixin 方法    M_Mixin名_方法名    注入时生成
+
+# NULL = 扩展点占位符
+#   父类明确声明「此字段留给子类自由扩展，父类方法不应依赖它的具体类型」。
+#   子类可将其升变为任意容器（对象/数组）。
+#   父类方法若依赖 NULL 字段的具体状态，是父类方法的责任——
+#   它依赖了一个自己标记为「可自由变化」的字段。
+#
+# {} / [] = 类型固定的空容器
+#   子类只能往里加同类型子字段，不能改类型。改类型 x_insert 报错。
+#
+# 标量 = 类型固定的值
+#   子类不能改类型。改类型 x_insert 报错。
+#
+# 注意：Base 的 {SUP} 为空表示「无父类」，与 NULL=扩展点 语义无关，
+# Base 是唯一特例。
+
+# ---------------- 根类区域 --------------------------------------------------
+readonly BaseStaticTemplate='
+    BaseObj -> 
+        {CLS} => Base
+        {SUP} => 
+        {MIX} => 
+    '
+
+Base_print () { x_dump "$1" '' 4 2 ; }
+
+Base_born ()
+{
+    # 默认构造后钩子，子类可覆盖
+    # $1=对象句柄，$2..=用户构造参数
+    :
+}
+
+Base_kill ()
+{
+    # 默认析构钩子，子类可覆盖
+    # $1=对象句柄
+    :
+}
+
+Base_class ()
+{
+    local -n self=$1
+    REPLY=${self[{CLS}$X]}
+}
+
+Base_is_a ()
+{
+    local obj=$1 expect=$2
+    # 不是受管对象（已销毁或非法），返回 1
+    [[ -z "${XO_OBJ_POOL[$obj]+_}" ]] && return 1
+    local cls
+    local -n self=$obj
+    cls=${self[{CLS}$X]}
+    unset -n self
+
+    while [[ -n "$cls" ]] ; do
+        [[ "$cls" == "$expect" ]] && return 0
+        [[ "$cls" == 'Base' ]] && break
+        local -n c=${cls}Obj
+        cls=${c[{SUP}$X]}
+        unset -n c
+    done
+    return 1
+}
+
+# ----------------------------------------------------------------------------
+
+# 继承树（x_tree 对象）：每个非根节点的 physical_full_key 路径即继承链
+# tree -> 
+#     Base (容器)
+#     └── A (容器)
+#         ├── B (容器)
+#         │   └── C (叶子)
+#         └── D (叶子)
+# 每个类插入时值统一写 X_VALUE_NULL，有子类的节点由 x_insert 自动升变成容器
+declare -gA CLASS_INHER_TREE=()
+declare -gA XO_METHOD_INHERITED=()
+
+
+
+_xo_init_get_class_inher_chain ()
+{
+    local -a class_template_vars=()
+        #@if compgen_v==1
+    compgen -V class_template_vars -A variable -X '!*StaticTemplate'
+        #@endif
+        #@if compgen_v==0
+    class_template_vars=($(compgen -A variable -X '!*StaticTemplate'))
+        #@endif
+
+    local var_name super cls
+    local -A cls_super=()
+    local re='^([ ]+)\{SUP\} => (.*)$'
+
+    # ---- 1. 收集 类名 -> 父类名（排除 Mixin 和 Base 自身）----
+    for var_name in "${class_template_vars[@]}" ; do
+        [[ "$var_name" == M_*StaticTemplate ]] && continue
+        cls=${var_name%StaticTemplate}
+        [[ "$cls" == 'Base' ]] && continue
+
+        if [[ "${!var_name}" =~ $re ]] ; then
+            super=${BASH_REMATCH[2]}
+            # 其实这里也可以不去
+            super=${super%"${super##*[![:space:]]}"}   # 去尾随空白
+        else
+            die ERR "Class:$cls ${var_name} has no valid {SUP} line!"
+            return 1
+        fi
+
+        # 契约：除 Base 外，所有类的 SUPER 非空
+        if [[ -z "$super" ]] ; then
+            die ERR "Class:$cls SUPER is NULL (only Base have empty SUPER)!"
+            return 1
+        fi
+
+        cls_super[$cls]=$super
+    done
+
+    # ---- 2. 初始化继承树 ----
+        #@if current_shell_process_replace==1
+    declare -gA "CLASS_INHER_TREE=(${|x_init "$X_TYPE_OBJ";})"
+        #@endif
+        #@if current_shell_process_replace==0
+    x_init "$X_TYPE_OBJ" ; eval "${_ret_g_A/o/CLASS_INHER_TREE}"
+        #@endif
+
+    # ---- 3. 每个类往上回溯拼路径，插入树 ----
+    local cur path seg
+    local -a chain
+    local -A _visited=()
+
+    for cls in "${!cls_super[@]}" ; do
+        chain=() ; cur=$cls ; _visited=()
+
+        while [[ "$cur" != 'Base' ]] ; do
+            # 悬空引用：SUPER 指向一个未定义的类
+            if [[ -z "${cls_super[$cur]+_}" ]] ; then
+                die ERR "Class:$cls SUPER chain hits undefined"\
+                        "class:$cur (path: ${chain[*]} -> $cur)"
+                return 1
+            fi
+            # 环检测：路径上重复出现
+            if [[ -n "${_visited[$cur]+_}" ]] ; then
+                die ERR "Class:$cls SUPER chain circular"\
+                        "at:$cur (path: ${chain[*]} -> $cur)"
+                return 1
+            fi
+            _visited[$cur]=1
+            chain=("$cur" "${chain[@]}")     # 头插，保持 Base→...→cls 顺序
+            cur=${cls_super[$cur]}
+        done
+
+        # 拼物理路径：{Base}$X{A}$X{B}$X{C}$X
+        path="{Base}$X"
+        for seg in "${chain[@]}" ; do
+            path+="{$seg}$X"
+        done
+
+        # 插入，NULL 自动升变
+        x_insert CLASS_INHER_TREE "$path" "$X_VALUE_NULL" || {
+            die ERR "Class:$cls failed to insert into CLASS_INHER_TREE"\
+                    "(path:$path)"
+            return 1
+        }
+    done
+
+    return 0
+}
+
+# 根据所有的类模板变量动态生成所有类的类对象，并且动态更新类实例函数。
+# 当前 x_walk 的顺序本来就能保证是 拓扑序（父先于子），但是不是 DFS 前序
+# 所以按照 x_walk 的顺序直接覆盖就行。
+_xo_init_class ()
+{
+    _xo_init_class_cb ()
+    {
+        # leaf / leaf_null / obj / obj_empty / arr / arr_empty
+        local token=$5 full_key=$6
+        local cls=${token:1:-1}
+        local father=${full_key%"$X$token$X"}
+        father=${father##*"$X"}
+        father=${father:1:-1}
+
+        # 获取当前类对象
+            #@if current_shell_process_replace==1
+        local obj_kv ; obj_kv=${|
+            x_rebuild_from_dump "${cls}StaticTemplate";}
+        if (($?)) ; then
+            die ERR "Class Template:${cls}StaticTemplate is invalid!"
+            return 1
+        fi
+        local -A "temp_obj=($obj_kv)"
+            #@endif
+            #@if current_shell_process_replace==0
+        x_rebuild_from_dump "${cls}StaticTemplate" || {
+            die ERR "Class Template:${cls}StaticTemplate is invalid!"
+            return 1
+        }
+        eval "${_ret_A/o/temp_obj}"
+            #@endif
+        # 如果当前类是 Base，那么直接取模板即可。
+        # 并且所有的类实例方法都不用更新
+        if [[ "$cls" == 'Base' ]] ; then
+                #@if at_k_var_substitution==1
+            declare -gA "BaseObj=(${temp_obj[*]@K})"
+                #@endif
+                #@if at_k_var_substitution==0
+            array_to_kv_q_str temp_obj ; eval "${_ret_g_A/o/BaseObj}"
+                #@endif
+        else
+            # 如果当前类不是 Base, 那么先复制一份父类的类对象
+            # 树 walk 的拓扑序保证：父类对象已在之前的回调中创建，
+            # father_obj 一定存在
+                #@if at_k_var_substitution==1
+            local -n father_obj=${father}Obj
+            declare -gA "${cls}Obj=(${father_obj[*]@K})"
+                #@endif
+                #@if at_k_var_substitution==0
+            array_to_kv_q_str ${father}Obj ; eval "${_ret_g_A/o/${cls}Obj}"
+                #@endif
+            unset -n father_obj
+
+            # 把当前类所有的叶子直接插入父类复制出来的分身
+            _xo_init_class_cb_insert_cb ()
+            {
+                local type=$1 value=$4 full_key=$6
+                if [[ "$type" != "$X_NODE_KIND_OBJ" &&
+                      "$type" != "$X_NODE_KIND_ARR" ]] ; then
+                    x_insert "${cls}Obj" "$full_key" "$value"
+                    return $?
+                else
+                    return 0
+                fi
+            }
+
+            x_walk temp_obj '' _xo_init_class_cb_insert_cb || {
+                die ERR "Class:${cls} cover father:${father} fail!"
+                return 1
+            }
+
+            # ---- Mixin 方法注入（在继承透传之前，保证 Mixin 优先于继承） ----
+            # 优先级：类自身方法 > Mixin 方法 > 继承透传方法
+            # Mixin 公共方法命名：M_Mixin名_方法名（单下划线）
+            # Mixin 私有方法命名：M_Mixin名__方法名（双下划线），不注入
+            # 多 Mixin 同名方法：{MIX} 列表前面的优先（后处理时 declare -F 跳过已有）
+            local -n mix_self="${cls}Obj"
+            local mix_list=${mix_self["{MIX}$X"]}
+            unset -n mix_self
+
+            if [[ -n "$mix_list" ]] ; then
+                local mix mix_pattern mix_fn mm
+                local -a mix_methods=()
+                for mix in $mix_list ; do
+                    printf -v mix_pattern '!%s_[!_]*' "$mix"
+                        #@if compgen_v==1
+                    compgen -V mix_methods -A function -X "$mix_pattern"
+                        #@endif
+                        #@if compgen_v==0
+                    mix_methods=($(compgen -A function -X "$mix_pattern"))
+                        #@endif
+                    mix_methods=("${mix_methods[@]#${mix}_}")
+
+                    for mm in "${mix_methods[@]}" ; do
+                        mix_fn="${cls}_${mm}"
+                        # 类自身已有 → 保留（类自身优先）
+                        # 前面的 Mixin 已注入 → 保留（列表前面的优先）
+                        declare -F "$mix_fn" >/dev/null && continue
+                        eval -- "${mix_fn} () { ${mix}_${mm} \"\$@\" ; }"
+                        XO_METHOD_INHERITED[$mix_fn]=$mix
+                    done
+                done
+            fi
+
+            # 扩充类实例方法，补充当前子类没有而父类拥有的方法
+            # 首先获取父类所有的实例方法(排除掉_那些私有方法)
+            # 这里一定要使用 compgen 工具重新获取，因为函数一直在动态刷新！
+            # 下一次循环的时候父类的方法集合已经改变！
+            local -a father_methods=()
+            local father_func_pattern=
+            printf -v father_func_pattern '!%s_[!_]*' "$father"
+                #@if compgen_v==1
+            compgen -V father_methods -A function -X "$father_func_pattern"
+                #@endif
+                #@if compgen_v==0
+            father_methods=($(compgen -A function -X "$father_func_pattern"))
+                #@endif
+            father_methods=("${father_methods[@]#${father}_}")
+
+            # 逐个补到子类（子类已有的跳过）
+            local m
+            for m in "${father_methods[@]}" ; do
+                local fn="${cls}_${m}"
+                # 子类已经有这个方法，跳过
+                declare -F "$fn" >/dev/null && continue   # 子类已有，跳过
+                eval -- "${fn} () { ${father}_${m} \"\$@\" ; }"
+                XO_METHOD_INHERITED[$fn]=$father
+            done
+        fi
+
+        # 类对象保存一份字符串缓存，用于创建实例对象的时候加速
+        local -n c_obj="${cls}Obj"
+            #@if at_k_var_substitution==1
+        declare -g ${cls}ObjStr="${c_obj[*]@K}"
+            #@endif
+            #@if at_k_var_substitution==0
+        array_to_kv_q_str "${cls}Obj" ; eval "${_ret_g_s/o/${cls}ObjStr}"
+            #@endif
+        unset -n c_obj
+
+        return 0
+    }
+    x_walk CLASS_INHER_TREE '' _xo_init_class_cb || return $?
+}
+
+# -------------------------对象管理部分---------------------------------------
+
+declare -gA XO_OBJ_POOL=()
+# 预留 OBJ_1 ~ OBJ_10 给系统特殊对象（如全局单例、框架内部对象），
+# 用户对象从 OBJ_11 开始。修改此值时同步更新预留范围。
+declare -gi XO_OBJ_SEQ=10
+
+
+xo_init ()
+{
+    # 确保 xo_init 函数只能被调用一次
+    [[ -n "$_XO_INIT_CALLED" ]] && return 0
+
+    # 保存全局的调用关系链
+    _xo_init_get_class_inher_chain || return $?
+    _xo_init_class || return $?
+    _XO_INIT_CALLED=1
+}
+
+declare -g XO_INHER_CHAIN_DUMP_CACHE=''
+xo_dump_inher_chain ()
+{
+    [[ -n "$_XO_INIT_CALLED" ]] || {
+        die ERR "xo: xo_init not called yet, CLASS_INHER_TREE is empty"
+        return 1
+    }
+    if [[ -z "$XO_INHER_CHAIN_DUMP_CACHE" ]] ; then
+            #@if current_shell_process_replace==1
+        XO_INHER_CHAIN_DUMP_CACHE=${ x_dump CLASS_INHER_TREE '' 4 2 ;}
+            #@endif
+            #@if current_shell_process_replace==0
+        XO_INHER_CHAIN_DUMP_CACHE=$(x_dump CLASS_INHER_TREE '' 4 2)
+            #@endif
+    fi
+    printf "%s\n" "$XO_INHER_CHAIN_DUMP_CACHE"
+}
+
+# new
+# 内部实现：给定句柄名和类名，创建对象（两个 born 入口共用）
+_xo_obj_born_impl ()
+{
+    local obj=$1
+    local cls=$2
+    shift 2
+
+    # 1. 类必须存在
+    local cls_obj_var="${cls}Obj"
+    [[ -n "${!cls_obj_var+_}" ]] || {
+        die ERR "xo: class '${cls}' not defined (did you forget to declare"\
+                "${cls}StaticTemplate or run xo_init?)"
+        return 1
+    }
+
+    # 2. 句柄名未被占用（变量 / 池子）
+    [[ -v "$obj" ]] && {
+        die ERR "xo: object handle '${obj}' already exists as a variable"
+        return 1
+    }
+    [[ -n "${XO_OBJ_POOL[$obj]+_}" ]] && {
+        die ERR "xo: object handle '${obj}' already in pool"
+        return 1
+    }
+
+    # 3. 实例 = 类对象缓存字符串
+    local -n cls_objstr="${cls}ObjStr"
+    declare -gA "${obj}=($cls_objstr)"
+    unset -n cls_objstr
+
+    # 4. 登记到对象池
+    XO_OBJ_POOL[$obj]=$cls
+
+    # 5. 调 born 钩子
+    "${cls}_born" "$obj" "$@" || {
+        unset -v "$obj"
+        unset -v 'XO_OBJ_POOL[$obj]'
+        die ERR "xo: ${cls}_born failed for ${obj}"
+        return 1
+    }
+
+    return 0
+}
+
+# 自动分配名字：OBJ_11, OBJ_12, ...
+xo_obj_born ()
+{
+    REPLY=
+    local cls=$1
+    shift
+
+    # 前置自增：表达式值为【新值】，永远 ≥1，(( )) 返回 0，set -e 下安全。
+    # 勿改回后置自增 ((XO_OBJ_SEQ++))：表达式值为【旧值】，初始若为 0
+    # 会返回 1，set -e 下第一次 born 就退出。
+    ((++XO_OBJ_SEQ))
+    local obj="OBJ_${XO_OBJ_SEQ}"
+
+    _xo_obj_born_impl "$obj" "$cls" "$@" || return $?
+    REPLY=$obj
+    return 0
+}
+
+# 具名对象：用户指定 OBJ_plane, OBJ_canvas, ...
+xo_obj_born_named ()
+{
+    REPLY=
+    local obj=$1
+    local cls=$2
+    shift 2
+
+    # 名字规则：以 OBJ_ 开头，后缀以字母开头（避开纯数字，跟自动分配隔离）
+    [[ "$obj" == OBJ_* ]] || {
+        die ERR "xo: named object '${obj}' must start with 'OBJ_'"
+        return 1
+    }
+    local suffix=${obj#OBJ_}
+    [[ -n "$suffix" && "${suffix:0:1}" == [a-zA-Z] ]] || {
+        die ERR "xo: named object suffix '${suffix}' must start with a letter"\
+                "(pure numeric names like OBJ_11 are reserved for auto-allocation)"
+        return 1
+    }
+
+    _xo_obj_born_impl "$obj" "$cls" "$@" || return $?
+    REPLY=$obj
+    return 0
+}
+
+xo_obj_kill ()
+{
+    local obj=$1
+
+    # 1. 必须是受管对象
+    [[ -n "${XO_OBJ_POOL[$obj]+_}" ]] || {
+        die ERR "xo: '${obj}' is not a managed object"
+        return 1
+    }
+
+    # 2. 调 kill 钩子（如果存在）
+    # 组合对象 kill 等等
+    local cls=${XO_OBJ_POOL[$obj]}
+    "${cls}_kill" "$obj" || {
+        die ERR "xo: ${cls}_kill failed for ${obj}"
+        return 1
+    }
+
+    # 3. unset 全局变量 + 从池子移除
+    unset -v "$obj"
+    unset -v 'XO_OBJ_POOL[$obj]'
+    return 0
+}
+
+xo_class_methods ()
+{
+    local cls=$1
+    [[ -v "${cls}Obj" ]] || {
+        die ERR "xo: class '${cls}' not defined"
+        return 1
+    }
+
+    local pattern
+    printf -v pattern '!%s_[!_]*' "$cls"
+    local -a methods=()
+        #@if compgen_v==1
+    compgen -V methods -A function -X "$pattern"
+        #@endif
+        #@if compgen_v==0
+    methods=($(compgen -A function -X "$pattern"))
+        #@endif
+    methods=("${methods[@]#${cls}_}")
+
+    local m fn origin
+    for m in "${methods[@]}" ; do
+        fn="${cls}_${m}"
+        if [[ -n "${XO_METHOD_INHERITED[$fn]+_}" ]] ; then
+            origin=${XO_METHOD_INHERITED[$fn]}
+            # 来源是 M_* → Mixin 注入；否则是父类透传
+            if [[ "$origin" == M_* ]] ; then
+                printf '%-24s (from mixin %s)\n' "$m" "$origin"
+            else
+                printf '%-24s (inherited from %s)\n' "$m" "$origin"
+            fi
+        else
+            printf '%-24s (own)\n' "$m"
+        fi
+    done
+}
+return 0
+
