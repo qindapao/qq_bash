@@ -3282,24 +3282,98 @@ x_get_arg_limits ()
 #                      {key1}(15)
 #               
 #               A 处理时：level = 1, path_stack = ["", "{key1}"]，砍树枝，弹出 "{key1}"，压入我们的 "{key2}".
+_x_rebuild_from_dump_get_dict_kv ()
+{
+    local tr_s= tr_out= tr_rest=${tr_dump_list[tr_i]}
+    local -i tr_begin=0 tr_pos=0 tr_len=${#tr_rest}
+    local tr_out_a=()
+    while ((tr_pos < tr_len)) ; do
+        tr_s=${tr_rest:tr_pos:1}
+        ((tr_pos++))
+        ((tr_begin)) || {
+            if [[ "$tr_s" == '{' ]] ; then tr_begin=1 ; fi
+            continue
+        }
+
+        if [[ "$tr_s" == '\' ]] ; then
+            tr_out_a+=("$tr_s")
+            if ((tr_pos < tr_len)) ; then
+                tr_out_a+=("${tr_rest:tr_pos:1}")
+                ((tr_pos++))
+            fi
+            continue
+        fi
+
+        [[ "$tr_s" == '}' ]] && break
+        tr_out_a+=("$tr_s")
+    done
+    local tr_rest_after=${tr_rest:tr_pos}
+
+    printf -v tr_out "%s" "${tr_out_a[@]}"
+        #@if current_shell_process_replace==1
+    tr_out=${|str_unescape "$tr_out";}
+        #@endif
+        #@if current_shell_process_replace==0
+    str_unescape "$tr_out" ; eval "${_ret_s/o/tr_out}"
+        #@endif
+
+    tr_key[tr_i]="{$tr_out}$X"
+
+    # 函数如果返回 0 表示有值(是叶子字典)
+    # 函数如果返回 1 表示无值(是字典树)
+    if [[ "$tr_rest_after" == *'=>'* ]] ; then
+            # 把值写了
+            tr_out=${tr_rest_after#*'=> '}
+            #@if current_shell_process_replace==1
+        tr_out=${|str_unescape "$tr_out";}
+            #@endif
+            #@if current_shell_process_replace==0
+        str_unescape "$tr_out" ; eval "${_ret_s/o/tr_out}"
+            #@endif
+        tr_value[tr_i]=$tr_out
+        return 0
+    else
+        return 1
+    fi
+}
+
+_x_rebuild_from_dump_get_array ()
+{
+    # 数组的 key 在这里没有意义，我们只返回值
+    # 函数如果返回 0 表示有值(是叶子数组)
+    # 函数如果返回 1 表示无值(是数组树)
+
+    local tr_out=${tr_dump_list[tr_i]}
+    if [[ "$tr_out" == *'='* ]] ; then
+        tr_out=${tr_out#*'= '}
+            #@if current_shell_process_replace==1
+        tr_out=${|str_unescape "$tr_out";}
+            #@endif
+            #@if current_shell_process_replace==0
+        str_unescape "$tr_out" ; eval "${_ret_s/o/tr_out}"
+            #@endif
+        tr_value[tr_i]=$tr_out
+        return 0
+    else
+        return 1
+    fi
+}
 
 x_rebuild_from_dump ()
 {
     local tr_dump_str=$1
-    local tr_line tr_line_trim
-    local tr_old_ifs=$IFS
-    local IFS=$'\n'
-    local -i is_first_line=1
+    local tr_line
     local tr_line1_indent=
     local tr_line1_enter=0
     local -a tr_dump_list=()
 
-    for tr_line in $tr_dump_str ; do
-        tr_line_trim="${tr_line//[[:space:]]/}"
-        if [[ -z "${tr_line_trim}" ||
-            "${tr_line_trim}" == '#'* ]] ; then
-            continue
-        fi
+    local -a tr_raw_lines=()
+    mapfile -t tr_raw_lines <<< "$tr_dump_str"
+    for tr_line in "${tr_raw_lines[@]}" ; do
+        [[ $tr_line == *[![:space:]]* ]] || continue
+        # 注释行：去掉前导空白后以 # 开头
+        local tr_nonws=${tr_line#"${tr_line%%[![:space:]]*}"}
+        [[ $tr_nonws == '#'* ]] && continue
 
         ((tr_line1_enter)) || {
             tr_line1_indent=${tr_line%%[! ]*}
@@ -3307,7 +3381,6 @@ x_rebuild_from_dump ()
         }
         tr_dump_list[${#tr_dump_list[@]}]="${tr_line#$tr_line1_indent}"
     done
-    IFS=$tr_old_ifs
 
     # 如果数组的最后一个元素是 max_index => 那么剔除它
     if [[ "${tr_dump_list[-1]//[[:space:]]/}" == max_index* ]] ; then
@@ -3334,11 +3407,15 @@ x_rebuild_from_dump ()
 
     # 多行字符串变单行字符串
     # extglob 在 [[]] 中从 bash4.1 开始都是默认开启的，不需要显示启用
-    local IFS=$'\n' ; tr_dump_str=${tr_dump_list[*]} ; IFS="$tr_old_ifs"
-    local tr_extglob=0
-    shopt -q extglob || { shopt -s extglob ; tr_extglob=1 ; }
-    tr_dump_str=${tr_dump_str//$'\n'*( )|/'\n'}
-    ((tr_extglob)) && shopt -u extglob
+    if [[ $tr_dump_str == *'|'* ]]; then
+        local tr_old_ifs="$IFS"
+        local IFS=$'\n' ; tr_dump_str=${tr_dump_list[*]} ; IFS="$tr_old_ifs"
+        local tr_extglob=0
+        shopt -q extglob || { shopt -s extglob ; tr_extglob=1 ; }
+        tr_dump_str=${tr_dump_str//$'\n'*( )|/'\n'}
+        ((tr_extglob)) && shopt -u extglob
+        mapfile -t tr_dump_list <<<"$tr_dump_str"
+    fi
 
     local -a tr_path_stack=("$X") tr_leafs=()
     local -A tr_array_indexs=()
@@ -3348,89 +3425,13 @@ x_rebuild_from_dump ()
     #   a_leaf 数组叶子
     #   d_leaf 字典叶子
     local -a tr_lev=() tr_type=() tr_key=() tr_value=()
-    mapfile -t tr_dump_list <<<"$tr_dump_str"
-
-    _x_rebuild_from_dump_get_dict_kv ()
-    {
-        local tr_out_a=()
-        local -i tr_begin=0
-        local tr_s= tr_out= tr_rest=${tr_dump_list[tr_i]}
-        while [[ -n "$tr_rest" ]] ; do
-            tr_s=${tr_rest:0:1}
-            tr_rest=${tr_rest:1}
-            ((tr_begin)) || {
-                if [[ "$tr_s" == '{' ]] ; then tr_begin=1 ; fi
-                continue
-            }
-
-            if [[ "$tr_s" == '\' ]] ; then
-                tr_out_a+=("$tr_s")
-                if [[ -n "$tr_rest" ]] ; then
-                    tr_out_a+=("${tr_rest:0:1}")
-                    tr_rest=${tr_rest:1}
-                fi
-                continue
-            fi
-
-            [[ "$tr_s" == '}' ]] && break
-            tr_out_a+=("$tr_s")
-        done
-
-        printf -v tr_out "%s" "${tr_out_a[@]}"
-            #@if current_shell_process_replace==1
-        tr_out=${|str_unescape "$tr_out";}
-            #@endif
-            #@if current_shell_process_replace==0
-        str_unescape "$tr_out" ; eval "${_ret_s/o/tr_out}"
-            #@endif
-
-        tr_key[tr_i]="{$tr_out}$X"
-        
-        # 函数如果返回 0 表示有值(是叶子字典)
-        # 函数如果返回 1 表示无值(是字典树)
-        if [[ "$tr_rest" == *'=>'* ]] ; then
-                # 把值写了
-                tr_out=${tr_rest#*'=> '}
-                #@if current_shell_process_replace==1
-            tr_out=${|str_unescape "$tr_out";}
-                #@endif
-                #@if current_shell_process_replace==0
-            str_unescape "$tr_out" ; eval "${_ret_s/o/tr_out}"
-                #@endif
-            tr_value[tr_i]=$tr_out
-            return 0
-        else
-            return 1
-        fi
-    }
-
-    _x_rebuild_from_dump_get_array ()
-    {
-        # 数组的 key 在这里没有意义，我们只返回值
-        # 函数如果返回 0 表示有值(是叶子数组)
-        # 函数如果返回 1 表示无值(是数组树)
-
-        local tr_out=${tr_dump_list[tr_i]}
-        if [[ "$tr_out" == *'='* ]] ; then
-            tr_out=${tr_out#*'= '}
-                #@if current_shell_process_replace==1
-            tr_out=${|str_unescape "$tr_out";}
-                #@endif
-                #@if current_shell_process_replace==0
-            str_unescape "$tr_out" ; eval "${_ret_s/o/tr_out}"
-                #@endif
-            tr_value[tr_i]=$tr_out
-            return 0
-        else
-            return 1
-        fi
-    }
 
     local tr_i tr_ret
     for ((tr_i=1;tr_i<${#tr_dump_list[@]};tr_i++)) ; do
         tr_indent=${tr_dump_list[tr_i]%%[! ]*}
         tr_lev[tr_i]=$((${#tr_indent}/tr_indent_cnt))
-        if [[ "${tr_dump_list[tr_i]}" == *( )'{'* ]] ; then
+        # if [[ "${tr_dump_list[tr_i]}" == *( )'{'* ]] ; then
+        if [[ "${tr_dump_list[tr_i]:${#tr_indent}:1}" == '{' ]] ; then
             # 字典
             _x_rebuild_from_dump_get_dict_kv ; tr_ret=$?
             if [[ "$tr_ret" == '0' ]] ; then

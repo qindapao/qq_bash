@@ -1731,6 +1731,8 @@ t1(1) ->
 
     local get_1=$(x_dump t1 '' 4 2)
     local get_2=$(x_dump t2 '' 4 2)
+    time x_dump t1 '' 4 2
+    time x_dump t2 '' 4 2
     # declare -p get_1 get_2
     if [[ "$get_1" == "$spec_str1" &&
         "$get_2" == "$spec_str2" ]] ; then
