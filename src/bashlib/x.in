@@ -7,16 +7,26 @@
 . "${BASH_SOURCE[0]%/*}/meta.sh"
 
 # ================================================================================
-# Importantly, if you want to save x data, it is recommended to directly
-# serialize it into JSON standard format(x_to_json), and then convert JSON
-# into x(x_from_json) before use. Because the implementation details inside
-# the tree may change, If directly `declare -p tree` saves it to a file and reuses
-# it through the source method. If the implementation details of the tree change,
-# it will cause failure.
+# Importantly, if you want to save x data, there are two recommended ways:
+#
+#   1. Serialize it into JSON standard format (x_to_json), and convert the
+#      JSON back into x (x_from_json) before use.
+#
+#   2. Use the native dump format: dump the tree (which yields a stable,
+#      human-readable text representation), and rebuild the tree from that
+#      dump with x_rebuild_from_dump before use.
+#
+# Both of the above rely only on stable, documented formats, so they keep
+# working even if the internal implementation of the tree changes.
+#
+# Do NOT save a tree by `declare -p tree` to a file and restore it via the
+# `source` method. That depends on the internal implementation details of
+# the tree; if those details change, restoring will fail.
+#
 # All variable names in the library start with tr_.
 # Be careful to avoid external variables.
 # tr_
-# ================================================================================
+#================================================================================
 
 #-------------------------------------------------------------------------------
 
@@ -911,16 +921,7 @@ x_insert ()
     local tr_node=${tr_start_node_id}
 
     # Record the ID key of the created intermediate node, all need to be deleted
-    local -a tr_tmp_node_ids=()
-
-    _x_insert_delete_tmp_node_ids ()
-    {
-        local tr_tmp_node
-
-        for tr_tmp_node in "${tr_tmp_node_ids[@]}" ; do
-            unset -v 'tr_t[$tr_tmp_node]'
-        done
-    }
+    local -A tr_tmp_node_ids_map=()
 
     for tr_token in "${tr_tokens[@]}" ; do
         local tr_key="${tr_t[$tr_node.k]}"
@@ -937,14 +938,13 @@ x_insert ()
                 unset -v 'tr_t[$tr_key]'
                 tr_t[$tr_node.t]=$X_TYPE_OBJ
             # If tr_node has only node tags, then turn it into empty obj
-            elif [[ ${tr_t[$tr_node]+_} ]] &&
+            elif [[ ${tr_tmp_node_ids_map[$tr_node]+_} ]] &&
                 [[ -z ${tr_t[$tr_node.k]+_} ]] &&
                 [[ -z ${tr_t[$tr_node.s]+_} ]] &&
                 [[ "${tr_t[$tr_node.t]}" != "$X_TYPE_ARR" ]] ; then
                 tr_t[$tr_node.t]=$X_TYPE_OBJ
             else
                 die ERR "node:${tr_node}(token:${tr_token@Q}) is not obj or null."
-                _x_insert_delete_tmp_node_ids
                 return $X_RET_ENUM_KEY_UP_LEV_TYPE_MISMATCH
             fi
             ;;
@@ -955,7 +955,7 @@ x_insert ()
                 unset -v 'tr_t[$tr_key]'
                 tr_t[$tr_node.t]=$X_TYPE_ARR
             # Contains only node existence flags
-            elif [[ ${tr_t[$tr_node]+_} ]] &&
+            elif [[ ${tr_tmp_node_ids_map[$tr_node]+_} ]] &&
                 [[ -z ${tr_t[$tr_node.k]+_} ]] &&
                 [[ -z ${tr_t[$tr_node.s]+_} ]] &&
                 [[ "${tr_t[$tr_node.t]}" != "$X_TYPE_OBJ" ]] ; then
@@ -964,7 +964,6 @@ x_insert ()
 
             [[ "${tr_t[$tr_node.t]}" != "$X_TYPE_ARR" ]] && {
                 die ERR "node:${tr_node}(token:${tr_token@Q}) up layer is not array or null."
-                _x_insert_delete_tmp_node_ids
                 return $X_RET_ENUM_KEY_UP_LEV_TYPE_MISMATCH
             }
 
@@ -982,13 +981,12 @@ x_insert ()
             eval "${_ret_s_/o/tr_token}"
                 #@endif
             ((tr_token_ret)) && {
-                _x_insert_delete_tmp_node_ids
                 return $tr_token_ret
             }
 
             for((tr_i=tr_array_len;tr_i<${tr_token:1:-1};tr_i++)) ; do
                 local tr_new_id=${tr_t[max_index]} ; ((tr_t[max_index]++))
-                # tr_t[$tr_new_id]=1
+                # tr_tmp_node_ids_map[$tr_new_id]=1
                 tr_t[$tr_new_id.k]="$tr_path_key<$tr_new_id>$X"
                 tr_t["$tr_path_key<$tr_new_id>$X"]="$X_VALUE_NULL"
                 # Attach parent node children
@@ -1018,7 +1016,6 @@ x_insert ()
             # The previous level must be an array and elements must exist
             if [[ "${tr_t[$tr_node.t]}" != "$X_TYPE_ARR" ]] ; then
                 die ERR "node:${tr_node}(token:${tr_token@Q}) up layer is not array."
-                _x_insert_delete_tmp_node_ids
                 return $X_RET_ENUM_KEY_UP_LEV_TYPE_MISMATCH
             fi
 
@@ -1028,7 +1025,6 @@ x_insert ()
                [[ -z "${tr_t[$tr_ref_id.t]+_}" ]] && \
                [[ -z "${tr_t[$tr_ref_id.s]+_}" ]] ; then
                 die ERR "node:${tr_node}(token:${tr_token@Q}) is not exist."
-                _x_insert_delete_tmp_node_ids
                 return $X_RET_ENUM_KEY_UP_LEV_TYPE_MISMATCH
             fi
             ;;
@@ -1056,8 +1052,7 @@ x_insert ()
                 tr_child_id="${tr_t[max_index]}" ; ((tr_t[max_index]++))
                 tr_t["$tr_child_key"]=$tr_child_id    # 对象键才建 .c.
             fi
-            tr_t[$tr_child_id]=1
-            tr_tmp_node_ids+=("$tr_child_id")
+            tr_tmp_node_ids_map[$tr_child_id]=1
 
             local -a "tr_children=(${tr_t[$tr_node.s]})"
             
@@ -1089,7 +1084,6 @@ x_insert ()
     # and the leaf is not allowed to be inserted.
     [[ -n "${tr_t[$tr_node.s]}" ]] && {
         die ERR "node:${tr_node}(token:${tr_token@Q}) have children."
-        _x_insert_delete_tmp_node_ids
         return $X_RET_ENUM_KEY_UP_LEV_TYPE_MISMATCH
     }
 
@@ -1099,14 +1093,12 @@ x_insert ()
     if  [[ "${tr_t[$tr_node.t]}" == "$X_TYPE_OBJ" ]] &&
         [[ "$tr_value" != "$X_VALUE_NULL_OBJ" ]] ; then
         die ERR "node:${tr_node}(token:${tr_token@Q}) is null obj,but insert is not."
-        _x_insert_delete_tmp_node_ids
         return $X_RET_ENUM_KEY_UP_LEV_TYPE_MISMATCH
     fi
 
     if  [[ "${tr_t[$tr_node.t]}" == "$X_TYPE_ARR" ]] &&
         [[ "$tr_value" != "$X_VALUE_NULL_ARR" ]] ; then
         die ERR "node:${tr_node}(token:${tr_token@Q}) is null array,but insert is not."
-        _x_insert_delete_tmp_node_ids
         return $X_RET_ENUM_KEY_UP_LEV_TYPE_MISMATCH
     fi
 
@@ -1120,7 +1112,6 @@ x_insert ()
             # 返回节点 ID
             tr_insert_reply=("$tr_node" "$tr_path_key")
             REPLY=${tr_insert_reply[*]@Q}
-            _x_insert_delete_tmp_node_ids
             return $X_RET_ENUM_OK
     esac
 
@@ -1133,7 +1124,6 @@ x_insert ()
     tr_t[$tr_node.t]="$tr_new_type"
     tr_insert_reply=("$tr_node" "$tr_path_key")
     REPLY=${tr_insert_reply[*]@Q}
-    _x_insert_delete_tmp_node_ids
     return $X_RET_ENUM_OK
 }
 
