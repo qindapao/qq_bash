@@ -103,6 +103,7 @@ str_is_decimal_positive_int ()
 
 str_is_decimal_int ()
 {
+    [[ "$1" == '-0' ]] && return 1
     [[ "${1:0:1}" == "-" ]] && set -- "${1:1}"
     str_is_decimal_positive_int "$1"
 }
