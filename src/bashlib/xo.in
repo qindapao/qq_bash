@@ -300,12 +300,6 @@ _xo_init_get_class_inher_chain ()
         eval "${_ret_s/o/super}"
             #@endif
 
-        if [[ -z "$super" ]] ; then
-            die ERR "Class:$cls ${var_name} has no valid {SUP}"\
-                    "line or empty SUPER!"
-            return 1
-        fi
-
         # 契约：除 Base 外，所有类的 SUPER 非空
         if [[ -z "$super" ]] ; then
             die ERR "Class:$cls SUPER is NULL (only Base have empty SUPER)!"
@@ -681,10 +675,13 @@ xo_obj_kill ()
 xo_class_methods ()
 {
     local cls=$1
-    [[ -v "${cls}Obj" ]] || {
+
+    local -n cls_obj_var="${cls}Obj"
+    ((${#cls_obj_var[@]})) || {
         die ERR "xo: class '${cls}' not defined"
         return 1
     }
+    unset -n cls_obj_var
 
     local pattern
     printf -v pattern '!%s_[!_]*' "$cls"

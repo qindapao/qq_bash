@@ -1865,7 +1865,7 @@ x_iter ()
             # Empty objects and empty arrays return simulated values
             case "$tr_type" in
             $X_NODE_KIND_OBJ_EMPTY)    tr_value_p="$X_VALUE_NULL_OBJ" ;;
-            $X_NODE_KIND_ARR_EMPTY)    tr_value_p=$"$X_VALUE_NULL_ARR" ;;
+            $X_NODE_KIND_ARR_EMPTY)    tr_value_p="$X_VALUE_NULL_ARR" ;;
             esac
             tr_value_p=${tr_value_p@Q}
         else
