@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 # STRAFE_BASH — horizontal terminal shooter built on x.sh + xo.sh
 
-# strafe_bash.sh 开头
 : "${STRAFE_LIB_HOME:=../bashlib}"
 . "$STRAFE_LIB_HOME/xo.sh"
 
@@ -11,6 +10,7 @@ cursor_hide  () { printf '%s[?25l' "$ESC" ; }
 cursor_show  () { printf '%s[?25h' "$ESC" ; }
 screen_clear () { printf '%s[2J%s[H' "$ESC" "$ESC" ; }
 goto         () { printf '%s[%d;%dH' "$ESC" "$1" "$2" ; }
+clear_line   () { printf '%s[K' "$ESC" ; }
 
 # ===== 类：Plane =====
 readonly PlaneStaticTemplate='
@@ -29,6 +29,7 @@ Plane_born () {
 }
 Plane_move () {
     local -n self=$1
+    goto "${self["{y}$X"]}" "${self["{x}$X"]}" ; printf ' '
     local y=$(( ${self["{y}$X"]} + $2 ))
     (( y < 2 )) && y=2
     (( y > SCREEN_H - 2 )) && y=$(( SCREEN_H - 2 ))
@@ -55,6 +56,7 @@ Bullet_born () {
 }
 Bullet_move () {
     local -n self=$1
+    goto "${self["{y}$X"]}" "${self["{x}$X"]}" ; printf ' '
     self["{x}$X"]=$(( ${self["{x}$X"]} + 1 ))
 }
 
@@ -74,6 +76,7 @@ Enemy_born () {
 }
 Enemy_move () {
     local -n self=$1
+    goto "${self["{y}$X"]}" "${self["{x}$X"]}" ; printf ' '
     self["{x}$X"]=$(( ${self["{x}$X"]} - 1 ))
 }
 
@@ -84,11 +87,15 @@ declare -a BULLETS=() ENEMIES=()
 declare PLAYER=
 
 render () {
-    screen_clear
     local -n p=$PLAYER
-    goto 1 1 ; printf 'HP:%d  SCORE:%d' "${p["{hp}$X"]}" "${p["{score}$X"]}"
+    # 刷新状态栏
+    goto 1 1 ; clear_line
+    printf 'HP:%d  SCORE:%d' "${p["{hp}$X"]}" "${p["{score}$X"]}"
+    
+    # 重绘飞机
     goto "${p["{y}$X"]}" "${p["{x}$X"]}" ; printf '%s' "${p["{symbol}$X"]}"
     unset -n p
+    
     local b e
     for b in "${BULLETS[@]}" ; do
         local -n _b=$b
@@ -115,15 +122,30 @@ main () {
     trap term_restore EXIT INT TERM
     cursor_hide
     stty -echo -icanon time 0 min 0
+    
+    # 游戏启动清屏
+    screen_clear
 
-    local tick=0 key b e
+    local tick=0 key b e fire_cd=0
+
     while : ; do
+        # 开火冷却控制
+        ((fire_cd > 0)) && ((fire_cd--))
+
         key=
-        read -rsn1 -t 0.05 key || true
+        # 防止 read 吞掉空格键
+        IFS= read -rsn1 -t 0.02 key || true
+        
         case "$key" in
             w|k) xo_call "$PLAYER" move -1 ;;
             s|j) xo_call "$PLAYER" move  1 ;;
-            ' ') xo_call "$PLAYER" fire ;;
+            ' ') 
+                # 限制连射速度，防止子弹太多卡顿
+                if (( fire_cd == 0 )); then
+                    xo_call "$PLAYER" fire 
+                    fire_cd=6
+                fi
+                ;;
             q)   break ;;
         esac
 
@@ -133,6 +155,7 @@ main () {
             xo_call "$b" move
             local -n _b=$b
             if (( ${_b["{x}$X"]} >= SCREEN_W - 1 )) ; then
+                goto "${_b["{y}$X"]}" "${_b["{x}$X"]}" ; printf ' '
                 xo_obj_kill "$b"
             else
                 alive_b+=("$b")
@@ -147,6 +170,7 @@ main () {
             xo_call "$e" move
             local -n _e=$e
             if (( ${_e["{x}$X"]} <= 1 )) ; then
+                goto "${_e["{y}$X"]}" "${_e["{x}$X"]}" ; printf ' '
                 xo_obj_kill "$e"
             else
                 alive_e+=("$e")
@@ -155,7 +179,7 @@ main () {
         done
         ENEMIES=("${alive_e[@]}")
 
-        # 碰撞：先标记，后统一 kill
+        # 碰撞检测
         local -a hit_b=() hit_e=()
         for b in "${BULLETS[@]}" ; do
             local -n _b=$b
@@ -163,7 +187,8 @@ main () {
             unset -n _b
             for e in "${ENEMIES[@]}" ; do
                 local -n _e=$e
-                if (( bx == ${_e["{x}$X"]} && by == ${_e["{y}$X"]} )) ; then
+                # 【修复量子隧穿】子弹向右，敌机向左，只要 bx >= ex 即命中！
+                if (( bx >= ${_e["{x}$X"]} && by == ${_e["{y}$X"]} )) ; then
                     hit_b+=("$b") ; hit_e+=("$e")
                     unset -n _e
                     break
@@ -171,16 +196,36 @@ main () {
                 unset -n _e
             done
         done
+
         if ((${#hit_b[@]})) ; then
-            for b in "${hit_b[@]}" ; do xo_obj_kill "$b" ; done
-            for e in "${hit_e[@]}" ; do xo_obj_kill "$e" ; done
+            for b in "${hit_b[@]}" ; do 
+                local -n _b=$b
+                goto "${_b["{y}$X"]}" "${_b["{x}$X"]}" ; printf ' '
+                unset -n _b
+                xo_obj_kill "$b" 
+            done
+            for e in "${hit_e[@]}" ; do 
+                local -n _e=$e
+                goto "${_e["{y}$X"]}" "${_e["{x}$X"]}" ; printf ' '
+                unset -n _e
+                xo_obj_kill "$e" 
+            done
+            
             local -n p=$PLAYER
             p["{score}$X"]=$(( ${p["{score}$X"]} + 10 * ${#hit_e[@]} ))
             unset -n p
-            # 重建数组（过滤掉已 kill 的）
+
+            local -A dead_b=() dead_e=()
+            for b in "${hit_b[@]}" ; do dead_b[$b]=1 ; done
+            for e in "${hit_e[@]}" ; do dead_e[$e]=1 ; done
+            
             local -a nb=() ne=()
-            for b in "${BULLETS[@]}" ; do [[ -v "$b" ]] && nb+=("$b") ; done
-            for e in "${ENEMIES[@]}" ; do [[ -v "$e" ]] && ne+=("$e") ; done
+            for b in "${BULLETS[@]}" ; do 
+                [[ -n "${dead_b[$b]+_}" ]] || nb+=("$b")
+            done
+            for e in "${ENEMIES[@]}" ; do 
+                [[ -n "${dead_e[$e]+_}" ]] || ne+=("$e")
+            done
             BULLETS=("${nb[@]}") ; ENEMIES=("${ne[@]}")
         fi
 
@@ -188,11 +233,9 @@ main () {
         (( tick++ % 10 == 0 )) && { xo_obj_born Enemy ; ENEMIES+=("$REPLY") ; }
 
         render
-        sleep 0.05
     done
 
     xo_obj_kill "$PLAYER"
 }
 
 main
-
