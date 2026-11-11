@@ -626,6 +626,36 @@ str_display_width ()
 }
 
 #-------------------------------------------------------------------------------
+# str_grep_first_line — 多行字符串里找第一个匹配行，命中即停。
+#
+# 必须逐行：[[ =~ ]] 的 (.*) 会跨行，直接对多行串匹配会吞掉后续行。
+# 用 while read 而非 mapfile：命中即 return，不读剩余行。
+#
+# @in  $1=多行字符串  $2=ERE 正则  $3=捕获组号（默认 0）
+#       group=0 → BASH_REMATCH[0]（匹配部分，非整行）
+#       group=N → 第 N 个捕获组
+# @out REPLY=命中的部分
+# @ret 0=命中  1=未命中
+#
+# 例：
+#   str_grep_first_line "$tpl" '^([ ]+)\{SUP\} => (.*)$' 2 ; super=$REPLY
+#   str_grep_first_line "$cfg" 'enable_[a-z]+'            ; echo "$REPLY"
+#-------------------------------------------------------------------------------
+str_grep_first_line ()
+{
+    REPLY=
+    local str=$1 re=$2 group=${3:-0}
+    local line
+    while IFS= read -r line ; do
+        if [[ "$line" =~ $re ]] ; then
+            REPLY=${BASH_REMATCH[group]}
+            return 0
+        fi
+    done <<< "$str"
+    return 1
+}
+
+#-------------------------------------------------------------------------------
 
 return 0
 

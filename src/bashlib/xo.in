@@ -197,6 +197,17 @@
 # Base 是唯一特例。
 
 # ---------------- 根类区域 --------------------------------------------------
+# 模板规范：
+#   {字段} => 值
+#     - "=> " 后的第一个空格是语法部分，不属于值
+#     - 值后面不要有尾随空格，否则会被当作值的一部分
+#     - 值前面不要加额外空格，否则会被当作值的一部分
+#   此规则对 {CLS} / {SUP} / {MIX} 及所有用户字段统一生效。
+#
+#   例（正确）：{CLS} => Base        -> 值为 `Base`
+#   例（正确）：{CLS} =>             -> "=> " 后无内容，值为空
+#   例（错误）：{CLS} => Base[SP]    -> 尾随空格进值，CLS 变成 "Base "
+#   例（错误）：{CLS} =>[SP][SP]Base -> 第二个空格进值，值为 " Base"
 readonly BaseStaticTemplate='
     BaseObj -> 
         {CLS} => Base
@@ -281,12 +292,17 @@ _xo_init_get_class_inher_chain ()
         cls=${var_name%StaticTemplate}
         [[ "$cls" == 'Base' ]] && continue
 
-        if [[ "${!var_name}" =~ $re ]] ; then
-            super=${BASH_REMATCH[2]}
-            # 其实这里也可以不去
-            super=${super%"${super##*[![:space:]]}"}   # 去尾随空白
-        else
-            die ERR "Class:$cls ${var_name} has no valid {SUP} line!"
+            #@if current_shell_process_replace==1
+        super=${|str_grep_first_line "${!var_name}" "$re" 2;}
+            #@endif
+            #@if current_shell_process_replace==0
+        str_grep_first_line "${!var_name}" "$re" 2
+        eval "${_ret_s/o/super}"
+            #@endif
+
+        if [[ -z "$super" ]] ; then
+            die ERR "Class:$cls ${var_name} has no valid {SUP}"\
+                    "line or empty SUPER!"
             return 1
         fi
 
@@ -365,9 +381,10 @@ _xo_init_class ()
         father=${father:1:-1}
 
         # 获取当前类对象
+        local tmpl_var="${cls}StaticTemplate"
             #@if current_shell_process_replace==1
         local obj_kv ; obj_kv=${|
-            x_rebuild_from_dump "${cls}StaticTemplate";}
+            x_rebuild_from_dump "${!tmpl_var}";}
         if (($?)) ; then
             die ERR "Class Template:${cls}StaticTemplate is invalid!"
             return 1
@@ -375,7 +392,7 @@ _xo_init_class ()
         local -A "temp_obj=($obj_kv)"
             #@endif
             #@if current_shell_process_replace==0
-        x_rebuild_from_dump "${cls}StaticTemplate" || {
+        x_rebuild_from_dump "${!tmpl_var}" || {
             die ERR "Class Template:${cls}StaticTemplate is invalid!"
             return 1
         }
@@ -540,13 +557,30 @@ _xo_obj_born_impl ()
     local cls=$2
     shift 2
 
-    # 1. 类必须存在
-    local cls_obj_var="${cls}Obj"
-    [[ -n "${!cls_obj_var+_}" ]] || {
+    # 1. 类必须存在（且类对象非空）
+    #
+    # 【为什么用 nameref + ${#arr[@]}，不用其他写法】
+    # 检查「关联数组是否存在且非空」，bash 里踩过两个坑：
+    #
+    #   x [[ -v "$var" ]]
+    #       bash 4.3+ 对数组等价于 [[ -v "$var[0]" ]]，关联数组没有键 0，
+    #       永远返回 1（明明对象存在却判不存在）。
+    #
+    #   x [[ -n "${!var+_}" ]]
+    #       同理，${!var} 展开后对关联数组检查「变量本身有没有值」，
+    #       关联数组作为整体没有值，只有键值对，永远返回空。
+    #
+    #   O local -n ref=$var ; ((${#ref[@]}))
+    #       nameref 直绑，${#ref[@]} 取元素数，非零即「存在且非空」。
+    #       同时拦住「变量不存在」和「空对象」两种情况，
+    #       比 declare -p（放过空对象）更严。
+    local -n cls_obj_var="${cls}Obj"
+    ((${#cls_obj_var[@]})) || {
         die ERR "xo: class '${cls}' not defined (did you forget to declare"\
                 "${cls}StaticTemplate or run xo_init?)"
         return 1
     }
+    unset -n cls_obj_var
 
     # 2. 句柄名未被占用（变量 / 池子）
     [[ -v "$obj" ]] && {
@@ -679,5 +713,16 @@ xo_class_methods ()
         fi
     done
 }
+
+# xo_call — 实例方法调用（热路径，每帧数十次，紧凑写法是有意的）
+# $1=对象句柄  $2=方法名  $3..=方法参数
+# 方法名约定：${{CLS}}_${方法名}，如 Dog_speak
+# bash 4.4+ 的 local -n 自动释放，无需 unset -n
+xo_call ()
+{
+    local -n o=$1
+    "${o["{CLS}$X"]}_${2}" "$1" "${@:3}"
+}
+
 return 0
 

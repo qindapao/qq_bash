@@ -3333,6 +3333,12 @@ _x_rebuild_from_dump_get_dict_kv ()
     # 函数如果返回 0 表示有值(是叶子字典)
     # 函数如果返回 1 表示无值(是字典树)
     if [[ "$tr_rest_after" == *'=>'* ]] ; then
+            # 规范：=> 后必须跟一个空格（语法空格）
+            [[ "$tr_rest_after" == *'=> '* ]] || {
+                die ERR "template line has '=>' without trailing space: ${tr_dump_list[tr_i]@Q}"
+                return 1
+            }
+
             # 把值写了
             tr_out=${tr_rest_after#*'=> '}
             #@if current_shell_process_replace==1
