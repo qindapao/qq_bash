@@ -3,18 +3,13 @@
 . ./src/bashlib/grammar.sh
 
 FILES_TO_BE_PROCESSED=(
-    "./src/bashlib/meta.in"
     "./src/bashlib/var.in"
     "./src/bashlib/str.in"
     "./src/bashlib/float.in"
     "./src/bashlib/array.in"
     "./src/bashlib/x.in"
     "./src/bashlib/xo.in"
-    "./src/bashlib/my_class.in"
-    "./src/bashlib/mid_class.in"
-    "./src/bashlib/base_class.in"
     "./test/bashlib/test_x.in"
-    "./test/bashlib/test_my_class.in"
 )
 
 clear_build_dir ()

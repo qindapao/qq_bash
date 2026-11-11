@@ -4,7 +4,6 @@
 . "${BASH_SOURCE[0]%/*}/array.sh"
 . "${BASH_SOURCE[0]%/*}/var.sh"
 . "${BASH_SOURCE[0]%/*}/str.sh"
-. "${BASH_SOURCE[0]%/*}/meta.sh"
 
 # ================================================================================
 # Importantly, if you want to save x data, there are two recommended ways:
