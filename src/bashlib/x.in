@@ -1792,7 +1792,7 @@ x_iter ()
     local -n tr_t=$1
     local tr_prefix=$2
     local -i tr_is_iter_{phy_token,type,index_token,value,node}=0
-    local tr_iter_bitmap=${3:-$((2#00011))}         
+    local tr_iter_bitmap=${3:-$((2#00011))}
     local tr_node_id=$4
     var_bitmap_unpack   "$tr_iter_bitmap"          \
                         "tr_is_iter_phy_token:0"   \
@@ -1827,7 +1827,7 @@ x_iter ()
 
     local -i tr_index=0
     local tr_parent_type=${tr_t[$tr_node_id.t]}
-    
+
     # The safest method for REPLY can only be separate assignment. If you want
     # to append a string to it, it is best to use a separate intermediate
     # variable to process it, and finally assign it to REPLY all at once,
@@ -1855,7 +1855,7 @@ x_iter ()
         else
             tr_index_tk_p=''
         fi
-        
+
         if ((tr_is_iter_value)) ; then
             tr_key="${tr_t["$tr_child_id.k"]}"
             [[ -n "$tr_key" ]] && tr_value_p=${tr_t["$tr_key"]}

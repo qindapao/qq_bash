@@ -218,7 +218,7 @@ test_case1 ()
                         "{a 1}$X{c}$X[4]$X" "xx"
         x_dump t1
         local tuple
-        local old_ifs=$IFS ; local IFS=$'\n'
+        local old_ifs=$IFS
         local -a get_info=()
         local iter_str
 
@@ -228,9 +228,10 @@ test_case1 ()
     #@if current_shell_process_replace==0
         x_iter t1 "{a 1}$X{c}$X" $((2#11111)) ; iter_str=$REPLY
     #@endif
+        local IFS=$'\n'
         for tuple in $iter_str ; do
-            IFS=$old_ifs ; eval -- set -- $tuple
-            get_info+=("$@")
+            IFS=$old_ifs
+            local -a "get_info+=($tuple)"
         done
         declare -a get_info_spec=(
             [0]="<9>" [1]="6" [2]="0" [3]="$X_VALUE_NULL" [4]="9"
@@ -873,7 +874,7 @@ test_case12 ()
     x_qinserts   t1 leaves '' \
                     "{a}$X" $'geg\ngee\n  gg\n ' \
                     "{$sp}$X" $'2333\n geg\ngge  '
-    local old_ifs=$IFS IFS=$'\n' tuple
+    local old_ifs=$IFS tuple
     local -a get_params=()
     local iter_str
 
@@ -884,9 +885,10 @@ test_case12 ()
     x_iter t1 '' $((2#11111)) ; iter_str=$REPLY
 #@endif
 
+    local IFS=$'\n'
     for tuple in $iter_str ; do
-        IFS=$old_ifs ; local -a "tuple=($tuple)"
-        get_params+=("${tuple[@]}")
+        IFS=$old_ifs
+        local -a "get_params+=($tuple)"
     done
     local -a param_spec=(
         [5]=$'{\ngeg geg\n ge\ng  ge  }'
