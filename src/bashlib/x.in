@@ -1428,6 +1428,24 @@ _x_dump ()
 # @out REPLY=关联数组 KV：node_id physical_full_key index_full_key type
 #             child_cnt(可选) value(可选)
 # @ret 0=OK  3=X_RET_ENUM_KEY_IS_NOTFOUND  4=X_RET_ENUM_KEY_IS_INVALID
+#
+# :TODO: 性能优化（当前不做的原因 + 将来怎么改）
+#
+# 【为什么现在不优化】
+#   - 本函数只在初始化/低频场景调用，单次 60-100 微秒开销完全可接受。
+#   - 改造会牵动 11 处调用点，维护成本 > 收益。
+#
+# 【将来如果非要优化，采用“隐式作用域契约”极速版】
+#   1. 约定死一个变量名，比如 `x_tk_info_mps`。
+#   2. 调用方必须先声明：local -A x_tk_info_mps=()
+#   3. 本函数内部直接写 `x_tk_info_mps[node_id]=...`，
+#      连 local -n 都不用，利用 Bash 动态作用域直接命中调用方变量。
+#
+# 【绝对红线警告】
+#   此方案严禁任何形式的嵌套/递归调用！必须保证任意时刻调用栈里
+#   只有一个函数在使用 `x_tk_info_mps`，否则内层调用会直接覆盖外层数据。
+#   如非遇到真正的性能瓶颈，不要启用此方案。
+#
 _x_token_to_node_id ()
 {
     REPLY=
