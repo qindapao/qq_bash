@@ -21,32 +21,115 @@ C_YELLOW=$'\033[38;5;226m'
 C_GREEN=$'\033[38;5;46m'
 C_PURPLE=$'\033[38;5;129m'
 C_MAGENTA=$'\033[38;5;201m'
+C_CYAN=$'\033[38;5;51m'
+
+# ===== 边框字符 =====
+FRAME_H='─'
+FRAME_V='│'
+FRAME_TL='┌'
+FRAME_TR='┐'
+FRAME_BL='└'
+FRAME_BR='┘'
 
 # ===== 全局 =====
 SCREEN_W=$(tput cols 2>/dev/null)  ; [[ -z "$SCREEN_W" ]] && SCREEN_W=80
-(( SCREEN_W > 120 )) && SCREEN_W=120
+(( SCREEN_W > 160 )) && SCREEN_W=160
 SCREEN_H=$(tput lines 2>/dev/null) ; [[ -z "$SCREEN_H" ]] && SCREEN_H=24
-(( SCREEN_H > 40 )) && SCREEN_H=40
+(( SCREEN_H > 60 )) && SCREEN_H=60
 STRAFE_SAVE_FILE="${STRAFE_SAVE_FILE:-./.strafe_save}"
-GAME_TOP=4
+GAME_TOP=5
 FPS=50
+TICK_US=$(( 1000000 / FPS ))
+ENEMY_LIMIT=20
+DROP_LIMIT=8
+WORD_LIMIT=2
 
 BONUS_T2=$(( 60 * FPS ))
 BONUS_T3=$(( 50 * FPS ))
 BONUS_T4=$(( 40 * FPS ))
 BONUS_T5=$(( 30 * FPS ))
 BONUS_MT=$(( 30 * FPS ))
+BONUS_LT=$(( 60 * FPS ))
+BONUS_ST=$(( 30 * FPS ))
 
 declare -a BULLETS=() ENEMIES=() DROPS=() ENEMY_BULLETS=() MISSILES=()
 declare -a BOMB_FX_POS=()
-declare -a BOSS_FX_POS=()
-declare BOSS_FX_CX=0 BOSS_FX_CY=0
+declare -a BOSS_DEATH_POS=()
+declare -i BOSS_DEATH_TICK=0
+declare -a CLEAR_BATCH=()
+declare -a WORDS=()
 declare PLAYER=
 
+# ===== Locale 检测 =====
+LOCALE_UTF8=0
+case "${LC_ALL:-${LC_CTYPE:-$LANG}}" in
+    *UTF-8*|*utf8*|*UTF8*) LOCALE_UTF8=1 ;;
+esac
+
+# ===== 箴言词库 =====
+declare -a WORD_LIST=(
+    'Time is money, my friend!'
+    'Stay hungry, stay foolish.'
+    'Hello, world!'
+    'To be or not to be.'
+    'All you need is love.'
+    'I am your father.'
+    'May the force be with you.'
+    'Keep calm and carry on.'
+    'Just do it.'
+    'Less is more.'
+    'Talk is cheap. Show me the code.'
+    'Premature optimization is the root of all evil.'
+    'The best way out is always through.'
+    'Code is poetry.'
+    'Simplicity is the soul of efficiency.'
+)
+
+# 中文词条
+if (( LOCALE_UTF8 )) ; then
+    # WORD_LIST+=(
+    #     '千里之行，始于足下'
+    #     '不积跬步，无以至千里'
+    #     '工欲善其事，必先利其器'
+    #     '三人行，必有我师焉'
+    #     '天行健，君子以自强不息'
+    #     '海内存知己 天涯若比邻'
+    #     '宝剑锋从磨砺出，梅花香自苦寒来'
+    #     '长风破浪会有时，直挂云帆济沧海'
+    #     '山重水复疑无路，柳暗花明又一村'
+    #     '路漫漫其修远兮，吾将上下而求索'
+    # )
+
+    # 英文中文宽度需要字体支持，所以默认不开启。
+    WORD_LIST+=(
+        'Stay curious, keep learning.'
+    )
+fi
+
+PLANE_ART_BASE=$'o|o\n-\'-'
+PLANE_ART_SHIELD=$' .-----.\n/  o|o  \\\n   _._   '
+
 BOSS_ART_100=$'    _____    \n   /     \\   \n  /  O O  \\  \n  \\_|_|_|_/  \n   \\_____/   '
-BOSS_ART_70=$'    _____    \n   /     \\   \n  /  O O  \\  \n  \\_|_|_/    \n   \\_____/   '
-BOSS_ART_50=$'    _____    \n   /     \\   \n  /  O O  \\  \n  \\_|_/      \n   \\_____/   '
-BOSS_ART_20=$'    _____    \n   /     \\   \n  /  O O  \\  \n  \\_______/  \n   \\_____/   '
+BOSS_ART_70=$'    _____    \n   /     \\   \n  /  X O  \\  \n  \\_|_|_._/  \n   \\_____/   '
+BOSS_ART_50=$'    _____    \n   /     \\   \n  /  X X  \\  \n  \\_._|_._/  \n   \\_____/   '
+BOSS_ART_20=$'    _____    \n   /     \\   \n  /  x X  \\  \n  \\_._._._/  \n   \\_____/   '
+
+# ===== 边框绘制 =====
+draw_frame () {
+    local _w=$SCREEN_W _h=$SCREEN_H
+    local _i _hline=''
+    for (( _i=0 ; _i<_w-2 ; _i++ )) ; do _hline+="$FRAME_H" ; done
+    local _out='' _t
+    printf -v _t '\033[1;1H%s%s%s' "$FRAME_TL" "$_hline" "$FRAME_TR"
+    _out+=$_t
+    printf -v _t '\033[%d;1H%s%s%s' "$_h" "$FRAME_BL" "$_hline" "$FRAME_BR"
+    _out+=$_t
+    for (( _i=2 ; _i<_h ; _i++ )) ; do
+        printf -v _t '\033[%d;1H%s\033[%d;%dH%s' "$_i" "$FRAME_V" "$_i" "$_w" "$FRAME_V"
+        _out+=$_t
+    done
+    printf '%s' "$_out"
+}
 
 # ===== BulletType =====
 readonly BulletTypeStaticTemplate='
@@ -73,6 +156,8 @@ readonly BulletStaticTemplate='
         {y} => 0
         {symbol} => .
         {damage} => 1
+        {vx} => 0
+        {vy} => -1
     '
 Bullet_born () {
     local -n self=$1
@@ -80,14 +165,17 @@ Bullet_born () {
     self["{y}$X"]=$3
     self["{symbol}$X"]=$4
     self["{damage}$X"]=$5
+    self["{vx}$X"]=${6:-0}
+    self["{vy}$X"]=${7:--1}
 }
 Bullet_move () {
     local -n self=$1
-    printf '\033[%d;%dH ' "${self["{y}$X"]}" "${self["{x}$X"]}"
-    self["{y}$X"]=$(( ${self["{y}$X"]} - 1 ))
+    CLEAR_BATCH+=("${self["{y}$X"]}" "${self["{x}$X"]}")
+    self["{x}$X"]=$(( ${self["{x}$X"]} + ${self["{vx}$X"]} ))
+    self["{y}$X"]=$(( ${self["{y}$X"]} + ${self["{vy}$X"]} ))
 }
 
-# ===== Missile（横向分量加强，撞边消失） =====
+# ===== Missile =====
 readonly MissileStaticTemplate='
     MissileObj ->
         {CLS} => Missile
@@ -114,7 +202,6 @@ Missile_move () {
     local _x=${self["{x}$X"]} _y=${self["{y}$X"]}
     printf '\033[%d;%dH ' "$_y" "$_x"
 
-    # 40% 概率转向：上 50% / 左 25% / 右 25%
     if (( RANDOM % 10 < 4 )) ; then
         local _r=$(( RANDOM % 20 ))
         if (( _r < 10 )) ; then
@@ -138,7 +225,6 @@ Missile_move () {
     elif (( _vx > 0 )) ; then self["{symbol}$X"]='>'
     fi
 
-    # 撞左右上边界消失
     (( _x < 2 )) && return 1
     (( _x > SCREEN_W - 2 )) && return 1
     (( _y < GAME_TOP )) && return 1
@@ -177,6 +263,61 @@ EnemyBullet_move () {
     return 0
 }
 
+# ===== Word =====
+readonly WordStaticTemplate='
+    WordObj ->
+        {CLS} => Word
+        {SUP} => Base
+        {MIX} => 
+        {x} => 0
+        {y} => 0
+        {text} => 
+        {len} => 0
+        {vx} => 0
+        {cd} => 0
+    '
+Word_born () {
+    local -n self=$1
+    self["{text}$X"]=$2
+    local _w
+    str_display_width "$2" _w
+    self["{len}$X"]=$_w
+    self["{y}$X"]=$GAME_TOP
+    local _maxx=$(( SCREEN_W - 3 - _w ))
+    (( _maxx < 2 )) && _maxx=2
+    self["{x}$X"]=$(( RANDOM % (_maxx - 2 + 1) + 2 ))
+    self["{vx}$X"]=0
+    self["{cd}$X"]=0
+}
+Word_move () {
+    local -n self=$1
+    local cd=$(( ${self["{cd}$X"]} + 1 ))
+    (( cd < 4 )) && { self["{cd}$X"]=$cd ; return 0 ; }
+    self["{cd}$X"]=0
+
+    local _x=${self["{x}$X"]} _y=${self["{y}$X"]} _len=${self["{len}$X"]}
+
+    # 擦除：钳制到 SCREEN_W - 1，绝不覆盖右边框
+    local _len_eff=$_len
+    (( _x + _len_eff > SCREEN_W - 1 )) && _len_eff=$(( SCREEN_W - 1 - _x ))
+    (( _len_eff < 0 )) && _len_eff=0
+    (( _len_eff > 0 )) && printf '\033[%d;%dH%*s' "$_y" "$_x" "$_len_eff" ''
+
+    if (( RANDOM % 4 == 0 )) ; then
+        self["{vx}$X"]=$(( (RANDOM % 3) - 1 ))
+    fi
+    local vx=${self["{vx}$X"]}
+    local nx=$(( _x + vx ))
+    (( nx < 2 )) && { nx=2 ; self["{vx}$X"]=0 ; }
+    local _maxx=$(( SCREEN_W - 3 - _len ))
+    (( nx > _maxx )) && { nx=$_maxx ; self["{vx}$X"]=0 ; }
+    self["{x}$X"]=$nx
+
+    self["{y}$X"]=$(( _y + 1 ))
+    (( ${self["{y}$X"]} >= SCREEN_H - 1 )) && return 1
+    return 0
+}
+
 # ===== Plane =====
 readonly PlaneStaticTemplate='
     PlaneObj ->
@@ -188,6 +329,7 @@ readonly PlaneStaticTemplate='
         {w} => 3
         {h} => 2
         {art} => 
+        {al} => 1
         {hp} => 20
         {score} => 0
         {symbol} => ^
@@ -198,40 +340,23 @@ readonly PlaneStaticTemplate='
         {t4} => 0
         {t5} => 0
         {mt} => 0
+        {lanes} => 0
+        {lanes_side} => 0
+        {lt} => 0
+        {shield} => 0
+        {st} => 0
     '
 Plane_born () {
     local -n self=$1
     self["{x}$X"]=$(( SCREEN_W / 2 ))
     self["{y}$X"]=$(( SCREEN_H - 2 ))
-    self["{art}$X"]="o|o"$'\n'"-'-"
+    self["{art}$X"]="$PLANE_ART_BASE"
+    self["{al}$X"]=1
 }
 Plane_kill () {
     local -n self=$1
     local bt=${self["{bullet}$X"]}
     [[ -n "$bt" && -n "${XO_OBJ_POOL[$bt]+_}" ]] && xo_obj_kill "$bt"
-}
-Plane_move () {
-    local -n self=$1
-    local dx=${2:-0} dy=${3:-0}
-    _art_clear_at ${self["{y}$X"]} $(( ${self["{x}$X"]} - 1 )) "${self["{art}$X"]}"
-    local x=$(( ${self["{x}$X"]} + dx ))
-    local y=$(( ${self["{y}$X"]} + dy ))
-    (( x < 2 )) && x=2
-    (( x > SCREEN_W - 2 )) && x=$(( SCREEN_W - 2 ))
-    (( y < GAME_TOP )) && y=$GAME_TOP
-    (( y > SCREEN_H - 2 )) && y=$(( SCREEN_H - 2 ))
-    self["{x}$X"]=$x
-    self["{y}$X"]=$y
-}
-Plane_fire () {
-    local -n self=$1
-    local bt=${self["{bullet}$X"]}
-    local -n bt_obj=$bt
-    local sym=${bt_obj["{symbol}$X"]}
-    local dmg=${bt_obj["{damage}$X"]}
-    unset -n bt_obj
-    xo_obj_born Bullet "${self["{x}$X"]}" $(( ${self["{y}$X"]} - 1 )) "$sym" "$dmg"
-    BULLETS+=("$REPLY")
 }
 
 _art_clear_at () {
@@ -247,6 +372,124 @@ _art_clear_at () {
         printf '\033[%d;%dH%*s' $((ay + r)) "$ax" "${#line}" ''
         ((r++))
     done
+}
+
+_plane_clear () {
+    local p=$1
+    local -n _pl_self=$p
+    local _atop=${_pl_self["{y}$X"]}
+    (( ${_pl_self["{shield}$X"]:-0} )) && _atop=$(( _atop - 1 ))
+    _art_clear_at "$_atop" $(( ${_pl_self["{x}$X"]} - ${_pl_self["{al}$X"]} )) "${_pl_self["{art}$X"]}"
+    unset -n _pl_self
+}
+
+_plane_set_shield () {
+    local p=$1 on=$2
+    local -n self=$p
+    _plane_clear "$p"
+    if (( on )) ; then
+        self["{art}$X"]="$PLANE_ART_SHIELD"
+        self["{al}$X"]=4
+        self["{shield}$X"]=1
+        self["{st}$X"]=$BONUS_ST
+        local y=${self["{y}$X"]}
+        (( y < GAME_TOP + 1 )) && self["{y}$X"]=$(( GAME_TOP + 1 ))
+        local x=${self["{x}$X"]}
+        (( x < 6 )) && self["{x}$X"]=6
+        (( x > SCREEN_W - 6 )) && self["{x}$X"]=$(( SCREEN_W - 6 ))
+    else
+        self["{art}$X"]="$PLANE_ART_BASE"
+        self["{al}$X"]=1
+        self["{shield}$X"]=0
+        self["{st}$X"]=0
+    fi
+    unset -n self
+}
+
+Plane_move () {
+    local -n self=$1
+    local dx=${2:-0} dy=${3:-0}
+    _plane_clear "$1"
+    local _al=${self["{al}$X"]:-1}
+    local _sh=${self["{shield}$X"]:-0}
+    local x=$(( ${self["{x}$X"]} + dx ))
+    local y=$(( ${self["{y}$X"]} + dy ))
+    local _minx=$(( _al + 2 ))
+    local _maxx=$(( SCREEN_W - _al - 2 ))
+    (( x < _minx )) && x=$_minx
+    (( x > _maxx )) && x=$_maxx
+    local _miny=$GAME_TOP
+    (( _sh )) && _miny=$(( GAME_TOP + 1 ))
+    (( y < _miny )) && y=$_miny
+    (( y > SCREEN_H - 2 )) && y=$(( SCREEN_H - 2 ))
+    self["{x}$X"]=$x
+    self["{y}$X"]=$y
+    unset -n self
+}
+
+Plane_fire () {
+    local -n self=$1
+    local bt=${self["{bullet}$X"]}
+    local -n bt_obj=$bt
+    local sym=${bt_obj["{symbol}$X"]}
+    local dmg=${bt_obj["{damage}$X"]}
+    unset -n bt_obj
+
+    local _fx=${self["{x}$X"]}
+    local _fy=$(( ${self["{y}$X"]} - 1 ))
+    local _lanes=${self["{lanes}$X"]:-0}
+    local _side=${self["{lanes_side}$X"]:-0}
+    local _is_laser=0
+    [[ "$sym" == "|" ]] && _is_laser=1
+
+    xo_obj_born Bullet "$_fx" "$_fy" "$sym" "$dmg" 0 -1
+    BULLETS+=("$REPLY")
+
+    if (( _lanes >= 1 )) ; then
+        local _do_l=0 _do_r=0
+        if (( _lanes == 1 )) ; then
+            if (( _side == 0 )) ; then _do_l=1 ; else _do_r=1 ; fi
+        else
+            _do_l=1 ; _do_r=1
+        fi
+        if (( _do_l )) ; then
+            local _lsym="$sym"
+            (( _is_laser )) && _lsym='\'
+            xo_obj_born Bullet "$_fx" "$_fy" "$_lsym" "$dmg" -1 -1
+            BULLETS+=("$REPLY")
+        fi
+        if (( _do_r )) ; then
+            local _rsym="$sym"
+            (( _is_laser )) && _rsym='/'
+            xo_obj_born Bullet "$_fx" "$_fy" "$_rsym" "$dmg" 1 -1
+            BULLETS+=("$REPLY")
+        fi
+    fi
+
+    if (( _lanes >= 3 )) ; then
+        local _do_ol=0 _do_or=0
+        if (( _lanes == 3 )) ; then
+            if (( _side == 0 )) ; then _do_ol=1 ; else _do_or=1 ; fi
+        else
+            _do_ol=1 ; _do_or=1
+        fi
+        if (( _do_ol )) ; then
+            local _losym="$sym"
+            (( _is_laser )) && _losym='-'
+            local _lox=$(( _fx - 2 ))
+            (( _lox < 2 )) && _lox=2
+            xo_obj_born Bullet "$_lox" "$_fy" "$_losym" "$dmg" -1 0
+            BULLETS+=("$REPLY")
+        fi
+        if (( _do_or )) ; then
+            local _rosym="$sym"
+            (( _is_laser )) && _rosym='-'
+            local _rox=$(( _fx + 2 ))
+            (( _rox > SCREEN_W - 2 )) && _rox=$(( SCREEN_W - 2 ))
+            xo_obj_born Bullet "$_rox" "$_fy" "$_rosym" "$dmg" 1 0
+            BULLETS+=("$REPLY")
+        fi
+    fi
 }
 
 # ===== Enemy 基类 =====
@@ -393,7 +636,7 @@ EnemyM_move () {
     self["{cd}$X"]=0
     local _ay=${self["{y}$X"]} _ax=${self["{x}$X"]} _w=${self["{w}$X"]} _h=${self["{h}$X"]}
     _art_clear_at "$_ay" "$_ax" "${self["{art}$X"]}"
-    (( _ay + _h < SCREEN_H )) && { printf '\033[%d;%dH%*s' $((_ay + _h)) "$_ax" 15 '' ; }
+    (( _ay + _h < SCREEN_H )) && { printf '\033[%d;%dH\033[K\033[%d;%dH%s' $((_ay + _h)) "$_ax" $((_ay + _h)) "$SCREEN_W" "$FRAME_V" ; }
     (( RANDOM % 3 == 0 )) && {
         local dx=$(( (RANDOM % 2) * 2 - 1 ))
         local x=$(( _ax + dx ))
@@ -437,7 +680,7 @@ EnemyB_move () {
     self["{cd}$X"]=0
     local _ay=${self["{y}$X"]} _ax=${self["{x}$X"]} _w=${self["{w}$X"]} _h=${self["{h}$X"]}
     _art_clear_at "$_ay" "$_ax" "${self["{art}$X"]}"
-    (( _ay + _h < SCREEN_H )) && { printf '\033[%d;%dH%*s' $((_ay + _h)) "$_ax" 15 '' ; }
+    (( _ay + _h < SCREEN_H )) && { printf '\033[%d;%dH\033[K\033[%d;%dH%s' $((_ay + _h)) "$_ax" $((_ay + _h)) "$SCREEN_W" "$FRAME_V" ; }
     local vx=${self["{vx}$X"]}
     (( RANDOM % 4 == 0 )) && vx=$(( (RANDOM % 3) - 1 ))
     self["{vx}$X"]=$vx
@@ -469,9 +712,9 @@ readonly BossStaticTemplate='
         {w} => 13
         {h} => 5
         {art} => 
-        {hp} => 100
-        {maxhp} => 100
-        {score} => 3000
+        {hp} => 250
+        {maxhp} => 250
+        {score} => 5000
         {cd} => 0
         {vx} => 1
         {symbol} => X
@@ -492,14 +735,10 @@ Boss_move () {
     local _hp=${self["{hp}$X"]} _maxhp=${self["{maxhp}$X"]}
     local _pct=$(( _hp * 100 / _maxhp ))
     local _newphase
-    if (( _pct > 70 )) ; then
-        _newphase=0
-    elif (( _pct > 50 )) ; then
-        _newphase=1
-    elif (( _pct > 20 )) ; then
-        _newphase=2
-    else
-        _newphase=3
+    if (( _pct > 70 )) ; then _newphase=0
+    elif (( _pct > 50 )) ; then _newphase=1
+    elif (( _pct > 20 )) ; then _newphase=2
+    else _newphase=3
     fi
     if (( _newphase != ${self["{phase}$X"]} )) ; then
         self["{phase}$X"]=$_newphase
@@ -512,31 +751,32 @@ Boss_move () {
     fi
 
     local cd=$(( ${self["{cd}$X"]} + 1 ))
-    if (( cd >= 6 )) ; then
+    if (( cd >= 4 )) ; then
         self["{cd}$X"]=0
         local _ay=${self["{y}$X"]} _ax=${self["{x}$X"]} _w=${self["{w}$X"]} _h=${self["{h}$X"]}
         _art_clear_at "$_ay" "$_ax" "${self["{art}$X"]}"
-        (( _ay + _h < SCREEN_H )) && { printf '\033[%d;%dH%*s' $((_ay + _h)) "$_ax" 15 '' ; }
+        (( _ay + _h < SCREEN_H )) && { printf '\033[%d;%dH\033[K\033[%d;%dH%s' $((_ay + _h)) "$_ax" $((_ay + _h)) "$SCREEN_W" "$FRAME_V" ; }
         local vx=${self["{vx}$X"]}
         local x=$(( _ax + vx ))
         if (( x < 2 )) ; then
             x=2 ; self["{vx}$X"]=1
-        elif (( x + _w > SCREEN_W - 1 )) ; then
-            x=$(( SCREEN_W - 1 - _w )) ; self["{vx}$X"]=-1
+        elif (( x + _w > SCREEN_W - 2 )) ; then
+            x=$(( SCREEN_W - 2 - _w )) ; self["{vx}$X"]=-1
         fi
         self["{x}$X"]=$x
     else
         self["{cd}$X"]=$cd
     fi
 
-    (( RANDOM % 100 < 3 )) || return 0
+    (( RANDOM % 100 < 8 )) || return 0
     local _by=$(( ${self["{y}$X"]} + ${self["{h}$X"]} ))
     local _bx=${self["{x}$X"]}
-    local _b
-    for _b in $((_bx + 4)) $((_bx + 6)) $((_bx + 8)) ; do
-        xo_obj_born EnemyBullet "$_b" "$_by" '@' 3
-        ENEMY_BULLETS+=("$REPLY")
-    done
+    xo_obj_born EnemyBullet $((_bx + 4)) "$_by" '!' 3
+    ENEMY_BULLETS+=("$REPLY")
+    xo_obj_born EnemyBullet $((_bx + 6)) "$_by" '0' 3
+    ENEMY_BULLETS+=("$REPLY")
+    xo_obj_born EnemyBullet $((_bx + 8)) "$_by" '!' 3
+    ENEMY_BULLETS+=("$REPLY")
     return 0
 }
 
@@ -581,12 +821,20 @@ draw_hud_line1 () {
         weapon=${_bt["{symbol}$X"]}
         unset -n _bt
     fi
-    printf '\033[1;1H\033[KHP:%d/%d  SCORE:%d  W:%s  BOMB:%d/5' \
-        "${p["{hp}$X"]:-0}" 20 "${p["{score}$X"]:-0}" "$weapon" "${p["{bombs}$X"]:-0}"
+    local _s
+    printf -v _s 'HP:%d/%d  SCORE:%d  W:%s  BOMB:%d/5  E:%d/%d  OBJ:%d' \
+        "${p["{hp}$X"]:-0}" 20 "${p["{score}$X"]:-0}" "$weapon" "${p["{bombs}$X"]:-0}" \
+        "${#ENEMIES[@]}" "$ENEMY_LIMIT" "${#XO_OBJ_POOL[@]}"
     unset -n p
+    local _maxw=$(( SCREEN_W - 2 ))
+    _s="${_s:0:_maxw}"
+    printf '\033[2;2H\033[K%s\033[2;%dH%s' "$_s" "$SCREEN_W" "$FRAME_V"
 }
 draw_hud_line2 () {
-    printf '\033[2;1H\033[KENEMY V:1 Q:5 M:10 B:30 BOSS:100   BULLET .:1 *:2 #:3 &:4 |:LASER   DROP H:+3 b:BOMB m:MISSILE'
+    local _s='ENEMY V:1 Q:5 M:10 B:30 BOSS:250   BULLET .:1 *:2 @:3 $:4 |:LASER   DROP H:+3 b:BOMB m:MISSILE L:LANE S:SHIELD'
+    local _maxw=$(( SCREEN_W - 2 ))
+    _s="${_s:0:_maxw}"
+    printf '\033[3;2H\033[K%s\033[3;%dH%s' "$_s" "$SCREEN_W" "$FRAME_V"
 }
 draw_bonus_hud () {
     local -n p=$PLAYER
@@ -595,17 +843,38 @@ draw_bonus_hud () {
     local t4=$(( ${p["{t4}$X"]:-0} / FPS ))
     local t5=$(( ${p["{t5}$X"]:-0} / FPS ))
     local mt=$(( ${p["{mt}$X"]:-0} / FPS ))
+    local lt=$(( ${p["{lt}$X"]:-0} / FPS ))
+    local st=$(( ${p["{st}$X"]:-0} / FPS ))
+    local lcount=$(( ${p["{lanes}$X"]:-0} + 1 ))
     unset -n p
-    printf '\033[3;1H\033[KBONUS  *:%3d  #:%3d  &:%3d  |:%3d  M:%3d' "$t2" "$t3" "$t4" "$t5" "$mt"
+    local _s
+    printf -v _s 'BONUS  *:%3d  @:%3d  $:%3d  |:%3d  M:%3d  L:%3d(%d)  S:%3d' \
+        "$t2" "$t3" "$t4" "$t5" "$mt" "$lt" "$lcount" "$st"
+    local _maxw=$(( SCREEN_W - 2 ))
+    _s="${_s:0:_maxw}"
+    printf '\033[4;2H\033[K%s\033[4;%dH%s' "$_s" "$SCREEN_W" "$FRAME_V"
 }
 
 # ===== render =====
 render () {
     local -n p=$PLAYER
+    local _hp=${p["{hp}$X"]:-0}
+    local _ph=''
+    if (( _hp >= 20 )) ; then
+        _ph=$C_BLUE
+    elif (( _hp <= 10 )) ; then
+        _ph=$C_RED
+    else
+        _ph=$C_RESET
+    fi
+
     local _px=${p["{x}$X"]} _py=${p["{y}$X"]}
     local _part=${p["{art}$X"]}
-    local _pax=$(( _px - 1 ))
+    local _al=${p["{al}$X"]:-1}
+    local _sh=${p["{shield}$X"]:-0}
+    local _pax=$(( _px - _al ))
     local _pay=$_py
+    (( _sh )) && _pay=$(( _pay - 1 ))
     local _pr=0 _prest=$_part
     while [[ -n "$_prest" ]] ; do
         local _pline=${_prest%%$'\n'*}
@@ -614,24 +883,54 @@ render () {
         else
             _prest=''
         fi
-        printf '\033[%d;%dH%s%s%s' $((_pay + _pr)) "$_pax" "$C_BLUE" "$_pline" "$C_RESET"
+        local _out='' _cur_clr='' _c _i _want
+        for (( _i=0 ; _i<${#_pline} ; _i++ )) ; do
+            _c=${_pline:_i:1}
+            if [[ "$_c" == " " ]] ; then
+                _out+=' '
+                continue
+            fi
+            if (( _sh )) ; then
+                if (( _pr == 0 )) ; then
+                    _want=$C_GREEN
+                elif (( _pr == 1 )) && [[ "$_c" != "o" && "$_c" != "|" ]] ; then
+                    _want=$C_GREEN
+                else
+                    _want=$_ph
+                fi
+            else
+                _want=$_ph
+            fi
+            if [[ "$_want" != "$_cur_clr" ]] ; then
+                _out+="$_want"
+                _cur_clr=$_want
+            fi
+            _out+="$_c"
+        done
+        _out+="$C_RESET"
+        printf '\033[%d;%dH%s' $((_pay + _pr)) "$_pax" "$_out"
         ((_pr++))
     done
     unset -n p
 
-    local b e d eb m
+    local b e d eb m w
 
-    for b in "${BULLETS[@]}" ; do
-        [[ -n "$b" && -n "${XO_OBJ_POOL[$b]+_}" ]] || continue
-        local -n _b=$b
-        local _bsym=${_b["{symbol}$X"]}
-        if [[ "$_bsym" == "|" ]] ; then
-            printf '\033[%d;%dH%s%s%s' "${_b["{y}$X"]}" "${_b["{x}$X"]}" "$C_PURPLE" "$_bsym" "$C_RESET"
-        else
-            printf '\033[%d;%dH%s' "${_b["{y}$X"]}" "${_b["{x}$X"]}" "$_bsym"
-        fi
-        unset -n _b
-    done
+    if (( ${#BULLETS[@]} )) ; then
+        local _buf='' _bt
+        for b in "${BULLETS[@]}" ; do
+            [[ -n "$b" && -n "${XO_OBJ_POOL[$b]+_}" ]] || continue
+            local -n _b=$b
+            local _bsym=${_b["{symbol}$X"]}
+            if [[ "$_bsym" == "|" || "$_bsym" == "/" || "$_bsym" == '\' || "$_bsym" == '-' ]] ; then
+                printf -v _bt '\033[%d;%dH%s%s%s' "${_b["{y}$X"]}" "${_b["{x}$X"]}" "$C_PURPLE" "$_bsym" "$C_RESET"
+            else
+                printf -v _bt '\033[%d;%dH%s' "${_b["{y}$X"]}" "${_b["{x}$X"]}" "$_bsym"
+            fi
+            _buf+=$_bt
+            unset -n _b
+        done
+        [[ -n "$_buf" ]] && printf '%s' "$_buf"
+    fi
 
     for m in "${MISSILES[@]}" ; do
         [[ -n "$m" && -n "${XO_OBJ_POOL[$m]+_}" ]] || continue
@@ -661,7 +960,7 @@ render () {
 
         local _ay=${_e["{y}$X"]} _ax=${_e["{x}$X"]}
         local _h=${_e["{h}$X"]}
-        local _hp=${_e["{hp}$X"]}
+        local _hp2=${_e["{hp}$X"]}
         local _maxhp=${_e["{maxhp}$X"]}
         local _art=${_e["{art}$X"]}
         local _r=0 _rest=$_art
@@ -678,8 +977,8 @@ render () {
 
         if [[ "$_cls" == "Boss" ]] || [[ "$_cls" == "EnemyB" ]] || [[ "$_cls" == "EnemyM" ]] ; then
             if (( _ay + _h < SCREEN_H )) ; then
-                printf '\033[%d;%dH%s[%d/%d]%s' $((_ay + _h)) "$_ax" \
-                    "$_color" "$_hp" "$_maxhp" "$C_RESET"
+                printf '\033[%d;%dH\033[K%s[%d/%d]%s\033[%d;%dH%s' $((_ay + _h)) "$_ax" \
+                    "$_color" "$_hp2" "$_maxhp" "$C_RESET" $((_ay + _h)) "$SCREEN_W" "$FRAME_V"
             fi
         fi
         unset -n _e
@@ -690,6 +989,13 @@ render () {
         local -n _d=$d
         printf '\033[%d;%dH%s' "${_d["{y}$X"]}" "${_d["{x}$X"]}" "${_d["{symbol}$X"]}"
         unset -n _d
+    done
+
+    for w in "${WORDS[@]}" ; do
+        [[ -n "$w" && -n "${XO_OBJ_POOL[$w]+_}" ]] || continue
+        local -n _w=$w
+        printf '\033[%d;%dH%s%s%s' "${_w["{y}$X"]}" "${_w["{x}$X"]}" "$C_CYAN" "${_w["{text}$X"]}" "$C_RESET"
+        unset -n _w
     done
 }
 
@@ -714,30 +1020,16 @@ render_bomb_fx () {
     done
 }
 
-render_boss_fx () {
-    local i
-    for (( i=0; i<${#BOSS_FX_POS[@]}; i+=2 )) ; do
-        printf '\033[%d;%dH ' "${BOSS_FX_POS[i]}" "${BOSS_FX_POS[i+1]}"
-    done
-    BOSS_FX_POS=()
-
+render_boss_death () {
     local _chars='@#*%&!?'
-    local _colors=("$C_RED" "$C_YELLOW" "$C_ORANGE")
-    local _n=24
-    local _i2 _cx _cy _ch _ci _dx _dy
-    for (( _i2=0; _i2<_n; _i2++ )) ; do
-        _dx=$(( RANDOM % 21 - 10 ))
-        _dy=$(( RANDOM % 11 - 5 ))
-        _cx=$(( BOSS_FX_CX + _dx ))
-        _cy=$(( BOSS_FX_CY + _dy ))
-        (( _cx < 2 )) && _cx=2
-        (( _cx >= SCREEN_W - 1 )) && _cx=$(( SCREEN_W - 2 ))
-        (( _cy < GAME_TOP )) && _cy=$GAME_TOP
-        (( _cy >= SCREEN_H - 1 )) && _cy=$(( SCREEN_H - 2 ))
-        _ch=${_chars:RANDOM % ${#_chars}:1}
-        _ci=$(( RANDOM % 3 ))
+    local _colors=("$C_RED" "$C_YELLOW" "$C_ORANGE" "$C_PURPLE")
+    local i _n=${#BOSS_DEATH_POS[@]}
+    for (( i=0; i<_n; i+=2 )) ; do
+        local _cy=${BOSS_DEATH_POS[i]}
+        local _cx=${BOSS_DEATH_POS[i+1]}
+        local _ch=${_chars:RANDOM % ${#_chars}:1}
+        local _ci=$(( RANDOM % 4 ))
         printf '\033[%d;%dH%s%s%s' "$_cy" "$_cx" "${_colors[_ci]}" "$_ch" "$C_RESET"
-        BOSS_FX_POS+=("$_cy" "$_cx")
     done
 }
 
@@ -875,6 +1167,13 @@ init_game () {
     p["{t4}$X"]=0
     p["{t5}$X"]=0
     p["{mt}$X"]=0
+    p["{lanes}$X"]=0
+    p["{lanes_side}$X"]=0
+    p["{lt}$X"]=0
+    p["{shield}$X"]=0
+    p["{st}$X"]=0
+    p["{art}$X"]="$PLANE_ART_BASE"
+    p["{al}$X"]=1
 
     local old_bt=${p["{bullet}$X"]}
     [[ -n "$old_bt" && -n "${XO_OBJ_POOL[$old_bt]+_}" ]] && xo_obj_kill "$old_bt"
@@ -882,13 +1181,15 @@ init_game () {
     p["{bullet}$X"]=$REPLY
     unset -n p
 
-    local b e d eb m
+    local b e d eb m w
     for b in "${BULLETS[@]}" ; do [[ -n "${XO_OBJ_POOL[$b]+_}" ]] && xo_obj_kill "$b" ; done
     for e in "${ENEMIES[@]}" ; do [[ -n "${XO_OBJ_POOL[$e]+_}" ]] && xo_obj_kill "$e" ; done
     for d in "${DROPS[@]}" ; do [[ -n "${XO_OBJ_POOL[$d]+_}" ]] && xo_obj_kill "$d" ; done
     for eb in "${ENEMY_BULLETS[@]}" ; do [[ -n "${XO_OBJ_POOL[$eb]+_}" ]] && xo_obj_kill "$eb" ; done
     for m in "${MISSILES[@]}" ; do [[ -n "${XO_OBJ_POOL[$m]+_}" ]] && xo_obj_kill "$m" ; done
-    BULLETS=() ; ENEMIES=() ; DROPS=() ; ENEMY_BULLETS=() ; MISSILES=() ; BOMB_FX_POS=() ; BOSS_FX_POS=()
+    for w in "${WORDS[@]}" ; do [[ -n "${XO_OBJ_POOL[$w]+_}" ]] && xo_obj_kill "$w" ; done
+    BULLETS=() ; ENEMIES=() ; DROPS=() ; ENEMY_BULLETS=() ; MISSILES=() ; BOMB_FX_POS=() ; BOSS_DEATH_POS=() ; CLEAR_BATCH=() ; WORDS=()
+    BOSS_DEATH_TICK=0
 }
 
 # ===== GAME OVER =====
@@ -919,18 +1220,34 @@ game_over_screen () {
 
 # ===== 单局主循环 =====
 play_game () {
-    local b e d eb m key dx dy running=1
-    local enemy_tick=0 drop_tick=0 fire_cd=0 missile_cd=0 missile_side=0
+    local b e d eb m w key dx dy running=1
+    local enemy_tick=0 drop_tick=0 word_tick=0 fire_cd=0 missile_cd=0 missile_side=0
     local b_dry=0 boss_dry=0
     local paused=0 paused_drawn=0
     local msg= msg_tick=0
     local inv=0
     local bomb_fx_tick=0
-    local boss_fx_tick=0
     local hud_tick=0
     local last_bonus_str='__init__'
 
+    local LAST_US=${EPOCHREALTIME/./}
+    local -i ACC_US=0
+
+    screen_clear
+    draw_frame
+
     while : ; do
+        local NOW_US=${EPOCHREALTIME/./}
+        local DELTA_US=$(( NOW_US - LAST_US ))
+        LAST_US=$NOW_US
+        ACC_US=$(( ACC_US + DELTA_US ))
+        local -i DEC_TICKS=0
+        while (( ACC_US >= TICK_US )) ; do
+            ((DEC_TICKS++))
+            ACC_US=$(( ACC_US - TICK_US ))
+        done
+        (( DEC_TICKS > 100 )) && DEC_TICKS=100
+
         ((fire_cd > 0)) && ((fire_cd--))
         ((missile_cd > 0)) && ((missile_cd--))
         (( inv > 0 )) && ((inv--))
@@ -942,7 +1259,7 @@ play_game () {
         ((hud_tick++))
 
         local -n _pbh=$PLAYER
-        local _cbs="$(( ${_pbh["{t2}$X"]:-0} / FPS )) $(( ${_pbh["{t3}$X"]:-0} / FPS )) $(( ${_pbh["{t4}$X"]:-0} / FPS )) $(( ${_pbh["{t5}$X"]:-0} / FPS )) $(( ${_pbh["{mt}$X"]:-0} / FPS ))"
+        local _cbs="$(( ${_pbh["{t2}$X"]:-0} / FPS )) $(( ${_pbh["{t3}$X"]:-0} / FPS )) $(( ${_pbh["{t4}$X"]:-0} / FPS )) $(( ${_pbh["{t5}$X"]:-0} / FPS )) $(( ${_pbh["{mt}$X"]:-0} / FPS )) $(( ${_pbh["{lt}$X"]:-0} / FPS )) $(( ${_pbh["{st}$X"]:-0} / FPS )) ${_pbh["{lanes}$X"]:-0}"
         unset -n _pbh
         if [[ "$_cbs" != "$last_bonus_str" ]] ; then
             draw_bonus_hud
@@ -950,6 +1267,28 @@ play_game () {
         fi
 
         local -n _pb=$PLAYER
+        if (( DEC_TICKS > 0 )) ; then
+            local _tk _tv _new
+            for _tk in "{t2}$X" "{t3}$X" "{t4}$X" "{t5}$X" "{mt}$X" "{lt}$X" "{st}$X" ; do
+                _tv=${_pb[$_tk]:-0}
+                if (( _tv > 0 )) ; then
+                    _new=$(( _tv - DEC_TICKS ))
+                    (( _new < 0 )) && _new=0
+                    _pb["$_tk"]=$_new
+                fi
+            done
+        fi
+
+        if (( ${_pb["{lt}$X"]:-0} == 0 )) ; then
+            _pb["{lanes}$X"]=0
+        fi
+
+        if (( ${_pb["{shield}$X"]:-0} && ${_pb["{st}$X"]:-0} == 0 )) ; then
+            unset -n _pb
+            _plane_set_shield "$PLAYER" 0
+            local -n _pb=$PLAYER
+        fi
+
         local _bt=${_pb["{bullet}$X"]}
         local _sym='.'
         if [[ -n "$_bt" && -n "${XO_OBJ_POOL[$_bt]+_}" ]] ; then
@@ -957,31 +1296,25 @@ play_game () {
             _sym=${_bo["{symbol}$X"]}
             unset -n _bo
         fi
-        local _tk=''
+        local _tk_cur=''
         case "$_sym" in
-            '*') _tk="{t2}$X" ;;
-            '#') _tk="{t3}$X" ;;
-            '&') _tk="{t4}$X" ;;
-            '|') _tk="{t5}$X" ;;
+            '*') _tk_cur="{t2}$X" ;;
+            '@') _tk_cur="{t3}$X" ;;
+            '$') _tk_cur="{t4}$X" ;;
+            '|') _tk_cur="{t5}$X" ;;
         esac
-        if [[ -n "$_tk" ]] ; then
-            local _tv=${_pb[$_tk]:-0}
-            if (( _tv > 0 )) ; then
-                _pb["$_tk"]=$(( _tv - 1 ))
-                (( _tv - 1 == 0 )) && {
-                    local _old=${_pb["{bullet}$X"]}
-                    [[ -n "$_old" && -n "${XO_OBJ_POOL[$_old]+_}" ]] && xo_obj_kill "$_old"
-                    xo_obj_born BulletType '.' 1
-                    _pb["{bullet}$X"]=$REPLY
-                }
+        if [[ -n "$_tk_cur" ]] ; then
+            if (( ${_pb[$_tk_cur]:-0} == 0 )) ; then
+                local _old=${_pb["{bullet}$X"]}
+                [[ -n "$_old" && -n "${XO_OBJ_POOL[$_old]+_}" ]] && xo_obj_kill "$_old"
+                xo_obj_born BulletType '.' 1
+                _pb["{bullet}$X"]=$REPLY
             fi
         fi
-        local _mt=${_pb["{mt}$X"]:-0}
-        (( _mt > 0 )) && _pb["{mt}$X"]=$(( _mt - 1 ))
         unset -n _pb
 
         dx=0 ; dy=0 ; local want_bomb=0
-        while IFS= read -rsn1 -t 0.02 key ; do
+        while IFS= read -rsn1 -t 0.01 key ; do
             case "$key" in
                 p|P) paused=$((1-paused)) ; paused_drawn=0 ;;
                 q|Q) running=0 ; break ;;
@@ -997,6 +1330,7 @@ play_game () {
                     if (( paused )) ; then
                         if load_game ; then
                             screen_clear
+                            draw_frame
                             msg="LOADED" ; msg_tick=50
                         else
                             msg="LOAD FAILED" ; msg_tick=50
@@ -1053,12 +1387,7 @@ play_game () {
                 if (( new_hp <= 0 )) ; then
                     bomb_score=$(( bomb_score + escore ))
                     _art_clear_at "$_ay" "$_ax" "$_art"
-                    (( _ay + _h < SCREEN_H )) && { printf '\033[%d;%dH%*s' $((_ay + _h)) "$_ax" 15 '' ; }
-                    if [[ "$_ecls" == "Boss" ]] ; then
-                        BOSS_FX_CX=$(( _ax + _ew / 2 ))
-                        BOSS_FX_CY=$(( _ay + _eh / 2 ))
-                        boss_fx_tick=60
-                    fi
+                    (( _ay + _h < SCREEN_H )) && { printf '\033[%d;%dH\033[K\033[%d;%dH%s' $((_ay + _h)) "$_ax" $((_ay + _h)) "$SCREEN_W" "$FRAME_V" ; }
                     xo_obj_kill "$e"
                 else
                     bomb_alive+=("$e")
@@ -1073,18 +1402,24 @@ play_game () {
 
         if (( paused )) ; then
             if (( !paused_drawn )) ; then
-                printf '\033[4;1H\033[KPAUSED  (p=resume  q=quit  s=save  l=load)'
+                local _s='PAUSED  (p=resume  q=quit  s=save  l=load)'
+                local _maxw=$(( SCREEN_W - 2 ))
+                _s="${_s:0:_maxw}"
+                printf '\033[5;2H\033[K%s\033[5;%dH%s' "$_s" "$SCREEN_W" "$FRAME_V"
                 paused_drawn=1
             fi
             if (( msg_tick > 0 )) ; then
-                printf '\033[4;1H\033[K%s' "$msg"
+                local _s="$msg"
+                local _maxw=$(( SCREEN_W - 2 ))
+                _s="${_s:0:_maxw}"
+                printf '\033[5;2H\033[K%s\033[5;%dH%s' "$_s" "$SCREEN_W" "$FRAME_V"
                 ((msg_tick--))
                 if (( msg_tick == 0 )) ; then paused_drawn=0 ; fi
             fi
             continue
         fi
         if (( paused_drawn )) ; then
-            printf '\033[4;1H\033[K'
+            printf '\033[5;2H\033[K\033[5;%dH%s' "$SCREEN_W" "$FRAME_V"
             paused_drawn=0
         fi
 
@@ -1101,10 +1436,9 @@ play_game () {
                 unset -n _fbo
             fi
             unset -n _pp
-            if [[ "$_fsym" == "|" ]] ; then fire_cd=3 ; else fire_cd=6 ; fi
+            if [[ "$_fsym" == "|" ]] ; then fire_cd=0 ; else fire_cd=6 ; fi
         fi
 
-        # 导弹发射（独立于主武器，发射位置钳制在 [2, SCREEN_W-2]）
         local -n _pm=$PLAYER
         if (( ${_pm["{mt}$X"]:-0} > 0 && missile_cd == 0 )) ; then
             local _my=$(( ${_pm["{y}$X"]} - 1 ))
@@ -1124,12 +1458,13 @@ play_game () {
         fi
         unset -n _pm
 
+        CLEAR_BATCH=()
         local -a alive_b=()
         for b in "${BULLETS[@]}" ; do
             [[ -n "$b" && -n "${XO_OBJ_POOL[$b]+_}" ]] || continue
             xo_call "$b" move
             local -n _b=$b
-            if (( ${_b["{y}$X"]} < GAME_TOP )) ; then
+            if (( ${_b["{y}$X"]} < GAME_TOP || ${_b["{x}$X"]} < 2 || ${_b["{x}$X"]} > SCREEN_W - 2 )) ; then
                 unset -n _b
                 xo_obj_kill "$b"
             else
@@ -1138,6 +1473,16 @@ play_game () {
             fi
         done
         BULLETS=("${alive_b[@]}")
+        if (( ${#CLEAR_BATCH[@]} )) ; then
+            local _cbuf='' _ciy _cix _ct
+            for (( _ci=0 ; _ci<${#CLEAR_BATCH[@]} ; _ci+=2 )) ; do
+                _ciy=${CLEAR_BATCH[_ci]}
+                _cix=${CLEAR_BATCH[_ci+1]}
+                printf -v _ct '\033[%d;%dH ' "$_ciy" "$_cix"
+                _cbuf+=$_ct
+            done
+            printf '%s' "$_cbuf"
+        fi
 
         local -a alive_m=()
         for m in "${MISSILES[@]}" ; do
@@ -1197,6 +1542,18 @@ play_game () {
         done
         DROPS=("${alive_d[@]}")
 
+        local -a alive_w=()
+        for w in "${WORDS[@]}" ; do
+            [[ -n "$w" && -n "${XO_OBJ_POOL[$w]+_}" ]] || continue
+            xo_call "$w" move
+            if (( $? == 0 )) ; then
+                alive_w+=("$w")
+            else
+                xo_obj_kill "$w"
+            fi
+        done
+        WORDS=("${alive_w[@]}")
+
         local -A killed_b=() killed_m=() killed_e=()
         local score_gain=0
 
@@ -1226,12 +1583,39 @@ play_game () {
                     if (( new_hp <= 0 )) ; then
                         killed_e[$e]=1
                         score_gain=$(( score_gain + escore ))
-                        _art_clear_at "$_ey" "$_ex" "$_art"
-                        (( _ey + _h < SCREEN_H )) && { printf '\033[%d;%dH%*s' $((_ey + _h)) "$_ex" 15 '' ; }
                         if [[ "$_ecls" == "Boss" ]] ; then
-                            BOSS_FX_CX=$(( _ex + _ew2 / 2 ))
-                            BOSS_FX_CY=$(( _ey + _eh2 / 2 ))
-                            boss_fx_tick=60
+                            BOSS_DEATH_POS=()
+                            local _dr=0 _drest=$_art
+                            while [[ -n "$_drest" ]] ; do
+                                local _dl=${_drest%%$'\n'*}
+                                if [[ "$_drest" == *$'\n'* ]] ; then
+                                    _drest=${_drest#*$'\n'}
+                                else
+                                    _drest=''
+                                fi
+                                local _dc=0 _dlen=${#_dl}
+                                while (( _dc < _dlen )) ; do
+                                    local _dch=${_dl:_dc:1}
+                                    if [[ "$_dch" != " " ]] ; then
+                                        BOSS_DEATH_POS+=($((_ey + _dr)) $((_ex + _dc)))
+                                    fi
+                                    ((_dc++))
+                                done
+                                ((_dr++))
+                            done
+                            BOSS_DEATH_TICK=30
+                            (( _ey + _h < SCREEN_H )) && { printf '\033[%d;%dH\033[K\033[%d;%dH%s' $((_ey + _h)) "$_ex" $((_ey + _h)) "$SCREEN_W" "$FRAME_V" ; }
+                            local _bdt=(1 3 4 5 H b m L S)
+                            local _bdc="${_bdt[RANDOM % 9]}"
+                            xo_obj_born Drop "$_bdc"
+                            local -n _bd=$REPLY
+                            _bd["{x}$X"]=$(( _ex + _ew2 / 2 ))
+                            _bd["{y}$X"]=$(( _ey + _eh2 - 1 ))
+                            unset -n _bd
+                            DROPS+=("$REPLY")
+                        else
+                            _art_clear_at "$_ey" "$_ex" "$_art"
+                            (( _ey + _h < SCREEN_H )) && { printf '\033[%d;%dH\033[K\033[%d;%dH%s' $((_ey + _h)) "$_ex" $((_ey + _h)) "$SCREEN_W" "$FRAME_V" ; }
                         fi
                         xo_obj_kill "$e"
                     fi
@@ -1267,12 +1651,39 @@ play_game () {
                     if (( new_hp <= 0 )) ; then
                         killed_e[$e]=1
                         score_gain=$(( score_gain + escore ))
-                        _art_clear_at "$_ey" "$_ex" "$_art"
-                        (( _ey + _h < SCREEN_H )) && { printf '\033[%d;%dH%*s' $((_ey + _h)) "$_ex" 15 '' ; }
                         if [[ "$_ecls" == "Boss" ]] ; then
-                            BOSS_FX_CX=$(( _ex + _ew2 / 2 ))
-                            BOSS_FX_CY=$(( _ey + _eh2 / 2 ))
-                            boss_fx_tick=60
+                            BOSS_DEATH_POS=()
+                            local _dr=0 _drest=$_art
+                            while [[ -n "$_drest" ]] ; do
+                                local _dl=${_drest%%$'\n'*}
+                                if [[ "$_drest" == *$'\n'* ]] ; then
+                                    _drest=${_drest#*$'\n'}
+                                else
+                                    _drest=''
+                                fi
+                                local _dc=0 _dlen=${#_dl}
+                                while (( _dc < _dlen )) ; do
+                                    local _dch=${_dl:_dc:1}
+                                    if [[ "$_dch" != " " ]] ; then
+                                        BOSS_DEATH_POS+=($((_ey + _dr)) $((_ex + _dc)))
+                                    fi
+                                    ((_dc++))
+                                done
+                                ((_dr++))
+                            done
+                            BOSS_DEATH_TICK=30
+                            (( _ey + _h < SCREEN_H )) && { printf '\033[%d;%dH\033[K\033[%d;%dH%s' $((_ey + _h)) "$_ex" $((_ey + _h)) "$SCREEN_W" "$FRAME_V" ; }
+                            local _bdt=(1 3 4 5 H b m L S)
+                            local _bdc="${_bdt[RANDOM % 9]}"
+                            xo_obj_born Drop "$_bdc"
+                            local -n _bd=$REPLY
+                            _bd["{x}$X"]=$(( _ex + _ew2 / 2 ))
+                            _bd["{y}$X"]=$(( _ey + _eh2 - 1 ))
+                            unset -n _bd
+                            DROPS+=("$REPLY")
+                        else
+                            _art_clear_at "$_ey" "$_ex" "$_art"
+                            (( _ey + _h < SCREEN_H )) && { printf '\033[%d;%dH\033[K\033[%d;%dH%s' $((_ey + _h)) "$_ex" $((_ey + _h)) "$SCREEN_W" "$FRAME_V" ; }
                         fi
                         xo_obj_kill "$e"
                     fi
@@ -1287,9 +1698,6 @@ play_game () {
             for b in "${BULLETS[@]}" ; do
                 if [[ -n "${killed_b[$b]+_}" ]] ; then
                     [[ -n "$b" && -n "${XO_OBJ_POOL[$b]+_}" ]] || continue
-                    local -n _b=$b
-                    printf '\033[%d;%dH ' "${_b["{y}$X"]}" "${_b["{x}$X"]}"
-                    unset -n _b
                     xo_obj_kill "$b"
                 else
                     nb+=("$b")
@@ -1326,13 +1734,28 @@ play_game () {
         local px=${p["{x}$X"]} py=${p["{y}$X"]}
         local player_dmg=0
 
+        local _sh=$(( ${p["{shield}$X"]:-0} ))
+        local _sx1=$(( px - 4 )) _sx2=$(( px + 4 ))
+        local _sy1=$(( py - 1 )) _sy2=$(( py + 1 ))
+
         local -a survive_eb=()
         for eb in "${ENEMY_BULLETS[@]}" ; do
             [[ -n "$eb" && -n "${XO_OBJ_POOL[$eb]+_}" ]] || continue
             local -n _eb=$eb
-            if (( ${_eb["{x}$X"]} == px && ${_eb["{y}$X"]} == py )) ; then
-                player_dmg=$(( player_dmg + ${_eb["{damage}$X"]} ))
-                printf '\033[%d;%dH ' "${_eb["{y}$X"]}" "${_eb["{x}$X"]}"
+            local _ebx=${_eb["{x}$X"]} _eby=${_eb["{y}$X"]}
+            local _hit=0
+            if (( _sh )) ; then
+                if (( _ebx >= _sx1 && _ebx <= _sx2 && _eby >= _sy1 && _eby <= _sy2 )) ; then
+                    _hit=1
+                fi
+            else
+                if (( _ebx == px && _eby == py )) ; then
+                    _hit=1
+                fi
+            fi
+            if (( _hit )) ; then
+                (( ! _sh )) && player_dmg=$(( player_dmg + ${_eb["{damage}$X"]} ))
+                printf '\033[%d;%dH ' "$_eby" "$_ebx"
                 unset -n _eb
                 xo_obj_kill "$eb"
             else
@@ -1356,6 +1779,13 @@ play_game () {
         if (( player_dmg > 0 && inv == 0 )) ; then
             p["{hp}$X"]=$(( ${p["{hp}$X"]} - player_dmg ))
             inv=30
+            if (( ${p["{lt}$X"]:-0} > 0 && ${p["{lanes}$X"]:-0} > 0 )) ; then
+                local _nl=$(( ${p["{lanes}$X"]} - 1 ))
+                p["{lanes}$X"]=$_nl
+                if (( _nl == 0 )) ; then
+                    p["{lt}$X"]=0
+                fi
+            fi
         fi
 
         if (( score_gain > 0 )) ; then
@@ -1379,8 +1809,8 @@ play_game () {
                         local bsym bdmg tfield
                         case "$dtype" in
                             1) bsym='*' ; bdmg=2 ; tfield=t2 ;;
-                            3) bsym='#' ; bdmg=3 ; tfield=t3 ;;
-                            4) bsym='&' ; bdmg=4 ; tfield=t4 ;;
+                            3) bsym='@' ; bdmg=3 ; tfield=t3 ;;
+                            4) bsym='$' ; bdmg=4 ; tfield=t4 ;;
                             5) bsym='|' ; bdmg=3 ; tfield=t5 ;;
                         esac
                         local old_bt=${p["{bullet}$X"]}
@@ -1406,6 +1836,27 @@ play_game () {
                     m)
                         p["{mt}$X"]=$BONUS_MT
                         ;;
+                    L)
+                        local _cur_lanes=${p["{lanes}$X"]:-0}
+                        case "$_cur_lanes" in
+                            0) p["{lanes}$X"]=1
+                               p["{lanes_side}$X"]=$(( RANDOM % 2 ))
+                               p["{lt}$X"]=$BONUS_LT ;;
+                            1) p["{lanes}$X"]=2
+                               p["{lt}$X"]=$BONUS_LT ;;
+                            2) p["{lanes}$X"]=3
+                               p["{lanes_side}$X"]=$(( RANDOM % 2 ))
+                               p["{lt}$X"]=$BONUS_LT ;;
+                            3) p["{lanes}$X"]=4
+                               p["{lt}$X"]=$BONUS_LT ;;
+                            *) p["{lt}$X"]=$BONUS_LT ;;
+                        esac
+                        ;;
+                    S)
+                        unset -n p
+                        _plane_set_shield "$PLAYER" 1
+                        local -n p=$PLAYER
+                        ;;
                 esac
             else
                 unset -n _d
@@ -1417,7 +1868,7 @@ play_game () {
 
         (( hp <= 0 )) && return 0
 
-        (( enemy_tick++ % 50 == 0 )) && {
+        (( enemy_tick++ % 50 == 0 )) && (( ${#ENEMIES[@]} < ENEMY_LIMIT )) && {
             local alive_B=0 alive_Boss=0
             for e in "${ENEMIES[@]}" ; do
                 [[ -n "$e" && -n "${XO_OBJ_POOL[$e]+_}" ]] || continue
@@ -1430,21 +1881,21 @@ play_game () {
 
             local spawn_cls=''
             local _r=$(( RANDOM % 1000 ))
-            if (( alive_Boss >= 2 )) ; then
+            if (( alive_Boss >= 1 )) ; then
                 if (( _r < 600 )) ; then spawn_cls=EnemyV
                 elif (( _r < 850 )) ; then spawn_cls=EnemyQ
                 elif (( _r < 950 )) ; then spawn_cls=EnemyM
                 else                       spawn_cls=EnemyB
                 fi
             else
-                if (( boss_dry >= 100 )) ; then
+                if (( boss_dry >= 300 )) ; then
                     spawn_cls=Boss ; boss_dry=0
                 elif (( b_dry >= 30 && alive_B == 0 )) ; then
                     spawn_cls=EnemyB ; b_dry=0
                 elif (( _r < 450 )) ; then spawn_cls=EnemyV
                 elif (( _r < 700 )) ; then spawn_cls=EnemyQ
                 elif (( _r < 800 )) ; then spawn_cls=EnemyM
-                elif (( _r < 950 )) ; then spawn_cls=EnemyB
+                elif (( _r < 980 )) ; then spawn_cls=EnemyB
                 else                       spawn_cls=Boss
                 fi
             fi
@@ -1461,17 +1912,52 @@ play_game () {
             ENEMIES+=("$REPLY")
         }
 
-        (( drop_tick++ % 100 == 0 )) && (( RANDOM % 100 < 60 )) && {
-            local _dts=(1 3 4 5 H b m)
-            xo_obj_born Drop "${_dts[RANDOM % 7]}"
+        (( drop_tick++ % 100 == 0 )) && (( RANDOM % 100 < 60 )) && (( ${#DROPS[@]} < DROP_LIMIT )) && {
+            local -n _pdl=$PLAYER
+            local _lanes_now=${_pdl["{lanes}$X"]:-0}
+            unset -n _pdl
+            local _drop_type=''
+            local _r=$(( RANDOM % 100 ))
+            if (( _lanes_now >= 1 && _lanes_now <= 3 )) ; then
+                if (( _r < 25 )) ; then _drop_type='L'
+                elif (( _r < 40 )) ; then _drop_type='S'
+                else
+                    local _others=(1 3 4 5 H b m)
+                    _drop_type="${_others[RANDOM % 7]}"
+                fi
+            elif (( _lanes_now == 0 )) ; then
+                if (( _r < 15 )) ; then _drop_type='L'
+                elif (( _r < 30 )) ; then _drop_type='S'
+                else
+                    local _others=(1 3 4 5 H b m)
+                    _drop_type="${_others[RANDOM % 7]}"
+                fi
+            else
+                local _all=(1 3 4 5 H b m L S)
+                _drop_type="${_all[RANDOM % 9]}"
+            fi
+            xo_obj_born Drop "$_drop_type"
             DROPS+=("$REPLY")
         }
 
+        (( word_tick++ % 250 == 0 )) && (( ${#WORDS[@]} < WORD_LIMIT )) && {
+            local _wtext="${WORD_LIST[RANDOM % ${#WORD_LIST[@]}]}"
+            local _ww
+            str_display_width "$_wtext" _ww
+            if (( _ww <= SCREEN_W - 4 )) ; then
+                xo_obj_born Word "$_wtext"
+                WORDS+=("$REPLY")
+            fi
+        }
+
         if (( msg_tick > 0 )) ; then
-            printf '\033[4;1H\033[K%s' "$msg"
+            local _s="$msg"
+            local _maxw=$(( SCREEN_W - 2 ))
+            _s="${_s:0:_maxw}"
+            printf '\033[5;2H\033[K%s\033[5;%dH%s' "$_s" "$SCREEN_W" "$FRAME_V"
             ((msg_tick--))
             if (( msg_tick == 0 )) ; then
-                printf '\033[4;1H\033[K'
+                printf '\033[5;2H\033[K\033[5;%dH%s' "$SCREEN_W" "$FRAME_V"
             fi
         fi
 
@@ -1488,15 +1974,15 @@ play_game () {
             BOMB_FX_POS=()
         fi
 
-        if (( boss_fx_tick > 0 )) ; then
-            render_boss_fx
-            ((boss_fx_tick--))
-        elif (( ${#BOSS_FX_POS[@]} > 0 )) ; then
-            local _bfi
-            for (( _bfi=0; _bfi<${#BOSS_FX_POS[@]}; _bfi+=2 )) ; do
-                printf '\033[%d;%dH ' "${BOSS_FX_POS[_bfi]}" "${BOSS_FX_POS[_bfi+1]}"
+        if (( BOSS_DEATH_TICK > 0 )) ; then
+            render_boss_death
+            ((BOSS_DEATH_TICK--))
+        elif (( ${#BOSS_DEATH_POS[@]} > 0 )) ; then
+            local _bi
+            for (( _bi=0; _bi<${#BOSS_DEATH_POS[@]}; _bi+=2 )) ; do
+                printf '\033[%d;%dH ' "${BOSS_DEATH_POS[_bi]}" "${BOSS_DEATH_POS[_bi+1]}"
             done
-            BOSS_FX_POS=()
+            BOSS_DEATH_POS=()
         fi
     done
 }
@@ -1544,4 +2030,3 @@ main () {
 }
 
 main
-
