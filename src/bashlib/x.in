@@ -446,17 +446,39 @@ x_key_is_invalid ()
 }
 
 #-------------------------------------------------------------------------------
-
-# Insert with public prefix
-# x_qinserts t1 common "{prefix1}$X{prefix2}$X" "[0]$X" "array_value1" \
-#                                          "[1]$X" "array_value2" \
-#                                          "[2]$X" "array_value3"
+# x_qinserts — 批量带公共前缀插入多个叶
 #
-# 批量带公共前缀插入多个叶，自动处理首个 '()' 语义转 '[]' 加速后续插入。
+# 用途：所有叶子共享同一段前缀（如 {Base}$X{Device}$X），
+#       一次性把它们的 KV 挂上去。
+#
+# 【加速原理（黑盒，但对调用方可见）】
+#   第一个 KV 走完整路径 x_insert（从根找），拿到 node_id 和 physical_full_key；
+#   后续 N-1 个 KV 直接拿这两个参数喂给 x_insert，跳过从根找的开销。
+#   调用方无需操心，函数内部自动完成。
+#
+# 【返回模式（$2）】
+#   leaves  — 返回每个叶子的 "node_id physical_key" 元组
+#             REPLY="(id1 path1 id2 path2 ...)"（@Q 格式）
+#   common  — 只返回公共前缀节点的 "node_id physical_key"
+#             REPLY="(prefix_id prefix_path)"（@Q 格式）
+#             适合后续用这个前缀继续批量写
+#
+# 【Windows/MSYS2 坑：参数里的 \r 会被吞】
+#   不是 Bash 的锅，是 MSYS2 运行时层为了处理 CRLF，把命令行参数里的 \r
+#   当行尾清理掉了。所以本函数用 while shift 手动收集参数，不用 "${@}"
+#   —— 两者效果一致，但显式收集能避免 \r 被误吞。
+#
+# 用法：
+#   x_qinserts t1 common "{prefix1}$X{prefix2}$X" \
+#       "[0]$X" "array_value1" \
+#       "[1]$X" "array_value2" \
+#       "[2]$X" "array_value3"
+#
 # @in  $1=树名  $2=返回模式(leaves/common)  $3=公共前缀 token 串
 #      $4..=成对的 {key value}
 # @out REPLY=按返回模式拼接的 "node_id physical_key ..." 列表
 # @ret 0=OK  其他=透传 x_insert 的返回码
+#-------------------------------------------------------------------------------
 x_qinserts ()
 {
     REPLY=
@@ -647,43 +669,62 @@ x_push_leaf_fast ()
 
 #-------------------------------------------------------------------------------
 
-#-------------------------------------------------------------------------------
+# ============================================================================
+# 【批量写入双雄】
+#
+#   两个函数都是「快速/轻量」写入路径，核心诉求是快。
+#
+#   选型一句话：
+#     - 父节点已知、只写一层、批量   → x_insert_token_dict（最快，零校验）
+#     - 给完整路径、自动建中间节点   → x_insert_dict     （轻校验，单点写）
+# ============================================================================
 
-# Only insert and do not return any data
+#-------------------------------------------------------------------------------
+# x_insert_token_dict — 全库最快的批量写入路径（支持自动定位父节点）
 #
-# 在已存在的容器节点下批量挂子节点 / 更新叶子值（仅插入不返回）——最快写入路径。
-# 零校验：不解析路径、不创建中间节点、不检查父节点类型、不检查 token 类型。
+# 【用途】
+#   父节点已确定（或可通过物理路径定位），一次性给它挂上一批直接子节点 /
+#   更新一批已知叶子的值。典型：从关联数组批量灌入一层 KV。
 #
-# 支持的 token：
-#   '{k}'  —— 对象键。挂为父节点的直接子节点；若已存在则更新其值。
-#   '<id>' —— 物理 id。分两种情况：
-#              · 该 id 是叶子 / 预分配节点（物理 path 已存在）：
-#                守卫命中，快速更新其值，不建子节点 —— 可用于批量改一批已知叶子的值。
-#              · 该 id 是容器节点（无物理 path 值）：
-#                守卫失效，会创建影子节点、max_index 虚增、children 重复追加。
-#                函数不报错，但结构会坏，调用方须避免。
+# 【两种用法模式】
+#   1. 显式传父节点 ID（极速模式，零校验）：
+#      x_insert_token_dict tree "$node_id" "$prefix" "{k1}" v1 "{k2}" v2
+#      - 调用方必须保证 $node_id 和 $prefix 完全对应，否则结构会坏。
 #
-# 不支持的 token：
+#   2. 传空字符串自动定位（懒人模式，轻校验）：
+#      x_insert_token_dict tree "" "$prefix" "{k1}" v1 "{k2}" v2
+#      - 内部自动解析 $prefix 找父节点，并校验父节点不能是叶子。
+#      - 路径不存在会直接报错（绝不自动建路径）。
+#
+# 【支持的 token】
+#   '{k}'  —— 对象键。若 $tr_prefix$tr_token 尚不存在，创建子节点并挂上；
+#             若已存在（例如重复调用），直接更新其值，不新建。
+#   '<id>' —— 物理 id。必须指向已存在的叶子/预分配节点（有 .k 或 .t 或 .s）；
+#             此时 $tr_prefix$tr_token 存在，走“更新值”分支，不建子节点。
+#             若指向容器节点（无 .k 值），守卫失效，会创建影子节点、max_index
+#             虚增、children 重复追加 —— 结构会坏，调用方须避免。
+#
+# 【不支持的 token】
 #   '[i]' / '()' —— 索引 token。会被当作对象键写入，路径与索引语义错位（不报错）。
 #
-# 调用方须保证：
-#   - $2 是树中已存在的容器节点 ID（OBJ 或 ARR）
-#   - $3 是该节点的物理全 key
-#   - $4.. 的 token 为 '{k}'，或指向叶子/预分配节点的 '<id>'
-# 需要校验/自动建中间节点请用 x_insert_dict 或 x_insert。
+# 【显式传 ID 模式的契约】（违反不报错，但结构会坏）
+#   1. $2 是树中已存在的容器节点 ID（OBJ 或 ARR）
+#   2. $3 是该节点的物理全 key（与 $2 对应，用于拼子节点路径）
+#   3. $4.. 的 token 是 '{k}'，或指向叶子/预分配节点的 '<id>'（不能指向容器）
 #
-# 用法示例（批量挂一层对象键）：
+# 【用法示例】
+#   # 模式一：显式传 ID（如果在循环里，前面已经拿过 ID 了）
+#   x_insert_token_dict my_tree "$node_id" "$physical_prefix" "{k1}" v1 "{k2}" v2
+#
+#   # 模式二：自动定位（一次性调用最省心）
 #   local -A assoc=(['{1 2}']='a b' ['{3 4}']='c d')
-#   x_insert_token_dict my_tree "$node_id" "$physical_prefix" "${assoc[@]@k}"
+#   x_insert_token_dict my_tree "" "{_cache}$X" "${assoc[@]@k}"
 #
-# 用法示例（批量更新一批已知叶子 id 的值）：
-#   x_insert_token_dict my_tree "$node_id" "$physical_prefix" \
-#       "<5>" "new_v5" "<6>" "new_v6"
-#
-# @in  $1=树名  $2=已存在的父节点 ID  $3=父节点物理全 key
+# @in  $1=树名  $2=已存在的父节点 ID（传空=自动查询）
+#      $3=父节点物理全 key
 #      $4..=token,value 交错（token 为 '{k}' 或叶子 '<id>'）
-# @out REPLY 不变
-# @ret 0=OK
+# @ret 0=OK  3=路径未找到  4=key 无效  8=父节点是叶子
+#-------------------------------------------------------------------------------
 x_insert_token_dict ()
 {
     local -n tr_t=$1
@@ -695,6 +736,51 @@ x_insert_token_dict ()
     local -i tr_index=0
     local tr_child_key tr_child_id
     local tr_token tr_value
+
+    # ---- 自动定位：$2 为空时，从 $3 走一遍树找父节点 ----
+    if [[ -z "$tr_node" ]] ; then
+        if [[ -z "$tr_prefix" ]] ; then
+            # 空前缀 → 根节点
+            tr_node=$X_ROOT_ID
+        else
+            x_key_is_invalid "$tr_prefix" || return $?
+
+            local tk_str node tk cid
+                #@if current_shell_process_replace==1
+            tk_str=${|_split_tokens "$tr_prefix";} || return $?
+                #@endif
+                #@if current_shell_process_replace==0
+            _split_tokens "$tr_prefix" || eval "$_ret_e"
+            eval "${_ret_s_/o/tk_str}"
+                #@endif
+            local -a "tks=($tk_str)"
+
+            node=$X_ROOT_ID
+            for tk in "${tks[@]}" ; do
+                if [[ "$tk" == '<'*'>' ]] ; then
+                    cid=${tk:1:-1}
+                else
+                    cid="${tr_t[$node.c.$tk]}"
+                fi
+                if [[ -z "$cid" ]] ; then
+                    die ERR "x_insert_token_dict: path '${tr_prefix}'"\
+                            "not found (at token: ${tk})."
+                    return $X_RET_ENUM_KEY_IS_NOTFOUND
+                fi
+                node=$cid
+            done
+            tr_node=$node
+
+            # 防呆：父节点不能是叶子（既无 .t 也无 .s，说明是普通值或 NULL 叶子）
+            # 因为这个快速函数不处理 NULL 升变
+            if [[ -z "${tr_t[$tr_node.t]+_}" &&
+                  -z "${tr_t[$tr_node.s]+_}" ]] ; then
+                die ERR "x_insert_token_dict: parent '${tr_prefix}' is a"\
+                        "leaf, cannot have children."
+                return $X_RET_ENUM_KEY_UP_LEV_TYPE_MISMATCH
+            fi
+        fi
+    fi
 
     for((tr_index=0;tr_index<${#tr_token_values[@]};tr_index+=2)) ; do
         tr_token=${tr_token_values[tr_index]}
@@ -725,50 +811,46 @@ x_insert_token_dict ()
             ;;
         esac
     done
-    
+
     ((${#tr_tokens[@]})) && tr_t[$tr_node.s]+=" ${tr_tokens[*]@Q}"
     return $X_RET_ENUM_OK
 }
 
 #-------------------------------------------------------------------------------
-
-# Only insert and do not return any data
+# x_insert_dict — 完整路径写入（轻校验，自动建中间节点）
 #
-# 批量挂子节点（仅插入不返回）——全库最快的写入路径，零校验。
+# 用途：给一个完整的物理路径，从起始节点往下走，路径上的 {} 缺失就自动建。
+#       典型：xo_init 时按类模板初始化类对象字段。
 #
-# 用途：父节点已确定、且父节点确实是容器时，一次性把一批
-#       "对象键 '{k}' → 值" 作为它的直接子节点挂上。
-#       适合扁平字典层（如从关联数组批量灌入一层 KV）。
+# 支持：'{}' 对象键、'<>' 物理 id；不支持 '[i]' / '()'（索引 token，会 die）。
 #
-# 本函数不做任何拦截：
-#   - 不解析路径，不创建中间节点
-#   - 不校验父节点是否存在、是否为容器
-#   - 不校验 token 类型、不校验路径是否重复
-#   调用方必须自行保证：
-#     $2 是树中已存在的容器节点 ID（OBJ 或 ARR）
-#     $3 是该节点的物理全 key（与 $2 对应，用于拼子节点路径）
-#     $4.. 的每个 token 均为对象键 '{k}'
+# 轻校验的含义（与 x_insert 对比）：
+#   - 物理 id 不存在 → die（拦）
+#   - 索引 token    → die（拦）
+#   - NULL 叶子升变 → 不处理（放行）
+#   - 父节点类型    → 不检查（放行）
+#   - 最终节点有子  → 不检查（放行）
+#   结论：比 x_insert 快，但比 x_insert_token_dict 多一层路径解析和建中间节点。
 #
-# 传错的后果（函数不报错，但结构会坏）：
-#   - token 传 '<id>'（容器节点）：$tr_path_key 不存在于树中，
-#     守卫失效，会创建影子节点、max_index 虚增、children 重复追加
-#   - token 传 '[i]' / '()'：会当作对象键写入，路径与索引语义错位
-#   - 父节点传叶子：会把子节点挂到叶子节点上，产生 .k 与 .s 混合
-#   以上均需调用方避免。需要校验或自动建中间节点时，请用
-#   x_insert_dict（单点深层写，轻校验）或 x_insert（完整校验，返回 node_id）。
+# 调用方须保证：
+#   1. $2 是从根开始的完整物理路径（不是相对路径）
+#   2. $4 和 $5 必须配对：
+#      - 都默认：从根开始
+#      - 都传：$5 是已走过的前缀，$2 去掉 $5 后从 $4 往下走
+#      - 只传其一：割裂，行为未定义
 #
-# 与 x_insert_dict 的区别：
-#   x_insert_dict       —— 接受完整物理路径，逐级自动建 '{k}' 节点，单点写入
-#   x_insert_token_dict —— 父节点已定，只铺一层，批量写入，零校验、最快
+# 与 x_insert_token_dict 的区别：
+#   x_insert_token_dict —— 父节点已定，只铺一层，批量，零校验，最快
+#   x_insert_dict       —— 完整路径，自动建中间节点，单点写，轻校验
 #
-# 用法示例：
-#   local -A assoc=(['{1 2}']='a b' ['{3 4}']='c d')
-#   x_insert_token_dict my_tree "$node_id" "$physical_prefix" "${assoc[@]@k}"
+# 用法：
+#   x_insert_dict my_tree "{Base}$X{Device}$X{x}$X" 10
+#   # 若 {Device} 中间节点不存在，会自动创建并挂上 {x}=10
 #
-# @in  $1=树名  $2=已存在的父节点 ID  $3=父节点物理全 key
-#      $4..=token,value 交错（token 必须是 '{k}'）
-# @out REPLY 不变
-# @ret 0=OK
+# @in  $1=树名  $2=完整物理路径（从根开始）  $3=值
+#      $4=起始节点 ID（默认 ROOT）  $5=已遍历物理前缀（默认空）
+# @ret 0=OK  3=KEY_IS_NOTFOUND  4=KEY_IS_INVALID
+#-------------------------------------------------------------------------------
 x_insert_dict ()
 {
     local -n tr_t=$1

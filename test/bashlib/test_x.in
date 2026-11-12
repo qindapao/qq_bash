@@ -1747,7 +1747,68 @@ t1(1) ->
     return 0
 }
 
-# step_test _x_rebuild_from_dump
+test_case_x_insert_token_dict ()
+{
+    local dict_str='
+    fast ->
+        {key1} => value1
+        {key2}
+            {key3} => value2
+            {key4}
+                {key5}
+                    {key6} => value3
+        {key7} => value4
+    '
+    local insert_dict=("{myxx yy}" "my value1" $'{\ngege geg\t}' $'\n\tspeci gg 中文')
+    local spec_dict_str='
+    fast_after ->
+        {key1} => value1
+        {key2}
+            {key3} => value2
+            {key4}
+                {key5}
+                    {key6} => value3
+                    {myxx yy} => my value1
+                    {
+                    |gege geg\t} => 
+                                   |\tspeci gg 中文
+        {key7} => value4
+    '
+    local -A "t1=(${|x_rebuild_from_dump "$dict_str";})"
+    local -A "spec_t1=(${|x_rebuild_from_dump "$spec_dict_str";})"
+
+    x_insert_token_dict t1 '' "{key2}$X{key4}$X{key5}$X" "${insert_dict[@]}"
+
+    x_dump t1 '' 4 2
+    x_dump spec_t1 '' 4 2
+
+    if x_equals t1 spec_t1 ; then
+        log_test 1 1
+    else
+        log_test 0 1 ; return 1
+    fi
+    return 0
+}
+
+test_case_x_insert_token_dict_leaf_intercept ()
+{
+    local dict_str='
+    t ->
+        {leaf} => val
+    '
+    local -A "t1=(${|x_rebuild_from_dump "$dict_str";})"
+
+    # 往叶子 {leaf} 上挂子节点，应该被拦截，返回 8
+    x_insert_token_dict t1 '' "{leaf}$X" "{new_key}" "new_val"
+    if (( $? != 8 )) ; then
+        log_test 0 1 ; return 1
+    fi
+
+    log_test 1 1
+    return 0
+}
+
+# step_test _x_insert_token_dict_leaf_intercept
 
 eval -- "$(AS_RUN_TEST_CASES)"
 
