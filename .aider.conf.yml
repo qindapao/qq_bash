@@ -1,9 +1,0 @@
-
-# 禁止自动提交，保留给人类审查
-auto-commits: false
-
-# 配置模型，省得每次敲
-model: deepseek/deepseek-flash
-light-mode: true
-code-theme: emacs
-

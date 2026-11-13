@@ -152,6 +152,143 @@ strafe_bash
 
 
 
+老铁，交接昨天的工作。项目：纯 Bash 写的终端打飞机游戏（STRAFE_BASH）+ 自建 OOP 框架（x_tree + xo）。
 
+【项目根目录】
+d:/code/qq_bash/src/
+  bashlib/          ← x.in, xo.in, str.in, grammar.sh 等底层库
+  strafe_bash/      ← 游戏业务代码（当前是单文件 strafe_bash.sh，2000+ 行）
+
+【昨天完成的核心突破】
+1. xo.in 完成了「路径压缩」：利用 XO_METHOD_INHERITED 一次查表直达最终实现类，
+   深继承链不再层层转发，父类方法不再中间透传。
+   代码位置：_xo_init_class 里，透传循环里加 target_cls 查表逻辑。
+2. 摸清了 Aider 的边界：whole 模式大文件容易截断卡死，diff 模式 + 小文件才靠谱。
+3. 定下了完整架构演进规划，已写入 TODO.txt。
+
+【当前痛点】
+1. strafe_bash.sh 2000+ 行，Aider 一改就截断卡死，一下午没成功一个任务。
+2. 主循环逻辑时钟和渲染时钟绑定：游戏速度受帧率影响，机器快就快，机器慢就慢。
+3. render 函数频繁 printf，终端 I/O 打满，帧率上不去。
+
+【今天（新对话）的优先级】
+第一步（今天必须完成）：拆分 strafe_bash.sh。
+第二步：重构 play_game，逻辑时钟与渲染时钟解耦。
+第三步：render 双缓冲，FRAME_BUF 一次 printf 输出。
+
+【交接材料（请先读）】
+- CONVENTIONS.md        （架构宪法）
+- AI_PITFALLS.md        （AI 避坑指南 + 昨日复盘）
+- TODO.txt              （完整功能规划）
+
+================================================================================
+【拆分目标目录结构】
+================================================================================
+
+src/strafe_bash/
+├── strafe_bash.sh              # 入口：只 source play_game.sh + 调 main
+│
+├── config/
+│   ├── const.sh                # 常量：SCREEN_W/H, GAME_TOP, FPS, TICK_US, ENEMY_LIMIT 等
+│   ├── color.sh                # ANSI 颜色（C_RESET, C_BLUE...）
+│   ├── art.sh                  # 立绘：PLANE_ART_*, BOSS_ART_*
+│   ├── words.sh                # 箴言词库 WORD_LIST
+│   └── globals.sh              # 全局状态数组：BULLETS, ENEMIES, DROPS, PLAYER 等
+│
+├── render/
+│   ├── ansi.sh                 # ESC, cursor_hide/show, screen_clear, goto, clear_line
+│   ├── frame.sh                # draw_frame 边框
+│   ├── hud.sh                  # draw_hud_line1/2, draw_bonus_hud
+│   ├── scene.sh                # render 主场景（画飞机/子弹/敌机/掉落/文字）
+│   └── fx.sh                   # render_bomb_fx, render_boss_death
+│
+├── classes/
+│   ├── base_types.sh           # BulletType
+│   ├── projectiles/
+│   │   ├── bullet.sh           # Bullet
+│   │   ├── missile.sh          # Missile
+│   │   └── enemy_bullet.sh     # EnemyBullet
+│   ├── enemies/
+│   │   ├── enemy_base.sh       # Enemy（基类 + _enemy_fire）
+│   │   ├── enemy_v.sh          # EnemyV
+│   │   ├── enemy_q.sh          # EnemyQ
+│   │   ├── enemy_m.sh          # EnemyM
+│   │   ├── enemy_b.sh          # EnemyB
+│   │   └── boss.sh             # Boss
+│   ├── pickups/
+│   │   ├── drop.sh             # Drop
+│   │   └── word.sh             # Word
+│   └── plane/
+│       ├── plane.sh            # Plane + Plane_born/kill/move/fire
+│       └── plane_helpers.sh    # _art_clear_at, _plane_clear, _plane_set_shield
+│
+├── save/
+│   └── save.sh                 # save_game, load_game
+│
+└── game/
+    ├── init_game.sh            # 每局初始化
+    ├── game_over.sh            # game_over_banner, game_over_screen
+    ├── play_game.sh            # 主循环（同时作为 game 层的入口）
+    └── term_restore.sh         # 终端恢复
+
+================================================================================
+【加载模式：自包含模块 + 幂等保护，主脚本不写长 source 列表】
+================================================================================
+
+核心设计：
+- 每个文件头部只做两件事：① 幂等保护；② 显式 source 自己的依赖。
+- 依赖图是 DAG（单向箭头：config ← classes ← render/save ← game），无环。
+- 顶层只允许定义函数和 readonly 字符串字面量，不立即调用其他模块的函数。
+- 只要满足以上三条，任何加载顺序都安全。
+
+文件头部模板（每个文件都套这个结构）：
+
+    # config/art.sh — ASCII 立绘
+    [[ -n "${_STRAFE_ART_SH:-}" ]] && return 0
+    _STRAFE_ART_SH=1
+    . "$(dirname "${BASH_SOURCE[0]}")/const.sh"
+
+    readonly PLANE_ART_BASE='...'
+    ...
+
+    # classes/enemies/enemy_v.sh — EnemyV 类
+    [[ -n "${_STRAFE_ENEMY_V_SH:-}" ]] && return 0
+    _STRAFE_ENEMY_V_SH=1
+    . "$(dirname "${BASH_SOURCE[0]}")/enemy_base.sh"
+
+    readonly EnemyVStaticTemplate='...'
+    EnemyV_born () { ... }
+
+    # render/scene.sh — 主场景渲染
+    [[ -n "${_STRAFE_SCENE_SH:-}" ]] && return 0
+    _STRAFE_SCENE_SH=1
+    . "$(dirname "${BASH_SOURCE[0]}")/ansi.sh"
+    . "$(dirname "${BASH_SOURCE[0]}")/../config/art.sh"
+    . "$(dirname "${BASH_SOURCE[0]}")/../config/globals.sh"
+
+    render () { ... }
+
+主脚本 strafe_bash.sh 只有这么几行：
+
+    #!/usr/bin/env bash
+    : "${STRAFE_LIB_HOME:=../bashlib}"
+    . "$STRAFE_LIB_HOME/xo.sh"
+    _DIR="${BASH_SOURCE[0]%/*}"
+    . "$_DIR/game/play_game.sh"
+    main
+
+主脚本不写 28 个 source，只 source 一个 game 层入口。其他依赖在各自文件头部声明。
+
+================================================================================
+【今天第一件事】
+================================================================================
+
+请你先帮我写拆分后的所有文件内容。按上面的目录结构，每个文件：
+
+1. 头部加职责注释（如 # config/const.sh — 常量定义）
+2. 幂等保护 + 显式 source 自己的依赖
+3. 只放该放的东西，纯搬运 + 整理，不引入任何逻辑修改
+
+请分批输出，每次 5~7 个文件，避免单条消息过长。
 
 
