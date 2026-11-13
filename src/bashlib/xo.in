@@ -480,14 +480,47 @@ _xo_init_class ()
                 #@endif
             father_methods=("${father_methods[@]#${father}_}")
 
-            # 逐个补到子类（子类已有的跳过）
+            # ---- 路径压缩：直接把子类方法指向「最终实现类」----
+            #
+            # 目的：避免深继承链层层转发。若 Base→A→B→C，不压缩时 C_speak 会变成
+            #       C_speak() { B_speak "$@" ; }，调用时 B→A→Base 三层栈开销。
+            #       压缩后 C_speak() { Base_speak "$@" ; }，一次直达。
+            #
+            # 为什么「只查一次表」就够？（这段最容易让后来人误判成 bug）
+            #
+            #   关键前提：_xo_init_class 由 x_walk 驱动，x_walk 是拓扑序遍历，
+            #            父类一定先于子类处理。所以当处理当前类 cls 时，父类 father
+            #            的方法生成逻辑已经跑完。
+            #
+            #   父类在生成自己的方法时，做的是同样的事：
+            #     - 若父类的方法是自己实现的（用户手写/Mixin）：映射表里没有记录
+            #     - 若父类的方法是从爷爷辈透传来的：父类已把「爷爷（或更上面）」
+            #       写进了 XO_METHOD_INHERITED，而不是写「直接父类」
+            #
+            #   因此 XO_METHOD_INHERITED[$parent_fn] 里存的，永远是这个方法的
+            #   「最终实现类」——不是「上一层」。一次查表，就能拿到终极目标。
+            #
+            #   例：Base→A→B→C，Base_speak 是真实实现
+            #     A 处理时：XO_METHOD_INHERITED[A_speak]=Base
+            #     B 处理时：查得 A_speak→Base，生成 B_speak() { Base_speak "$@" ; }
+            #              记录 XO_METHOD_INHERITED[B_speak]=Base
+            #     C 处理时：查得 B_speak→Base，生成 C_speak() { Base_speak "$@" ; }
+            #   每一层都直达 Base，无需追溯，无需循环，无需 declare -f 解析函数体。
+            #
+            #   Mixin 同理：Mixin 注入时记录的是 M_xxx 名，子类查表也一步命中。
             local m
             for m in "${father_methods[@]}" ; do
                 local fn="${cls}_${m}"
-                # 子类已经有这个方法，跳过
                 declare -F "$fn" >/dev/null && continue   # 子类已有，跳过
-                eval -- "${fn} () { ${father}_${m} \"\$@\" ; }"
-                XO_METHOD_INHERITED[$fn]=$father
+
+                # 路径压缩：父类方法若是透传/Mixin，映射表里存的已是最终目标
+                local target_cls=$father
+                local parent_fn="${father}_${m}"
+                [[ -n "${XO_METHOD_INHERITED[$parent_fn]+_}" ]] && \
+                    target_cls=${XO_METHOD_INHERITED[$parent_fn]}
+
+                eval -- "${fn} () { ${target_cls}_${m} \"\$@\" ; }"
+                XO_METHOD_INHERITED[$fn]=$target_cls
             done
         fi
 

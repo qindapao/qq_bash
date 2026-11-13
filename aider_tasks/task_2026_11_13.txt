@@ -1,0 +1,59 @@
+task1 begin in 2026_11_13 14:06
+
+任务：升级 src/bashlib/xo.in 中的 _xo_init_class 函数（路径压缩）
+
+当前的代码：
+    # 逐个补到子类（子类已有的跳过）
+    local m
+    for m in "${father_methods[@]}" ; do
+        local fn="${cls}_${m}"
+        declare -F "$fn" >/dev/null && continue
+        eval -- "${fn} () { ${father}_${m} \"\$@\" ; }"
+        XO_METHOD_INHERITED[$fn]=$father
+    done
+
+问题：
+深继承链 Base→A→B→C→D 下，调用 D_speak 会 D→C→B→A→Base 层层转发，
+每层都有函数调用开销。
+
+升级方案：
+XO_METHOD_INHERITED 里存的是「最终实现类」，不是「直接父类」。
+因为拓扑序遍历保证父类先处理，父类记录时已写入终极答案。
+所以只需一次查表，即可命中最终实现，无需循环追溯。
+
+    local target_cls=$father
+    local parent_fn="${father}_${m}"
+    [[ -n "${XO_METHOD_INHERITED[$parent_fn]+_}" ]] && \
+        target_cls=${XO_METHOD_INHERITED[$parent_fn]}
+    eval -- "${fn} () { ${target_cls}_${m} \"\$@\" ; }"
+    XO_METHOD_INHERITED[$fn]=$target_cls
+
+验证：
+Base→A→B→C 四级继承，declare -f C_speak 应输出：
+    C_speak () { Base_speak "$@" ; }
+
+交付：
+只改 for 循环部分，不动其他逻辑。不要 git add / commit。
+
+task1 end in 2026_11_13 14:17
+
+
+task2 begin in 2026_11_13 15:30
+
+任务：记录 Aider 在 task1 上的翻车，作为后续协作参考
+
+事件：
+task1 的第一版任务书里建议用 declare -f 解析函数体、正则匹配、循环追溯。
+Aider 实现时卡住，刷屏输出不完整代码，甚至把内心独白误吐进代码块。
+最终人类复盘发现答案就在 XO_METHOD_INHERITED 表里，一次查表即可。
+
+对比：
+Aider 方案：数十行，O(链深度)，依赖函数体格式，每层 declare -f。
+最终方案：3 行，O(1)，依赖自建映射表，一次哈希查表。
+
+结论：
+AI 擅长执行明确任务，不擅长在已有全局状态约束下做最优决策。
+以后此类任务：人类先收敛方案，Aider 照抄执行。
+
+task2 end in 2026_11_13 15:40
+
