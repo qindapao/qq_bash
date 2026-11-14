@@ -172,8 +172,41 @@ _play_game_tick () {
     done
     WORDS=("${alive_w[@]}")
 
-    # ---- 6. 子弹 vs 敌人 ----
-    local -A killed_b=() killed_m=() killed_e=()
+    # ---- 6. 敌人快照（几何/血量/奖励），供子弹、导弹、玩家碰撞共用 ----
+    # 每 tick 只绑定每个敌人一次。旧实现每对 (子弹, 敌人) 都要
+    # nameref 绑定 + 读 4 个字段；80 子弹 × 20 敌人时是 1600 次绑定、
+    # 6400 次关联数组读取，是本 tick 最大的热点。
+    local -a _eid=() _ex=() _ey=() _ew=() _eh=() _ehp=() _escore=() _eart=() _ecls=()
+    local -a _edead=()
+    local -i _ne=0 _ndead=0 _j _r _newhp
+    for e in "${ENEMIES[@]}" ; do
+        [[ -n "$e" && -n "${XO_OBJ_POOL[$e]+_}" ]] || continue
+        local -n _e=$e
+        _eid[_ne]=$e
+        _ex[_ne]=${_e["{x}$X"]}
+        _ey[_ne]=${_e["{y}$X"]}
+        _ew[_ne]=${_e["{w}$X"]}
+        _eh[_ne]=${_e["{h}$X"]}
+        _ehp[_ne]=${_e["{hp}$X"]}
+        _escore[_ne]=${_e["{score}$X"]}
+        _eart[_ne]=${_e["{art}$X"]}
+        _ecls[_ne]=${_e["{CLS}$X"]}
+        unset -n _e
+        ((_ne++))
+    done
+
+    # 行索引：敌人是稀疏的（最多 20 个，每个 2~5 行），把「敌人索引」
+    # 按覆盖的屏幕行分桶。子弹/导弹只检查自己所在行的桶，
+    # 每对检测只剩纯算术比较，不再遍历全部敌人。
+    local -A _row_e=()
+    for (( _j=0 ; _j<_ne ; _j++ )) ; do
+        for (( _r=_ey[_j] ; _r<_ey[_j] + _eh[_j] ; _r++ )) ; do
+            _row_e[$_r]+=" $_j"
+        done
+    done
+
+    # ---- 7. 子弹 vs 敌人 ----
+    local -A killed_b=() killed_m=()
     local -i score_gain=0
 
     for b in "${BULLETS[@]}" ; do
@@ -184,27 +217,19 @@ _play_game_tick () {
         local bdmg=${_b["{damage}$X"]}
         unset -n _b
 
-        for e in "${ENEMIES[@]}" ; do
-            [[ -n "${killed_e[$e]+_}" ]] && continue
-            [[ -n "$e" && -n "${XO_OBJ_POOL[$e]+_}" ]] || continue
-            local -n _e=$e
-            local _ex=${_e["{x}$X"]} _ey=${_e["{y}$X"]}
-            local _ew=${_e["{w}$X"]} _eh=${_e["{h}$X"]}
-
-            if (( bx >= _ex && bx < _ex + _ew && by >= _ey && by < _ey + _eh )) ; then
-                local new_hp=$(( ${_e["{hp}$X"]} - bdmg ))
-                _e["{hp}$X"]=$new_hp
-                local escore=${_e["{score}$X"]}
-                local _art=${_e["{art}$X"]}
-                local _ecls=${_e["{CLS}$X"]} _ew2=${_e["{w}$X"]} _eh2=${_e["{h}$X"]}
-                unset -n _e
+        for _j in ${_row_e[$by]:-} ; do
+            (( _edead[_j] )) && continue
+            if (( bx >= _ex[_j] && bx < _ex[_j] + _ew[_j] )) ; then
+                _newhp=$(( _ehp[_j] - bdmg ))
+                _ehp[_j]=$_newhp
                 killed_b[$b]=1
-                if (( new_hp <= 0 )) ; then
-                    killed_e[$e]=1
-                    score_gain=$(( score_gain + escore ))
-                    if [[ "$_ecls" == "Boss" ]] ; then
+                if (( _newhp <= 0 )) ; then
+                    _edead[_j]=1
+                    ((_ndead++))
+                    score_gain=$(( score_gain + _escore[_j] ))
+                    if [[ "${_ecls[_j]}" == "Boss" ]] ; then
                         BOSS_DEATH_POS=()
-                        local _dr=0 _drest=$_art
+                        local _dr=0 _drest=${_eart[_j]}
                         while [[ -n "$_drest" ]] ; do
                             local _dl=${_drest%%$'\n'*}
                             if [[ "$_drest" == *$'\n'* ]] ; then _drest=${_drest#*$'\n'}
@@ -213,7 +238,7 @@ _play_game_tick () {
                             local _dc=0 _dlen=${#_dl}
                             while (( _dc < _dlen )) ; do
                                 local _dch=${_dl:_dc:1}
-                                [[ "$_dch" != " " ]] && BOSS_DEATH_POS+=($((_ey + _dr)) $((_ex + _dc)))
+                                [[ "$_dch" != " " ]] && BOSS_DEATH_POS+=($((_ey[_j] + _dr)) $((_ex[_j] + _dc)))
                                 ((_dc++))
                             done
                             ((_dr++))
@@ -223,20 +248,22 @@ _play_game_tick () {
                         local _bdc="${_bdt[RANDOM % 9]}"
                         xo_obj_born Drop "$_bdc"
                         local -n _bd=$REPLY
-                        _bd["{x}$X"]=$(( _ex + _ew2 / 2 ))
-                        _bd["{y}$X"]=$(( _ey + _eh2 - 1 ))
+                        _bd["{x}$X"]=$(( _ex[_j] + _ew[_j] / 2 ))
+                        _bd["{y}$X"]=$(( _ey[_j] + _eh[_j] - 1 ))
                         unset -n _bd
                         DROPS+=("$REPLY")
                     fi
-                    xo_obj_kill "$e"
+                else
+                    local -n _e=${_eid[_j]}
+                    _e["{hp}$X"]=$_newhp
+                    unset -n _e
                 fi
                 break
             fi
-            unset -n _e
         done
     done
 
-    # ---- 7. 导弹 vs 敌人 ----
+    # ---- 8. 导弹 vs 敌人 ----
     for m in "${MISSILES[@]}" ; do
         [[ -n "${killed_m[$m]+_}" ]] && continue
         [[ -n "$m" && -n "${XO_OBJ_POOL[$m]+_}" ]] || continue
@@ -245,27 +272,19 @@ _play_game_tick () {
         local mdmg=${_m["{damage}$X"]}
         unset -n _m
 
-        for e in "${ENEMIES[@]}" ; do
-            [[ -n "${killed_e[$e]+_}" ]] && continue
-            [[ -n "$e" && -n "${XO_OBJ_POOL[$e]+_}" ]] || continue
-            local -n _e=$e
-            local _ex=${_e["{x}$X"]} _ey=${_e["{y}$X"]}
-            local _ew=${_e["{w}$X"]} _eh=${_e["{h}$X"]}
-
-            if (( mx >= _ex && mx < _ex + _ew && my >= _ey && my < _ey + _eh )) ; then
-                local new_hp=$(( ${_e["{hp}$X"]} - mdmg ))
-                _e["{hp}$X"]=$new_hp
-                local escore=${_e["{score}$X"]}
-                local _art=${_e["{art}$X"]}
-                local _ecls=${_e["{CLS}$X"]} _ew2=${_e["{w}$X"]} _eh2=${_e["{h}$X"]}
-                unset -n _e
+        for _j in ${_row_e[$my]:-} ; do
+            (( _edead[_j] )) && continue
+            if (( mx >= _ex[_j] && mx < _ex[_j] + _ew[_j] )) ; then
+                _newhp=$(( _ehp[_j] - mdmg ))
+                _ehp[_j]=$_newhp
                 killed_m[$m]=1
-                if (( new_hp <= 0 )) ; then
-                    killed_e[$e]=1
-                    score_gain=$(( score_gain + escore ))
-                    if [[ "$_ecls" == "Boss" ]] ; then
+                if (( _newhp <= 0 )) ; then
+                    _edead[_j]=1
+                    ((_ndead++))
+                    score_gain=$(( score_gain + _escore[_j] ))
+                    if [[ "${_ecls[_j]}" == "Boss" ]] ; then
                         BOSS_DEATH_POS=()
-                        local _dr=0 _drest=$_art
+                        local _dr=0 _drest=${_eart[_j]}
                         while [[ -n "$_drest" ]] ; do
                             local _dl=${_drest%%$'\n'*}
                             if [[ "$_drest" == *$'\n'* ]] ; then _drest=${_drest#*$'\n'}
@@ -274,7 +293,7 @@ _play_game_tick () {
                             local _dc=0 _dlen=${#_dl}
                             while (( _dc < _dlen )) ; do
                                 local _dch=${_dl:_dc:1}
-                                [[ "$_dch" != " " ]] && BOSS_DEATH_POS+=($((_ey + _dr)) $((_ex + _dc)))
+                                [[ "$_dch" != " " ]] && BOSS_DEATH_POS+=($((_ey[_j] + _dr)) $((_ex[_j] + _dc)))
                                 ((_dc++))
                             done
                             ((_dr++))
@@ -284,20 +303,22 @@ _play_game_tick () {
                         local _bdc="${_bdt[RANDOM % 9]}"
                         xo_obj_born Drop "$_bdc"
                         local -n _bd=$REPLY
-                        _bd["{x}$X"]=$(( _ex + _ew2 / 2 ))
-                        _bd["{y}$X"]=$(( _ey + _eh2 - 1 ))
+                        _bd["{x}$X"]=$(( _ex[_j] + _ew[_j] / 2 ))
+                        _bd["{y}$X"]=$(( _ey[_j] + _eh[_j] - 1 ))
                         unset -n _bd
                         DROPS+=("$REPLY")
                     fi
-                    xo_obj_kill "$e"
+                else
+                    local -n _e=${_eid[_j]}
+                    _e["{hp}$X"]=$_newhp
+                    unset -n _e
                 fi
                 break
             fi
-            unset -n _e
         done
     done
 
-    # ---- 8. 清理被击中的子弹/导弹/敌人 ----
+    # ---- 9. 清理被击中的子弹/导弹/敌人 ----
     if ((${#killed_b[@]})) ; then
         local -a nb=()
         for b in "${BULLETS[@]}" ; do
@@ -324,10 +345,16 @@ _play_game_tick () {
         MISSILES=("${nm[@]}")
     fi
 
-    if ((${#killed_e[@]})) ; then
+    # 敌人延迟到所有碰撞结束后统一 kill：快照数组在子弹/导弹/玩家
+    # 三个阶段之间保持有效，_edead 就是「本 tick 已死」标记。
+    if (( _ndead )) ; then
         local -a ne=()
-        for e in "${ENEMIES[@]}" ; do
-            [[ -n "${killed_e[$e]+_}" ]] || ne+=("$e")
+        for (( _j=0 ; _j<_ne ; _j++ )) ; do
+            if (( _edead[_j] )) ; then
+                xo_obj_kill "${_eid[_j]}"
+            else
+                ne+=("${_eid[_j]}")
+            fi
         done
         ENEMIES=("${ne[@]}")
     fi
@@ -363,14 +390,11 @@ _play_game_tick () {
     done
     ENEMY_BULLETS=("${survive_eb[@]}")
 
-    for e in "${ENEMIES[@]}" ; do
-        [[ -n "$e" && -n "${XO_OBJ_POOL[$e]+_}" ]] || continue
-        local -n _e=$e
-        local _ex=${_e["{x}$X"]} _ey=${_e["{y}$X"]}
-        local _ew=${_e["{w}$X"]} _eh=${_e["{h}$X"]}
-        (( px >= _ex && px < _ex + _ew && py >= _ey && py < _ey + _eh )) && \
+    for (( _j=0 ; _j<_ne ; _j++ )) ; do
+        (( _edead[_j] )) && continue
+        (( px >= _ex[_j] && px < _ex[_j] + _ew[_j] &&
+           py >= _ey[_j] && py < _ey[_j] + _eh[_j] )) && \
             player_dmg=$(( player_dmg + 3 ))
-        unset -n _e
     done
 
     if (( player_dmg > 0 && G_INV == 0 )) ; then
@@ -557,10 +581,14 @@ play_game () {
     local LAST_US=${EPOCHREALTIME/./}
     local -i LOGIC_ACC_US=0
     local -i RENDER_ACC_US=$RENDER_US
+    # 只有逻辑 tick 会改变场景；两个 tick 之间的重复渲染是纯浪费。
+    # 需要重画时置 1（首次 / 每次 tick / load 后）。
+    local -i need_render=1
 
     screen_clear
     FRAME_BUF=""
     draw_frame
+    draw_hud_line2
     printf '%s' "$FRAME_BUF"
     FRAME_BUF=""
 
@@ -594,9 +622,11 @@ play_game () {
                             screen_clear
                             FRAME_BUF=""
                             draw_frame
+                            draw_hud_line2
                             printf '%s' "$FRAME_BUF"
                             FRAME_BUF=""
                             msg="LOADED"
+                            need_render=1
                         else
                             msg="LOAD FAILED"
                         fi
@@ -701,6 +731,7 @@ play_game () {
         while (( LOGIC_ACC_US >= TICK_US )) ; do
             LOGIC_ACC_US=$(( LOGIC_ACC_US - TICK_US ))
             _play_game_tick
+            need_render=1
             (( G_GAME_OVER )) && break
         done
 
@@ -708,18 +739,24 @@ play_game () {
         if (( RENDER_ACC_US >= RENDER_US )) ; then
             RENDER_ACC_US=$(( RENDER_ACC_US - RENDER_US ))
 
-            if (( hud_tick % 6 == 0 )) ; then
-                draw_hud_line1
-                draw_hud_line2
-            fi
-            ((hud_tick++))
+            # 场景与 HUD 的数值都只在 tick 后变化；没有 tick 时整块跳过，
+            # 避免以 2 倍逻辑帧率做完全相同的重画。
+            if (( need_render )) ; then
+                if (( hud_tick % 3 == 0 )) ; then
+                    draw_hud_line1
+                fi
+                ((hud_tick++))
 
-            local -n _pbh=$PLAYER
-            local _cbs="$(( ${_pbh["{t2}$X"]:-0} / FPS )) $(( ${_pbh["{t3}$X"]:-0} / FPS )) $(( ${_pbh["{t4}$X"]:-0} / FPS )) $(( ${_pbh["{t5}$X"]:-0} / FPS )) $(( ${_pbh["{mt}$X"]:-0} / FPS )) $(( ${_pbh["{lt}$X"]:-0} / FPS )) $(( ${_pbh["{st}$X"]:-0} / FPS )) ${_pbh["{lanes}$X"]:-0}"
-            unset -n _pbh
-            if [[ "$_cbs" != "$last_bonus_str" ]] ; then
-                draw_bonus_hud
-                last_bonus_str=$_cbs
+                local -n _pbh=$PLAYER
+                local _cbs="$(( ${_pbh["{t2}$X"]:-0} / FPS )) $(( ${_pbh["{t3}$X"]:-0} / FPS )) $(( ${_pbh["{t4}$X"]:-0} / FPS )) $(( ${_pbh["{t5}$X"]:-0} / FPS )) $(( ${_pbh["{mt}$X"]:-0} / FPS )) $(( ${_pbh["{lt}$X"]:-0} / FPS )) $(( ${_pbh["{st}$X"]:-0} / FPS )) ${_pbh["{lanes}$X"]:-0}"
+                unset -n _pbh
+                if [[ "$_cbs" != "$last_bonus_str" ]] ; then
+                    draw_bonus_hud
+                    last_bonus_str=$_cbs
+                fi
+
+                render
+                need_render=0
             fi
 
             if (( msg_tick > 0 )) ; then
@@ -736,8 +773,6 @@ play_game () {
                     FRAME_BUF+="$_t2"
                 fi
             fi
-
-            render
 
             if (( bomb_fx_tick > 0 )) ; then
                 render_bomb_fx

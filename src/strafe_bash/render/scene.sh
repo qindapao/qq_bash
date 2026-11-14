@@ -27,12 +27,21 @@ _scene_clear_art_at () {
 
 _render_erase_one () {
     local obj=$1
+    local -i skip_static=${2:-0}
     local -n o=$obj
     local px=${o["{prev_x}$X"]:-${o["{x}$X"]:-0}}
     local py=${o["{prev_y}$X"]:-${o["{y}$X"]:-0}}
 
     # 新对象首帧 prev=(0,0)，跳过擦除
     if (( px == 0 && py == 0 )) ; then
+        unset -n o
+        return 0
+    fi
+
+    # skip_static=1：位置没变时不必擦除，本帧的绘制会把这块重新盖住。
+    # 擦除只会留下空格，而绘制本来就要覆盖同样的格子，省掉一次写。
+    if (( skip_static )) && \
+       (( px == ${o["{x}$X"]:-0} && py == ${o["{y}$X"]:-0} )) ; then
         unset -n o
         return 0
     fi
@@ -80,33 +89,74 @@ _render_erase_one () {
 
 render () {
     local b e d eb m w _t
+    local _ex _ey
 
     # ===== 阶段 1：擦除所有活对象的 prev =====
     [[ -n "$PLAYER" && -n "${XO_OBJ_POOL[$PLAYER]+_}" ]] && \
         _render_erase_one "$PLAYER"
+    # 单字符对象（子弹/导弹/敌弹/掉落）数量最多，内联擦除，
+    # 省掉每个对象一次函数调用 + 一次 {CLS} 读取 + case 分派。
     for b in "${BULLETS[@]}" ; do
         [[ -n "$b" && -n "${XO_OBJ_POOL[$b]+_}" ]] || continue
-        _render_erase_one "$b"
+        local -n _b=$b
+        _ex=${_b["{prev_x}$X"]:-${_b["{x}$X"]:-0}}
+        _ey=${_b["{prev_y}$X"]:-${_b["{y}$X"]:-0}}
+        if (( _ex || _ey )) ; then
+            printf -v _t '\033[%d;%dH ' "$_ey" "$_ex"
+            FRAME_BUF+="$_t"
+        fi
+        unset -n _b
     done
     for m in "${MISSILES[@]}" ; do
         [[ -n "$m" && -n "${XO_OBJ_POOL[$m]+_}" ]] || continue
-        _render_erase_one "$m"
+        local -n _m=$m
+        _ex=${_m["{prev_x}$X"]:-${_m["{x}$X"]:-0}}
+        _ey=${_m["{prev_y}$X"]:-${_m["{y}$X"]:-0}}
+        if (( _ex || _ey )) ; then
+            printf -v _t '\033[%d;%dH ' "$_ey" "$_ex"
+            FRAME_BUF+="$_t"
+        fi
+        unset -n _m
     done
     for eb in "${ENEMY_BULLETS[@]}" ; do
         [[ -n "$eb" && -n "${XO_OBJ_POOL[$eb]+_}" ]] || continue
-        _render_erase_one "$eb"
+        local -n _eb=$eb
+        _ex=${_eb["{prev_x}$X"]:-${_eb["{x}$X"]:-0}}
+        _ey=${_eb["{prev_y}$X"]:-${_eb["{y}$X"]:-0}}
+        if (( _ex == ${_eb["{x}$X"]:-0} && _ey == ${_eb["{y}$X"]:-0} )) ; then
+            unset -n _eb
+            continue
+        fi
+        if (( _ex || _ey )) ; then
+            printf -v _t '\033[%d;%dH ' "$_ey" "$_ex"
+            FRAME_BUF+="$_t"
+        fi
+        unset -n _eb
     done
     for e in "${ENEMIES[@]}" ; do
         [[ -n "$e" && -n "${XO_OBJ_POOL[$e]+_}" ]] || continue
+        # 注意：不能对 Boss/EnemyB/EnemyM 跳过擦除，它们的擦除还要顺带
+        # 清空整条血条行（\033[%d;2H\033[K）；跳过会留下上一帧的残影。
         _render_erase_one "$e"
     done
     for d in "${DROPS[@]}" ; do
         [[ -n "$d" && -n "${XO_OBJ_POOL[$d]+_}" ]] || continue
-        _render_erase_one "$d"
+        local -n _d=$d
+        _ex=${_d["{prev_x}$X"]:-${_d["{x}$X"]:-0}}
+        _ey=${_d["{prev_y}$X"]:-${_d["{y}$X"]:-0}}
+        if (( _ex == ${_d["{x}$X"]:-0} && _ey == ${_d["{y}$X"]:-0} )) ; then
+            unset -n _d
+            continue
+        fi
+        if (( _ex || _ey )) ; then
+            printf -v _t '\033[%d;%dH ' "$_ey" "$_ex"
+            FRAME_BUF+="$_t"
+        fi
+        unset -n _d
     done
     for w in "${WORDS[@]}" ; do
         [[ -n "$w" && -n "${XO_OBJ_POOL[$w]+_}" ]] || continue
-        _render_erase_one "$w"
+        _render_erase_one "$w" 1
     done
 
     # ===== 阶段 2：绘制所有活对象的 cur =====
@@ -159,19 +209,24 @@ render () {
         FRAME_BUF+="$_t"
         ((_pr++))
     done
+    p["{prev_x}$X"]=$_px
+    p["{prev_y}$X"]=$_py
+    p["{prev_shield}$X"]=$_sh
     unset -n p
 
     if (( ${#BULLETS[@]} )) ; then
         for b in "${BULLETS[@]}" ; do
             [[ -n "$b" && -n "${XO_OBJ_POOL[$b]+_}" ]] || continue
             local -n _b=$b
-            local _bsym=${_b["{symbol}$X"]}
+            local _bx=${_b["{x}$X"]} _by=${_b["{y}$X"]} _bsym=${_b["{symbol}$X"]}
             if [[ "$_bsym" == "|" || "$_bsym" == "/" || "$_bsym" == '\' || "$_bsym" == '-' ]] ; then
-                printf -v _t '\033[%d;%dH%s%s%s' "${_b["{y}$X"]}" "${_b["{x}$X"]}" "$C_PURPLE" "$_bsym" "$C_RESET"
+                printf -v _t '\033[%d;%dH%s%s%s' "$_by" "$_bx" "$C_PURPLE" "$_bsym" "$C_RESET"
             else
-                printf -v _t '\033[%d;%dH%s' "${_b["{y}$X"]}" "${_b["{x}$X"]}" "$_bsym"
+                printf -v _t '\033[%d;%dH%s' "$_by" "$_bx" "$_bsym"
             fi
             FRAME_BUF+="$_t"
+            _b["{prev_x}$X"]=$_bx
+            _b["{prev_y}$X"]=$_by
             unset -n _b
         done
     fi
@@ -179,16 +234,22 @@ render () {
     for m in "${MISSILES[@]}" ; do
         [[ -n "$m" && -n "${XO_OBJ_POOL[$m]+_}" ]] || continue
         local -n _m=$m
-        printf -v _t '\033[%d;%dH%s%s%s' "${_m["{y}$X"]}" "${_m["{x}$X"]}" "$C_MAGENTA" "${_m["{symbol}$X"]}" "$C_RESET"
+        local _mx=${_m["{x}$X"]} _my=${_m["{y}$X"]} _msym=${_m["{symbol}$X"]}
+        printf -v _t '\033[%d;%dH%s%s%s' "$_my" "$_mx" "$C_MAGENTA" "$_msym" "$C_RESET"
         FRAME_BUF+="$_t"
+        _m["{prev_x}$X"]=$_mx
+        _m["{prev_y}$X"]=$_my
         unset -n _m
     done
 
     for eb in "${ENEMY_BULLETS[@]}" ; do
         [[ -n "$eb" && -n "${XO_OBJ_POOL[$eb]+_}" ]] || continue
         local -n _eb=$eb
-        printf -v _t '\033[%d;%dH%s' "${_eb["{y}$X"]}" "${_eb["{x}$X"]}" "${_eb["{symbol}$X"]}"
+        local _ebx=${_eb["{x}$X"]} _eby=${_eb["{y}$X"]} _ebsym=${_eb["{symbol}$X"]}
+        printf -v _t '\033[%d;%dH%s' "$_eby" "$_ebx" "$_ebsym"
         FRAME_BUF+="$_t"
+        _eb["{prev_x}$X"]=$_ebx
+        _eb["{prev_y}$X"]=$_eby
         unset -n _eb
     done
 
@@ -225,33 +286,30 @@ render () {
                 FRAME_BUF+="$_t"
             fi
         fi
+        _e["{prev_x}$X"]=$_ax
+        _e["{prev_y}$X"]=$_ay
         unset -n _e
     done
 
     for d in "${DROPS[@]}" ; do
         [[ -n "$d" && -n "${XO_OBJ_POOL[$d]+_}" ]] || continue
         local -n _d=$d
-        printf -v _t '\033[%d;%dH%s' "${_d["{y}$X"]}" "${_d["{x}$X"]}" "${_d["{symbol}$X"]}"
+        local _dx=${_d["{x}$X"]} _dy=${_d["{y}$X"]} _dsym=${_d["{symbol}$X"]}
+        printf -v _t '\033[%d;%dH%s' "$_dy" "$_dx" "$_dsym"
         FRAME_BUF+="$_t"
+        _d["{prev_x}$X"]=$_dx
+        _d["{prev_y}$X"]=$_dy
         unset -n _d
     done
 
     for w in "${WORDS[@]}" ; do
         [[ -n "$w" && -n "${XO_OBJ_POOL[$w]+_}" ]] || continue
         local -n _w=$w
-        printf -v _t '\033[%d;%dH%s%s%s' "${_w["{y}$X"]}" "${_w["{x}$X"]}" "$C_CYAN" "${_w["{text}$X"]}" "$C_RESET"
+        local _wx=${_w["{x}$X"]} _wy=${_w["{y}$X"]} _wtxt=${_w["{text}$X"]}
+        printf -v _t '\033[%d;%dH%s%s%s' "$_wy" "$_wx" "$C_CYAN" "$_wtxt" "$C_RESET"
         FRAME_BUF+="$_t"
+        _w["{prev_x}$X"]=$_wx
+        _w["{prev_y}$X"]=$_wy
         unset -n _w
-    done
-
-    # ===== 阶段 3：prev = cur =====
-    local _obj
-    for _obj in "$PLAYER" "${BULLETS[@]}" "${MISSILES[@]}" "${ENEMY_BULLETS[@]}" "${ENEMIES[@]}" "${DROPS[@]}" "${WORDS[@]}" ; do
-        [[ -n "$_obj" && -n "${XO_OBJ_POOL[$_obj]+_}" ]] || continue
-        local -n _o=$_obj
-        _o["{prev_x}$X"]=${_o["{x}$X"]}
-        _o["{prev_y}$X"]=${_o["{y}$X"]}
-        [[ -n "${_o[{shield}$X]+_}" ]] && _o["{prev_shield}$X"]=${_o["{shield}$X"]}
-        unset -n _o
     done
 }
