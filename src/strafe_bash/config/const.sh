@@ -9,7 +9,7 @@ SCREEN_H=$(tput lines 2>/dev/null) ; [[ -z "$SCREEN_H" ]] && SCREEN_H=24
 
 STRAFE_SAVE_FILE="${STRAFE_SAVE_FILE:-./.strafe_save}"
 GAME_TOP=5
-FPS=50
+FPS=30
 TICK_US=$(( 1000000 / FPS ))
 ENEMY_LIMIT=20
 DROP_LIMIT=8
@@ -34,4 +34,8 @@ LOCALE_UTF8=0
 case "${LC_ALL:-${LC_CTYPE:-$LANG}}" in
     *UTF-8*|*utf8*|*UTF8*) LOCALE_UTF8=1 ;;
 esac
+
+# 渲染帧率（独立于逻辑帧率，控制画面刷新频率）
+RENDER_FPS=60
+RENDER_US=$(( 1000000 / RENDER_FPS ))
 

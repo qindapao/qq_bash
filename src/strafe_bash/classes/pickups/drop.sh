@@ -29,7 +29,6 @@ Drop_move () {
     local cd=$(( ${self["{cd}$X"]} + 1 ))
     (( cd < 6 )) && { self["{cd}$X"]=$cd ; return 0 ; }
     self["{cd}$X"]=0
-    printf '\033[%d;%dH ' "${self["{y}$X"]}" "${self["{x}$X"]}"
     self["{y}$X"]=$(( ${self["{y}$X"]} + 1 ))
     (( ${self["{y}$X"]} >= SCREEN_H - 1 )) && return 1
     return 0

@@ -34,6 +34,15 @@ readonly EntityStaticTemplate='
         {prev_y} => 0
     '
 
+# Entity 析构钩子：如果游戏层加载了擦除函数，擦除最后一次画面
+# 纯 xo 测试环境（没加载 render 层）时 declare -F 为假，跳过
+Entity_kill () {
+    local obj=$1
+    if declare -F _render_erase_one >/dev/null ; then
+        _render_erase_one "$obj"
+    fi
+}
+
 
 # 这个类不是一个场景实体，不参与移动
 readonly BulletTypeStaticTemplate='

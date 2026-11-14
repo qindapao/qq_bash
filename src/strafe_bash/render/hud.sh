@@ -1,4 +1,4 @@
-# render/hud.sh — HUD 状态栏
+# render/hud.sh — HUD 状态栏（拼接 FRAME_BUF）
 [[ -n "${_STRAFE_HUD_SH:-}" ]] && return 0
 _STRAFE_HUD_SH=1
 . "$STRAFE_LIB_HOME/xo.sh"
@@ -21,14 +21,18 @@ draw_hud_line1 () {
     unset -n p
     local _maxw=$(( SCREEN_W - 2 ))
     _s="${_s:0:_maxw}"
-    printf '\033[2;2H\033[K%s\033[2;%dH%s' "$_s" "$SCREEN_W" "$FRAME_V"
+    local _t
+    printf -v _t '\033[2;2H%*s\033[2;2H%s\033[2;%dH%s' "$_maxw" '' "$_s" "$SCREEN_W" "$FRAME_V"
+    FRAME_BUF+="$_t"
 }
 
 draw_hud_line2 () {
     local _s='ENEMY V:1 Q:5 M:10 B:30 BOSS:250   BULLET .:1 *:2 @:3 $:4 |:LASER   DROP H:+3 b:BOMB m:MISSILE L:LANE S:SHIELD'
     local _maxw=$(( SCREEN_W - 2 ))
     _s="${_s:0:_maxw}"
-    printf '\033[3;2H\033[K%s\033[3;%dH%s' "$_s" "$SCREEN_W" "$FRAME_V"
+    local _t
+    printf -v _t '\033[3;2H%*s\033[3;2H%s\033[3;%dH%s' "$_maxw" '' "$_s" "$SCREEN_W" "$FRAME_V"
+    FRAME_BUF+="$_t"
 }
 
 draw_bonus_hud () {
@@ -47,5 +51,7 @@ draw_bonus_hud () {
         "$t2" "$t3" "$t4" "$t5" "$mt" "$lt" "$lcount" "$st"
     local _maxw=$(( SCREEN_W - 2 ))
     _s="${_s:0:_maxw}"
-    printf '\033[4;2H\033[K%s\033[4;%dH%s' "$_s" "$SCREEN_W" "$FRAME_V"
+    local _t
+    printf -v _t '\033[4;2H%*s\033[4;2H%s\033[4;%dH%s' "$_maxw" '' "$_s" "$SCREEN_W" "$FRAME_V"
+    FRAME_BUF+="$_t"
 }

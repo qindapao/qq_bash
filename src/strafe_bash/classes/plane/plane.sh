@@ -35,6 +35,7 @@ readonly PlaneStaticTemplate='
         {lt} => 0
         {shield} => 0
         {st} => 0
+        {prev_shield} => 0
     '
 Plane_born () {
     local -n self=$1
@@ -44,6 +45,7 @@ Plane_born () {
     self["{al}$X"]=1
 }
 Plane_kill () {
+    Entity_kill "$1"
     local -n self=$1
     local bt=${self["{bullet}$X"]}
     [[ -n "$bt" && -n "${XO_OBJ_POOL[$bt]+_}" ]] && xo_obj_kill "$bt"
@@ -51,7 +53,6 @@ Plane_kill () {
 Plane_move () {
     local -n self=$1
     local dx=${2:-0} dy=${3:-0}
-    _plane_clear "$1"
     local _al=${self["{al}$X"]:-1}
     local _sh=${self["{shield}$X"]:-0}
     local x=$(( ${self["{x}$X"]} + dx ))
@@ -66,7 +67,6 @@ Plane_move () {
     (( y > SCREEN_H - 2 )) && y=$(( SCREEN_H - 2 ))
     self["{x}$X"]=$x
     self["{y}$X"]=$y
-    unset -n self
 }
 Plane_fire () {
     local -n self=$1

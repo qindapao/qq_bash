@@ -32,7 +32,6 @@ _plane_clear () {
 _plane_set_shield () {
     local p=$1 on=$2
     local -n self=$p
-    _plane_clear "$p"
     if (( on )) ; then
         self["{art}$X"]="$PLANE_ART_SHIELD"
         self["{al}$X"]=4

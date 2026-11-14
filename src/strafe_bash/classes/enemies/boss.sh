@@ -59,9 +59,7 @@ Boss_move () {
     local cd=$(( ${self["{cd}$X"]} + 1 ))
     if (( cd >= 4 )) ; then
         self["{cd}$X"]=0
-        local _ay=${self["{y}$X"]} _ax=${self["{x}$X"]} _w=${self["{w}$X"]} _h=${self["{h}$X"]}
-        _art_clear_at "$_ay" "$_ax" "${self["{art}$X"]}"
-        (( _ay + _h < SCREEN_H )) && { printf '\033[%d;%dH\033[K\033[%d;%dH%s' $((_ay + _h)) "$_ax" $((_ay + _h)) "$SCREEN_W" "$FRAME_V" ; }
+        local _ax=${self["{x}$X"]} _w=${self["{w}$X"]}
         local vx=${self["{vx}$X"]}
         local x=$(( _ax + vx ))
         if (( x < 2 )) ; then

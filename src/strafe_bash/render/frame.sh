@@ -16,5 +16,5 @@ draw_frame () {
         printf -v _t '\033[%d;1H%s\033[%d;%dH%s' "$_i" "$FRAME_V" "$_i" "$_w" "$FRAME_V"
         _out+=$_t
     done
-    printf '%s' "$_out"
+    FRAME_BUF+="$_out"
 }

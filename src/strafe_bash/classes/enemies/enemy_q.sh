@@ -26,8 +26,7 @@ EnemyQ_move () {
     local cd=$(( ${self["{cd}$X"]} + 1 ))
     (( cd < 10 )) && { self["{cd}$X"]=$cd ; return 0 ; }
     self["{cd}$X"]=0
-    local _ay=${self["{y}$X"]} _ax=${self["{x}$X"]} _w=${self["{w}$X"]} _h=${self["{h}$X"]}
-    _art_clear_at "$_ay" "$_ax" "${self["{art}$X"]}"
+    local _ax=${self["{x}$X"]} _w=${self["{w}$X"]} _h=${self["{h}$X"]}
     (( RANDOM % 3 == 0 )) && {
         local dx=$(( (RANDOM % 2) * 2 - 1 ))
         local x=$(( _ax + dx ))
@@ -35,7 +34,7 @@ EnemyQ_move () {
         (( x > SCREEN_W - 2 - _w )) && x=$(( SCREEN_W - 2 - _w ))
         self["{x}$X"]=$x
     }
-    self["{y}$X"]=$(( _ay + 1 ))
+    self["{y}$X"]=$(( ${self["{y}$X"]} + 1 ))
     (( ${self["{y}$X"]} + _h > SCREEN_H - 1 )) && return 1
     return 0
 }

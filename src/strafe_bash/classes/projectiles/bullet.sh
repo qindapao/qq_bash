@@ -27,7 +27,10 @@ Bullet_born () {
 }
 Bullet_move () {
     local -n self=$1
-    CLEAR_BATCH+=("${self["{y}$X"]}" "${self["{x}$X"]}")
     self["{x}$X"]=$(( ${self["{x}$X"]} + ${self["{vx}$X"]} ))
     self["{y}$X"]=$(( ${self["{y}$X"]} + ${self["{vy}$X"]} ))
+    (( ${self["{y}$X"]} < GAME_TOP )) && return 1
+    (( ${self["{x}$X"]} < 2 )) && return 1
+    (( ${self["{x}$X"]} > SCREEN_W - 2 )) && return 1
+    return 0
 }

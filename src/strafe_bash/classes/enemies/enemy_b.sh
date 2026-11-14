@@ -26,9 +26,7 @@ EnemyB_move () {
     local cd=$(( ${self["{cd}$X"]} + 1 ))
     (( cd < 14 )) && { self["{cd}$X"]=$cd ; return 0 ; }
     self["{cd}$X"]=0
-    local _ay=${self["{y}$X"]} _ax=${self["{x}$X"]} _w=${self["{w}$X"]} _h=${self["{h}$X"]}
-    _art_clear_at "$_ay" "$_ax" "${self["{art}$X"]}"
-    (( _ay + _h < SCREEN_H )) && { printf '\033[%d;%dH\033[K\033[%d;%dH%s' $((_ay + _h)) "$_ax" $((_ay + _h)) "$SCREEN_W" "$FRAME_V" ; }
+    local _ax=${self["{x}$X"]} _w=${self["{w}$X"]} _h=${self["{h}$X"]}
     local vx=${self["{vx}$X"]}
     (( RANDOM % 4 == 0 )) && vx=$(( (RANDOM % 3) - 1 ))
     self["{vx}$X"]=$vx
@@ -38,7 +36,7 @@ EnemyB_move () {
     self["{x}$X"]=$x
     local vy=${self["{vy}$X"]}
     (( RANDOM % 8 == 0 )) && vy=$(( (RANDOM % 2) * 2 - 1 ))
-    local y=$(( _ay + vy ))
+    local y=$(( ${self["{y}$X"]} + vy ))
     if (( y + _h >= SCREEN_H - 1 )) ; then
         y=$(( SCREEN_H - 2 - _h )) ; vy=-1
     elif (( y < GAME_TOP )) ; then

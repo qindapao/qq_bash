@@ -35,24 +35,16 @@ Word_move () {
     local cd=$(( ${self["{cd}$X"]} + 1 ))
     (( cd < 4 )) && { self["{cd}$X"]=$cd ; return 0 ; }
     self["{cd}$X"]=0
-
-    local _x=${self["{x}$X"]} _y=${self["{y}$X"]} _len=${self["{len}$X"]}
-
-    local _len_eff=$_len
-    (( _x + _len_eff > SCREEN_W - 1 )) && _len_eff=$(( SCREEN_W - 1 - _x ))
-    (( _len_eff < 0 )) && _len_eff=0
-    (( _len_eff > 0 )) && printf '\033[%d;%dH%*s' "$_y" "$_x" "$_len_eff" ''
-
     if (( RANDOM % 4 == 0 )) ; then
         self["{vx}$X"]=$(( (RANDOM % 3) - 1 ))
     fi
+    local _x=${self["{x}$X"]} _y=${self["{y}$X"]} _len=${self["{len}$X"]}
     local vx=${self["{vx}$X"]}
     local nx=$(( _x + vx ))
     (( nx < 2 )) && { nx=2 ; self["{vx}$X"]=0 ; }
     local _maxx=$(( SCREEN_W - 3 - _len ))
     (( nx > _maxx )) && { nx=$_maxx ; self["{vx}$X"]=0 ; }
     self["{x}$X"]=$nx
-
     self["{y}$X"]=$(( _y + 1 ))
     (( ${self["{y}$X"]} >= SCREEN_H - 1 )) && return 1
     return 0
