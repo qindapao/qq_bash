@@ -53,13 +53,12 @@ _render_erase_one () {
         printf -v _t '\033[%d;%dH ' "$py" "$px"
         FRAME_BUF+="$_t"
         ;;
-    Plane)
+    Plane|PlaneBee|PlaneHornet|PlaneEagle|PlaneIl2)
         local psh=${o["{prev_shield}$X"]:-0}
-        local pal=1
-        local part="$PLANE_ART_BASE"
-        (( psh )) && { pal=4 ; part="$PLANE_ART_SHIELD" ; }
+        local pal=${o["{prev_al}$X"]:-${o["{al}$X"]:-1}}
+        local part=${o["{prev_art}$X"]:-${o["{art}$X"]}}
         local pay=$py
-        (( psh )) && pay=$(( py - 1 ))
+        (( psh )) && pay=$(( py + ${o["{shield_top}$X"]:--1} ))
         _scene_clear_art_at "$pay" $(( px - pal )) "$part"
         ;;
     Word)
@@ -160,21 +159,27 @@ render () {
     done
 
     # ===== 阶段 2：绘制所有活对象的 cur =====
+    local _blink_visible=1
+    xo_call "$PLAYER" blink_visible || _blink_visible=0
     local -n p=$PLAYER
     local _hp=${p["{hp}$X"]:-0}
+    local _maxhp=${p["{maxhp}$X"]:-20}
     local _ph=''
-    if (( _hp >= 20 )) ; then _ph=$C_BLUE
-    elif (( _hp <= 10 )) ; then _ph=$C_RED
-    else _ph=$C_RESET
+    if (( _hp >= _maxhp )) ; then _ph="${C_BLUE}${C_BOLD}"
+    elif (( _hp * 2 < _maxhp )) ; then _ph="${C_RED}${C_BOLD}"
+    else _ph="${C_FG_DEFAULT}${C_BOLD}"
     fi
+    local _green_bold="${C_GREEN}${C_BOLD}"
 
     local _px=${p["{x}$X"]} _py=${p["{y}$X"]}
     local _part=${p["{art}$X"]}
     local _al=${p["{al}$X"]:-1}
+    local _bal=${p["{base_al}$X"]:-1}
+    local _sht=${p["{shield_top}$X"]:--1}
     local _sh=${p["{shield}$X"]:-0}
     local _pax=$(( _px - _al ))
     local _pay=$_py
-    (( _sh )) && _pay=$(( _pay - 1 ))
+    (( _sh )) && _pay=$(( _pay + _sht ))
     local _pr=0 _prest=$_part
     while [[ -n "$_prest" ]] ; do
         local _pline=${_prest%%$'\n'*}
@@ -191,9 +196,13 @@ render () {
                 continue
             fi
             if (( _sh )) ; then
-                if (( _pr == 0 )) ; then _want=$C_GREEN
-                elif (( _pr == 1 )) && [[ "$_c" != "o" && "$_c" != "|" ]] ; then _want=$C_GREEN
-                else _want=$_ph
+                # 护盾描边统一绿色；机体和尾翼仍用飞机血量颜色
+                if (( _pr == 2 )) ; then
+                    _want=$_ph
+                elif (( _pr == 1 && _i >= _al - _bal && _i <= _al + _bal )) ; then
+                    _want=$_ph
+                else
+                    _want=$_green_bold
                 fi
             else
                 _want=$_ph
@@ -206,11 +215,13 @@ render () {
         done
         _out+="$C_RESET"
         printf -v _t '\033[%d;%dH%s' $((_pay + _pr)) "$_pax" "$_out"
-        FRAME_BUF+="$_t"
+        (( _blink_visible )) && FRAME_BUF+="$_t"
         ((_pr++))
     done
     p["{prev_x}$X"]=$_px
     p["{prev_y}$X"]=$_py
+    p["{prev_art}$X"]=$_part
+    p["{prev_al}$X"]=$_al
     p["{prev_shield}$X"]=$_sh
     unset -n p
 
@@ -220,9 +231,9 @@ render () {
             local -n _b=$b
             local _bx=${_b["{x}$X"]} _by=${_b["{y}$X"]} _bsym=${_b["{symbol}$X"]}
             if [[ "$_bsym" == "|" || "$_bsym" == "/" || "$_bsym" == '\' || "$_bsym" == '-' ]] ; then
-                printf -v _t '\033[%d;%dH%s%s%s' "$_by" "$_bx" "$C_PURPLE" "$_bsym" "$C_RESET"
+                printf -v _t '\033[%d;%dH%s%s%s%s' "$_by" "$_bx" "$C_PURPLE" "$C_BOLD" "$_bsym" "$C_RESET"
             else
-                printf -v _t '\033[%d;%dH%s' "$_by" "$_bx" "$_bsym"
+                printf -v _t '\033[%d;%dH%s%s%s' "$_by" "$_bx" "$C_BOLD" "$_bsym" "$C_RESET"
             fi
             FRAME_BUF+="$_t"
             _b["{prev_x}$X"]=$_bx

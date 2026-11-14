@@ -11,7 +11,7 @@ init_game () {
     local -n p=$PLAYER
     p["{x}$X"]=$(( SCREEN_W / 2 ))
     p["{y}$X"]=$(( SCREEN_H - 2 ))
-    p["{hp}$X"]=20
+    p["{hp}$X"]=${p["{maxhp}$X"]:-20}
     p["{score}$X"]=0
     p["{bombs}$X"]=0
     p["{t2}$X"]=0
@@ -24,8 +24,11 @@ init_game () {
     p["{lt}$X"]=0
     p["{shield}$X"]=0
     p["{st}$X"]=0
-    p["{art}$X"]="$PLANE_ART_BASE"
-    p["{al}$X"]=1
+    p["{blink}$X"]=0
+    p["{ram_cd}$X"]=0
+    p["{prev_shield}$X"]=0
+    p["{art}$X"]=${p["{base_art}$X"]}
+    p["{al}$X"]=${p["{base_al}$X"]:-1}
 
     # ---- 本局武器：默认 tier0 + 每档随机抽一个 tier2..5 ----
     # 先清掉上一局留下的具名武器对象
@@ -67,12 +70,15 @@ init_game () {
     for m in "${MISSILES[@]}" ; do [[ -n "${XO_OBJ_POOL[$m]+_}" ]] && xo_obj_kill "$m" ; done
     for w in "${WORDS[@]}" ; do [[ -n "${XO_OBJ_POOL[$w]+_}" ]] && xo_obj_kill "$w" ; done
     BULLETS=() ENEMIES=() DROPS=() ENEMY_BULLETS=() MISSILES=()
-    BOMB_FX_POS=() BOSS_DEATH_POS=() CLEAR_BATCH=() WORDS=()
+    BOMB_FX_POS=() HIT_FX=() BOSS_DEATH_POS=() CLEAR_BATCH=() WORDS=()
     BOSS_DEATH_TICK=0
     BOSS_DEATH_STYLE=0
     BOSS_DEATH_CX=0
     BOSS_DEATH_CY=0
     BOSS_DEATH_WAVE=0
+    CLEAR_BANNER_TICK=0
+    CLEAR_BANNER_FRAME=0
+    CLEAR_BANNER_TEXT=''
 
     G_FIRE_CD=0
     G_MISSILE_CD=0
@@ -104,6 +110,10 @@ init_game () {
         fi
         if [[ -n "${_so[{shield}$X]+_}" ]] ; then
             _so["{prev_shield}$X"]=${_so["{shield}$X"]}
+        fi
+        if [[ -n "${_so[{art}$X]+_}" && -n "${_so[{al}$X]+_}" ]] ; then
+            _so["{prev_art}$X"]=${_so["{art}$X"]}
+            _so["{prev_al}$X"]=${_so["{al}$X"]}
         fi
         unset -n _so
     done

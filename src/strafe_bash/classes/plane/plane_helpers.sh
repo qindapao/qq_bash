@@ -33,18 +33,19 @@ _plane_set_shield () {
     local p=$1 on=$2
     local -n self=$p
     if (( on )) ; then
-        self["{art}$X"]="$PLANE_ART_SHIELD"
-        self["{al}$X"]=4
+        self["{art}$X"]=${self["{shield_art}$X"]}
+        self["{al}$X"]=${self["{shield_al}$X"]:-4}
         self["{shield}$X"]=1
         self["{st}$X"]=$BONUS_ST
         local y=${self["{y}$X"]}
+        local -i _al=${self["{al}$X"]}
         (( y < GAME_TOP + 1 )) && self["{y}$X"]=$(( GAME_TOP + 1 ))
         local x=${self["{x}$X"]}
-        (( x < 6 )) && self["{x}$X"]=6
-        (( x > SCREEN_W - 6 )) && self["{x}$X"]=$(( SCREEN_W - 6 ))
+        (( x < _al + 2 )) && self["{x}$X"]=$(( _al + 2 ))
+        (( x > SCREEN_W - _al - 2 )) && self["{x}$X"]=$(( SCREEN_W - _al - 2 ))
     else
-        self["{art}$X"]="$PLANE_ART_BASE"
-        self["{al}$X"]=1
+        self["{art}$X"]=${self["{base_art}$X"]}
+        self["{al}$X"]=${self["{base_al}$X"]:-1}
         self["{shield}$X"]=0
         self["{st}$X"]=0
     fi

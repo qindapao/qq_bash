@@ -37,11 +37,11 @@ main () {
             screen_clear
             printf 'LOAD FAILED — starting a new game...\n'
             sleep 1
-            xo_obj_born Plane ; PLAYER=$REPLY
+            xo_obj_born "${INTRO_PLANE_CLS:-PlaneBee}" ; PLAYER=$REPLY
             init_game
         fi
     else
-        xo_obj_born Plane ; PLAYER=$REPLY
+        xo_obj_born "${INTRO_PLANE_CLS:-PlaneBee}" ; PLAYER=$REPLY
         init_game
     fi
 

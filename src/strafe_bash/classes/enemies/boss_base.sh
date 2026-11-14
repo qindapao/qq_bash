@@ -13,6 +13,7 @@ readonly BossBaseStaticTemplate='
         {CLS} => BossBase
         {SUP} => Entity
         {MIX} => 
+        {name} => THE BOSS
         {x} => 0
         {y} => 0
         {w} => 13

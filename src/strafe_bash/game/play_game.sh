@@ -30,6 +30,7 @@ _STRAFE_PLAY_GAME_SH=1
 . "$STRAFE_PROJ_DIR/classes/pickups/word.sh"
 . "$STRAFE_PROJ_DIR/classes/plane/plane_helpers.sh"
 . "$STRAFE_PROJ_DIR/classes/plane/plane.sh"
+. "$STRAFE_PROJ_DIR/classes/plane/plane_types.sh"
 
 # render 层
 . "$STRAFE_PROJ_DIR/render/ansi.sh"
@@ -37,9 +38,111 @@ _STRAFE_PLAY_GAME_SH=1
 . "$STRAFE_PROJ_DIR/render/hud.sh"
 . "$STRAFE_PROJ_DIR/render/scene.sh"
 . "$STRAFE_PROJ_DIR/render/fx.sh"
+. "$STRAFE_PROJ_DIR/render/clear_banner.sh"
 
 # save 层
 . "$STRAFE_PROJ_DIR/save/save.sh"
+
+# ============================================================================
+# 鼠标：xterm SGR 鼠标上报（1003 any-event + 1006 SGR）
+# 只移动飞机；开火仍然是自动的。M 键可临时关闭/恢复。
+# ============================================================================
+_mouse_on () {
+    (( G_MOUSE_ON )) && return 0
+    cursor_hide
+    printf '\033[?1003h\033[?1006h'
+    G_MOUSE_ON=1
+}
+_mouse_off () {
+    printf '\033[?1003l\033[?1006l'
+    G_MOUSE_ON=0
+}
+_mouse_assert () {
+    # 有些终端在失焦/切换后会悄悄丢掉鼠标上报；定期重新声明一次
+    if (( G_MOUSE_ON )) ; then
+        printf '\033[?1003h\033[?1006h'
+    else
+        _mouse_on
+    fi
+}
+_mouse_move_to () {
+    local -i tx=$1 ty=$2
+    [[ -n "$PLAYER" && -n "${XO_OBJ_POOL[$PLAYER]+_}" ]] || return 0
+    local -n _mp=$PLAYER
+    local -i cx=${_mp["{x}$X"]} cy=${_mp["{y}$X"]}
+    unset -n _mp
+    xo_call "$PLAYER" move "$((tx - cx))" "$((ty - cy))"
+    need_render=1
+}
+_mouse_bomb () {
+    [[ -n "$PLAYER" && -n "${XO_OBJ_POOL[$PLAYER]+_}" ]] || return 0
+    local -n _bp=$PLAYER
+    (( ${_bp["{bombs}$X"]:-0} > 0 )) && G_WANT_BOMB=1
+    unset -n _bp
+}
+_mouse_apply () {
+    local seq=$1
+    [[ "$seq" == '[<'* ]] || return 0
+    [[ "$seq" == *M || "$seq" == *m ]] || return 0
+    local ev=${seq: -1}
+    local body=${seq:2:${#seq}-3}
+    local mb mx my
+    IFS=';' read -r mb mx my <<< "$body"
+    [[ "$mx" =~ ^[0-9]+$ && "$my" =~ ^[0-9]+$ ]] || return 0
+    (( mb & 64 )) && return 0     # 滚轮不移动飞机
+    [[ "$ev" == "m" ]] && return 0 # 松开按钮不再移动
+    if (( (mb & 3) == 2 && !(mb & 32) )) ; then
+        _mouse_bomb
+        return 0
+    fi
+    # 指针放在飞机正下方两格，避免挡住机体
+    _mouse_move_to "$mx" "$(( my - 2 ))"
+}
+
+# ============================================================================
+# _hit_fx_add — 命中火花（短命，不创建 xo 对象）
+# ============================================================================
+_hit_fx_add () {
+    local y=$1 x=$2 ch=$3 clr=$4
+    (( y >= GAME_TOP && y < SCREEN_H - 1 && x >= 2 && x <= SCREEN_W - 2 )) || return 0
+    (( ${#HIT_FX[@]} >= 200 )) && return 0
+    HIT_FX+=("$y" "$x" "$ch" "$clr" 3)
+}
+
+_score_bonus () {
+    local amount=$1
+    [[ -n "$PLAYER" && -n "${XO_OBJ_POOL[$PLAYER]+_}" ]] || return 0
+    local -n _bp=$PLAYER
+    _bp["{score}$X"]=$(( ${_bp["{score}$X"]:-0} + amount ))
+    unset -n _bp
+}
+
+# 撞击伤害：由 M_Ram 提供伤害值，游戏层负责计分/死亡/Boss 收尾。
+# 返回 0 表示撞死，1 表示还活着。
+_ram_enemy () {
+    local eid=$1 ex=$2 ey=$3 ew=$4 eh=$5 eart=$6
+    local -n _re=$eid
+    local -i hp=${_re["{hp}$X"]:-1}
+    local -i escore=${_re["{score}$X"]:-0}
+    unset -n _re
+    local -i rdmg
+    rdmg=$(xo_call "$PLAYER" ram_damage)
+    (( rdmg > 0 )) || rdmg=5
+    hp=$(( hp - rdmg ))
+    local -n _re2=$eid
+    _re2["{hp}$X"]=$hp
+    unset -n _re2
+    _hit_fx_add "$py" "$px" '*' "$C_CYAN"
+    (( hp <= 0 )) || return 1
+    ((G_KILLS++))
+    p["{score}$X"]=$(( ${p["{score}$X"]:-0} + escore * _score_pct / 100 ))
+    if Base_is_a "$eid" BossBase ; then
+        ((G_BOSS_KILLS++))
+        _boss_on_death "$eid" "$ex" "$ey" "$ew" "$eh" "$eart"
+    fi
+    xo_obj_kill "$eid"
+    return 0
+}
 
 # ============================================================================
 # _boss_on_death — Boss 死亡统一处理（掉落 + 死亡动画参数）
@@ -48,7 +151,12 @@ _boss_on_death () {
     local obj=$1 ex=$2 ey=$3 ew=$4 eh=$5 art=$6
     local -n _b=$obj
     local -i _style=${_b["{death_style}$X"]:-0}
+    local _bname=${_b["{name}$X"]:-THE BOSS}
     unset -n _b
+
+    # 击杀 Boss 也触发全清横幅；与清场条件互相独立
+    _score_bonus "$BOSS_SCORE_BONUS"
+    _clear_banner_start "${_bname} WAS KILLED BY YOU!  +${BOSS_SCORE_BONUS}"
 
     # 如果上一个 Boss 的死亡特效还没放完，先擦掉残留火花
     local _i _t
@@ -106,9 +214,15 @@ _boss_random_class () {
 _play_game_tick () {
     local b e d eb m w
     ((G_RUN_TICKS++))
+    [[ -n "$PLAYER" ]] && xo_call "$PLAYER" blink_tick
+    if [[ -n "$PLAYER" ]] && declare -F "${XO_OBJ_POOL[$PLAYER]}_ram_tick" >/dev/null 2>&1 ; then
+        xo_call "$PLAYER" ram_tick
+    fi
+    (( G_RUN_TICKS % 30 == 0 )) && _mouse_assert
 
     # ---- 0. 奖励计时器递减（每 tick 减 1）----
     local -n _pb=$PLAYER
+    local -i _score_pct=${_pb["{score_pct}$X"]:-100}
     local _tk _tv
     for _tk in "{t2}$X" "{t3}$X" "{t4}$X" "{t5}$X" "{mt}$X" "{lt}$X" "{st}$X" ; do
         _tv=${_pb[$_tk]:-0}
@@ -271,11 +385,12 @@ _play_game_tick () {
                 _newhp=$(( _ehp[_j] - bdmg ))
                 _ehp[_j]=$_newhp
                 killed_b[$b]=1
+                _hit_fx_add "$by" "$bx" '*' "$C_ORANGE"
                 if (( _newhp <= 0 )) ; then
                     _edead[_j]=1
                     ((_ndead++))
                     ((G_KILLS++))
-                    score_gain=$(( score_gain + _escore[_j] ))
+                    score_gain=$(( score_gain + _escore[_j] * _score_pct / 100 ))
                     if Base_is_a "${_eid[_j]}" BossBase ; then
                         ((G_BOSS_KILLS++))
                         _boss_on_death "${_eid[_j]}" "${_ex[_j]}" "${_ey[_j]}" "${_ew[_j]}" "${_eh[_j]}" "${_eart[_j]}"
@@ -305,11 +420,12 @@ _play_game_tick () {
                 _newhp=$(( _ehp[_j] - mdmg ))
                 _ehp[_j]=$_newhp
                 killed_m[$m]=1
+                _hit_fx_add "$my" "$mx" '*' "$C_ORANGE"
                 if (( _newhp <= 0 )) ; then
                     _edead[_j]=1
                     ((_ndead++))
                     ((G_KILLS++))
-                    score_gain=$(( score_gain + _escore[_j] ))
+                    score_gain=$(( score_gain + _escore[_j] * _score_pct / 100 ))
                     if Base_is_a "${_eid[_j]}" BossBase ; then
                         ((G_BOSS_KILLS++))
                         _boss_on_death "${_eid[_j]}" "${_ex[_j]}" "${_ey[_j]}" "${_ew[_j]}" "${_eh[_j]}" "${_eart[_j]}"
@@ -371,8 +487,12 @@ _play_game_tick () {
     local -i player_dmg=0
 
     local _sh=$(( ${p["{shield}$X"]:-0} ))
-    local _sx1=$(( px - 4 )) _sx2=$(( px + 4 ))
-    local _sy1=$(( py - 1 )) _sy2=$(( py + 1 ))
+    local -i _shw=${p["{shield_w}$X"]:-9}
+    local -i _shh=${p["{shield_h}$X"]:-3}
+    local -i _sht=${p["{shield_top}$X"]:--1}
+    local _sx1=$(( px - _shw / 2 )) _sx2=$(( px + _shw / 2 ))
+    local _sy1=$(( py + _sht ))
+    local _sy2=$(( _sy1 + _shh - 1 ))
 
     local -a survive_eb=()
     for eb in "${ENEMY_BULLETS[@]}" ; do
@@ -386,6 +506,11 @@ _play_game_tick () {
             (( _ebx == px && _eby == py )) && _hit=1
         fi
         if (( _hit )) ; then
+            if (( _sh )) ; then
+                _hit_fx_add "$_eby" "$_ebx" '*' "$C_GREEN"
+            else
+                _hit_fx_add "$_eby" "$_ebx" '*' "$C_RED"
+            fi
             (( ! _sh )) && player_dmg=$(( player_dmg + ${_eb["{damage}$X"]} ))
             unset -n _eb
             xo_obj_kill "$eb"
@@ -399,13 +524,42 @@ _play_game_tick () {
     for (( _j=0 ; _j<_ne ; _j++ )) ; do
         (( _edead[_j] )) && continue
         (( px >= _ex[_j] && px < _ex[_j] + _ew[_j] &&
-           py >= _ey[_j] && py < _ey[_j] + _eh[_j] )) && \
+           py >= _ey[_j] && py < _ey[_j] + _eh[_j] )) && {
             player_dmg=$(( player_dmg + 3 ))
+            _hit_fx_add "$py" "$px" '*' "$C_RED"
+        }
     done
+
+    # 撞击型飞机：M_Ram 在闪烁/受伤状态中提供额外撞击伤害
+    local -i _has_ram=0
+    if [[ -n "$PLAYER" ]] && declare -F "${XO_OBJ_POOL[$PLAYER]}_ram_ready" >/dev/null 2>&1 ; then
+        _has_ram=1
+    fi
+    local -A _ram_killed=()
+    if (( _has_ram )) ; then
+        for (( _j=0 ; _j<_ne ; _j++ )) ; do
+            (( _edead[_j] )) && continue
+            (( px >= _ex[_j] && px < _ex[_j] + _ew[_j] &&
+               py >= _ey[_j] && py < _ey[_j] + _eh[_j] )) || continue
+            if xo_call "$PLAYER" ram_ready ; then
+                _ram_enemy "${_eid[_j]}" "${_ex[_j]}" "${_ey[_j]}" "${_ew[_j]}" "${_eh[_j]}" "${_eart[_j]}" && \
+                    _ram_killed["${_eid[_j]}"]=1
+            fi
+        done
+    fi
+    if (( ${#_ram_killed[@]} )) ; then
+        local -a _kept=()
+        for e in "${ENEMIES[@]}" ; do
+            [[ -n "${_ram_killed[$e]+_}" ]] && continue
+            _kept+=("$e")
+        done
+        ENEMIES=("${_kept[@]}")
+    fi
 
     if (( player_dmg > 0 && G_INV == 0 )) ; then
         p["{hp}$X"]=$(( ${p["{hp}$X"]} - player_dmg ))
-        G_INV=30
+        xo_call "$PLAYER" blink_start
+        G_INV=${p["{blink}$X"]:-90}
         if (( ${p["{lt}$X"]:-0} > 0 && ${p["{lanes}$X"]:-0} > 0 )) ; then
             local _nl=$(( ${p["{lanes}$X"]} - 1 ))
             p["{lanes}$X"]=$_nl
@@ -418,13 +572,15 @@ _play_game_tick () {
     fi
 
     # ---- 10. 掉落物拾取 ----
-    # 拾取用整架飞机的 ASCII art 包围盒：
-    #   普通形态：x-1 .. x+1，y .. y+1（o|o / -'-）
-    #   护盾形态：x-4 .. x+4，y-1 .. y+1（.-----. / /  o|o  \ / _._）
-    # 注意：敌机/敌弹碰撞仍只用 px/py 这个竖线位置，本改动不影响它们。
-    local _pal=${p["{al}$X"]:-1}
-    local _px1=$(( px - _pal )) _px2=$(( px + _pal ))
-    local _py1=$(( py - _sh )) _py2=$(( py + 1 ))
+    # 拾取用整架飞机的 art 包围盒；护盾形态用护盾 art 的包围盒。
+    local -i _pick_al _pick_h _pick_top
+    if (( _sh )) ; then
+        _pick_al=$(( _shw / 2 )) ; _pick_h=$_shh ; _pick_top=$(( py + _sht ))
+    else
+        _pick_al=$(( ${p["{w}$X"]:-3} / 2 )) ; _pick_h=${p["{h}$X"]:-2} ; _pick_top=$py
+    fi
+    local _px1=$(( px - _pick_al )) _px2=$(( px + _pick_al ))
+    local _py1=$_pick_top _py2=$(( _pick_top + _pick_h - 1 ))
 
     local -a survive_d2=()
     for d in "${DROPS[@]}" ; do
@@ -453,7 +609,7 @@ _play_game_tick () {
                     ;;
                 H)
                     p["{hp}$X"]=$(( ${p["{hp}$X"]} + 3 ))
-                    (( ${p["{hp}$X"]} > 20 )) && p["{hp}$X"]=20
+                    (( ${p["{hp}$X"]} > ${p["{maxhp}$X"]:-20} )) && p["{hp}$X"]=${p["{maxhp}$X"]:-20}
                     ;;
                 b)
                     (( ${p["{bombs}$X"]:-0} < 5 )) && \
@@ -485,12 +641,38 @@ _play_game_tick () {
     done
     DROPS=("${survive_d2[@]}")
 
+    # ---- 10.5 单词拾取：碰到即消失并加分 ----
+    local -a survive_w=()
+    for w in "${WORDS[@]}" ; do
+        [[ -n "$w" && -n "${XO_OBJ_POOL[$w]+_}" ]] || continue
+        local -n _w=$w
+        local _wx=${_w["{x}$X"]} _wy=${_w["{y}$X"]} _wlen=${_w["{len}$X"]}
+        unset -n _w
+        if (( _wy >= _py1 && _wy <= _py2 && \
+              _wx + _wlen - 1 >= _px1 && _wx <= _px2 )) ; then
+            local _wscore=$(( _wlen * 10 * _score_pct / 100 ))
+            p["{score}$X"]=$(( ${p["{score}$X"]} + _wscore ))
+            xo_obj_kill "$w"
+        else
+            survive_w+=("$w")
+        fi
+    done
+    WORDS=("${survive_w[@]}")
+
     # ---- 11. 死亡判定 ----
     local -i _hp_final=${p["{hp}$X"]}
     unset -n p
     (( _hp_final <= 0 )) && { G_GAME_OVER=1 ; return 0 ; }
 
     # ---- 12. 刷怪 ----
+    if (( _ne >= 5 && ${#ENEMIES[@]} == 0 )) ; then
+        _score_bonus "$CLEAR_SCORE_BONUS"
+        if (( CLEAR_BANNER_TICK > 0 )) ; then
+            CLEAR_BANNER_TEXT+="  +${CLEAR_SCORE_BONUS} CLEAR"
+        else
+            _clear_banner_start "ALL ENEMIES CLEARED  +${CLEAR_SCORE_BONUS}"
+        fi
+    fi
     (( G_ENEMY_TICK++ % 50 == 0 )) && (( ${#ENEMIES[@]} < ENEMY_LIMIT )) && {
         local alive_B=0 alive_Boss=0
         for e in "${ENEMIES[@]}" ; do
@@ -601,6 +783,7 @@ play_game () {
     local -i need_render=1
 
     screen_clear
+    _mouse_on
     FRAME_BUF=""
     draw_frame
     draw_hud_line2
@@ -618,9 +801,24 @@ play_game () {
 
         # ---- 读输入（高频 100Hz）----
         G_DX=0 ; G_DY=0
-        local -i paused_changed=0
+        local -i paused_changed=0 _in_n=0
         while IFS= read -rsn1 -t 0.01 key ; do
+            (( _in_n++ ))
+            (( _in_n > 64 )) && break
             case "$key" in
+                $'\e')
+                    local _mseq='' _mc
+                    while IFS= read -rsn1 -t 0.05 _mc ; do
+                        _mseq+=$_mc
+                        [[ "$_mc" == M || "$_mc" == m ]] && break
+                    done
+                    if (( G_MOUSE_ON && ! paused )) ; then
+                        _mouse_apply "$_mseq"
+                    fi
+                    continue
+                    ;;
+                m|M)
+                    ;;
                 p|P)
                     if (( paused )) ; then
                         # 恢复游戏时保留 paused_drawn，让下面的清行逻辑擦掉 PAUSED 行
@@ -671,6 +869,10 @@ play_game () {
                 d|D)     (( paused )) || G_DX=1  ;;
                 w|W|k|K) (( paused )) || G_DY=-1 ;;
                 j|J)     (( paused )) || G_DY=1  ;;
+                y|Y)     (( paused )) || { G_DX=-1 ; G_DY=-1 ; } ;;
+                u|U)     (( paused )) || { G_DX=1  ; G_DY=-1 ; } ;;
+                b|B)     (( paused )) || { G_DX=-1 ; G_DY=1  ; } ;;
+                n|N)     (( paused )) || { G_DX=1  ; G_DY=1  ; } ;;
                 ' ')
                     if (( !paused )) ; then
                         local -n _bp_tmp=$PLAYER
@@ -680,7 +882,7 @@ play_game () {
                     ;;
             esac
         done
-        ((running)) || return 1
+        ((running)) || { _mouse_off ; return 1 ; }
 
         # ---- want_bomb ----
         if (( G_WANT_BOMB )) ; then
@@ -698,6 +900,11 @@ play_game () {
 
             local -a bomb_alive=()
             local -i bomb_score=0
+            local -i _bomb_n=${#ENEMIES[@]}
+            local -i _bomb_pct=100
+            local -n _bp_pct=$PLAYER
+            _bomb_pct=${_bp_pct["{score_pct}$X"]:-100}
+            unset -n _bp_pct
             for e in "${ENEMIES[@]}" ; do
                 [[ -n "$e" && -n "${XO_OBJ_POOL[$e]+_}" ]] || continue
                 local -n _e=$e
@@ -709,7 +916,7 @@ play_game () {
                 local _eart=${_e["{art}$X"]}
                 unset -n _e
                 if (( new_hp <= 0 )) ; then
-                    bomb_score=$(( bomb_score + escore ))
+                    bomb_score=$(( bomb_score + escore * _bomb_pct / 100 ))
                     ((G_KILLS++))
                     if Base_is_a "$e" BossBase ; then
                         ((G_BOSS_KILLS++))
@@ -721,6 +928,14 @@ play_game () {
                 fi
             done
             ENEMIES=("${bomb_alive[@]}")
+            if (( _bomb_n >= 5 && ${#ENEMIES[@]} == 0 )) ; then
+                _score_bonus "$CLEAR_SCORE_BONUS"
+                if (( CLEAR_BANNER_TICK > 0 )) ; then
+                    CLEAR_BANNER_TEXT+="  +${CLEAR_SCORE_BONUS} CLEAR"
+                else
+                    _clear_banner_start "ALL ENEMIES CLEARED  +${CLEAR_SCORE_BONUS}"
+                fi
+            fi
             local -n _bp2=$PLAYER
             _bp2["{score}$X"]=$(( ${_bp2["{score}$X"]:-0} + bomb_score ))
             unset -n _bp2
@@ -795,7 +1010,9 @@ play_game () {
                     last_bonus_str=$_cbs
                 fi
 
+                render_hit_fx_clear_expired
                 render
+                render_hit_fx
                 need_render=0
             fi
 
@@ -838,12 +1055,14 @@ play_game () {
                 BOSS_DEATH_POS=()
             fi
 
+            (( CLEAR_BANNER_TICK > 0 )) && render_clear_banner
+
             if [[ -n "$FRAME_BUF" ]] ; then
                 printf '%s' "$FRAME_BUF"
                 FRAME_BUF=""
             fi
         fi
 
-        (( G_GAME_OVER )) && return 0
+        (( G_GAME_OVER )) && { _mouse_off ; return 0 ; }
     done
 }

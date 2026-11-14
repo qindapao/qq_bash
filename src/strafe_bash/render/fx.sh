@@ -29,6 +29,44 @@ render_bomb_fx () {
     done
 }
 
+render_hit_fx_clear_expired () {
+    (( ${#HIT_FX[@]} )) || return 0
+    local -a _keep=()
+    local i _y _x _ch _clr _ttl _t
+    for (( i=0; i<${#HIT_FX[@]}; i+=5 )) ; do
+        _y=${HIT_FX[i]}
+        _x=${HIT_FX[i+1]}
+        _ch=${HIT_FX[i+2]}
+        _clr=${HIT_FX[i+3]}
+        _ttl=${HIT_FX[i+4]}
+        if (( _ttl > 0 )) ; then
+            _keep+=("$_y" "$_x" "$_ch" "$_clr" "$_ttl")
+        else
+            printf -v _t '\033[%d;%dH ' "$_y" "$_x"
+            FRAME_BUF+="$_t"
+        fi
+    done
+    HIT_FX=("${_keep[@]}")
+}
+
+render_hit_fx () {
+    (( ${#HIT_FX[@]} )) || return 0
+    local -a _keep=()
+    local i _y _x _ch _clr _ttl _t
+    for (( i=0; i<${#HIT_FX[@]}; i+=5 )) ; do
+        _y=${HIT_FX[i]}
+        _x=${HIT_FX[i+1]}
+        _ch=${HIT_FX[i+2]}
+        _clr=${HIT_FX[i+3]}
+        _ttl=${HIT_FX[i+4]}
+        (( _ttl > 0 )) || continue
+        printf -v _t '\033[%d;%dH%s%s%s%s' \
+            "$_y" "$_x" "$_clr" "$C_BOLD" "$_ch" "$C_RESET"
+        FRAME_BUF+="$_t"
+        _keep+=("$_y" "$_x" "$_ch" "$_clr" "$((_ttl - 1))")
+    done
+    HIT_FX=("${_keep[@]}")
+}
 render_boss_death () {
     local _chars='@#*%&!?'
     local _colors=("$C_RED" "$C_YELLOW" "$C_ORANGE" "$C_PURPLE")

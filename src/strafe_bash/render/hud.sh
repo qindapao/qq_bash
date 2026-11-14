@@ -16,7 +16,7 @@ draw_hud_line1 () {
     fi
     local _s
     printf -v _s 'HP:%d/%d  SCORE:%d  W:%s  BOMB:%d/5  E:%d/%d  OBJ:%d' \
-        "${p["{hp}$X"]:-0}" 20 "${p["{score}$X"]:-0}" "$weapon" "${p["{bombs}$X"]:-0}" \
+        "${p["{hp}$X"]:-0}" "${p["{maxhp}$X"]:-20}" "${p["{score}$X"]:-0}" "$weapon" "${p["{bombs}$X"]:-0}" \
         "${#ENEMIES[@]}" "$ENEMY_LIMIT" "${#XO_OBJ_POOL[@]}"
     unset -n p
     local _maxw=$(( SCREEN_W - 2 ))

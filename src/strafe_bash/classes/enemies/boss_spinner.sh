@@ -21,6 +21,7 @@ readonly BossSpinnerStaticTemplate='
         {CLS} => BossSpinner
         {SUP} => BossBase
         {MIX} => 
+        {name} => THE SPINNER
         {w} => 16
         {h} => 5
         {hp} => 250

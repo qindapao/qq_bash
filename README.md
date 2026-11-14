@@ -27,29 +27,101 @@ Requires Bash 5+, a UTF-8 locale, and a 256-color terminal.
 A small but complete terminal shooter. Auto-fire is always on; the fun is in
 positioning, weapon timing, and surviving the Bosses.
 
-- **5 weapon tiers** — `|` laser, `*` star, `@` at, `$` dollar; each tier's
+- **5 weapon tiers** — `|` laser, `#` star, `@` at, `$` dollar; each tier's
   actual class is randomized per run from its own library.
+- **4 selectable planes** — balanced Bee, armored Hornet, fast Eagle-1, and the
+  heavy Il-2; each has its own HP, score multiplier, bullet speed, and shield art.
 - **Two Bosses** — the classic `Boss` (HP 150) and the spinning `BossSpinner`
   (HP 250) with four damage phases and rotating bullet patterns. At most two
   Bosses on screen.
 - **Drops and words** — `H` heal, `b` bomb, `m` missile, `L` lane, `S` shield;
-  type falling words for bonus score.
-- **Minimal save** — score, HP, pickups, active weapon slot, and the run's
-  weapon classes. Loading starts a fresh wave, not a frozen bullet pattern.
+  touching a falling word collects it for score.
+- **Hit sparks** — short-lived `*` marks show bullet impacts, shield absorbs,
+  and player damage without spawning extra objects.
+- **M_Blink mixin** — the player blinks for a short invulnerability window after
+  taking damage; this exercises xo method injection and inheritance.
+- **Il-2 multi-mixin** — `{MIX} => M_LongBlink M_Blink M_Ram`: Il-2 blinks for
+  8 seconds (other planes 3 seconds), and while blinking its ramming collision
+  deals 5 damage to an enemy, with a short cooldown.
+- **Clear banner** — clearing all enemies when there were at least 5 at the
+  start of the tick shows `ALL ENEMIES CLEARED  +1000`; killing a Boss shows
+  `<BOSS NAME> WAS KILLED BY YOU!  +2000`. Either condition triggers the short
+  FIGlet-style `EXCELLENT!` overlay. These bonuses are fixed and are not
+  reduced by the Hornet score multiplier.
+- **Minimal save** — score, HP, pickups, active weapon slot, the run's weapon
+  classes, and the chosen plane. Loading starts a fresh wave.
 - **30 Hz logic / 60 Hz render** — fixed tick loop, raw terminal input, ANSI
   256-color output, no external runtime.
+
+### Choose your plane
+
+| # | Plane | HP | Trait |
+|---|---|---|---|
+| 1 | Bee | 20 | Balanced; no penalty |
+| 2 | Hornet | 30 | Armored; kills and words give 60% score |
+| 3 | Eagle-1 | 15 | Non-laser bullets +1 speed; laser unaffected |
+| 4 | Il-2 Sturmovik | 40 | Heavy armor; all bullets -1 speed |
+
+Shield size follows the plane: a wider plane has a wider shield and clears
+enemy bullets over a larger area. Damage without a shield is always the center
+of the first row.
+
+### Il-2 ramming build
+
+Il-2 uses a three-entry Mixin list:
+
+```text
+{MIX} => M_LongBlink M_Blink M_Ram
+```
+
+- `M_LongBlink` overrides `blink_start` to 8 seconds.
+- `M_Blink` supplies the normal blink tick/visibility methods; other planes
+  use its 3-second default.
+- `M_Ram` supplies the ramming ability: while Il-2 is blinking after a hit,
+  colliding with an enemy deals 5 damage. The ram has a 10-tick cooldown and
+  can kill enemies or a Boss through the normal score/death paths.
+
+Practical use: take one hit to enter the 8-second angry state, then fly into
+enemies. The invulnerability window matches the blink duration.
 
 ### Controls
 
 | Key | Action |
 |---|---|
+| `1`–`4` | Choose a plane on the title screen |
 | `W A S D` / `H J K L` | Move |
+| `Y U` / `B N` | Move diagonally (up-left/up-right, down-left/down-right) |
 | — | Fire automatically |
-| `SPACE` | Use a bomb (after picking up `b`) |
+| `SPACE` / right click | Use a bomb (after picking up `b`) |
 | `P` | Pause / resume |
 | `Q` | Quit |
 | `S` | Save while paused (hidden `.strafe_save`) |
 | `L` | Load while paused, or from the title screen |
+
+### Mouse support
+
+Mouse control uses the terminal's xterm SGR mouse reporting, so it is
+cell-based rather than pixel-based. Moving the mouse over the terminal moves
+the plane; firing stays automatic.
+
+- Mouse capture is always enabled while playing; there is no toggle. Terminal
+  text selection is therefore unavailable until the game exits.
+- Right-click uses a bomb. Mouse motion and left-click move the plane.
+- The pointer is placed two cells below the plane's center, so it does not sit
+  on top of the plane.
+- Mouse events only arrive while the terminal window has OS focus and the
+  pointer is inside it. Moving outside or clicking another window stops the
+  events — the game cannot capture the pointer outside its terminal.
+- The game periodically re-asserts mouse reporting to recover from terminals
+  that silently drop it after focus changes.
+- The input loop caps mouse events per iteration so a fast mouse cannot starve
+  the game loop.
+- `ESC[?25l` hides the text cursor while the game runs. A terminal application
+  cannot portably hide the OS mouse pointer with ANSI; that is a terminal
+  emulator preference (Windows Terminal / mintty mouse settings).
+- If the terminal does not support SGR mouse reporting, the mouse is simply
+  inactive and all keyboard controls still work.
+- Mouse capture is disabled automatically on quit and GAME OVER.
 
 ### Screenshot
 
@@ -59,8 +131,8 @@ positioning, weapon timing, and surviving the Bosses.
 ```text
 ┌─────────────────────────────────────────────────────────────────────────────────┐
 │HP:3/20  SCORE:58440  W:@  BOMB:2/5  E:9/25  OBJ:116                             │
-│BULLET |:1 *:2 @:3 $:4  DROP H:+3 b:BOMB m:MISSILE L:LANE S:SHIELD               │
-│BONUS  |:  0  *:  0  @: 35  $:  0  M:  9  L:  0(1)  S:  0                        │
+│BULLET |:1 #:2 @:3 $:4  DROP H:+3 b:BOMB m:MISSILE L:LANE S:SHIELD               │
+│BONUS  |:  0  #:  0  @: 35  $:  0  M:  9  L:  0(1)  S:  0                        │
 │                                  ___                      _____                 │
 │                                 | M |                    /     \                │
 │                                 |___|                   /  O O  \               │
@@ -132,7 +204,7 @@ Key ideas:
 - **Templates** use `{CLS}`, `{SUP}`, `{MIX}` and arbitrary `{field}` entries.
 - **Single inheritance** — a class gets its parent's fields and methods.
 - **Mixins** — `{MIX}` lists method-only mixins; class methods win, then mixins,
-  then inherited methods.
+  then inherited methods. The Il-2 list above is the worked example.
 - **Named objects** — `xo_obj_born_named OBJ_plane Plane` for stable handles.
 - **Object pool** — `XO_OBJ_POOL[OBJ_7]` stores the class; `xo_obj_kill` frees it.
 - **Dispatch** — `xo_call "$obj" move`; specialise with `Enemy_move`,
@@ -145,7 +217,7 @@ The game's class tree:
 Base
 ├── BulletType ── BulletTypeDefault / Laser / Star / At / Dollar
 └── Entity
-    ├── Plane
+    ├── Plane ── PlaneBee / PlaneHornet / PlaneEagle / PlaneIl2
     ├── Enemy ── EnemyQ / EnemyV / EnemyB / EnemyM
     ├── BossBase ── Boss / BossSpinner
     ├── Bullet

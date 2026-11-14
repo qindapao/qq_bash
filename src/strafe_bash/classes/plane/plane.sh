@@ -7,19 +7,34 @@ _STRAFE_PLANE_SH=1
 . "$STRAFE_PROJ_DIR/config/globals.sh"
 . "$STRAFE_PROJ_DIR/classes/base_types.sh"
 . "$STRAFE_PROJ_DIR/classes/plane/plane_helpers.sh"
+. "$STRAFE_PROJ_DIR/classes/plane/mixin_blink.sh"
+. "$STRAFE_PROJ_DIR/classes/plane/mixin_long_blink.sh"
+. "$STRAFE_PROJ_DIR/classes/plane/mixin_ram.sh"
 . "$STRAFE_PROJ_DIR/classes/projectiles/bullet.sh"
 
 readonly PlaneStaticTemplate='
     PlaneObj ->
         {CLS} => Plane
         {SUP} => Entity
-        {MIX} => 
+        {MIX} => M_Blink
         {x} => 0
         {y} => 0
         {w} => 3
         {h} => 2
         {art} => 
+        {base_art} => 
+        {shield_art} => 
         {al} => 1
+        {base_al} => 1
+        {shield_al} => 3
+        {shield_w} => 7
+        {shield_h} => 3
+        {shield_top} => -1
+        {maxhp} => 20
+        {score_pct} => 100
+        {spd_delta} => 0
+        {laser_exempt} => 0
+        {skill} => 
         {hp} => 20
         {score} => 0
         {symbol} => ^
@@ -40,14 +55,37 @@ readonly PlaneStaticTemplate='
         {lt} => 0
         {shield} => 0
         {st} => 0
+        {blink} => 0
+        {ram_cd} => 0
+        {prev_art} => 
+        {prev_al} => 1
         {prev_shield} => 0
     '
 Plane_born () {
     local -n self=$1
+    local _base _shield
+    case "${self["{CLS}$X"]}" in
+        PlaneHornet) _base=$PLANE_ART_HORNET ; _shield=$PLANE_ART_SHIELD_HORNET ;;
+        PlaneEagle)  _base=$PLANE_ART_EAGLE  ; _shield=$PLANE_ART_SHIELD_EAGLE  ;;
+        PlaneIl2)    _base=$PLANE_ART_IL2    ; _shield=$PLANE_ART_SHIELD_IL2    ;;
+        *)           _base=$PLANE_ART_BASE   ; _shield=$PLANE_ART_SHIELD       ;;
+    esac
+    self["{base_art}$X"]=$_base
+    self["{shield_art}$X"]=$_shield
+    self["{art}$X"]=$_base
     self["{x}$X"]=$(( SCREEN_W / 2 ))
     self["{y}$X"]=$(( SCREEN_H - 2 ))
-    self["{art}$X"]="$PLANE_ART_BASE"
-    self["{al}$X"]=1
+    self["{al}$X"]=${self["{base_al}$X"]:-1}
+    self["{shield}$X"]=0
+    self["{st}$X"]=0
+    self["{prev_art}$X"]=$_base
+    self["{prev_al}$X"]=${self["{base_al}$X"]:-1}
+    self["{prev_shield}$X"]=0
+    self["{hp}$X"]=${self["{maxhp}$X"]:-20}
+}
+Plane_use_skill () {
+    # 预留接口：具体机型以后覆盖这个方法。
+    :
 }
 Plane_kill () {
     Entity_kill "$1"
@@ -90,6 +128,7 @@ Plane_fire () {
     local dmg=${w["{damage}$X"]:-1}
     local cd=${w["{cd}$X"]:-6}
     local spd=${w["{spd}$X"]:-1}
+    local _laser=${w["{laser}$X"]:-0}
     local su=${w["{u}$X"]:-.}
     local sul=${w["{ul}$X"]:-$su}
     local sur=${w["{ur}$X"]:-$su}
@@ -97,6 +136,10 @@ Plane_fire () {
     local sr=${w["{r}$X"]:-$su}
     unset -n w
 
+    local -i _sdelta=${self["{spd_delta}$X"]:-0}
+    local -i _lex=${self["{laser_exempt}$X"]:-0}
+    (( _laser && _lex )) && _sdelta=0
+    spd=$(( spd + _sdelta ))
     (( spd < 1 )) && spd=1
     (( cd < 0 ))  && cd=0
     G_FIRE_CD=$cd

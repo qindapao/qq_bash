@@ -5,6 +5,7 @@ _STRAFE_GAME_OVER_SH=1
 . "$STRAFE_PROJ_DIR/config/globals.sh"
 . "$STRAFE_PROJ_DIR/config/color.sh"
 . "$STRAFE_PROJ_DIR/render/ansi.sh"
+. "$STRAFE_PROJ_DIR/classes/plane/plane_helpers.sh"
 
 player_death_fx () {
     [[ -n "$PLAYER" && -n "${XO_OBJ_POOL[$PLAYER]+_}" ]] || return 0
@@ -19,11 +20,8 @@ player_death_fx () {
     local -a _old=()
     local -i i f nx ny r ci
 
-    # 先把飞机本体擦掉
-    for ((i=-1; i<=1; i++)) ; do
-        goto "$y" "$((x + i))" ; printf ' '
-        goto "$((y + 1))" "$((x + i))" ; printf ' '
-    done
+    # 按当前机型/护盾 art 擦掉飞机本体
+    _plane_clear "$PLAYER"
 
     # 中心闪白，再向外扩散
     goto "$y" "$x" ; printf '%s@%s' "$C_YELLOW" "$C_RESET"

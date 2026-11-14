@@ -19,6 +19,7 @@ readonly BossStaticTemplate='
         {CLS} => Boss
         {SUP} => BossBase
         {MIX} => 
+        {name} => THE CLASSIC BOSS
         {w} => 13
         {h} => 5
         {hp} => 150

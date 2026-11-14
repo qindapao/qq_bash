@@ -6,6 +6,7 @@ _STRAFE_SAVE_SH=1
 . "$STRAFE_PROJ_DIR/config/globals.sh"
 . "$STRAFE_PROJ_DIR/game/init_game.sh"
 . "$STRAFE_PROJ_DIR/classes/plane/plane_helpers.sh"
+. "$STRAFE_PROJ_DIR/classes/plane/plane_types.sh"
 
 # 只接受非负整数
 _save_is_uint () {
@@ -37,8 +38,11 @@ save_game () {
         [[ "${p["{bullet}$X"]}" == "${p["{w$i}$X"]}" ]] && _slot=$i
     done
 
+    local _pcls=${XO_OBJ_POOL[$PLAYER]}
+    [[ "$_pcls" == "Plane" ]] && _pcls=PlaneBee
     local -A SAVE=(
-        [version]=5
+        [version]=6
+        [plane_cls]=$_pcls
         [score]=${p["{score}$X"]:-0}
         [hp]=${p["{hp}$X"]:-0}
         [bombs]=${p["{bombs}$X"]:-0}
@@ -60,10 +64,10 @@ save_game () {
     unset -n p
 
     local _tmp="${STRAFE_SAVE_FILE}.tmp.$$"
-    local -a _keys=(version score hp bombs t2 t3 t4 t5 mt lanes lanes_side lt shield st bullet_slot w1_cls w2_cls w3_cls w4_cls w5_cls)
+    local -a _keys=(version plane_cls score hp bombs t2 t3 t4 t5 mt lanes lanes_side lt shield st bullet_slot w1_cls w2_cls w3_cls w4_cls w5_cls)
     local _k
     {
-        printf '# strafe save v5\n'
+        printf '# strafe save v6\n'
         for _k in "${_keys[@]}" ; do
             printf '%s=%s\n' "$_k" "${SAVE[$_k]}"
         done
@@ -88,7 +92,28 @@ load_game () {
         SAVE[$_k]=$_v
     done < "$STRAFE_SAVE_FILE"
 
-    [[ "${SAVE[version]:-}" == "5" ]] || return 1
+    local _ver=${SAVE[version]:-}
+    [[ "$_ver" == "5" || "$_ver" == "6" ]] || return 1
+
+    local _plane_cls
+    if [[ "$_ver" == "5" ]] ; then
+        # v5 存档没有机型字段，按默认 Bee 读
+        _plane_cls=PlaneBee
+    else
+        _plane_cls=${SAVE[plane_cls]:-}
+        [[ "$_plane_cls" == "Plane" ]] && _plane_cls=PlaneBee
+        [[ "$_plane_cls" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]] || return 1
+        declare -p "${_plane_cls}Obj" >/dev/null 2>&1 || return 1
+        local _valid=0 _c
+        for _c in "${PLANE_CLASSES[@]}" ; do
+            [[ "$_plane_cls" == "$_c" ]] && _valid=1
+        done
+        (( _valid )) || return 1
+    fi
+
+    local -n _pc=${_plane_cls}Obj
+    local -i _pmax=${_pc["{maxhp}$X"]:-20}
+    unset -n _pc
 
     local -a _nums=(score hp bombs t2 t3 t4 t5 mt lanes lanes_side lt shield st bullet_slot)
     for _k in "${_nums[@]}" ; do
@@ -96,7 +121,7 @@ load_game () {
     done
     local -i _hp=${SAVE[hp]} _lanes=${SAVE[lanes]} _side=${SAVE[lanes_side]}
     local -i _shield=${SAVE[shield]} _slot=${SAVE[bullet_slot]}
-    (( _hp >= 1 && _hp <= 20 )) || return 1
+    (( _hp >= 1 && _hp <= _pmax )) || return 1
     (( _lanes >= 0 && _lanes <= 4 )) || return 1
     (( _side == 0 || _side == 1 )) || return 1
     (( _shield == 0 || _shield == 1 )) || return 1
@@ -110,10 +135,10 @@ load_game () {
         declare -p "${_cls}Obj" >/dev/null 2>&1 || return 1
     done
 
-    # 读档从新一波开始：没有敌人/子弹/掉落物，也没有旧特效。
-    if [[ -z "$PLAYER" || -z "${XO_OBJ_POOL[$PLAYER]+_}" || "${XO_OBJ_POOL[$PLAYER]}" != "Plane" ]] ; then
+    # 读档从新一波开始；机型不同就替换玩家对象。
+    if [[ -z "$PLAYER" || -z "${XO_OBJ_POOL[$PLAYER]+_}" || "${XO_OBJ_POOL[$PLAYER]}" != "$_plane_cls" ]] ; then
         [[ -n "$PLAYER" && -n "${XO_OBJ_POOL[$PLAYER]+_}" ]] && xo_obj_kill "$PLAYER"
-        xo_obj_born Plane || return 1
+        xo_obj_born "$_plane_cls" || return 1
         PLAYER=$REPLY
     fi
     init_game || return 1
