@@ -58,25 +58,18 @@ _play_game_tick () {
     fi
 
     # ---- 0.5 武器过期检测 ----
+    # 当前武器是一个独立的 BulletType 子类对象；过期后只切回默认武器，
+    # 不再像旧实现那样每 tick 动态 kill/born 一个 BulletType。
     local _bt=${_pb["{bullet}$X"]}
-    local _sym='.'
+    local _tier=1
     if [[ -n "$_bt" && -n "${XO_OBJ_POOL[$_bt]+_}" ]] ; then
         local -n _bo=$_bt
-        _sym=${_bo["{symbol}$X"]}
+        _tier=${_bo["{tier}$X"]:-1}
         unset -n _bo
     fi
-    local _tk_cur=''
-    case "$_sym" in
-        '*') _tk_cur="{t2}$X" ;;
-        '@') _tk_cur="{t3}$X" ;;
-        '$') _tk_cur="{t4}$X" ;;
-        '|') _tk_cur="{t5}$X" ;;
-    esac
-    if [[ -n "$_tk_cur" ]] && (( ${_pb[$_tk_cur]:-0} == 0 )) ; then
-        local _old=${_pb["{bullet}$X"]}
-        [[ -n "$_old" && -n "${XO_OBJ_POOL[$_old]+_}" ]] && xo_obj_kill "$_old"
-        xo_obj_born BulletType '.' 1
-        _pb["{bullet}$X"]=$REPLY
+    local _tk_cur="{t$_tier}$X"
+    if (( _tier >= 2 && _tier <= 5 )) && (( ${_pb[$_tk_cur]:-0} == 0 )) ; then
+        _pb["{bullet}$X"]=${_pb["{w1}$X"]}
     fi
     unset -n _pb
 
@@ -89,18 +82,9 @@ _play_game_tick () {
     (( G_DX || G_DY )) && xo_call "$PLAYER" move "$G_DX" "$G_DY"
 
     # ---- 3. 玩家开火 ----
+    # 射速由当前武器类的 {cd} 决定，Plane_fire 内部会设置 G_FIRE_CD
     if (( G_FIRE_CD == 0 )) ; then
         xo_call "$PLAYER" fire
-        local _fbt _fsym='.'
-        local -n _pp=$PLAYER
-        _fbt=${_pp["{bullet}$X"]}
-        unset -n _pp
-        if [[ -n "$_fbt" && -n "${XO_OBJ_POOL[$_fbt]+_}" ]] ; then
-            local -n _fbo=$_fbt
-            _fsym=${_fbo["{symbol}$X"]}
-            unset -n _fbo
-        fi
-        if [[ "$_fsym" == "|" ]] ; then G_FIRE_CD=0 ; else G_FIRE_CD=6 ; fi
     fi
 
     # ---- 4. 玩家导弹发射 ----
@@ -244,7 +228,7 @@ _play_game_tick () {
                             ((_dr++))
                         done
                         BOSS_DEATH_TICK=30
-                        local _bdt=(1 3 4 5 H b m L S)
+                        local _bdt=(2 3 4 5 H b m L S)
                         local _bdc="${_bdt[RANDOM % 9]}"
                         xo_obj_born Drop "$_bdc"
                         local -n _bd=$REPLY
@@ -299,7 +283,7 @@ _play_game_tick () {
                             ((_dr++))
                         done
                         BOSS_DEATH_TICK=30
-                        local _bdt=(1 3 4 5 H b m L S)
+                        local _bdt=(2 3 4 5 H b m L S)
                         local _bdc="${_bdt[RANDOM % 9]}"
                         xo_obj_born Drop "$_bdc"
                         local -n _bd=$REPLY
@@ -430,25 +414,20 @@ _play_game_tick () {
             unset -n _d
             xo_obj_kill "$d"
             case "$dtype" in
-                1|3|4|5)
-                    p["{t2}$X"]=0 ; p["{t3}$X"]=0 ; p["{t4}$X"]=0 ; p["{t5}$X"]=0
-                    local bsym bdmg tfield
-                    case "$dtype" in
-                        1) bsym='*' ; bdmg=2 ; tfield=t2 ;;
-                        3) bsym='@' ; bdmg=3 ; tfield=t3 ;;
-                        4) bsym='$' ; bdmg=4 ; tfield=t4 ;;
-                        5) bsym='|' ; bdmg=3 ; tfield=t5 ;;
-                    esac
-                    local old_bt=${p["{bullet}$X"]}
-                    [[ -n "$old_bt" && -n "${XO_OBJ_POOL[$old_bt]+_}" ]] && xo_obj_kill "$old_bt"
-                    xo_obj_born BulletType "$bsym" "$bdmg"
-                    p["{bullet}$X"]=$REPLY
-                    case "$tfield" in
-                        t2) p["{t2}$X"]=$BONUS_T2 ;;
-                        t3) p["{t3}$X"]=$BONUS_T3 ;;
-                        t4) p["{t4}$X"]=$BONUS_T4 ;;
-                        t5) p["{t5}$X"]=$BONUS_T5 ;;
-                    esac
+                2|3|4|5)
+                    # 切换到本局该档位的武器对象；武器对象常驻，不销毁。
+                    # dtype 现在直接对应 tier（2..5），t2..t5 一一对应。
+                    local _wnew=${p["{w$dtype}$X"]}
+                    if [[ -n "$_wnew" && -n "${XO_OBJ_POOL[$_wnew]+_}" ]] ; then
+                        p["{t2}$X"]=0 ; p["{t3}$X"]=0 ; p["{t4}$X"]=0 ; p["{t5}$X"]=0
+                        p["{bullet}$X"]=$_wnew
+                        case "$dtype" in
+                            2) p["{t2}$X"]=$BONUS_T2 ;;
+                            3) p["{t3}$X"]=$BONUS_T3 ;;
+                            4) p["{t4}$X"]=$BONUS_T4 ;;
+                            5) p["{t5}$X"]=$BONUS_T5 ;;
+                        esac
+                    fi
                     ;;
                 H)
                     p["{hp}$X"]=$(( ${p["{hp}$X"]} + 3 ))
@@ -543,18 +522,18 @@ _play_game_tick () {
             if (( _r < 25 )) ; then _drop_type='L'
             elif (( _r < 40 )) ; then _drop_type='S'
             else
-                local _others=(1 3 4 5 H b m)
+                local _others=(2 3 4 5 H b m)
                 _drop_type="${_others[RANDOM % 7]}"
             fi
         elif (( _lanes_now == 0 )) ; then
             if (( _r < 15 )) ; then _drop_type='L'
             elif (( _r < 30 )) ; then _drop_type='S'
             else
-                local _others=(1 3 4 5 H b m)
+                local _others=(2 3 4 5 H b m)
                 _drop_type="${_others[RANDOM % 7]}"
             fi
         else
-            local _all=(1 3 4 5 H b m L S)
+            local _all=(2 3 4 5 H b m L S)
             _drop_type="${_all[RANDOM % 9]}"
         fi
         xo_obj_born Drop "$_drop_type"

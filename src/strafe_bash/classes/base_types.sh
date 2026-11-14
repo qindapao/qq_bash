@@ -7,6 +7,11 @@ _STRAFE_BULLETTYPE_SH=1
 # CLASS_INHER_TREE(1) -> 
 #     {Base}
 #         {BulletType} => null\u001c
+#             {BulletTypeDefault} => null\u001c
+#             {BulletTypeLaser} => null\u001c
+#             {BulletTypeStar} => null\u001c
+#             {BulletTypeAt} => null\u001c
+#             {BulletTypeDollar} => null\u001c
 #         {Entity}
 #             {Missile} => null\u001c
 #             {Boss} => null\u001c
@@ -20,7 +25,7 @@ _STRAFE_BULLETTYPE_SH=1
 #             {Drop} => null\u001c
 #             {Plane} => null\u001c
 #             {Word} => null\u001c
-#     max_index => 17
+#     max_index => 22
 
 # Entity 抽象基类：所有游戏实体的公共属性
 readonly EntityStaticTemplate='
@@ -44,17 +49,125 @@ Entity_kill () {
 }
 
 
-# 这个类不是一个场景实体，不参与移动
+# 武器描述类（不是场景实体）：每个子弹类型一个独立类。
+# 8 个方向各有一个字符；如果所有方向外观一样，就把 8 个字段填成同一个字符。
+# 发射时按方向取对应字符，不再在运行时改 {symbol}/{damage}。
 readonly BulletTypeStaticTemplate='
     BulletTypeObj ->
         {CLS} => BulletType
         {SUP} => Base
         {MIX} => 
-        {symbol} => .
+        {tier} => 1
         {damage} => 1
+        {cd} => 6
+        {spd} => 1
+        {u} => .
+        {d} => .
+        {l} => .
+        {r} => .
+        {ul} => .
+        {ur} => .
+        {dl} => .
+        {dr} => .
     '
-BulletType_born () {
-    local -n self=$1
-    [[ -n "$2" ]] && self["{symbol}$X"]=$2
-    [[ -n "$3" ]] && self["{damage}$X"]=$3
-}
+
+# tier 0：默认子弹（独立于 1..5 号库；玩家开局自带，不参与掉落/随机）
+readonly BulletTypeDefaultStaticTemplate='
+    BulletTypeDefaultObj ->
+        {CLS} => BulletTypeDefault
+        {SUP} => BulletType
+        {MIX} => 
+        {tier} => 0
+        {damage} => 1
+        {cd} => 6
+        {spd} => 1
+        {u} => .
+        {d} => .
+        {l} => .
+        {r} => .
+        {ul} => .
+        {ur} => .
+        {dl} => .
+        {dr} => .
+    '
+
+# tier 2：激光。射速最快，单发伤害最低；8 个方向各自有字符。
+# 注意：模板值会经 str_unescape 反解一层，字面反斜杠必须写成 \\。
+readonly BulletTypeLaserStaticTemplate='
+    BulletTypeLaserObj ->
+        {CLS} => BulletTypeLaser
+        {SUP} => BulletType
+        {MIX} => 
+        {tier} => 2
+        {damage} => 1
+        {cd} => 1
+        {spd} => 1
+        {u} => |
+        {d} => |
+        {l} => -
+        {r} => -
+        {ul} => \\
+        {ur} => /
+        {dl} => /
+        {dr} => \\
+    '
+
+# tier 3：星形弹，中等射速 / 中等伤害
+readonly BulletTypeStarStaticTemplate='
+    BulletTypeStarObj ->
+        {CLS} => BulletTypeStar
+        {SUP} => BulletType
+        {MIX} => 
+        {tier} => 3
+        {damage} => 2
+        {cd} => 4
+        {spd} => 1
+        {u} => *
+        {d} => *
+        {l} => *
+        {r} => *
+        {ul} => *
+        {ur} => *
+        {dl} => *
+        {dr} => *
+    '
+
+# tier 4：@ 弹，射速更慢、伤害更高
+readonly BulletTypeAtStaticTemplate='
+    BulletTypeAtObj ->
+        {CLS} => BulletTypeAt
+        {SUP} => BulletType
+        {MIX} => 
+        {tier} => 4
+        {damage} => 3
+        {cd} => 5
+        {spd} => 1
+        {u} => @
+        {d} => @
+        {l} => @
+        {r} => @
+        {ul} => @
+        {ur} => @
+        {dl} => @
+        {dr} => @
+    '
+
+# tier 5：$ 弹，射速最慢、单发伤害最高
+readonly BulletTypeDollarStaticTemplate='
+    BulletTypeDollarObj ->
+        {CLS} => BulletTypeDollar
+        {SUP} => BulletType
+        {MIX} => 
+        {tier} => 5
+        {damage} => 4
+        {cd} => 6
+        {spd} => 1
+        {u} => $
+        {d} => $
+        {l} => $
+        {r} => $
+        {ul} => $
+        {ur} => $
+        {dl} => $
+        {dr} => $
+    '

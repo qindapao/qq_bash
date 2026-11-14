@@ -27,10 +27,36 @@ init_game () {
     p["{art}$X"]="$PLANE_ART_BASE"
     p["{al}$X"]=1
 
-    local old_bt=${p["{bullet}$X"]}
-    [[ -n "$old_bt" && -n "${XO_OBJ_POOL[$old_bt]+_}" ]] && xo_obj_kill "$old_bt"
-    xo_obj_born BulletType '.' 1
+    # ---- 本局武器：默认 tier0 + 每档随机抽一个 tier2..5 ----
+    # 先清掉上一局留下的具名武器对象
+    local _wi _wn
+    for _wi in 1 2 3 4 5 ; do
+        _wn="OBJ_wpn$_wi"
+        [[ -n "${XO_OBJ_POOL[$_wn]+_}" ]] && xo_obj_kill "$_wn"
+    done
+
+    # 默认子弹（tier 0，独立于 1..5 号库，不参与随机）
+    xo_obj_born_named OBJ_wpn1 BulletTypeDefault || { unset -n p ; return 1 ; }
+    p["{w1}$X"]=$REPLY
     p["{bullet}$X"]=$REPLY
+
+    # tier 2..5：每档从自己的库里随机抽一个类，组成本局可掉落的 4 种武器
+    local _tier _cls _libname _n
+    for _tier in 2 3 4 5 ; do
+        _libname="BULLET_LIB_$_tier"
+        local -n _lib=$_libname
+        _n=${#_lib[@]}
+        if (( _n == 0 )) ; then
+            unset -n _lib
+            unset -n p
+            die ERR "BULLET_LIB_$_tier is empty"
+            return 1
+        fi
+        _cls=${_lib[RANDOM % _n]}
+        unset -n _lib
+        xo_obj_born_named "OBJ_wpn$_tier" "$_cls" || { unset -n p ; return 1 ; }
+        p["{w$_tier}$X"]=$REPLY
+    done
     unset -n p
 
     local b e d eb m w

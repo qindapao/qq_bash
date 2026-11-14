@@ -15,6 +15,16 @@ ENEMY_LIMIT=20
 DROP_LIMIT=8
 WORD_LIMIT=2
 
+# 子弹库：tier 1 预留（暂不使用），tier 2..5 每档在开局时随机抽一个类。
+# 默认子弹是独立的 BulletTypeDefault（tier 0），不在这些库里，始终由玩家携带。
+# 以后给某一档加变体，只需往对应数组里追加类名。
+# 当前 4 种（默认除外）：laser / star / at / dollar，对应 tier 2..5。
+declare -a BULLET_LIB_1=()
+declare -a BULLET_LIB_2=(BulletTypeLaser)
+declare -a BULLET_LIB_3=(BulletTypeStar)
+declare -a BULLET_LIB_4=(BulletTypeAt)
+declare -a BULLET_LIB_5=(BulletTypeDollar)
+
 BONUS_T2=$(( 60 * FPS ))
 BONUS_T3=$(( 50 * FPS ))
 BONUS_T4=$(( 40 * FPS ))

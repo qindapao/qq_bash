@@ -24,6 +24,11 @@ readonly PlaneStaticTemplate='
         {score} => 0
         {symbol} => ^
         {bullet} => 
+        {w1} => 
+        {w2} => 
+        {w3} => 
+        {w4} => 
+        {w5} => 
         {bombs} => 0
         {t2} => 0
         {t3} => 0
@@ -47,8 +52,12 @@ Plane_born () {
 Plane_kill () {
     Entity_kill "$1"
     local -n self=$1
-    local bt=${self["{bullet}$X"]}
-    [[ -n "$bt" && -n "${XO_OBJ_POOL[$bt]+_}" ]] && xo_obj_kill "$bt"
+    local i wpn
+    for i in 1 2 3 4 5 ; do
+        wpn=${self["{w$i}$X"]}
+        [[ -n "$wpn" && -n "${XO_OBJ_POOL[$wpn]+_}" ]] && xo_obj_kill "$wpn"
+    done
+    unset -n self
 }
 Plane_move () {
     local -n self=$1
@@ -70,20 +79,36 @@ Plane_move () {
 }
 Plane_fire () {
     local -n self=$1
-    local bt=${self["{bullet}$X"]}
-    local -n bt_obj=$bt
-    local sym=${bt_obj["{symbol}$X"]}
-    local dmg=${bt_obj["{damage}$X"]}
-    unset -n bt_obj
+    local wpn=${self["{bullet}$X"]}
+    if [[ -z "$wpn" || -z "${XO_OBJ_POOL[$wpn]+_}" ]] ; then
+        G_FIRE_CD=6
+        return 0
+    fi
+
+    # 当前武器的 8 方向字符 / 伤害 / 射速 / 弹速
+    local -n w=$wpn
+    local dmg=${w["{damage}$X"]:-1}
+    local cd=${w["{cd}$X"]:-6}
+    local spd=${w["{spd}$X"]:-1}
+    local su=${w["{u}$X"]:-.}
+    local sul=${w["{ul}$X"]:-$su}
+    local sur=${w["{ur}$X"]:-$su}
+    local sl=${w["{l}$X"]:-$su}
+    local sr=${w["{r}$X"]:-$su}
+    unset -n w
+
+    (( spd < 1 )) && spd=1
+    (( cd < 0 ))  && cd=0
+    G_FIRE_CD=$cd
 
     local _fx=${self["{x}$X"]}
     local _fy=$(( ${self["{y}$X"]} - 1 ))
     local _lanes=${self["{lanes}$X"]:-0}
     local _side=${self["{lanes_side}$X"]:-0}
-    local _is_laser=0
-    [[ "$sym" == "|" ]] && _is_laser=1
+    local -i _up=$(( -spd )) _left=$(( -spd )) _right=$spd
 
-    xo_obj_born Bullet "$_fx" "$_fy" "$sym" "$dmg" 0 -1
+    # 正中：向上
+    xo_obj_born Bullet "$_fx" "$_fy" "$su" "$dmg" 0 "$_up"
     BULLETS+=("$REPLY")
 
     if (( _lanes >= 1 )) ; then
@@ -94,15 +119,13 @@ Plane_fire () {
             _do_l=1 ; _do_r=1
         fi
         if (( _do_l )) ; then
-            local _lsym="$sym"
-            (( _is_laser )) && _lsym='\'
-            xo_obj_born Bullet "$_fx" "$_fy" "$_lsym" "$dmg" -1 -1
+            # 左上：用该武器的 {ul} 字符
+            xo_obj_born Bullet "$_fx" "$_fy" "$sul" "$dmg" "$_left" "$_up"
             BULLETS+=("$REPLY")
         fi
         if (( _do_r )) ; then
-            local _rsym="$sym"
-            (( _is_laser )) && _rsym='/'
-            xo_obj_born Bullet "$_fx" "$_fy" "$_rsym" "$dmg" 1 -1
+            # 右上：用该武器的 {ur} 字符
+            xo_obj_born Bullet "$_fx" "$_fy" "$sur" "$dmg" "$_right" "$_up"
             BULLETS+=("$REPLY")
         fi
     fi
@@ -115,19 +138,17 @@ Plane_fire () {
             _do_ol=1 ; _do_or=1
         fi
         if (( _do_ol )) ; then
-            local _losym="$sym"
-            (( _is_laser )) && _losym='-'
+            # 左侧：用该武器的 {l} 字符
             local _lox=$(( _fx - 2 ))
             (( _lox < 2 )) && _lox=2
-            xo_obj_born Bullet "$_lox" "$_fy" "$_losym" "$dmg" -1 0
+            xo_obj_born Bullet "$_lox" "$_fy" "$sl" "$dmg" "$_left" 0
             BULLETS+=("$REPLY")
         fi
         if (( _do_or )) ; then
-            local _rosym="$sym"
-            (( _is_laser )) && _rosym='-'
+            # 右侧：用该武器的 {r} 字符
             local _rox=$(( _fx + 2 ))
             (( _rox > SCREEN_W - 2 )) && _rox=$(( SCREEN_W - 2 ))
-            xo_obj_born Bullet "$_rox" "$_fy" "$_rosym" "$dmg" 1 0
+            xo_obj_born Bullet "$_rox" "$_fy" "$sr" "$dmg" "$_right" 0
             BULLETS+=("$REPLY")
         fi
     fi

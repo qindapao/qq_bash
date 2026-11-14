@@ -7,8 +7,11 @@ _STRAFE_SAVE_SH=1
 
 save_game () {
     local -A SAVE=()
-    x_init "$X_TYPE_OBJ" ; SAVE=($REPLY)
-    x_insert SAVE "{meta}$X{version}$X" 1
+    # x_init / x_rebuild_from_dump 返回的是 @K 形式的关联数组字面量，
+    # 必须在 declare/eval 的复合赋值里解析；直接 SAVE=($REPLY) 会解析失败。
+    x_init "$X_TYPE_OBJ"
+    eval "SAVE=($REPLY)"
+    x_insert SAVE "{meta}$X{version}$X" 2
     x_insert SAVE "{meta}$X{player}$X" "$PLAYER"
     x_insert SAVE "{meta}$X{obj_seq}$X" "$XO_OBJ_SEQ"
 
@@ -38,6 +41,9 @@ save_game () {
     for i in "${!MISSILES[@]}" ; do
         x_insert SAVE "{lists}$X{missiles}$X[$i]$X" "${MISSILES[$i]}"
     done
+    for i in "${!WORDS[@]}" ; do
+        x_insert SAVE "{lists}$X{words}$X[$i]$X" "${WORDS[$i]}"
+    done
 
     x_dump SAVE '' 4 6 > "$STRAFE_SAVE_FILE"
     return 0
@@ -50,16 +56,17 @@ load_game () {
     [[ -n "$dump" ]] || return 1
 
     x_rebuild_from_dump "$dump" || return 1
-    local -A SAVE=($REPLY)
+    local -A SAVE=()
+    eval "SAVE=($REPLY)"
 
-    [[ "${SAVE[{meta}$X{version}$X]:-}" == "1" ]] || return 1
+    [[ "${SAVE[{meta}$X{version}$X]:-}" == "2" ]] || return 1
 
     local obj
     for obj in "${!XO_OBJ_POOL[@]}" ; do
         unset -v "$obj"
     done
     XO_OBJ_POOL=()
-    BULLETS=() ; ENEMIES=() ; DROPS=() ; ENEMY_BULLETS=() ; MISSILES=()
+    BULLETS=() ; ENEMIES=() ; DROPS=() ; ENEMY_BULLETS=() ; MISSILES=() ; WORDS=()
 
     local k rest obj_tok o after field_tok v
     local -A declared=()
@@ -111,6 +118,7 @@ load_game () {
             drops)     DROPS[$idx]=$v ;;
             ebullets)  ENEMY_BULLETS[$idx]=$v ;;
             missiles)  MISSILES[$idx]=$v ;;
+            words)     WORDS[$idx]=$v ;;
         esac
     done
 

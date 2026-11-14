@@ -11,7 +11,7 @@ draw_hud_line1 () {
     local weapon='.'
     if [[ -n "$bt" && -n "${XO_OBJ_POOL[$bt]+_}" ]] ; then
         local -n _bt=$bt
-        weapon=${_bt["{symbol}$X"]}
+        weapon=${_bt["{u}$X"]}
         unset -n _bt
     fi
     local _s
@@ -27,7 +27,22 @@ draw_hud_line1 () {
 }
 
 draw_hud_line2 () {
-    local _s='ENEMY V:1 Q:5 M:10 B:30 BOSS:250   BULLET .:1 *:2 @:3 $:4 |:LASER   DROP H:+3 b:BOMB m:MISSILE L:LANE S:SHIELD'
+    # 只显示本局实际抽到的 4 种掉落武器（tier 2..5），默认子弹不占位。
+    local _s='BULLET'
+    local _i _w
+    if [[ -n "$PLAYER" && -n "${XO_OBJ_POOL[$PLAYER]+_}" ]] ; then
+        local -n _p=$PLAYER
+        for _i in 2 3 4 5 ; do
+            _w=${_p["{w$_i}$X"]}
+            [[ -n "$_w" && -n "${XO_OBJ_POOL[$_w]+_}" ]] || continue
+            local -n _wobj=$_w
+            local _wu=${_wobj["{u}$X"]} _wd=${_wobj["{damage}$X"]}
+            _s+=" ${_wu}:${_wd}"
+            unset -n _wobj
+        done
+        unset -n _p
+    fi
+    _s+='  DROP H:+3 b:BOMB m:MISSILE L:LANE S:SHIELD'
     local _maxw=$(( SCREEN_W - 2 ))
     _s="${_s:0:_maxw}"
     local _t
