@@ -1,7 +1,7 @@
 # classes/enemies/enemy_q.sh — EnemyQ
 [[ -n "${_STRAFE_ENEMY_Q_SH:-}" ]] && return 0
 _STRAFE_ENEMY_Q_SH=1
-. "$(dirname "${BASH_SOURCE[0]}")/enemy_base.sh"
+. "$STRAFE_PROJ_DIR/classes/enemies/enemy_base.sh"
 
 readonly EnemyQStaticTemplate='
     EnemyQObj ->

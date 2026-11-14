@@ -1,7 +1,7 @@
 # render/frame.sh — 绘制边框
 [[ -n "${_STRAFE_FRAME_SH:-}" ]] && return 0
 _STRAFE_FRAME_SH=1
-. "$(dirname "${BASH_SOURCE[0]}")/../config/const.sh"
+. "${BASH_SOURCE[0]%/*}/../config/const.sh"
 
 draw_frame () {
     local _w=$SCREEN_W _h=$SCREEN_H

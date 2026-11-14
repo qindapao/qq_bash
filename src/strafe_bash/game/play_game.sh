@@ -8,38 +8,37 @@ _STRAFE_PLAY_GAME_SH=1
 . "$STRAFE_LIB_HOME/xo.sh"
 
 # config 层
-_DIR_PG="$(dirname "${BASH_SOURCE[0]}")"
-. "$_DIR_PG/../config/const.sh"
-. "$_DIR_PG/../config/color.sh"
-. "$_DIR_PG/../config/art.sh"
-. "$_DIR_PG/../config/words.sh"
-. "$_DIR_PG/../config/globals.sh"
+. "$STRAFE_PROJ_DIR/config/const.sh"
+. "$STRAFE_PROJ_DIR/config/color.sh"
+. "$STRAFE_PROJ_DIR/config/art.sh"
+. "$STRAFE_PROJ_DIR/config/words.sh"
+. "$STRAFE_PROJ_DIR/config/globals.sh"
 
 # classes 层
-. "$_DIR_PG/../classes/base_types.sh"
-. "$_DIR_PG/../classes/projectiles/bullet.sh"
-. "$_DIR_PG/../classes/projectiles/missile.sh"
-. "$_DIR_PG/../classes/projectiles/enemy_bullet.sh"
-. "$_DIR_PG/../classes/enemies/enemy_base.sh"
-. "$_DIR_PG/../classes/enemies/enemy_v.sh"
-. "$_DIR_PG/../classes/enemies/enemy_q.sh"
-. "$_DIR_PG/../classes/enemies/enemy_m.sh"
-. "$_DIR_PG/../classes/enemies/enemy_b.sh"
-. "$_DIR_PG/../classes/enemies/boss.sh"
-. "$_DIR_PG/../classes/pickups/drop.sh"
-. "$_DIR_PG/../classes/pickups/word.sh"
-. "$_DIR_PG/../classes/plane/plane_helpers.sh"
-. "$_DIR_PG/../classes/plane/plane.sh"
+. "$STRAFE_PROJ_DIR/classes/base_types.sh"
+. "$STRAFE_PROJ_DIR/classes/projectiles/bullet.sh"
+. "$STRAFE_PROJ_DIR/classes/projectiles/missile.sh"
+. "$STRAFE_PROJ_DIR/classes/projectiles/enemy_bullet.sh"
+. "$STRAFE_PROJ_DIR/classes/enemies/enemy_base.sh"
+. "$STRAFE_PROJ_DIR/classes/enemies/enemy_v.sh"
+. "$STRAFE_PROJ_DIR/classes/enemies/enemy_q.sh"
+. "$STRAFE_PROJ_DIR/classes/enemies/enemy_m.sh"
+. "$STRAFE_PROJ_DIR/classes/enemies/enemy_b.sh"
+. "$STRAFE_PROJ_DIR/classes/enemies/boss.sh"
+. "$STRAFE_PROJ_DIR/classes/pickups/drop.sh"
+. "$STRAFE_PROJ_DIR/classes/pickups/word.sh"
+. "$STRAFE_PROJ_DIR/classes/plane/plane_helpers.sh"
+. "$STRAFE_PROJ_DIR/classes/plane/plane.sh"
 
 # render 层
-. "$_DIR_PG/../render/ansi.sh"
-. "$_DIR_PG/../render/frame.sh"
-. "$_DIR_PG/../render/hud.sh"
-. "$_DIR_PG/../render/scene.sh"
-. "$_DIR_PG/../render/fx.sh"
+. "$STRAFE_PROJ_DIR/render/ansi.sh"
+. "$STRAFE_PROJ_DIR/render/frame.sh"
+. "$STRAFE_PROJ_DIR/render/hud.sh"
+. "$STRAFE_PROJ_DIR/render/scene.sh"
+. "$STRAFE_PROJ_DIR/render/fx.sh"
 
 # save 层
-. "$_DIR_PG/../save/save.sh"
+. "$STRAFE_PROJ_DIR/save/save.sh"
 
 play_game () {
     local b e d eb m w key dx dy running=1

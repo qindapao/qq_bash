@@ -1,7 +1,7 @@
 # config/words.sh — 箴言词库
 [[ -n "${_STRAFE_WORDS_SH:-}" ]] && return 0
 _STRAFE_WORDS_SH=1
-. "$(dirname "${BASH_SOURCE[0]}")/const.sh"
+. "$STRAFE_PROJ_DIR/config/const.sh"
 
 declare -a WORD_LIST=(
     'Time is money, my friend!'

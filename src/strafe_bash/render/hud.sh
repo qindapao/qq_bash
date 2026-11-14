@@ -1,9 +1,9 @@
 # render/hud.sh — HUD 状态栏
 [[ -n "${_STRAFE_HUD_SH:-}" ]] && return 0
 _STRAFE_HUD_SH=1
-. "$(dirname "${BASH_SOURCE[0]}")/../config/const.sh"
-. "$(dirname "${BASH_SOURCE[0]}")/../config/globals.sh"
 . "$STRAFE_LIB_HOME/xo.sh"
+. "$STRAFE_PROJ_DIR/config/const.sh"
+. "$STRAFE_PROJ_DIR/config/globals.sh"
 
 draw_hud_line1 () {
     local -n p=$PLAYER

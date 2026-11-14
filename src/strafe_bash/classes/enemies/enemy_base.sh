@@ -2,9 +2,9 @@
 [[ -n "${_STRAFE_ENEMY_BASE_SH:-}" ]] && return 0
 _STRAFE_ENEMY_BASE_SH=1
 . "$STRAFE_LIB_HOME/xo.sh"
-. "$(dirname "${BASH_SOURCE[0]}")/../../config/const.sh"
-. "$(dirname "${BASH_SOURCE[0]}")/../../config/globals.sh"
-. "$(dirname "${BASH_SOURCE[0]}")/../projectiles/enemy_bullet.sh"
+. "$STRAFE_PROJ_DIR/config/const.sh"
+. "$STRAFE_PROJ_DIR/config/globals.sh"
+. "$STRAFE_PROJ_DIR/classes/projectiles/enemy_bullet.sh"
 
 readonly EnemyStaticTemplate='
     EnemyObj ->

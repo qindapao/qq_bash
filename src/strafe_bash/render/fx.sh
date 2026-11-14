@@ -1,9 +1,9 @@
 # render/fx.sh — 特效渲染（炸弹爆炸 / Boss 死亡）
 [[ -n "${_STRAFE_FX_SH:-}" ]] && return 0
 _STRAFE_FX_SH=1
-. "$(dirname "${BASH_SOURCE[0]}")/../config/const.sh"
-. "$(dirname "${BASH_SOURCE[0]}")/../config/color.sh"
-. "$(dirname "${BASH_SOURCE[0]}")/../config/globals.sh"
+. "$STRAFE_PROJ_DIR/config/const.sh"
+. "$STRAFE_PROJ_DIR/config/color.sh"
+. "$STRAFE_PROJ_DIR/config/globals.sh"
 
 render_bomb_fx () {
     local i

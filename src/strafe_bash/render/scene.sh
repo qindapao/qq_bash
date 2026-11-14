@@ -1,10 +1,10 @@
 # render/scene.sh — 主场景渲染（飞机/子弹/敌机/掉落/文字）
 [[ -n "${_STRAFE_SCENE_SH:-}" ]] && return 0
 _STRAFE_SCENE_SH=1
-. "$(dirname "${BASH_SOURCE[0]}")/../config/const.sh"
-. "$(dirname "${BASH_SOURCE[0]}")/../config/color.sh"
-. "$(dirname "${BASH_SOURCE[0]}")/../config/globals.sh"
 . "$STRAFE_LIB_HOME/xo.sh"
+. "$STRAFE_PROJ_DIR/config/const.sh"
+. "$STRAFE_PROJ_DIR/config/color.sh"
+. "$STRAFE_PROJ_DIR/config/globals.sh"
 
 render () {
     local -n p=$PLAYER

@@ -2,8 +2,8 @@
 [[ -n "${_STRAFE_SAVE_SH:-}" ]] && return 0
 _STRAFE_SAVE_SH=1
 . "$STRAFE_LIB_HOME/xo.sh"
-. "$(dirname "${BASH_SOURCE[0]}")/../config/const.sh"
-. "$(dirname "${BASH_SOURCE[0]}")/../config/globals.sh"
+. "$STRAFE_PROJ_DIR/config/const.sh"
+. "$STRAFE_PROJ_DIR/config/globals.sh"
 
 save_game () {
     local -A SAVE=()

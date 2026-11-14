@@ -1,7 +1,7 @@
 # classes/enemies/enemy_m.sh — EnemyM
 [[ -n "${_STRAFE_ENEMY_M_SH:-}" ]] && return 0
 _STRAFE_ENEMY_M_SH=1
-. "$(dirname "${BASH_SOURCE[0]}")/enemy_base.sh"
+. "$STRAFE_PROJ_DIR/classes/enemies/enemy_base.sh"
 
 readonly EnemyMStaticTemplate='
     EnemyMObj ->

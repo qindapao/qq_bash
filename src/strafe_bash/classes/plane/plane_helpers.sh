@@ -2,8 +2,8 @@
 [[ -n "${_STRAFE_PLANE_HELPERS_SH:-}" ]] && return 0
 _STRAFE_PLANE_HELPERS_SH=1
 . "$STRAFE_LIB_HOME/xo.sh"
-. "$(dirname "${BASH_SOURCE[0]}")/../../config/const.sh"
-. "$(dirname "${BASH_SOURCE[0]}")/../../config/art.sh"
+. "$STRAFE_PROJ_DIR/config/const.sh"
+. "$STRAFE_PROJ_DIR/config/art.sh"
 
 _art_clear_at () {
     local ay=$1 ax=$2 art=$3

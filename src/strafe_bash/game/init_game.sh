@@ -2,10 +2,10 @@
 [[ -n "${_STRAFE_INIT_GAME_SH:-}" ]] && return 0
 _STRAFE_INIT_GAME_SH=1
 . "$STRAFE_LIB_HOME/xo.sh"
-. "$(dirname "${BASH_SOURCE[0]}")/../config/const.sh"
-. "$(dirname "${BASH_SOURCE[0]}")/../config/art.sh"
-. "$(dirname "${BASH_SOURCE[0]}")/../config/globals.sh"
-. "$(dirname "${BASH_SOURCE[0]}")/../classes/base_types.sh"
+. "$STRAFE_PROJ_DIR/config/const.sh"
+. "$STRAFE_PROJ_DIR/config/art.sh"
+. "$STRAFE_PROJ_DIR/config/globals.sh"
+. "$STRAFE_PROJ_DIR/classes/base_types.sh"
 
 init_game () {
     local -n p=$PLAYER

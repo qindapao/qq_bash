@@ -4,16 +4,15 @@ _STRAFE_MAIN_SH=1
 
 . "$STRAFE_LIB_HOME/xo.sh"
 
-_DIR_M="$(dirname "${BASH_SOURCE[0]}")"
-. "$_DIR_M/../config/const.sh"
-. "$_DIR_M/../config/globals.sh"
-. "$_DIR_M/../render/ansi.sh"
-. "$_DIR_M/../classes/plane/plane.sh"
-. "$_DIR_M/../save/save.sh"
-. "$_DIR_M/init_game.sh"
-. "$_DIR_M/game_over.sh"
-. "$_DIR_M/term_restore.sh"
-. "$_DIR_M/play_game.sh"
+. "$STRAFE_PROJ_DIR/config/const.sh"
+. "$STRAFE_PROJ_DIR/config/globals.sh"
+. "$STRAFE_PROJ_DIR/render/ansi.sh"
+. "$STRAFE_PROJ_DIR/classes/plane/plane.sh"
+. "$STRAFE_PROJ_DIR/save/save.sh"
+. "$STRAFE_PROJ_DIR/game/init_game.sh"
+. "$STRAFE_PROJ_DIR/game/game_over.sh"
+. "$STRAFE_PROJ_DIR/game/term_restore.sh"
+. "$STRAFE_PROJ_DIR/game/play_game.sh"
 
 main () {
     xo_init || { echo "xo_init failed" ; exit 1 ; }

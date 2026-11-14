@@ -2,7 +2,7 @@
 [[ -n "${_STRAFE_WORD_SH:-}" ]] && return 0
 _STRAFE_WORD_SH=1
 . "$STRAFE_LIB_HOME/xo.sh"
-. "$(dirname "${BASH_SOURCE[0]}")/../../config/const.sh"
+. "$STRAFE_PROJ_DIR/config/const.sh"
 
 readonly WordStaticTemplate='
     WordObj ->

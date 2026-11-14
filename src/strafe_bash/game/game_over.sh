@@ -1,7 +1,7 @@
 # game/game_over.sh — GAME OVER 横幅与画面
 [[ -n "${_STRAFE_GAME_OVER_SH:-}" ]] && return 0
 _STRAFE_GAME_OVER_SH=1
-. "$(dirname "${BASH_SOURCE[0]}")/../render/ansi.sh"
+. "$STRAFE_PROJ_DIR/render/ansi.sh"
 
 game_over_banner () {
     cat <<'EOF'
