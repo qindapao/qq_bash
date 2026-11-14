@@ -616,12 +616,23 @@ play_game () {
         local -i paused_changed=0
         while IFS= read -rsn1 -t 0.01 key ; do
             case "$key" in
-                p|P) paused=$((1-paused)) ; paused_drawn=0 ; paused_changed=1 ;;
+                p|P)
+                    if (( paused )) ; then
+                        # 恢复游戏时保留 paused_drawn，让下面的清行逻辑擦掉 PAUSED 行
+                        paused=0
+                        msg="" ; msg_tick=0
+                        need_render=1
+                    else
+                        paused=1
+                        paused_drawn=0
+                    fi
+                    paused_changed=1
+                    ;;
                 q|Q) running=0 ; break ;;
                 s|S)
                     if (( paused )) ; then
-                        save_game
-                        msg="SAVED" ; msg_tick=50
+                        if save_game ; then msg="SAVED" ; else msg="SAVE FAILED" ; fi
+                        msg_tick=50
                     else
                         G_DY=1
                     fi
@@ -629,21 +640,24 @@ play_game () {
                 l|L)
                     if (( paused )) ; then
                         if load_game ; then
+                            # 读档成功后立刻回到游戏，不再停在暂停画面
+                            paused=0
+                            paused_drawn=0
+                            msg="" ; msg_tick=0
                             screen_clear
                             FRAME_BUF=""
                             draw_frame
                             draw_hud_line2
                             printf '%s' "$FRAME_BUF"
                             FRAME_BUF=""
-                            msg="LOADED"
                             need_render=1
                             # 读档后屏幕已清空，强制下一帧重画 bonus 行，
                             # 否则 last_bonus_str 可能和读档前的值相同而跳过绘制。
                             last_bonus_str='__load__'
                         else
                             msg="LOAD FAILED"
+                            msg_tick=50
                         fi
-                        msg_tick=50
                     else
                         G_DX=1
                     fi
