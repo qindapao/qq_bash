@@ -51,19 +51,31 @@ draw_hud_line2 () {
 }
 
 draw_bonus_hud () {
+    [[ -n "$PLAYER" && -n "${XO_OBJ_POOL[$PLAYER]+_}" ]] || return 0
     local -n p=$PLAYER
-    local t2=$(( ${p["{t2}$X"]:-0} / FPS ))
-    local t3=$(( ${p["{t3}$X"]:-0} / FPS ))
-    local t4=$(( ${p["{t4}$X"]:-0} / FPS ))
-    local t5=$(( ${p["{t5}$X"]:-0} / FPS ))
+    local _s='BONUS'
+    local _i _w _wu _tv _part
+    # 4 种武器按 tier 2..5 动态取实际字符和倒计时，
+    # 不能像旧版那样写死 * @ $ |，否则武器和数字会错位。
+    for _i in 2 3 4 5 ; do
+        _w=${p["{w$_i}$X"]}
+        _wu='?'
+        if [[ -n "$_w" && -n "${XO_OBJ_POOL[$_w]+_}" ]] ; then
+            local -n _wobj=$_w
+            _wu=${_wobj["{u}$X"]}
+            unset -n _wobj
+        fi
+        _tv=$(( ${p["{t$_i}$X"]:-0} / FPS ))
+        printf -v _part '  %s:%3d' "$_wu" "$_tv"
+        _s+=$_part
+    done
     local mt=$(( ${p["{mt}$X"]:-0} / FPS ))
     local lt=$(( ${p["{lt}$X"]:-0} / FPS ))
     local st=$(( ${p["{st}$X"]:-0} / FPS ))
     local lcount=$(( ${p["{lanes}$X"]:-0} + 1 ))
     unset -n p
-    local _s
-    printf -v _s 'BONUS  *:%3d  @:%3d  $:%3d  |:%3d  M:%3d  L:%3d(%d)  S:%3d' \
-        "$t2" "$t3" "$t4" "$t5" "$mt" "$lt" "$lcount" "$st"
+    printf -v _part '  M:%3d  L:%3d(%d)  S:%3d' "$mt" "$lt" "$lcount" "$st"
+    _s+=$_part
     local _maxw=$(( SCREEN_W - 2 ))
     _s="${_s:0:_maxw}"
     local _t

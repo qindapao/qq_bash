@@ -295,7 +295,7 @@ render () {
         [[ -n "$d" && -n "${XO_OBJ_POOL[$d]+_}" ]] || continue
         local -n _d=$d
         local _dx=${_d["{x}$X"]} _dy=${_d["{y}$X"]} _dsym=${_d["{symbol}$X"]}
-        printf -v _t '\033[%d;%dH%s' "$_dy" "$_dx" "$_dsym"
+        printf -v _t '\033[%d;%dH%s%s%s' "$_dy" "$_dx" "$C_REVERSE" "$_dsym" "$C_RESET"
         FRAME_BUF+="$_t"
         _d["{prev_x}$X"]=$_dx
         _d["{prev_y}$X"]=$_dy

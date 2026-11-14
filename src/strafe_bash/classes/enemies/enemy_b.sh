@@ -38,6 +38,8 @@ EnemyB_move () {
     (( RANDOM % 8 == 0 )) && vy=$(( (RANDOM % 2) * 2 - 1 ))
     local y=$(( ${self["{y}$X"]} + vy ))
     if (( y + _h >= SCREEN_H - 1 )) ; then
+        # 概率从底部离场，给刷新新怪（尤其第二只 Boss）腾出位置
+        (( RANDOM % 100 < 35 )) && return 1
         y=$(( SCREEN_H - 2 - _h )) ; vy=-1
     elif (( y < GAME_TOP )) ; then
         y=$GAME_TOP ; vy=1

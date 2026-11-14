@@ -482,10 +482,12 @@ _play_game_tick () {
 
         local spawn_cls=''
         local _r=$(( RANDOM % 1000 ))
-        if (( alive_Boss >= 1 )) ; then
-            if (( _r < 600 )) ; then spawn_cls=EnemyV
-            elif (( _r < 850 )) ; then spawn_cls=EnemyQ
-            elif (( _r < 950 )) ; then spawn_cls=EnemyM
+        # 场上最多 2 个 Boss；达到 2 个后只刷小怪
+        if (( alive_Boss >= 2 )) ; then
+            # 2 Boss 时的小怪配比：V45% / Q25% / M15% / B15%
+            if (( _r < 450 )) ; then spawn_cls=EnemyV
+            elif (( _r < 700 )) ; then spawn_cls=EnemyQ
+            elif (( _r < 850 )) ; then spawn_cls=EnemyM
             else                       spawn_cls=EnemyB
             fi
         else
@@ -493,8 +495,9 @@ _play_game_tick () {
                 spawn_cls=Boss ; G_BOSS_DRY=0
             elif (( G_B_DRY >= 30 && alive_B == 0 )) ; then
                 spawn_cls=EnemyB ; G_B_DRY=0
-            elif (( _r < 450 )) ; then spawn_cls=EnemyV
-            elif (( _r < 700 )) ; then spawn_cls=EnemyQ
+            # 0/1 Boss 时的小怪配比：V40% / Q25% / M15% / B18% / Boss2%
+            elif (( _r < 400 )) ; then spawn_cls=EnemyV
+            elif (( _r < 650 )) ; then spawn_cls=EnemyQ
             elif (( _r < 800 )) ; then spawn_cls=EnemyM
             elif (( _r < 980 )) ; then spawn_cls=EnemyB
             else                       spawn_cls=Boss
@@ -617,6 +620,9 @@ play_game () {
                             FRAME_BUF=""
                             msg="LOADED"
                             need_render=1
+                            # 读档后屏幕已清空，强制下一帧重画 bonus 行，
+                            # 否则 last_bonus_str 可能和读档前的值相同而跳过绘制。
+                            last_bonus_str='__load__'
                         else
                             msg="LOAD FAILED"
                         fi

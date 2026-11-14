@@ -11,7 +11,7 @@ save_game () {
     # 必须在 declare/eval 的复合赋值里解析；直接 SAVE=($REPLY) 会解析失败。
     x_init "$X_TYPE_OBJ"
     eval "SAVE=($REPLY)"
-    x_insert SAVE "{meta}$X{version}$X" 2
+    x_insert SAVE "{meta}$X{version}$X" 3
     x_insert SAVE "{meta}$X{player}$X" "$PLAYER"
     x_insert SAVE "{meta}$X{obj_seq}$X" "$XO_OBJ_SEQ"
 
@@ -59,7 +59,7 @@ load_game () {
     local -A SAVE=()
     eval "SAVE=($REPLY)"
 
-    [[ "${SAVE[{meta}$X{version}$X]:-}" == "2" ]] || return 1
+    [[ "${SAVE[{meta}$X{version}$X]:-}" == "3" ]] || return 1
 
     local obj
     for obj in "${!XO_OBJ_POOL[@]}" ; do
