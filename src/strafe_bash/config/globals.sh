@@ -27,6 +27,9 @@ declare -i G_DX=0
 declare -i G_DY=0
 declare -i G_WANT_BOMB=0
 declare -i G_GAME_OVER=0
+declare -i G_RUN_TICKS=0
+declare -i G_KILLS=0
+declare -i G_BOSS_KILLS=0
 
 declare -g FRAME_BUF=""
 

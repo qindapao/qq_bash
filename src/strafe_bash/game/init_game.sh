@@ -87,6 +87,9 @@ init_game () {
     G_DY=0
     G_WANT_BOMB=0
     G_GAME_OVER=0
+    G_RUN_TICKS=0
+    G_KILLS=0
+    G_BOSS_KILLS=0
 
     # 同步 prev = cur（避免首帧擦 (0,0)）
     local _sync_obj

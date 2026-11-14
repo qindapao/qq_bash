@@ -5,6 +5,7 @@ _STRAFE_SAVE_SH=1
 . "$STRAFE_PROJ_DIR/config/const.sh"
 . "$STRAFE_PROJ_DIR/config/globals.sh"
 . "$STRAFE_PROJ_DIR/game/init_game.sh"
+. "$STRAFE_PROJ_DIR/classes/plane/plane_helpers.sh"
 
 # 只接受非负整数
 _save_is_uint () {
@@ -141,7 +142,16 @@ load_game () {
     local _wk="{w${_slot}}$X"
     local _bh=${p[$_wk]}
     p["{bullet}$X"]=$_bh
-    p["{prev_shield}$X"]=${p["{shield}$X"]}
+    # 护盾不是只靠 {shield}/{st}：还要恢复护盾 art、4 格宽度和 prev_shield。
+    if (( ${SAVE[shield]} )) ; then
+        _plane_set_shield "$PLAYER" 1
+        p["{st}$X"]=${SAVE[st]}
+    else
+        _plane_set_shield "$PLAYER" 0
+        p["{st}$X"]=${SAVE[st]}
+    fi
+    p["{shield}$X"]=${SAVE[shield]}
+    p["{prev_shield}$X"]=${SAVE[shield]}
     unset -n p
     return 0
 }

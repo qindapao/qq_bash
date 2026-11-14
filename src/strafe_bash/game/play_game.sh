@@ -105,6 +105,7 @@ _boss_random_class () {
 # ============================================================================
 _play_game_tick () {
     local b e d eb m w
+    ((G_RUN_TICKS++))
 
     # ---- 0. 奖励计时器递减（每 tick 减 1）----
     local -n _pb=$PLAYER
@@ -273,8 +274,10 @@ _play_game_tick () {
                 if (( _newhp <= 0 )) ; then
                     _edead[_j]=1
                     ((_ndead++))
+                    ((G_KILLS++))
                     score_gain=$(( score_gain + _escore[_j] ))
                     if Base_is_a "${_eid[_j]}" BossBase ; then
+                        ((G_BOSS_KILLS++))
                         _boss_on_death "${_eid[_j]}" "${_ex[_j]}" "${_ey[_j]}" "${_ew[_j]}" "${_eh[_j]}" "${_eart[_j]}"
                     fi
                 else
@@ -305,8 +308,10 @@ _play_game_tick () {
                 if (( _newhp <= 0 )) ; then
                     _edead[_j]=1
                     ((_ndead++))
+                    ((G_KILLS++))
                     score_gain=$(( score_gain + _escore[_j] ))
                     if Base_is_a "${_eid[_j]}" BossBase ; then
+                        ((G_BOSS_KILLS++))
                         _boss_on_death "${_eid[_j]}" "${_ex[_j]}" "${_ey[_j]}" "${_ew[_j]}" "${_eh[_j]}" "${_eart[_j]}"
                     fi
                 else
@@ -699,9 +704,17 @@ play_game () {
                 local new_hp=$(( ${_e["{hp}$X"]} - 10 ))
                 _e["{hp}$X"]=$new_hp
                 local escore=${_e["{score}$X"]}
+                local _ex=${_e["{x}$X"]} _ey=${_e["{y}$X"]}
+                local _ew=${_e["{w}$X"]} _eh=${_e["{h}$X"]}
+                local _eart=${_e["{art}$X"]}
                 unset -n _e
                 if (( new_hp <= 0 )) ; then
                     bomb_score=$(( bomb_score + escore ))
+                    ((G_KILLS++))
+                    if Base_is_a "$e" BossBase ; then
+                        ((G_BOSS_KILLS++))
+                        _boss_on_death "$e" "$_ex" "$_ey" "$_ew" "$_eh" "$_eart"
+                    fi
                     xo_obj_kill "$e"
                 else
                     bomb_alive+=("$e")
