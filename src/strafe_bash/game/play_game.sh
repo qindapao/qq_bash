@@ -412,11 +412,20 @@ _play_game_tick () {
     fi
 
     # ---- 10. 掉落物拾取 ----
+    # 拾取用整架飞机的 ASCII art 包围盒：
+    #   普通形态：x-1 .. x+1，y .. y+1（o|o / -'-）
+    #   护盾形态：x-4 .. x+4，y-1 .. y+1（.-----. / /  o|o  \ / _._）
+    # 注意：敌机/敌弹碰撞仍只用 px/py 这个竖线位置，本改动不影响它们。
+    local _pal=${p["{al}$X"]:-1}
+    local _px1=$(( px - _pal )) _px2=$(( px + _pal ))
+    local _py1=$(( py - _sh )) _py2=$(( py + 1 ))
+
     local -a survive_d2=()
     for d in "${DROPS[@]}" ; do
         [[ -n "$d" && -n "${XO_OBJ_POOL[$d]+_}" ]] || continue
         local -n _d=$d
-        if (( ${_d["{x}$X"]} == px && ${_d["{y}$X"]} == py )) ; then
+        if (( ${_d["{x}$X"]} >= _px1 && ${_d["{x}$X"]} <= _px2 && \
+              ${_d["{y}$X"]} >= _py1 && ${_d["{y}$X"]} <= _py2 )) ; then
             local dtype=${_d["{dtype}$X"]}
             unset -n _d
             xo_obj_kill "$d"
