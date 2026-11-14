@@ -4,12 +4,13 @@ _STRAFE_ENEMY_BASE_SH=1
 . "$STRAFE_LIB_HOME/xo.sh"
 . "$STRAFE_PROJ_DIR/config/const.sh"
 . "$STRAFE_PROJ_DIR/config/globals.sh"
+. "$STRAFE_PROJ_DIR/classes/base_types.sh"
 . "$STRAFE_PROJ_DIR/classes/projectiles/enemy_bullet.sh"
 
 readonly EnemyStaticTemplate='
     EnemyObj ->
         {CLS} => Enemy
-        {SUP} => Base
+        {SUP} => Entity
         {MIX} => 
         {x} => 0
         {y} => 0

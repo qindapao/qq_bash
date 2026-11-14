@@ -2023,8 +2023,16 @@ x_get_node_type ()
     # local - ; set +x
     local -n tr_t=$1
     local tr_node=$2
+    local tr_input_kind=${3:-id}
     local tr_key
-    
+
+    if [[ "$tr_input_kind" == 'path' ]] ; then
+        _x_token_to_node_id "$1" "$tr_node" 0 0 0 2>/dev/null
+        (( $? )) && return $X_NODE_KIND_UNKNOWN
+        local -A "tr_node_info=($REPLY)" ; REPLY=
+        tr_node=${tr_node_info[node_id]}
+    fi
+
     if [[ ${tr_t[$tr_node.k]+_} ]] ; then
         tr_key="${tr_t["$tr_node.k"]}"
         if [[ "${tr_t["$tr_key"]}" == "$X_VALUE_NULL" ]] ; then

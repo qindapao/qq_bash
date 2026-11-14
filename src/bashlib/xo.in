@@ -318,6 +318,17 @@ _xo_init_get_class_inher_chain ()
         #@endif
 
     # ---- 3. 每个类往上回溯拼路径，插入树 ----
+    #
+    # 【幂等插入】
+    #   x_insert 不允许往已有 children 的节点写叶子值。
+    #   当某个子类先被处理时，它的中间祖先节点（如 Entity）会被自动
+    #   升变成容器；此时再单独插入祖先自身（写 NULL），就会触发
+    #   "have children" 错误。
+    #
+    #   修复：先查路径是否存在，存在就跳过。x_get_node_type 用 path 模式
+    #   探测，返回 UNKNOWN 说明路径不存在，可以插入；否则（叶子/容器）
+    #   说明已经存在（作为叶子写过，或作为容器被升变过），跳过。
+    #
     local cur path seg
     local -a chain
     local -A _visited=()
@@ -349,12 +360,15 @@ _xo_init_get_class_inher_chain ()
             path+="{$seg}$X"
         done
 
-        # 插入，NULL 自动升变
-        x_insert CLASS_INHER_TREE "$path" "$X_VALUE_NULL" || {
-            die ERR "Class:$cls failed to insert into CLASS_INHER_TREE"\
-                    "(path:$path)"
-            return 1
-        }
+        # 幂等插入：路径不存在才写，存在就跳过
+        x_get_node_type CLASS_INHER_TREE "$path" path
+        if [[ $? == "$X_NODE_KIND_UNKNOWN" ]] ; then
+            x_insert CLASS_INHER_TREE "$path" "$X_VALUE_NULL" || {
+                die ERR "Class:$cls failed to insert into CLASS_INHER_TREE"\
+                        "(path:$path)"
+                return 1
+            }
+        fi
     done
 
     return 0

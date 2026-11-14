@@ -2,7 +2,7 @@
 [[ -n "${_STRAFE_MAIN_SH:-}" ]] && return 0
 _STRAFE_MAIN_SH=1
 
-. "$STRAFE_LIB_HOME/xo.sh"
+. "$STRAFE_LIB_HOME/xo.sh" >/dev/null 2>&1
 
 . "$STRAFE_PROJ_DIR/config/const.sh"
 . "$STRAFE_PROJ_DIR/config/globals.sh"

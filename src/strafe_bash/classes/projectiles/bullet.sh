@@ -2,11 +2,12 @@
 [[ -n "${_STRAFE_BULLET_SH:-}" ]] && return 0
 _STRAFE_BULLET_SH=1
 . "$STRAFE_LIB_HOME/xo.sh"
+. "$STRAFE_PROJ_DIR/classes/base_types.sh"
 
 readonly BulletStaticTemplate='
     BulletObj ->
         {CLS} => Bullet
-        {SUP} => Base
+        {SUP} => Entity
         {MIX} => 
         {x} => 0
         {y} => 0

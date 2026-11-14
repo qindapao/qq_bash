@@ -3,11 +3,12 @@
 _STRAFE_MISSILE_SH=1
 . "$STRAFE_LIB_HOME/xo.sh"
 . "$STRAFE_PROJ_DIR/config/const.sh"
+. "$STRAFE_PROJ_DIR/classes/base_types.sh"
 
 readonly MissileStaticTemplate='
     MissileObj ->
         {CLS} => Missile
-        {SUP} => Base
+        {SUP} => Entity
         {MIX} => 
         {x} => 0
         {y} => 0

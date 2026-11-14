@@ -5,13 +5,14 @@ _STRAFE_PLANE_SH=1
 . "$STRAFE_PROJ_DIR/config/const.sh"
 . "$STRAFE_PROJ_DIR/config/art.sh"
 . "$STRAFE_PROJ_DIR/config/globals.sh"
+. "$STRAFE_PROJ_DIR/classes/base_types.sh"
 . "$STRAFE_PROJ_DIR/classes/plane/plane_helpers.sh"
 . "$STRAFE_PROJ_DIR/classes/projectiles/bullet.sh"
 
 readonly PlaneStaticTemplate='
     PlaneObj ->
         {CLS} => Plane
-        {SUP} => Base
+        {SUP} => Entity
         {MIX} => 
         {x} => 0
         {y} => 0

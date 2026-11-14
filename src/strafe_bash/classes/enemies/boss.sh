@@ -2,6 +2,7 @@
 [[ -n "${_STRAFE_BOSS_SH:-}" ]] && return 0
 _STRAFE_BOSS_SH=1
 . "$STRAFE_LIB_HOME/xo.sh"
+. "$STRAFE_PROJ_DIR/classes/base_types.sh"
 . "$STRAFE_PROJ_DIR/config/const.sh"
 . "$STRAFE_PROJ_DIR/config/art.sh"
 . "$STRAFE_PROJ_DIR/config/globals.sh"
@@ -10,7 +11,7 @@ _STRAFE_BOSS_SH=1
 readonly BossStaticTemplate='
     BossObj ->
         {CLS} => Boss
-        {SUP} => Base
+        {SUP} => Entity
         {MIX} => 
         {x} => 0
         {y} => 0

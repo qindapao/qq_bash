@@ -3,11 +3,12 @@
 _STRAFE_ENEMY_BULLET_SH=1
 . "$STRAFE_LIB_HOME/xo.sh"
 . "$STRAFE_PROJ_DIR/config/const.sh"
+. "$STRAFE_PROJ_DIR/classes/base_types.sh"
 
 readonly EnemyBulletStaticTemplate='
     EnemyBulletObj ->
         {CLS} => EnemyBullet
-        {SUP} => Base
+        {SUP} => Entity
         {MIX} => 
         {x} => 0
         {y} => 0
