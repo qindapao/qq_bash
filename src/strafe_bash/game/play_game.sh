@@ -126,7 +126,10 @@ _ram_enemy () {
     local -i escore=${_re["{score}$X"]:-0}
     unset -n _re
     local -i rdmg
-    rdmg=$(xo_call "$PLAYER" ram_damage)
+    REPLY=
+    xo_call "$PLAYER" ram_damage
+    rdmg=${REPLY:-5}
+    REPLY=
     (( rdmg > 0 )) || rdmg=5
     hp=$(( hp - rdmg ))
     local -n _re2=$eid

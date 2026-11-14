@@ -28,5 +28,5 @@ M_Ram_ram_ready () {
 }
 
 M_Ram_ram_damage () {
-    printf '5'
+    REPLY=5
 }
