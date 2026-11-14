@@ -32,7 +32,48 @@ render_bomb_fx () {
 render_boss_death () {
     local _chars='@#*%&!?'
     local _colors=("$C_RED" "$C_YELLOW" "$C_ORANGE" "$C_PURPLE")
-    local i _n=${#BOSS_DEATH_POS[@]} _t
+    local i _n _t
+
+    # style 1：旋刃，向外扩散的三圈火花 + 核心爆裂
+    if (( BOSS_DEATH_STYLE == 1 )) ; then
+        # 擦掉上一波
+        for (( i=0; i<${#BOSS_DEATH_POS[@]}; i+=2 )) ; do
+            printf -v _t '\033[%d;%dH ' "${BOSS_DEATH_POS[i]}" "${BOSS_DEATH_POS[i+1]}"
+            FRAME_BUF+="$_t"
+        done
+        BOSS_DEATH_POS=()
+
+        local -i _r=$(( 1 + BOSS_DEATH_WAVE / 6 ))
+        local -a _dx=(0 1 1 1 0 -1 -1 -1)
+        local -a _dy=(-1 -1 0 1 1 1 0 -1)
+        local -i _cx=$BOSS_DEATH_CX _cy=$BOSS_DEATH_CY
+        local -i _px _py _ci
+        local _ch
+        for (( i=0; i<8; i++ )) ; do
+            _px=$(( _cx + _dx[i] * _r ))
+            _py=$(( _cy + _dy[i] * _r ))
+            if (( _px >= 2 && _px <= SCREEN_W - 2 && _py >= GAME_TOP && _py < SCREEN_H )) ; then
+                _ch=${_chars:RANDOM % ${#_chars}:1}
+                _ci=$(( RANDOM % 4 ))
+                printf -v _t '\033[%d;%dH%s%s%s' "$_py" "$_px" "${_colors[_ci]}" "$_ch" "$C_RESET"
+                FRAME_BUF+="$_t"
+                BOSS_DEATH_POS+=("$_py" "$_px")
+            fi
+        done
+        # 前 8 帧中心核心爆闪
+        if (( BOSS_DEATH_WAVE < 8 )) ; then
+            _px=$_cx ; _py=$_cy
+            if (( _px >= 2 && _px <= SCREEN_W - 2 && _py >= GAME_TOP && _py < SCREEN_H )) ; then
+                printf -v _t '\033[%d;%dH%s@%s' "$_py" "$_px" "$C_YELLOW" "$C_RESET"
+                FRAME_BUF+="$_t"
+                BOSS_DEATH_POS+=("$_py" "$_px")
+            fi
+        fi
+        ((BOSS_DEATH_WAVE++))
+        return 0
+    fi
+
+    _n=${#BOSS_DEATH_POS[@]}
     for (( i=0; i<_n; i+=2 )) ; do
         local _cy=${BOSS_DEATH_POS[i]}
         local _cx=${BOSS_DEATH_POS[i+1]}

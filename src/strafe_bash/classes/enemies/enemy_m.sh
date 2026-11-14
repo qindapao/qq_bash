@@ -35,7 +35,15 @@ EnemyM_move () {
         self["{x}$X"]=$x
     }
     local vy=${self["{vy}$X"]}
-    (( RANDOM % 7 == 0 )) && vy=$(( -vy ))
+    # 和 B 一样：向上状态很快翻回向下，向下状态更稳定，
+    # 避免 M 长时间在空中上下飘、抢 Boss 的戏。
+    if (( RANDOM % 7 == 0 )) ; then
+        if (( vy < 0 )) ; then
+            vy=1
+        elif (( RANDOM % 3 == 0 )) ; then
+            vy=-1
+        fi
+    fi
     self["{vy}$X"]=$vy
     local y=$(( ${self["{y}$X"]} + vy ))
     (( y < GAME_TOP )) && { y=$GAME_TOP ; self["{vy}$X"]=1 ; }

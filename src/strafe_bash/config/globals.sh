@@ -6,6 +6,10 @@ declare -a BULLETS=() ENEMIES=() DROPS=() ENEMY_BULLETS=() MISSILES=()
 declare -a BOMB_FX_POS=()
 declare -a BOSS_DEATH_POS=()
 declare -i BOSS_DEATH_TICK=0
+declare -i BOSS_DEATH_STYLE=0
+declare -i BOSS_DEATH_CX=0
+declare -i BOSS_DEATH_CY=0
+declare -i BOSS_DEATH_WAVE=0
 declare -a WORDS=()
 declare PLAYER=
 

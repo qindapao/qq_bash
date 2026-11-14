@@ -15,6 +15,7 @@ readonly EnemyBulletStaticTemplate='
         {symbol} => .
         {damage} => 1
         {cd} => 0
+        {color} => 
     '
 EnemyBullet_born () {
     local -n self=$1

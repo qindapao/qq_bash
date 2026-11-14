@@ -13,10 +13,13 @@ _STRAFE_BULLETTYPE_SH=1
 #             {BulletTypeAt} => null\u001c
 #             {BulletTypeDollar} => null\u001c
 #         {Entity}
+#             {BossBase} => null\u001c
+#                 {Boss} => null\u001c
+#                 {BossSpinner} => null\u001c
 #             {Missile} => null\u001c
-#             {Boss} => null\u001c
 #             {Bullet} => null\u001c
 #             {EnemyBullet} => null\u001c
+#                 {BossBullet} => null\u001c
 #             {Enemy}
 #                 {EnemyQ} => null\u001c
 #                 {EnemyV} => null\u001c
@@ -25,7 +28,7 @@ _STRAFE_BULLETTYPE_SH=1
 #             {Drop} => null\u001c
 #             {Plane} => null\u001c
 #             {Word} => null\u001c
-#     max_index => 22
+#     max_index => 26
 
 # Entity 抽象基类：所有游戏实体的公共属性
 readonly EntityStaticTemplate='

@@ -49,7 +49,7 @@ _render_erase_one () {
     local cls=${o["{CLS}$X"]}
     local _t
     case "$cls" in
-    Bullet|Missile|EnemyBullet|Drop)
+    Bullet|Missile|EnemyBullet|BossBullet|Drop)
         printf -v _t '\033[%d;%dH ' "$py" "$px"
         FRAME_BUF+="$_t"
         ;;
@@ -72,10 +72,10 @@ _render_erase_one () {
             FRAME_BUF+="$_t"
         fi
         ;;
-    EnemyV|EnemyQ|EnemyM|EnemyB|Boss)
+    EnemyV|EnemyQ|EnemyM|EnemyB|Boss|BossSpinner)
         _scene_clear_art_at "$py" "$px" "${o["{art}$X"]}"
         local _bcls=${o["{CLS}$X"]}
-        if [[ "$_bcls" == "Boss" ]] || [[ "$_bcls" == "EnemyB" ]] || [[ "$_bcls" == "EnemyM" ]] ; then
+        if [[ "$_bcls" == "Boss" ]] || [[ "$_bcls" == "BossSpinner" ]] || [[ "$_bcls" == "EnemyB" ]] || [[ "$_bcls" == "EnemyM" ]] ; then
             local _bh=${o["{h}$X"]:-1}
             if (( py + _bh < SCREEN_H )) ; then
                 printf -v _t '\033[%d;2H\033[K\033[%d;%dH%s' $((py + _bh)) $((py + _bh)) "$SCREEN_W" "$FRAME_V"
@@ -246,7 +246,12 @@ render () {
         [[ -n "$eb" && -n "${XO_OBJ_POOL[$eb]+_}" ]] || continue
         local -n _eb=$eb
         local _ebx=${_eb["{x}$X"]} _eby=${_eb["{y}$X"]} _ebsym=${_eb["{symbol}$X"]}
-        printf -v _t '\033[%d;%dH%s' "$_eby" "$_ebx" "$_ebsym"
+        local _ebcol=${_eb["{color}$X"]:-}
+        if [[ -n "$_ebcol" ]] ; then
+            printf -v _t '\033[%d;%dH%s%s%s' "$_eby" "$_ebx" "$_ebcol" "$_ebsym" "$C_RESET"
+        else
+            printf -v _t '\033[%d;%dH%s' "$_eby" "$_ebx" "$_ebsym"
+        fi
         FRAME_BUF+="$_t"
         _eb["{prev_x}$X"]=$_ebx
         _eb["{prev_y}$X"]=$_eby
@@ -260,6 +265,7 @@ render () {
         local _color=''
         case "$_cls" in
             Boss|EnemyB) _color=$C_RED ;;
+            BossSpinner) _color=$C_PURPLE ;;
             EnemyM)      _color=$C_ORANGE ;;
             EnemyQ)      _color=$C_YELLOW ;;
             EnemyV)      _color=$C_GREEN ;;
@@ -279,7 +285,7 @@ render () {
             FRAME_BUF+="$_t"
             ((_r++))
         done
-        if [[ "$_cls" == "Boss" ]] || [[ "$_cls" == "EnemyB" ]] || [[ "$_cls" == "EnemyM" ]] ; then
+        if [[ "$_cls" == "Boss" ]] || [[ "$_cls" == "BossSpinner" ]] || [[ "$_cls" == "EnemyB" ]] || [[ "$_cls" == "EnemyM" ]] ; then
             if (( _ay + _h < SCREEN_H )) ; then
                 printf -v _t '\033[%d;%dH\033[K%s[%d/%d]%s\033[%d;%dH%s' $((_ay + _h)) "$_ax" \
                     "$_color" "$_hp2" "$_maxhp" "$C_RESET" $((_ay + _h)) "$SCREEN_W" "$FRAME_V"

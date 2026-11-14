@@ -14,6 +14,7 @@ TICK_US=$(( 1000000 / FPS ))
 ENEMY_LIMIT=25
 DROP_LIMIT=8
 WORD_LIMIT=2
+BOSS_BULLET_LIMIT=48
 
 # 子弹库：tier 1 预留（暂不使用），tier 2..5 每档在开局时随机抽一个类。
 # 默认子弹是独立的 BulletTypeDefault（tier 0），不在这些库里，始终由玩家携带。

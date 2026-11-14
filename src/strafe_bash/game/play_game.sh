@@ -16,6 +16,10 @@ _STRAFE_PLAY_GAME_SH=1
 . "$STRAFE_PROJ_DIR/classes/projectiles/bullet.sh"
 . "$STRAFE_PROJ_DIR/classes/projectiles/missile.sh"
 . "$STRAFE_PROJ_DIR/classes/projectiles/enemy_bullet.sh"
+. "$STRAFE_PROJ_DIR/classes/enemies/boss_base.sh"
+. "$STRAFE_PROJ_DIR/classes/projectiles/boss_bullet.sh"
+. "$STRAFE_PROJ_DIR/classes/enemies/boss.sh"
+. "$STRAFE_PROJ_DIR/classes/enemies/boss_spinner.sh"
 . "$STRAFE_PROJ_DIR/classes/enemies/enemy_base.sh"
 . "$STRAFE_PROJ_DIR/classes/enemies/enemy_v.sh"
 . "$STRAFE_PROJ_DIR/classes/enemies/enemy_q.sh"
@@ -36,6 +40,65 @@ _STRAFE_PLAY_GAME_SH=1
 
 # save 层
 . "$STRAFE_PROJ_DIR/save/save.sh"
+
+# ============================================================================
+# _boss_on_death — Boss 死亡统一处理（掉落 + 死亡动画参数）
+# ============================================================================
+_boss_on_death () {
+    local obj=$1 ex=$2 ey=$3 ew=$4 eh=$5 art=$6
+    local -n _b=$obj
+    local -i _style=${_b["{death_style}$X"]:-0}
+    unset -n _b
+
+    # 如果上一个 Boss 的死亡特效还没放完，先擦掉残留火花
+    local _i _t
+    for (( _i=0; _i<${#BOSS_DEATH_POS[@]}; _i+=2 )) ; do
+        printf -v _t '\033[%d;%dH ' "${BOSS_DEATH_POS[_i]}" "${BOSS_DEATH_POS[_i+1]}"
+        FRAME_BUF+="$_t"
+    done
+    BOSS_DEATH_POS=()
+    BOSS_DEATH_STYLE=$_style
+    BOSS_DEATH_CX=$(( ex + ew / 2 ))
+    BOSS_DEATH_CY=$(( ey + eh / 2 ))
+    BOSS_DEATH_WAVE=0
+    BOSS_DEATH_TICK=30
+
+    # style 0：老 Boss，按 art 的非空格子放随机火花
+    if (( _style == 0 )) ; then
+        local _dr=0 _drest=$art
+        while [[ -n "$_drest" ]] ; do
+            local _dl=${_drest%%$'\n'*}
+            if [[ "$_drest" == *$'\n'* ]] ; then _drest=${_drest#*$'\n'}
+            else _drest=''
+            fi
+            local _dc=0 _dlen=${#_dl}
+            while (( _dc < _dlen )) ; do
+                local _dch=${_dl:_dc:1}
+                [[ "$_dch" != " " ]] && BOSS_DEATH_POS+=($((ey + _dr)) $((ex + _dc)))
+                ((_dc++))
+            done
+            ((_dr++))
+        done
+    fi
+
+    local _bdt=(2 3 4 5 H b m L S)
+    local _bdc="${_bdt[RANDOM % 9]}"
+    xo_obj_born Drop "$_bdc"
+    local -n _bd=$REPLY
+    _bd["{x}$X"]=$(( ex + ew / 2 ))
+    _bd["{y}$X"]=$(( ey + eh - 1 ))
+    unset -n _bd
+    DROPS+=("$REPLY")
+}
+
+# 随机挑一个 Boss 类（50/50）
+_boss_random_class () {
+    if (( RANDOM % 2 )) ; then
+        REPLY=BossSpinner
+    else
+        REPLY=Boss
+    fi
+}
 
 # ============================================================================
 # _play_game_tick — 单个逻辑 tick（纯计算，绝不碰终端）
@@ -211,31 +274,8 @@ _play_game_tick () {
                     _edead[_j]=1
                     ((_ndead++))
                     score_gain=$(( score_gain + _escore[_j] ))
-                    if [[ "${_ecls[_j]}" == "Boss" ]] ; then
-                        BOSS_DEATH_POS=()
-                        local _dr=0 _drest=${_eart[_j]}
-                        while [[ -n "$_drest" ]] ; do
-                            local _dl=${_drest%%$'\n'*}
-                            if [[ "$_drest" == *$'\n'* ]] ; then _drest=${_drest#*$'\n'}
-                            else _drest=''
-                            fi
-                            local _dc=0 _dlen=${#_dl}
-                            while (( _dc < _dlen )) ; do
-                                local _dch=${_dl:_dc:1}
-                                [[ "$_dch" != " " ]] && BOSS_DEATH_POS+=($((_ey[_j] + _dr)) $((_ex[_j] + _dc)))
-                                ((_dc++))
-                            done
-                            ((_dr++))
-                        done
-                        BOSS_DEATH_TICK=30
-                        local _bdt=(2 3 4 5 H b m L S)
-                        local _bdc="${_bdt[RANDOM % 9]}"
-                        xo_obj_born Drop "$_bdc"
-                        local -n _bd=$REPLY
-                        _bd["{x}$X"]=$(( _ex[_j] + _ew[_j] / 2 ))
-                        _bd["{y}$X"]=$(( _ey[_j] + _eh[_j] - 1 ))
-                        unset -n _bd
-                        DROPS+=("$REPLY")
+                    if Base_is_a "${_eid[_j]}" BossBase ; then
+                        _boss_on_death "${_eid[_j]}" "${_ex[_j]}" "${_ey[_j]}" "${_ew[_j]}" "${_eh[_j]}" "${_eart[_j]}"
                     fi
                 else
                     local -n _e=${_eid[_j]}
@@ -266,31 +306,8 @@ _play_game_tick () {
                     _edead[_j]=1
                     ((_ndead++))
                     score_gain=$(( score_gain + _escore[_j] ))
-                    if [[ "${_ecls[_j]}" == "Boss" ]] ; then
-                        BOSS_DEATH_POS=()
-                        local _dr=0 _drest=${_eart[_j]}
-                        while [[ -n "$_drest" ]] ; do
-                            local _dl=${_drest%%$'\n'*}
-                            if [[ "$_drest" == *$'\n'* ]] ; then _drest=${_drest#*$'\n'}
-                            else _drest=''
-                            fi
-                            local _dc=0 _dlen=${#_dl}
-                            while (( _dc < _dlen )) ; do
-                                local _dch=${_dl:_dc:1}
-                                [[ "$_dch" != " " ]] && BOSS_DEATH_POS+=($((_ey[_j] + _dr)) $((_ex[_j] + _dc)))
-                                ((_dc++))
-                            done
-                            ((_dr++))
-                        done
-                        BOSS_DEATH_TICK=30
-                        local _bdt=(2 3 4 5 H b m L S)
-                        local _bdc="${_bdt[RANDOM % 9]}"
-                        xo_obj_born Drop "$_bdc"
-                        local -n _bd=$REPLY
-                        _bd["{x}$X"]=$(( _ex[_j] + _ew[_j] / 2 ))
-                        _bd["{y}$X"]=$(( _ey[_j] + _eh[_j] - 1 ))
-                        unset -n _bd
-                        DROPS+=("$REPLY")
+                    if Base_is_a "${_eid[_j]}" BossBase ; then
+                        _boss_on_death "${_eid[_j]}" "${_ex[_j]}" "${_ey[_j]}" "${_ew[_j]}" "${_eh[_j]}" "${_eart[_j]}"
                     fi
                 else
                     local -n _e=${_eid[_j]}
@@ -476,7 +493,7 @@ _play_game_tick () {
             local -n _e=$e
             local _c=${_e["{CLS}$X"]}
             [[ "$_c" == "EnemyB" ]] && ((alive_B++))
-            [[ "$_c" == "Boss"   ]] && ((alive_Boss++))
+            Base_is_a "$e" BossBase && ((alive_Boss++))
             unset -n _e
         done
 
@@ -492,7 +509,7 @@ _play_game_tick () {
             fi
         else
             if (( G_BOSS_DRY >= 300 )) ; then
-                spawn_cls=Boss ; G_BOSS_DRY=0
+                _boss_random_class ; spawn_cls=$REPLY ; G_BOSS_DRY=0
             elif (( G_B_DRY >= 30 && alive_B == 0 )) ; then
                 spawn_cls=EnemyB ; G_B_DRY=0
             # 0/1 Boss 时的小怪配比：V40% / Q25% / M15% / B18% / Boss2%
@@ -500,14 +517,14 @@ _play_game_tick () {
             elif (( _r < 650 )) ; then spawn_cls=EnemyQ
             elif (( _r < 800 )) ; then spawn_cls=EnemyM
             elif (( _r < 980 )) ; then spawn_cls=EnemyB
-            else                       spawn_cls=Boss
+            else                       _boss_random_class ; spawn_cls=$REPLY
             fi
         fi
 
-        if [[ "$spawn_cls" == "Boss" ]] ; then G_BOSS_DRY=0
+        if [[ "$spawn_cls" == "Boss" || "$spawn_cls" == "BossSpinner" ]] ; then G_BOSS_DRY=0
         else ((G_BOSS_DRY++)) ; fi
         if [[ "$spawn_cls" == "EnemyB" ]] ; then G_B_DRY=0
-        elif [[ "$spawn_cls" != "Boss" ]] ; then ((G_B_DRY++)) ; fi
+        elif [[ "$spawn_cls" != "Boss" && "$spawn_cls" != "BossSpinner" ]] ; then ((G_B_DRY++)) ; fi
 
         xo_obj_born "$spawn_cls"
         ENEMIES+=("$REPLY")

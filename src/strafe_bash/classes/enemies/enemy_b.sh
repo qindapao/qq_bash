@@ -35,11 +35,19 @@ EnemyB_move () {
     (( x > SCREEN_W - 2 - _w )) && x=$(( SCREEN_W - 2 - _w ))
     self["{x}$X"]=$x
     local vy=${self["{vy}$X"]}
-    (( RANDOM % 8 == 0 )) && vy=$(( (RANDOM % 2) * 2 - 1 ))
+    # 向下状态更稳定：向上约 8 次移动就会翻回向下，
+    # 向下只有 1/3 的变向概率转向上，让 B 更容易触底。
+    if (( RANDOM % 8 == 0 )) ; then
+        if (( vy < 0 )) ; then
+            vy=1
+        elif (( RANDOM % 3 == 0 )) ; then
+            vy=-1
+        fi
+    fi
     local y=$(( ${self["{y}$X"]} + vy ))
     if (( y + _h >= SCREEN_H - 1 )) ; then
         # 概率从底部离场，给刷新新怪（尤其第二只 Boss）腾出位置
-        (( RANDOM % 100 < 35 )) && return 1
+        (( RANDOM % 100 < 40 )) && return 1
         y=$(( SCREEN_H - 2 - _h )) ; vy=-1
     elif (( y < GAME_TOP )) ; then
         y=$GAME_TOP ; vy=1
