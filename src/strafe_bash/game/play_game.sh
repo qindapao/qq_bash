@@ -585,7 +585,9 @@ play_game () {
     local -i bomb_fx_tick=0
     local -i hud_tick=0
     local last_bonus_str='__init__'
-    local -i _t
+    # 注意：这里不能声明为 local -i。下面多处用 printf -v _t 写入 ANSI
+    # 转义字符串，integer 属性会让 bash 把字符串当算术表达式求值并报错。
+    local _t
 
     local LAST_US=${EPOCHREALTIME/./}
     local -i LOGIC_ACC_US=0
