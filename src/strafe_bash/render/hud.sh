@@ -74,7 +74,7 @@ draw_bonus_hud () {
     local st=$(( ${p["{st}$X"]:-0} / FPS ))
     local lcount=$(( ${p["{lanes}$X"]:-0} + 1 ))
     unset -n p
-    printf -v _part '  M:%3d  L:%3d(%d)  S:%3d' "$mt" "$lt" "$lcount" "$st"
+    printf -v _part '  m:%3d  L:%3d(%d)  S:%3d' "$mt" "$lt" "$lcount" "$st"
     _s+=$_part
     local _maxw=$(( SCREEN_W - 2 ))
     _s="${_s:0:_maxw}"

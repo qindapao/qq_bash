@@ -53,6 +53,9 @@ _render_erase_one () {
         printf -v _t '\033[%d;%dH ' "$py" "$px"
         FRAME_BUF+="$_t"
         ;;
+    SkullBullet)
+        _scene_clear_art_at "$py" "$px" "${o["{art}$X"]}"
+        ;;
     Plane|PlaneBee|PlaneHornet|PlaneEagle|PlaneIl2)
         local psh=${o["{prev_shield}$X"]:-0}
         local pal=${o["{prev_al}$X"]:-${o["{al}$X"]:-1}}
@@ -71,10 +74,10 @@ _render_erase_one () {
             FRAME_BUF+="$_t"
         fi
         ;;
-    EnemyV|EnemyQ|EnemyM|EnemyB|Boss|BossSpinner)
+    EnemyV|EnemyQ|EnemyM|EnemyB|Boss|BossSpinner|SkullKing)
         _scene_clear_art_at "$py" "$px" "${o["{art}$X"]}"
         local _bcls=${o["{CLS}$X"]}
-        if [[ "$_bcls" == "Boss" ]] || [[ "$_bcls" == "BossSpinner" ]] || [[ "$_bcls" == "EnemyB" ]] || [[ "$_bcls" == "EnemyM" ]] ; then
+        if [[ "$_bcls" == "Boss" ]] || [[ "$_bcls" == "BossSpinner" ]] || [[ "$_bcls" == "SkullKing" ]] || [[ "$_bcls" == "EnemyB" ]] || [[ "$_bcls" == "EnemyM" ]] ; then
             local _bh=${o["{h}$X"]:-1}
             if (( py + _bh < SCREEN_H )) ; then
                 printf -v _t '\033[%d;2H\033[K\033[%d;%dH%s' $((py + _bh)) $((py + _bh)) "$SCREEN_W" "$FRAME_V"
@@ -137,6 +140,10 @@ render () {
         # 注意：不能对 Boss/EnemyB/EnemyM 跳过擦除，它们的擦除还要顺带
         # 清空整条血条行（\033[%d;2H\033[K）；跳过会留下上一帧的残影。
         _render_erase_one "$e"
+    done
+    for sk in "${SKULLS[@]}" ; do
+        [[ -n "$sk" && -n "${XO_OBJ_POOL[$sk]+_}" ]] || continue
+        _render_erase_one "$sk"
     done
     for d in "${DROPS[@]}" ; do
         [[ -n "$d" && -n "${XO_OBJ_POOL[$d]+_}" ]] || continue
@@ -269,6 +276,24 @@ render () {
         unset -n _eb
     done
 
+    for sk in "${SKULLS[@]}" ; do
+        [[ -n "$sk" && -n "${XO_OBJ_POOL[$sk]+_}" ]] || continue
+        local -n _sk=$sk
+        local _skx=${_sk["{x}$X"]} _sky=${_sk["{y}$X"]}
+        local _skart=${_sk["{art}$X"]} _skcol=${_sk["{color}$X"]:-$C_RED}
+        local _sr=0 _srest=$_skart
+        while [[ -n "$_srest" ]] ; do
+            local _sline=${_srest%%$'\n'*}
+            if [[ "$_srest" == *$'\n'* ]] ; then _srest=${_srest#*$'\n'} ; else _srest='' ; fi
+            printf -v _t '\033[%d;%dH%s%s%s' "$((_sky + _sr))" "$_skx" "$_skcol" "$_sline" "$C_RESET"
+            FRAME_BUF+="$_t"
+            ((_sr++))
+        done
+        _sk["{prev_x}$X"]=$_skx
+        _sk["{prev_y}$X"]=$_sky
+        unset -n _sk
+    done
+
     for e in "${ENEMIES[@]}" ; do
         [[ -n "$e" && -n "${XO_OBJ_POOL[$e]+_}" ]] || continue
         local -n _e=$e
@@ -277,6 +302,7 @@ render () {
         case "$_cls" in
             Boss|EnemyB) _color=$C_RED ;;
             BossSpinner) _color=$C_PURPLE ;;
+            SkullKing)   _color=$C_RED ;;
             EnemyM)      _color=$C_ORANGE ;;
             EnemyQ)      _color=$C_YELLOW ;;
             EnemyV)      _color=$C_GREEN ;;
@@ -296,7 +322,7 @@ render () {
             FRAME_BUF+="$_t"
             ((_r++))
         done
-        if [[ "$_cls" == "Boss" ]] || [[ "$_cls" == "BossSpinner" ]] || [[ "$_cls" == "EnemyB" ]] || [[ "$_cls" == "EnemyM" ]] ; then
+        if [[ "$_cls" == "Boss" ]] || [[ "$_cls" == "BossSpinner" ]] || [[ "$_cls" == "SkullKing" ]] || [[ "$_cls" == "EnemyB" ]] || [[ "$_cls" == "EnemyM" ]] ; then
             if (( _ay + _h < SCREEN_H )) ; then
                 printf -v _t '\033[%d;%dH\033[K%s[%d/%d]%s\033[%d;%dH%s' $((_ay + _h)) "$_ax" \
                     "$_color" "$_hp2" "$_maxhp" "$C_RESET" $((_ay + _h)) "$SCREEN_W" "$FRAME_V"

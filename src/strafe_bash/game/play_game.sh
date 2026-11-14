@@ -16,10 +16,12 @@ _STRAFE_PLAY_GAME_SH=1
 . "$STRAFE_PROJ_DIR/classes/projectiles/bullet.sh"
 . "$STRAFE_PROJ_DIR/classes/projectiles/missile.sh"
 . "$STRAFE_PROJ_DIR/classes/projectiles/enemy_bullet.sh"
+. "$STRAFE_PROJ_DIR/classes/projectiles/skull_bullet.sh"
 . "$STRAFE_PROJ_DIR/classes/enemies/boss_base.sh"
 . "$STRAFE_PROJ_DIR/classes/projectiles/boss_bullet.sh"
 . "$STRAFE_PROJ_DIR/classes/enemies/boss.sh"
 . "$STRAFE_PROJ_DIR/classes/enemies/boss_spinner.sh"
+. "$STRAFE_PROJ_DIR/classes/enemies/skull_king.sh"
 . "$STRAFE_PROJ_DIR/classes/enemies/enemy_base.sh"
 . "$STRAFE_PROJ_DIR/classes/enemies/enemy_v.sh"
 . "$STRAFE_PROJ_DIR/classes/enemies/enemy_q.sh"
@@ -202,12 +204,16 @@ _boss_on_death () {
     DROPS+=("$REPLY")
 }
 
-# 随机挑一个 Boss 类（50/50）
+# 随机挑一个 Boss 类：经典/旋刃各 37.5%，骷髅王 25%
+# 骷髅王约为另外两个各自概率的 2/3。
 _boss_random_class () {
-    if (( RANDOM % 2 )) ; then
+    local -i _r=$(( RANDOM % 8 ))
+    if (( _r < 3 )) ; then
+        REPLY=Boss
+    elif (( _r < 6 )) ; then
         REPLY=BossSpinner
     else
-        REPLY=Boss
+        REPLY=SkullKing
     fi
 }
 
@@ -312,6 +318,14 @@ _play_game_tick () {
         if (( $? == 0 )) ; then alive_eb+=("$eb") ; else xo_obj_kill "$eb" ; fi
     done
     ENEMY_BULLETS=("${alive_eb[@]}")
+
+    local -a alive_sk=()
+    for sk in "${SKULLS[@]}" ; do
+        [[ -n "$sk" && -n "${XO_OBJ_POOL[$sk]+_}" ]] || continue
+        xo_call "$sk" move
+        if (( $? == 0 )) ; then alive_sk+=("$sk") ; else xo_obj_kill "$sk" ; fi
+    done
+    SKULLS=("${alive_sk[@]}")
 
     local -a alive_e=()
     for e in "${ENEMIES[@]}" ; do
@@ -524,6 +538,36 @@ _play_game_tick () {
     done
     ENEMY_BULLETS=("${survive_eb[@]}")
 
+    # 骷髅头是 5×3 的多格子弹：逐格判断护盾/玩家中心命中点
+    local -a survive_sk=()
+    for sk in "${SKULLS[@]}" ; do
+        [[ -n "$sk" && -n "${XO_OBJ_POOL[$sk]+_}" ]] || continue
+        local -n _sk=$sk
+        local -i _skx=${_sk["{x}$X"]} _sky=${_sk["{y}$X"]}
+        local -i _skw=${_sk["{w}$X"]:-5} _skh=${_sk["{h}$X"]:-3}
+        local -i _skdmg=${_sk["{damage}$X"]:-5}
+        unset -n _sk
+        local -i _cell_shield=0 _cell_hit=0 _dx _dy _cx _cy
+        for (( _dy=0; _dy<_skh; _dy++ )) ; do
+            _cy=$(( _sky + _dy ))
+            for (( _dx=0; _dx<_skw; _dx++ )) ; do
+                _cx=$(( _skx + _dx ))
+                if (( _sh )) ; then
+                    (( _cx >= _sx1 && _cx <= _sx2 && _cy >= _sy1 && _cy <= _sy2 )) && _cell_shield=1
+                else
+                    (( _cx == px && _cy == py )) && _cell_hit=1
+                fi
+            done
+        done
+        if (( _cell_shield || _cell_hit )) ; then
+            (( _cell_hit )) && player_dmg=$(( player_dmg + _skdmg ))
+            xo_obj_kill "$sk"
+        else
+            survive_sk+=("$sk")
+        fi
+    done
+    SKULLS=("${survive_sk[@]}")
+
     for (( _j=0 ; _j<_ne ; _j++ )) ; do
         (( _edead[_j] )) && continue
         (( px >= _ex[_j] && px < _ex[_j] + _ew[_j] &&
@@ -615,8 +659,13 @@ _play_game_tick () {
                     (( ${p["{hp}$X"]} > ${p["{maxhp}$X"]:-20} )) && p["{hp}$X"]=${p["{maxhp}$X"]:-20}
                     ;;
                 b)
-                    (( ${p["{bombs}$X"]:-0} < 5 )) && \
+                    if (( ${p["{bombs}$X"]:-0} >= 5 )) ; then
+                        # 满弹时再吃 b：直接引爆刚吃到的这一颗，不消耗库存
+                        G_WANT_BOMB=1
+                        G_FREE_BOMB=1
+                    else
                         p["{bombs}$X"]=$(( ${p["{bombs}$X"]:-0} + 1 ))
+                    fi
                     ;;
                 m)
                     p["{mt}$X"]=$BONUS_MT
@@ -711,10 +760,10 @@ _play_game_tick () {
             fi
         fi
 
-        if [[ "$spawn_cls" == "Boss" || "$spawn_cls" == "BossSpinner" ]] ; then G_BOSS_DRY=0
+        if [[ "$spawn_cls" == "Boss" || "$spawn_cls" == "BossSpinner" || "$spawn_cls" == "SkullKing" ]] ; then G_BOSS_DRY=0
         else ((G_BOSS_DRY++)) ; fi
         if [[ "$spawn_cls" == "EnemyB" ]] ; then G_B_DRY=0
-        elif [[ "$spawn_cls" != "Boss" && "$spawn_cls" != "BossSpinner" ]] ; then ((G_B_DRY++)) ; fi
+        elif [[ "$spawn_cls" != "Boss" && "$spawn_cls" != "BossSpinner" && "$spawn_cls" != "SkullKing" ]] ; then ((G_B_DRY++)) ; fi
 
         xo_obj_born "$spawn_cls"
         ENEMIES+=("$REPLY")
@@ -729,22 +778,42 @@ _play_game_tick () {
         local _drop_type=''
         local _r=$(( RANDOM % 100 ))
         if (( _lanes_now >= 1 && _lanes_now <= 3 )) ; then
-            if (( _r < 25 )) ; then _drop_type='L'
-            elif (( _r < 40 )) ; then _drop_type='S'
-            else
-                local _others=(2 3 4 5 H b m)
-                _drop_type="${_others[RANDOM % 7]}"
-            fi
+            # 有 lane：L/S 降，m 升，激光(tier2)降
+            case "$_r" in
+                0|1|2|3|4|5|6|7|8|9|10|11|12|13|14) _drop_type='L' ;;
+                15|16|17|18|19|20|21|22|23|24) _drop_type='S' ;;
+                25|26|27|28|29|30|31|32|33|34|35|36|37|38|39|40|41|42|43|44) _drop_type='m' ;;
+                45|46|47|48|49|50|51|52|53|54) _drop_type='H' ;;
+                55|56|57|58|59) _drop_type='b' ;;
+                60|61|62|63|64) _drop_type='2' ;;
+                65|66|67|68|69|70|71|72|73|74) _drop_type='3' ;;
+                75|76|77|78|79|80|81|82|83|84) _drop_type='4' ;;
+                *) _drop_type='5' ;;
+            esac
         elif (( _lanes_now == 0 )) ; then
-            if (( _r < 15 )) ; then _drop_type='L'
-            elif (( _r < 30 )) ; then _drop_type='S'
-            else
-                local _others=(2 3 4 5 H b m)
-                _drop_type="${_others[RANDOM % 7]}"
-            fi
+            case "$_r" in
+                0|1|2|3|4|5|6|7|8|9) _drop_type='L' ;;
+                10|11|12|13|14|15|16|17|18|19) _drop_type='S' ;;
+                20|21|22|23|24|25|26|27|28|29|30|31|32|33|34|35|36|37|38|39) _drop_type='m' ;;
+                40|41|42|43|44|45|46|47|48|49) _drop_type='H' ;;
+                50|51|52|53|54) _drop_type='b' ;;
+                55|56|57|58|59) _drop_type='2' ;;
+                60|61|62|63|64|65|66|67|68|69) _drop_type='3' ;;
+                70|71|72|73|74|75|76|77|78|79) _drop_type='4' ;;
+                *) _drop_type='5' ;;
+            esac
         else
-            local _all=(2 3 4 5 H b m L S)
-            _drop_type="${_all[RANDOM % 9]}"
+            case "$_r" in
+                0|1|2|3|4) _drop_type='L' ;;
+                5|6|7|8|9) _drop_type='S' ;;
+                10|11|12|13|14|15|16|17|18|19|20|21|22|23|24|25|26|27|28|29) _drop_type='m' ;;
+                30|31|32|33|34|35|36|37|38|39) _drop_type='H' ;;
+                40|41|42|43|44) _drop_type='b' ;;
+                45|46|47|48|49) _drop_type='2' ;;
+                50|51|52|53|54|55|56|57|58|59) _drop_type='3' ;;
+                60|61|62|63|64|65|66|67|68|69|70|71|72|73|74) _drop_type='4' ;;
+                *) _drop_type='5' ;;
+            esac
         fi
         xo_obj_born Drop "$_drop_type"
         DROPS+=("$REPLY")
@@ -891,7 +960,11 @@ play_game () {
         if (( G_WANT_BOMB )) ; then
             G_WANT_BOMB=0
             local -n _bp=$PLAYER
-            _bp["{bombs}$X"]=$(( ${_bp["{bombs}$X"]:-0} - 1 ))
+            if (( G_FREE_BOMB )) ; then
+                G_FREE_BOMB=0
+            else
+                _bp["{bombs}$X"]=$(( ${_bp["{bombs}$X"]:-0} - 1 ))
+            fi
             unset -n _bp
 
             local _ceb

@@ -31,11 +31,15 @@ positioning, weapon timing, and surviving the Bosses.
   actual class is randomized per run from its own library.
 - **4 selectable planes** — balanced Bee, armored Hornet, fast Eagle-1, and the
   heavy Il-2; each has its own HP, score multiplier, bullet speed, and shield art.
-- **Two Bosses** — the classic `Boss` (HP 150) and the spinning `BossSpinner`
-  (HP 250) with four damage phases and rotating bullet patterns. At most two
+- **Three Bosses** — the classic `Boss` (HP 150), the spinning `BossSpinner`
+  (HP 250), and `SkullKing` (HP 500). SkullKing fires three homing 5×3 skull
+  bullets, alternates between headless/armed forms, and sprays `O`/`X` bullets.
+  Its spawn chance is about two-thirds that of each other Boss. At most two
   Bosses on screen.
 - **Drops and words** — `H` heal, `b` bomb, `m` missile, `L` lane, `S` shield;
-  touching a falling word collects it for score.
+  touching a falling word collects it for score. `m` now launches a missile
+  that automatically homes in on the nearest enemy. At five bombs, picking up
+  another `b` immediately detonates the pickup without spending stock.
 - **Hit sparks** — short-lived `*` marks show bullet impacts, shield absorbs,
   and player damage without spawning extra objects.
 - **M_Blink mixin** — the player blinks for a short invulnerability window after
@@ -132,7 +136,7 @@ the plane; firing stays automatic.
 ┌─────────────────────────────────────────────────────────────────────────────────┐
 │HP:3/20  SCORE:58440  W:@  BOMB:2/5  E:9/25  OBJ:116                             │
 │BULLET |:1 #:2 @:3 $:4  DROP H:+3 b:BOMB m:MISSILE L:LANE S:SHIELD               │
-│BONUS  |:  0  #:  0  @: 35  $:  0  M:  9  L:  0(1)  S:  0                        │
+│BONUS  |:  0  #:  0  @: 35  $:  0  m:  9  L:  0(1)  S:  0                        │
 │                                  ___                      _____                 │
 │                                 | M |                    /     \                │
 │                                 |___|                   /  O O  \               │

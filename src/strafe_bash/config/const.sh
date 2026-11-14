@@ -15,6 +15,7 @@ ENEMY_LIMIT=25
 DROP_LIMIT=8
 WORD_LIMIT=2
 BOSS_BULLET_LIMIT=48
+SKULL_LIMIT=9
 
 # 子弹库：tier 1 预留（暂不使用），tier 2..5 每档在开局时随机抽一个类。
 # 默认子弹是独立的 BulletTypeDefault（tier 0），不在这些库里，始终由玩家携带。
@@ -30,7 +31,7 @@ BONUS_T2=$(( 60 * FPS ))
 BONUS_T3=$(( 50 * FPS ))
 BONUS_T4=$(( 40 * FPS ))
 BONUS_T5=$(( 30 * FPS ))
-BONUS_MT=$(( 30 * FPS ))
+BONUS_MT=$(( 45 * FPS ))
 BONUS_LT=$(( 60 * FPS ))
 BONUS_ST=$(( 30 * FPS ))
 CLEAR_SCORE_BONUS=1000

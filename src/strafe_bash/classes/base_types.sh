@@ -16,10 +16,12 @@ _STRAFE_BULLETTYPE_SH=1
 #             {BossBase} => null\u001c
 #                 {Boss} => null\u001c
 #                 {BossSpinner} => null\u001c
+#                 {SkullKing} => null\u001c
 #             {Missile} => null\u001c
 #             {Bullet} => null\u001c
 #             {EnemyBullet} => null\u001c
 #                 {BossBullet} => null\u001c
+#                 {SkullBullet} => null\u001c
 #             {Enemy}
 #                 {EnemyQ} => null\u001c
 #                 {EnemyV} => null\u001c
