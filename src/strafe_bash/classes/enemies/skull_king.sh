@@ -169,7 +169,7 @@ SkullKing_born () {
     _self["{headless_art2}$X"]=$SKULL_ART_HEADLESS_2
     _self["{headless_art3}$X"]=$SKULL_ART_HEADLESS_3
     _self["{headless}$X"]=0
-    _self["{skull_cd}$X"]=70
+    _self["{skull_cd}$X"]=100
     _self["{head_cd}$X"]=0
     _self["{shot_cd}$X"]=8
     unset -n _self
@@ -177,9 +177,9 @@ SkullKing_born () {
 
 # 骷髅王状态机：
 #
-#   有头 ──(70 tick)──> 发射 3 颗头，进入无头
+#   有头 ──(100 tick)──> 发射 3 颗头，进入无头
 #     ↑                         │
-#     └────(70 tick)────────────┘
+#     └────(120 tick)───────────┘
 #
 # 有头时每 6 tick 从底部发射一对 O/X 普通弹。
 # HP 100% → 75% → 50% → 25% 切换四套身体 art；
@@ -199,7 +199,7 @@ _skull_king_fire_heads () {
     unset -n _bs
     local _sx
     for _sx in "$sx1" "$sx2" "$sx3" ; do
-        xo_obj_born SkullBullet "$_sx" "$sy" 240 5 4 "$C_RED"
+        xo_obj_born SkullBullet "$_sx" "$sy" 270 5 3 "$C_RED"
         SKULLS+=("$REPLY")
     done
     return 0
@@ -236,7 +236,7 @@ SkullKing_move () {
         if (( hc <= 0 )) ; then
             self["{headless}$X"]=0
             self["{head_cd}$X"]=0
-            self["{skull_cd}$X"]=70
+            self["{skull_cd}$X"]=100
         else
             self["{head_cd}$X"]=$hc
         fi
@@ -245,11 +245,11 @@ SkullKing_move () {
         if (( kc <= 0 )) ; then
             if _skull_king_fire_heads "$1" ; then
                 self["{headless}$X"]=1
-                self["{head_cd}$X"]=70
-                self["{skull_cd}$X"]=70
+                self["{head_cd}$X"]=120
+                self["{skull_cd}$X"]=100
             else
                 # 达到骷髅头上限时保留头部，稍后再尝试
-                self["{skull_cd}$X"]=12
+                self["{skull_cd}$X"]=20
             fi
         else
             self["{skull_cd}$X"]=$kc

@@ -27,10 +27,10 @@ readonly SkullBulletStaticTemplate='
         {w} => 5
         {h} => 3
         {art} => 
-        {ttl} => 240
+        {ttl} => 270
         {damage} => 5
         {cd} => 0
-        {step} => 4
+        {step} => 3
         {color} => 
     '
 SkullBullet_born () {
@@ -38,9 +38,9 @@ SkullBullet_born () {
     self["{x}$X"]=$2
     self["{y}$X"]=$3
     self["{art}$X"]=$SKULL_BULLET_ART
-    self["{ttl}$X"]=${4:-240}
+    self["{ttl}$X"]=${4:-270}
     self["{damage}$X"]=${5:-5}
-    self["{step}$X"]=${6:-4}
+    self["{step}$X"]=${6:-3}
     self["{color}$X"]=${7:-$C_RED}
     self["{cd}$X"]=0
 }

@@ -734,7 +734,7 @@ _play_game_tick () {
         _clear_banner_start "YOU ARE AN ACE FIGHTER PILOT!  +${CLEAR_SCORE_BONUS}"
         G_LAST_ACE_TICK=$G_RUN_TICKS
     fi
-    (( G_ENEMY_TICK++ % 50 == 0 )) && (( ${#ENEMIES[@]} < ENEMY_LIMIT )) && {
+    (( G_ENEMY_TICK++ % 30 == 0 )) && (( ${#ENEMIES[@]} < ENEMY_LIMIT )) && {
         local alive_B=0 alive_Boss=0
         for e in "${ENEMIES[@]}" ; do
             [[ -n "$e" && -n "${XO_OBJ_POOL[$e]+_}" ]] || continue
@@ -749,10 +749,10 @@ _play_game_tick () {
         local _r=$(( RANDOM % 1000 ))
         # 场上最多 2 个 Boss；达到 2 个后只刷小怪
         if (( alive_Boss >= 2 )) ; then
-            # 2 Boss 时的小怪配比：V45% / Q25% / M15% / B15%
-            if (( _r < 450 )) ; then spawn_cls=EnemyV
+            # 2 Boss 时：V42% / Q28% / M20% / B10%
+            if (( _r < 420 )) ; then spawn_cls=EnemyV
             elif (( _r < 700 )) ; then spawn_cls=EnemyQ
-            elif (( _r < 850 )) ; then spawn_cls=EnemyM
+            elif (( _r < 900 )) ; then spawn_cls=EnemyM
             else                       spawn_cls=EnemyB
             fi
         else
@@ -760,10 +760,10 @@ _play_game_tick () {
                 _boss_random_class ; spawn_cls=$REPLY ; G_BOSS_DRY=0
             elif (( G_B_DRY >= 30 && alive_B == 0 )) ; then
                 spawn_cls=EnemyB ; G_B_DRY=0
-            # 0/1 Boss 时的小怪配比：V40% / Q25% / M15% / B18% / Boss2%
-            elif (( _r < 400 )) ; then spawn_cls=EnemyV
+            # 0/1 Boss 时：V38% / Q27% / M23% / B10% / Boss2%
+            elif (( _r < 380 )) ; then spawn_cls=EnemyV
             elif (( _r < 650 )) ; then spawn_cls=EnemyQ
-            elif (( _r < 800 )) ; then spawn_cls=EnemyM
+            elif (( _r < 880 )) ; then spawn_cls=EnemyM
             elif (( _r < 980 )) ; then spawn_cls=EnemyB
             else                       _boss_random_class ; spawn_cls=$REPLY
             fi
@@ -976,6 +976,14 @@ play_game () {
             done
             ENEMY_BULLETS=()
 
+            # 骷髅头是独立的 SKULLS 集合，普通敌弹清空不会自动带走它们。
+            local _csk
+            for _csk in "${SKULLS[@]}" ; do
+                [[ -n "$_csk" && -n "${XO_OBJ_POOL[$_csk]+_}" ]] || continue
+                xo_obj_kill "$_csk"
+            done
+            SKULLS=()
+
             local -a bomb_alive=()
             local -i bomb_score=0
             local -i _bomb_n=${#ENEMIES[@]}
@@ -984,7 +992,7 @@ play_game () {
             for e in "${ENEMIES[@]}" ; do
                 [[ -n "$e" && -n "${XO_OBJ_POOL[$e]+_}" ]] || continue
                 local -n _e=$e
-                local new_hp=$(( ${_e["{hp}$X"]} - 10 ))
+                local new_hp=$(( ${_e["{hp}$X"]} - BOMB_DAMAGE ))
                 _e["{hp}$X"]=$new_hp
                 local escore=${_e["{score}$X"]}
                 local _ex=${_e["{x}$X"]} _ey=${_e["{y}$X"]}
