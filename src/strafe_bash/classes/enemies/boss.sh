@@ -22,8 +22,8 @@ readonly BossStaticTemplate='
         {name} => THE CLASSIC BOSS
         {w} => 13
         {h} => 5
-        {hp} => 150
-        {maxhp} => 150
+        {hp} => 180
+        {maxhp} => 180
         {score} => 5000
         {symbol} => X
         {pcut1} => 70
@@ -54,11 +54,12 @@ Boss_move () {
     _boss_move_target "$1" "$_step" "$_yhi" 7 8 9
 
     # Boss 永不主动离场，只会被打死；这里只有开火逻辑
-    (( RANDOM % 100 < 8 )) || return 0
+    (( RANDOM % 100 < 10 )) || return 0
     local _by=$(( ${self["{y}$X"]} + ${self["{h}$X"]} ))
     local _bx=${self["{x}$X"]}
     enemy_bullet_spawn EnemyBullet $((_bx + 4)) "$_by" '!' 3
     enemy_bullet_spawn EnemyBullet $((_bx + 6)) "$_by" '0' 3
     enemy_bullet_spawn EnemyBullet $((_bx + 8)) "$_by" '!' 3
+    enemy_bullet_spawn EnemyBullet $((_bx + 10)) "$_by" '0' 3
     return 0
 }

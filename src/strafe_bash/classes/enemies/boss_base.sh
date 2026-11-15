@@ -37,6 +37,7 @@ readonly BossBaseStaticTemplate='
         {pcut2} => 50
         {pcut3} => 20
         {death_style} => 0
+        {inv_cd} => 0
     '
 BossBase_born () {
     local -n self=$1
@@ -50,6 +51,7 @@ BossBase_born () {
     self["{tx}$X"]=$_bx
     self["{ty}$X"]=$GAME_TOP
     self["{ttl}$X"]=0
+    self["{inv_cd}$X"]=0
 }
 
 # 具体 Boss 在 born 时把四段 art 写进自己的类字段。
@@ -73,6 +75,10 @@ _boss_update_phase () {
     local -i _p1=${_bs["{pcut1}$X"]:-70}
     local -i _p2=${_bs["{pcut2}$X"]:-50}
     local -i _p3=${_bs["{pcut3}$X"]:-20}
+    local -i _ic=${_bs["{inv_cd}$X"]:-0}
+    if (( _ic > 0 )) ; then
+        _bs["{inv_cd}$X"]=$(( _ic - 1 ))
+    fi
     local -i _newphase
     if (( _pct > _p1 )) ; then _newphase=0
     elif (( _pct > _p2 )) ; then _newphase=1
@@ -83,6 +89,7 @@ _boss_update_phase () {
         _bs["{phase}$X"]=$_newphase
         _bs["{art}$X"]=${_bs["{art$_newphase}$X"]}
         _bs["{ttl}$X"]=0        # 阶段变化立即换一条轨迹
+        _bs["{inv_cd}$X"]=$BOSS_INV_TICKS
     fi
     unset -n _bs
 }

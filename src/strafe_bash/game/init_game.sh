@@ -65,7 +65,7 @@ init_game () {
     for eb in "${ENEMY_BULLETS[@]}" ; do [[ -n "${XO_OBJ_POOL[$eb]+_}" ]] && xo_obj_kill "$eb" ; done
     for m in "${MISSILES[@]}" ; do [[ -n "${XO_OBJ_POOL[$m]+_}" ]] && xo_obj_kill "$m" ; done
     for w in "${WORDS[@]}" ; do [[ -n "${XO_OBJ_POOL[$w]+_}" ]] && xo_obj_kill "$w" ; done
-    BULLETS=() ENEMIES=() DROPS=() ENEMY_BULLETS=() MISSILES=()
+    BULLETS=() ENEMIES=() DROPS=() ENEMY_BULLETS=() MISSILES=() MISSILE_TRAIL_CLEAR=()
     BOMB_FX_POS=() HIT_FX=() BOSS_DEATH_POS=() CLEAR_BATCH=() WORDS=()
     BOSS_DEATH_TICK=0
     BOSS_DEATH_STYLE=0

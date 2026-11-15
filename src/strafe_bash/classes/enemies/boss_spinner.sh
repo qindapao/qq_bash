@@ -24,8 +24,8 @@ readonly BossSpinnerStaticTemplate='
         {name} => THE SPINNER
         {w} => 16
         {h} => 5
-        {hp} => 250
-        {maxhp} => 250
+        {hp} => 300
+        {maxhp} => 300
         {score} => 8000
         {symbol} => S
         {pcut1} => 75
@@ -109,8 +109,8 @@ BossSpinner_move () {
     _boss_move_target "$1" 3 "$_yhi" 1 80 21 3 1
 
     local -i _phase=${self["{phase}$X"]}
-    local -i _ring_every=30 _aim_every=45
-    (( _phase == 3 )) && { _ring_every=24 ; _aim_every=36 ; }
+    local -i _ring_every=26 _aim_every=40
+    (( _phase == 3 )) && { _ring_every=20 ; _aim_every=30 ; }
 
     local -i _rc=$(( ${self["{ring_cd}$X"]:-0} - 1 ))
     if (( _rc <= 0 )) ; then

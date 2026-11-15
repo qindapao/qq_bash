@@ -16,6 +16,8 @@ readonly MissileStaticTemplate='
         {damage} => 2
         {vx} => 0
         {vy} => -1
+        {prev_trail_x} => -1
+        {prev_trail_y} => -1
     '
 Missile_born () {
     local -n self=$1
@@ -25,6 +27,8 @@ Missile_born () {
     self["{vx}$X"]=0
     self["{vy}$X"]=-1
     self["{symbol}$X"]='^'
+    self["{prev_trail_x}$X"]=-1
+    self["{prev_trail_y}$X"]=-1
 }
 Missile_move () {
     local -n self=$1

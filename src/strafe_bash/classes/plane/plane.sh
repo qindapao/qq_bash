@@ -33,6 +33,7 @@ readonly PlaneStaticTemplate='
         {maxhp} => 20
         {score_pct} => 100
         {spd_delta} => 0
+        {cd_delta} => 0
         {laser_exempt} => 0
         {skill} => 
         {hp} => 20
@@ -137,10 +138,12 @@ Plane_fire () {
     unset -n w
 
     local -i _sdelta=${self["{spd_delta}$X"]:-0}
+    local -i _cddelta=${self["{cd_delta}$X"]:-0}
     local -i _lex=${self["{laser_exempt}$X"]:-0}
     (( _laser && _lex )) && _sdelta=0
     spd=$(( spd + _sdelta ))
     (( spd < 1 )) && spd=1
+    cd=$(( cd + _cddelta ))
     (( cd < 0 ))  && cd=0
     G_FIRE_CD=$cd
 

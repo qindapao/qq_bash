@@ -92,6 +92,14 @@ _render_erase_one () {
 render () {
     local b e d eb m w _t
     local _ex _ey
+    local -i _qi _ptx _pty
+
+    # 已死亡导弹的最后一个尾点，由 tick 侧排队，这里统一擦除。
+    for (( _qi=0; _qi<${#MISSILE_TRAIL_CLEAR[@]}; _qi+=2 )) ; do
+        printf -v _t '\033[%d;%dH ' "${MISSILE_TRAIL_CLEAR[_qi]}" "${MISSILE_TRAIL_CLEAR[_qi+1]}"
+        FRAME_BUF+="$_t"
+    done
+    MISSILE_TRAIL_CLEAR=()
 
     # ===== 阶段 1：擦除所有活对象的 prev =====
     [[ -n "${XO_OBJ_POOL[OBJ_player]+_}" ]] && \
@@ -116,6 +124,12 @@ render () {
         _ey=${_m["{prev_y}$X"]:-${_m["{y}$X"]:-0}}
         if (( _ex || _ey )) ; then
             printf -v _t '\033[%d;%dH ' "$_ey" "$_ex"
+            FRAME_BUF+="$_t"
+        fi
+        _ptx=${_m["{prev_trail_x}$X"]:--1}
+        _pty=${_m["{prev_trail_y}$X"]:--1}
+        if (( _ptx >= 0 && _pty >= 0 )) ; then
+            printf -v _t '\033[%d;%dH ' "$_pty" "$_ptx"
             FRAME_BUF+="$_t"
         fi
         unset -n _m
@@ -230,11 +244,7 @@ render () {
             [[ -n "$b" && -n "${XO_OBJ_POOL[$b]+_}" ]] || continue
             local -n _b=$b
             local _bx=${_b["{x}$X"]} _by=${_b["{y}$X"]} _bsym=${_b["{symbol}$X"]}
-            if [[ "$_bsym" == "|" || "$_bsym" == "/" || "$_bsym" == '\' || "$_bsym" == '-' ]] ; then
-                printf -v _t '\033[%d;%dH%s%s%s%s' "$_by" "$_bx" "$C_PURPLE" "$C_BOLD" "$_bsym" "$C_RESET"
-            else
-                printf -v _t '\033[%d;%dH%s%s%s' "$_by" "$_bx" "$C_BOLD" "$_bsym" "$C_RESET"
-            fi
+            printf -v _t '\033[%d;%dH%s%s%s' "$_by" "$_bx" "$C_PLAYER_BULLET" "$_bsym" "$C_RESET"
             FRAME_BUF+="$_t"
             _b["{prev_x}$X"]=$_bx
             _b["{prev_y}$X"]=$_by
@@ -246,7 +256,14 @@ render () {
         [[ -n "$m" && -n "${XO_OBJ_POOL[$m]+_}" ]] || continue
         local -n _m=$m
         local _mx=${_m["{x}$X"]} _my=${_m["{y}$X"]} _msym=${_m["{symbol}$X"]}
-        printf -v _t '\033[%d;%dH%s%s%s' "$_my" "$_mx" "$C_MAGENTA" "$_msym" "$C_RESET"
+        local _ptx=${_m["{prev_x}$X"]:-} _pty=${_m["{prev_y}$X"]:-}
+        if [[ -n "$_ptx" && -n "$_pty" ]] && (( _ptx != _mx || _pty != _my )) ; then
+            printf -v _t '\033[%d;%dH%s.%s' "$_pty" "$_ptx" "$C_PLAYER_BULLET" "$C_RESET"
+            FRAME_BUF+="$_t"
+            _m["{prev_trail_x}$X"]=$_ptx
+            _m["{prev_trail_y}$X"]=$_pty
+        fi
+        printf -v _t '\033[%d;%dH%s%s%s' "$_my" "$_mx" "$C_PLAYER_BULLET" "$_msym" "$C_RESET"
         FRAME_BUF+="$_t"
         _m["{prev_x}$X"]=$_mx
         _m["{prev_y}$X"]=$_my
@@ -282,6 +299,10 @@ render () {
             EnemyQ)      _color=$C_YELLOW ;;
             EnemyV)      _color=$C_GREEN ;;
         esac
+        if [[ "$_cls" == "Boss" || "$_cls" == "BossSpinner" || "$_cls" == "SkullKing" ]] && \
+           (( ${_e["{inv_cd}$X"]:-0} > 0 )) ; then
+            _color=$C_CYAN
+        fi
         local _ay=${_e["{y}$X"]} _ax=${_e["{x}$X"]}
         local _h=${_e["{h}$X"]}
         local _hp2=${_e["{hp}$X"]}

@@ -124,6 +124,17 @@ _score_bonus () {
     OBJ_player["{score}$X"]=$(( ${OBJ_player["{score}$X"]:-0} + amount ))
 }
 
+# 导弹尾点清理：只记录最后渲染过的尾点，死亡时交给场景统一擦除。
+_missile_queue_trail_clear () {
+    local -n _mt=$1
+    local -i tx=${_mt["{prev_trail_x}$X"]:--1}
+    local -i ty=${_mt["{prev_trail_y}$X"]:--1}
+    unset -n _mt
+    if (( tx >= 0 && ty >= 0 )) ; then
+        MISSILE_TRAIL_CLEAR+=("$ty" "$tx")
+    fi
+}
+
 # 撞击伤害：由 M_Ram 提供伤害值，游戏层负责计分/死亡/Boss 收尾。
 # 返回 0 表示撞死，1 表示还活着。
 _ram_enemy () {
@@ -131,6 +142,7 @@ _ram_enemy () {
     local -n _re=$eid
     local -i hp=${_re["{hp}$X"]:-1}
     local -i escore=${_re["{score}$X"]:-0}
+    local -i _rinv=${_re["{inv_cd}$X"]:-0}
     unset -n _re
     local -i rdmg
     REPLY=
@@ -138,6 +150,7 @@ _ram_enemy () {
     rdmg=${REPLY:-5}
     REPLY=
     (( rdmg > 0 )) || rdmg=5
+    (( _rinv > 0 )) && rdmg=0
     hp=$(( hp - rdmg ))
     local -n _re2=$eid
     _re2["{hp}$X"]=$hp
@@ -314,7 +327,7 @@ _play_game_tick () {
     for m in "${MISSILES[@]}" ; do
         [[ -n "$m" && -n "${XO_OBJ_POOL[$m]+_}" ]] || continue
         xo_call "$m" move
-        if (( $? == 0 )) ; then alive_m+=("$m") ; else xo_obj_kill "$m" ; fi
+        if (( $? == 0 )) ; then alive_m+=("$m") ; else _missile_queue_trail_clear "$m" ; xo_obj_kill "$m" ; fi
     done
     MISSILES=("${alive_m[@]}")
 
@@ -362,7 +375,7 @@ _play_game_tick () {
     # 每 tick 只绑定每个敌人一次。旧实现每对 (子弹, 敌人) 都要
     # nameref 绑定 + 读 4 个字段；80 子弹 × 20 敌人时是 1600 次绑定、
     # 6400 次关联数组读取，是本 tick 最大的热点。
-    local -a _eid=() _ex=() _ey=() _ew=() _eh=() _ehp=() _escore=() _eart=() _ecls=()
+    local -a _eid=() _ex=() _ey=() _ew=() _eh=() _ehp=() _escore=() _eart=() _ecls=() _einv=()
     local -a _edead=()
     local -i _ne=0 _ndead=0 _j _r _newhp
     for e in "${ENEMIES[@]}" ; do
@@ -373,10 +386,11 @@ _play_game_tick () {
         _ey[_ne]=${_e["{y}$X"]}
         _ew[_ne]=${_e["{w}$X"]}
         _eh[_ne]=${_e["{h}$X"]}
-        _ehOBJ_player[_ne]=${_e["{hp}$X"]}
+        _ehp[_ne]=${_e["{hp}$X"]}
         _escore[_ne]=${_e["{score}$X"]}
         _eart[_ne]=${_e["{art}$X"]}
         _ecls[_ne]=${_e["{CLS}$X"]}
+        _einv[_ne]=${_e["{inv_cd}$X"]:-0}
         unset -n _e
         ((_ne++))
     done
@@ -406,10 +420,16 @@ _play_game_tick () {
         for _j in ${_row_e[$by]:-} ; do
             (( _edead[_j] )) && continue
             if (( bx >= _ex[_j] && bx < _ex[_j] + _ew[_j] )) ; then
-                _newhp=$(( _ehOBJ_player[_j] - bdmg ))
-                _ehOBJ_player[_j]=$_newhp
+                local -i _bdmg=$bdmg
+                local _fxcol="$C_ORANGE"
+                if (( ${_einv[_j]:-0} > 0 )) ; then
+                    _bdmg=0
+                    _fxcol="$C_CYAN"
+                fi
+                _newhp=$(( _ehp[_j] - _bdmg ))
+                _ehp[_j]=$_newhp
                 killed_b[$b]=1
-                _hit_fx_add "$by" "$bx" '*' "$C_ORANGE"
+                _hit_fx_add "$by" "$bx" '*' "$_fxcol"
                 if (( _newhp <= 0 )) ; then
                     _edead[_j]=1
                     ((_ndead++))
@@ -441,10 +461,16 @@ _play_game_tick () {
         for _j in ${_row_e[$my]:-} ; do
             (( _edead[_j] )) && continue
             if (( mx >= _ex[_j] && mx < _ex[_j] + _ew[_j] )) ; then
-                _newhp=$(( _ehOBJ_player[_j] - mdmg ))
-                _ehOBJ_player[_j]=$_newhp
+                local -i _mdmg=$mdmg
+                local _fxcol="$C_ORANGE"
+                if (( ${_einv[_j]:-0} > 0 )) ; then
+                    _mdmg=0
+                    _fxcol="$C_CYAN"
+                fi
+                _newhp=$(( _ehp[_j] - _mdmg ))
+                _ehp[_j]=$_newhp
                 killed_m[$m]=1
-                _hit_fx_add "$my" "$mx" '*' "$C_ORANGE"
+                _hit_fx_add "$my" "$mx" '*' "$_fxcol"
                 if (( _newhp <= 0 )) ; then
                     _edead[_j]=1
                     ((_ndead++))
@@ -483,6 +509,7 @@ _play_game_tick () {
         for m in "${MISSILES[@]}" ; do
             if [[ -n "${killed_m[$m]+_}" ]] ; then
                 [[ -n "$m" && -n "${XO_OBJ_POOL[$m]+_}" ]] || continue
+                _missile_queue_trail_clear "$m"
                 xo_obj_kill "$m"
             else
                 nm+=("$m")
@@ -944,7 +971,11 @@ play_game () {
             for e in "${ENEMIES[@]}" ; do
                 [[ -n "$e" && -n "${XO_OBJ_POOL[$e]+_}" ]] || continue
                 local -n _e=$e
-                local new_hp=$(( ${_e["{hp}$X"]} - BOMB_DAMAGE ))
+                local -i _bomb_dmg=$BOMB_DAMAGE
+                if (( ${_e["{inv_cd}$X"]:-0} > 0 )) ; then
+                    _bomb_dmg=0
+                fi
+                local new_hp=$(( ${_e["{hp}$X"]} - _bomb_dmg ))
                 _e["{hp}$X"]=$new_hp
                 local escore=${_e["{score}$X"]}
                 local _ex=${_e["{x}$X"]} _ey=${_e["{y}$X"]}

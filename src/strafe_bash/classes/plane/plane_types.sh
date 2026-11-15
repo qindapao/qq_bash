@@ -45,6 +45,7 @@ readonly PlaneEagleStaticTemplate='
         {shield_top} => -1
         {maxhp} => 15
         {spd_delta} => 1
+        {cd_delta} => -1
         {laser_exempt} => 1
     '
 

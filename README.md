@@ -33,11 +33,15 @@ positioning, weapon timing, and surviving the Bosses.
   actual class is randomized per run from its own library.
 - **4 selectable planes** — balanced Bee, armored Hornet, fast Eagle-1, and the
   heavy Il-2; each has its own HP, score multiplier, bullet speed, and shield art.
-- **Three Bosses** — the classic `Boss` (HP 150), the spinning `BossSpinner`
-  (HP 250), and the compact `SkullKing` (HP 500). SkullKing has four damage
-  phases and fires 8-direction `X`/`O` rings: four rings per burst, then a
-  three-second rest. Its spawn chance is about two-thirds that of each other
+- **Three Bosses** — the classic `Boss` (HP 180), the spinning `BossSpinner`
+  (HP 300), and the compact `SkullKing` (HP 600). SkullKing has four damage
+  phases and fires 8-direction `X`/`O` rings: five rings per burst, then a
+  2.7-second rest. Its spawn chance is about two-thirds that of each other
   Boss. At most one Boss on screen.
+- **Boss invulnerability windows** — after each damage-phase transition, a Boss
+  is invulnerable for 5 seconds and is tinted cyan.
+- **Readable fire** — player bullets use a muted slate-blue/bold palette tone;
+  enemy bullets use warm or bright accent colors, so the two never blend.
 - **Drops and words** — `H` heal, `b` bomb, `m` missile, `L` lane, `S` shield;
   touching a falling word collects it for score. `m` now launches a missile
   that automatically homes in on the nearest enemy. At five bombs, picking up
@@ -47,7 +51,7 @@ positioning, weapon timing, and surviving the Bosses.
 - **M_Blink mixin** — the player blinks for a short invulnerability window after
   taking damage; this exercises xo method injection and inheritance.
 - **Il-2 multi-mixin** — `{MIX} => M_LongBlink M_Blink M_Ram`: Il-2 blinks for
-  8 seconds (other planes 3 seconds), and while blinking its ramming collision
+  4 seconds (other planes 3 seconds), and while blinking its ramming collision
   deals 5 damage to an enemy, with a short cooldown.
 - **Clear banner** — clearing the field after at least 30 seconds without an
   enemy escaping off the bottom shows `YOU ARE AN ACE FIGHTER PILOT!  +1000`;
@@ -66,7 +70,7 @@ positioning, weapon timing, and surviving the Bosses.
 |---|---|---|---|
 | 1 | Bee | 20 | Balanced; no penalty |
 | 2 | Hornet | 30 | Armored; kills and words give 60% score |
-| 3 | Eagle-1 | 15 | Non-quantum bullets +1 speed; Quantum Energy Weapon unaffected |
+| 3 | Eagle-1 | 15 | Non-quantum bullets +1 speed; fire interval -1 tick; Quantum Energy Weapon unaffected |
 | 4 | Il-2 Sturmovik | 40 | Heavy armor; all bullets -1 speed |
 
 Shield size follows the plane: a wider plane has a wider shield and clears
@@ -81,7 +85,7 @@ Il-2 uses a three-entry Mixin list:
 {MIX} => M_LongBlink M_Blink M_Ram
 ```
 
-- `M_LongBlink` overrides `blink_start` to 8 seconds.
+- `M_LongBlink` overrides `blink_start` to 4 seconds.
 - `M_Blink` supplies the normal blink tick/visibility methods; other planes
   use its 3-second default.
 - `M_Ram` supplies the ramming ability: while Il-2 is blinking after a hit,

@@ -2,7 +2,7 @@
 [[ -n "${_STRAFE_GLOBALS_SH:-}" ]] && return 0
 _STRAFE_GLOBALS_SH=1
 
-declare -a BULLETS=() ENEMIES=() DROPS=() ENEMY_BULLETS=() MISSILES=()
+declare -a BULLETS=() ENEMIES=() DROPS=() ENEMY_BULLETS=() MISSILES=() MISSILE_TRAIL_CLEAR=()
 declare -a BOMB_FX_POS=()
 declare -a HIT_FX=()
 declare -a BOSS_DEATH_POS=()

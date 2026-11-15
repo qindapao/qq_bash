@@ -15,6 +15,8 @@ C_GREEN=$'\033[38;5;46m'
 C_PURPLE=$'\033[38;5;129m'
 C_MAGENTA=$'\033[38;5;201m'
 C_CYAN=$'\033[38;5;51m'
+# 玩家弹：低饱和暗蓝灰，和敌方高饱和弹幕拉开
+C_PLAYER_BULLET=$'\033[38;5;60m'
 
 # On a light terminal the neon palette is hard to read, especially yellow.
 # STRAFE_THEME=light forces this palette; auto reads COLORFGBG when available.
@@ -34,6 +36,7 @@ if [[ "$_strafe_theme" == "light" ]] ; then
     C_PURPLE=$'\033[38;5;55m'
     C_MAGENTA=$'\033[38;5;90m'
     C_CYAN=$'\033[38;5;30m'
+    C_PLAYER_BULLET=$'\033[38;5;24m'
 fi
 unset _strafe_theme
 
