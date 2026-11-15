@@ -61,6 +61,8 @@ and higher performance targets belong in Go, not in this Bash codebase.
 
 ## strafe_bash
 
+![strafe_bash](strafe_bash.gif)
+
 A small but complete terminal shooter. Auto-fire is always on; the fun is in
 positioning, weapon timing, and surviving the Bosses.
 
@@ -272,16 +274,41 @@ The game's class tree:
 
 ```text
 Base
-├── BulletType ── BulletTypeDefault / Laser / Star / At / Dollar
+├── BulletType
+│   ├── BulletTypeDefault
+│   ├── BulletTypeLaser
+│   ├── BulletTypeStar
+│   ├── BulletTypeAt
+│   └── BulletTypeDollar
 └── Entity
-    ├── Plane ── PlaneBee / PlaneHornet / PlaneEagle / PlaneIl2
-    ├── Enemy ── EnemyQ / EnemyV / EnemyB / EnemyM
-    ├── BossBase ── Boss / BossSpinner
+    ├── Plane
+    │   ├── PlaneBee
+    │   ├── PlaneHornet
+    │   ├── PlaneEagle
+    │   └── PlaneIl2
+    ├── Enemy
+    │   ├── EnemyQ
+    │   ├── EnemyV
+    │   ├── EnemyB
+    │   └── EnemyM
+    ├── BossBase
+    │   ├── Boss
+    │   ├── BossSpinner
+    │   └── SkullKing
     ├── Bullet
-    ├── EnemyBullet ── BossBullet
+    ├── EnemyBullet
+    │   └── BossBullet
     ├── Missile
     ├── Drop
     └── Word
+```
+
+Method-only mixins used by the plane classes:
+
+```text
+M_Blink
+M_LongBlink
+M_Ram
 ```
 
 This is what lets the game add a new enemy or Boss without a giant `case`
