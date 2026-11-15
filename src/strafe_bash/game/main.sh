@@ -18,7 +18,7 @@ _STRAFE_MAIN_SH=1
 main () {
     xo_init || { echo "xo_init failed" ; exit 1 ; }
 
-    trap term_restore EXIT
+    trap 'term_restore' EXIT
     trap 'term_restore ; exit 130' INT
     trap 'term_restore ; exit 143' TERM
 

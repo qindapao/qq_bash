@@ -44,7 +44,6 @@ _enemy_fire () {
     local _fw=${_e["{w}$X"]}
     local _fy=$(( ${_e["{y}$X"]} + ${_e["{h}$X"]} ))
     local _fx=$(( ${_e["{x}$X"]} + _fw / 2 ))
-    xo_obj_born EnemyBullet "$_fx" "$_fy" "$esym" "$edmg"
-    ENEMY_BULLETS+=("$REPLY")
+    enemy_bullet_spawn EnemyBullet "$_fx" "$_fy" "$esym" "$edmg"
     unset -n _e
 }

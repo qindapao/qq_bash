@@ -29,15 +29,15 @@ Project conventions: [CONSTITUTION.md](CONSTITUTION.md).
 A small but complete terminal shooter. Auto-fire is always on; the fun is in
 positioning, weapon timing, and surviving the Bosses.
 
-- **5 weapon tiers** — `|` laser, `#` star, `@` at, `$` dollar; each tier's
+- **5 weapon tiers** — `|` Quantum Energy Weapon, `#` star, `@` at, `$` dollar; each tier's
   actual class is randomized per run from its own library.
 - **4 selectable planes** — balanced Bee, armored Hornet, fast Eagle-1, and the
   heavy Il-2; each has its own HP, score multiplier, bullet speed, and shield art.
 - **Three Bosses** — the classic `Boss` (HP 150), the spinning `BossSpinner`
-  (HP 250), and `SkullKing` (HP 500). SkullKing fires three homing 5×3 skull
-  bullets, alternates between headless/armed forms, and sprays `O`/`X` bullets.
-  Its spawn chance is about two-thirds that of each other Boss. At most two
-  Bosses on screen.
+  (HP 250), and the compact `SkullKing` (HP 500). SkullKing has four damage
+  phases and fires 8-direction `X`/`O` rings: four rings per burst, then a
+  three-second rest. Its spawn chance is about two-thirds that of each other
+  Boss. At most one Boss on screen.
 - **Drops and words** — `H` heal, `b` bomb, `m` missile, `L` lane, `S` shield;
   touching a falling word collects it for score. `m` now launches a missile
   that automatically homes in on the nearest enemy. At five bombs, picking up
@@ -66,7 +66,7 @@ positioning, weapon timing, and surviving the Bosses.
 |---|---|---|---|
 | 1 | Bee | 20 | Balanced; no penalty |
 | 2 | Hornet | 30 | Armored; kills and words give 60% score |
-| 3 | Eagle-1 | 15 | Non-laser bullets +1 speed; laser unaffected |
+| 3 | Eagle-1 | 15 | Non-quantum bullets +1 speed; Quantum Energy Weapon unaffected |
 | 4 | Il-2 Sturmovik | 40 | Heavy armor; all bullets -1 speed |
 
 Shield size follows the plane: a wider plane has a wider shield and clears

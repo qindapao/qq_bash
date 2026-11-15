@@ -61,8 +61,7 @@ _boss_spinner_ring () {
     local -i _i _s1=$_spin _s2=$(( (_spin + 4) % 8 ))
     for ((_i=0; _i<8; _i++)) ; do
         (( _i == _s1 || _i == _s2 )) && continue
-        xo_obj_born BossBullet "$_cx" "$_cy" "${_dx[_i]}" "${_dy[_i]}" 'o' 1 2 "$C_CYAN"
-        ENEMY_BULLETS+=("$REPLY")
+        enemy_bullet_spawn BossBullet "$_cx" "$_cy" "${_dx[_i]}" "${_dy[_i]}" 'o' 1 2 "$C_CYAN"
     done
     _bs["{spin}$X"]=$(( (_spin + 1) % 8 ))
     unset -n _bs
@@ -96,8 +95,7 @@ _boss_spinner_aim () {
     local -i _o _i
     for _o in -1 0 1 ; do
         _i=$(( (_bi + _o + 8) % 8 ))
-        xo_obj_born BossBullet "$_cx" "$_cy" "${_dxs[_i]}" "${_dys[_i]}" 'x' 2 2 "$C_ORANGE"
-        ENEMY_BULLETS+=("$REPLY")
+        enemy_bullet_spawn BossBullet "$_cx" "$_cy" "${_dxs[_i]}" "${_dys[_i]}" 'x' 2 2 "$C_ORANGE"
     done
 }
 

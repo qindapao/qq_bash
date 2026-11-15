@@ -1,5 +1,5 @@
 # classes/enemies/skull_king.sh — SkullKing（骷髅王）
-# 500 HP；三颗跟踪骷髅头；O/X 高频弹幕；四阶段 + 无头状态。
+# 500 HP；4 段伤害 art；8 方向 O/X 弹幕。
 [[ -n "${_STRAFE_SKULL_KING_SH:-}" ]] && return 0
 _STRAFE_SKULL_KING_SH=1
 . "$STRAFE_LIB_HOME/xo.sh"
@@ -9,129 +9,53 @@ _STRAFE_SKULL_KING_SH=1
 . "$STRAFE_PROJ_DIR/classes/base_types.sh"
 . "$STRAFE_PROJ_DIR/classes/enemies/boss_base.sh"
 . "$STRAFE_PROJ_DIR/classes/projectiles/boss_bullet.sh"
-. "$STRAFE_PROJ_DIR/classes/projectiles/skull_bullet.sh"
 
 IFS= read -r -d '' SKULL_ART_0 <<'EOF' || true
-             .-.            
-            (o.o)           
-             |=|            
-            __|__           
-   .-.    //.=|=.\\    .-.  
-  (o.o)__// .=|=. \\__(o.o) 
-   |=|___/  .=|=.  \___|=|  
-            (_=_)           
-           (:| |:           
-            || ||           
-            () ()           
-            || ||           
-            || ||           
-           ==' '==          
+     .-.
+    (o.o)
+     |=|
+  //.=|=.\\
+ // .=|=. \\
+ \\ .=|=. //
+  \\(_=_)//
+   (:| |:)
+    () ()
+    || ||
+   ==' '==
 EOF
 
 IFS= read -r -d '' SKULL_ART_1 <<'EOF' || true
-             .-.            
-            (o.o)           
-             |=|            
-            __|__           
-   .-.    //.=|=.\\    .-.  
-  (o.o)__// .=|=. \\__(o.o) 
-   |=|___/  .=|=.  \___|=|  
-            (_=_)           
-               |:           
-               ||           
-               ()           
-               ||           
-               ||           
-               '==          
+     .-.
+    (o.o)
+     |=|
+  //.=|=.\\
+ // .=|=. \\
+ \\ .=|=. //
+  \\(_=_)//
+   (:|
+    ()
+    ||
+   =='
 EOF
 
 IFS= read -r -d '' SKULL_ART_2 <<'EOF' || true
-             .-.            
-            (o.o)           
-             |=|            
-            __|__           
-   .-.    //.=|=.\\    .-.  
-  (o.o)__// .=|=. \\__(o.o) 
-   |=|___/  .=|=.  \___|=|  
-            (_=_)           
-                            
-                            
-                            
-                            
-                            
-                            
+     .-.
+    (o.o)
+     |=|
+  //.=|=.\\
+ // .=|=. \\
+ \\ .=|=. //
+  \\(_=_)//
 EOF
 
 IFS= read -r -d '' SKULL_ART_3 <<'EOF' || true
-             .-.            
-            (o.o)           
-             |=|            
-            __|__           
-   .-.    //  |  \\    .-.  
-  (o.o)__//   |   \\__(o.o) 
-   |=|___/    |    \___|=|  
-                            
-                            
-                            
-                            
-                            
-                            
-                            
-EOF
-
-IFS= read -r -d '' SKULL_ART_HEADLESS_0 <<'EOF' || true
 
 
 
-           __|__   
-         //.=|=.\\ 
-        // .=|=. \\
-        /  .=|=.  \
-           (_=_)   
-          (:| |:   
-           || ||   
-           () ()   
-           || ||   
-           || ||   
-          ==' '==  
-EOF
-
-IFS= read -r -d '' SKULL_ART_HEADLESS_1 <<'EOF' || true
-
-
-
-           __|__   
-         //.=|=.\\ 
-        // .=|=. \\
-        /  .=|=.  \
-           (_=_)   
-              |:   
-              ||   
-              ()   
-              ||   
-              ||   
-              '==  
-EOF
-
-IFS= read -r -d '' SKULL_ART_HEADLESS_2 <<'EOF' || true
-
-
-
-           __|__   
-         //.=|=.\\ 
-        // .=|=. \\
-        /  .=|=.  \
-           (_=_)   
-EOF
-
-IFS= read -r -d '' SKULL_ART_HEADLESS_3 <<'EOF' || true
-
-
-
-           __|__   
-         //  |  \\ 
-        //   |   \\
-        /    |    \
+  //.=|=.\\
+ // .=|=. \\
+ \\ .=|=. //
+  \\(_=_)//
 EOF
 
 readonly SkullKingStaticTemplate='
@@ -140,8 +64,8 @@ readonly SkullKingStaticTemplate='
         {SUP} => BossBase
         {MIX} => 
         {name} => THE SKULL KING
-        {w} => 29
-        {h} => 14
+        {w} => 13
+        {h} => 11
         {hp} => 500
         {maxhp} => 500
         {score} => 20000
@@ -150,116 +74,76 @@ readonly SkullKingStaticTemplate='
         {pcut2} => 50
         {pcut3} => 25
         {death_style} => 0
-        {headless_art0} => 
-        {headless_art1} => 
-        {headless_art2} => 
-        {headless_art3} => 
-        {headless} => 0
-        {skull_cd} => 0
-        {head_cd} => 0
         {shot_cd} => 0
+        {ring_left} => 0
     '
 
 SkullKing_born () {
     _boss_set_arts "$1" "$SKULL_ART_0" "$SKULL_ART_1" "$SKULL_ART_2" "$SKULL_ART_3"
     BossBase_born "$1"
     local -n _self=$1
-    _self["{headless_art0}$X"]=$SKULL_ART_HEADLESS_0
-    _self["{headless_art1}$X"]=$SKULL_ART_HEADLESS_1
-    _self["{headless_art2}$X"]=$SKULL_ART_HEADLESS_2
-    _self["{headless_art3}$X"]=$SKULL_ART_HEADLESS_3
-    _self["{headless}$X"]=0
-    _self["{skull_cd}$X"]=100
-    _self["{head_cd}$X"]=0
-    _self["{shot_cd}$X"]=8
+    _self["{shot_cd}$X"]=$SKULL_KING_FIRST_SHOT
+    _self["{ring_left}$X"]=$SKULL_KING_BURST_RINGS
     unset -n _self
 }
 
-# 骷髅王状态机：
-#
-#   有头 ──(100 tick)──> 发射 3 颗头，进入无头
-#     ↑                         │
-#     └────(120 tick)───────────┘
-#
-# 有头时每 6 tick 从底部发射一对 O/X 普通弹。
-# HP 100% → 75% → 50% → 25% 切换四套身体 art；
-# 每套身体都有对应的无头版本，发射后不会退回满血身体。
-
-_skull_king_fire_heads () {
-    local -n _bs=$1
-    if (( ${#SKULLS[@]} + 3 > SKULL_LIMIT )) ; then
-        unset -n _bs
-        return 1
-    fi
-    local -i x=${_bs["{x}$X"]} y=${_bs["{y}$X"]} w=${_bs["{w}$X"]}
-    local -i sy=$(( y + 4 ))
-    local -i sx1=$(( x + 2 ))
-    local -i sx2=$(( x + w / 2 - 2 ))
-    local -i sx3=$(( x + w - 7 ))
-    unset -n _bs
-    local _sx
-    for _sx in "$sx1" "$sx2" "$sx3" ; do
-        xo_obj_born SkullBullet "$_sx" "$sy" 270 5 3 "$C_RED"
-        SKULLS+=("$REPLY")
-    done
-    return 0
-}
-
+# 8 方向 O/X：每波 8 发，连发 4 波，然后休息约 3 秒。
 SkullKing_move () {
     _boss_update_phase "$1"
     local -n self=$1
-    local -i phase=${self["{phase}$X"]}
-    local -i x=${self["{x}$X"]} y=${self["{y}$X"]} w=${self["{w}$X"]} h=${self["{h}$X"]}
+    local -i w=${self["{w}$X"]} h=${self["{h}$X"]}
 
-    # 巨型 Boss 只在顶部小范围移动，把下半屏留给玩家。
-    _boss_move_target "$1" 12 "$(( SCREEN_H - 4 - h ))" 4 30 18 4 0
+    # 参考旋刃：更频繁地改目标点，并主动打屏幕左右边缘；
+    # 但仍限制在上半区域，避免把玩家压死。
+    _boss_move_target "$1" 4 "$(( SCREEN_H - 3 - h ))" 2 60 20 3 1
 
-    if (( ${#ENEMY_BULLETS[@]} + 2 <= BOSS_BULLET_LIMIT )) ; then
+    if (( ${#ENEMY_BULLETS[@]} + SKULL_KING_WAVE_BULLETS <= ENEMY_BULLET_LIMIT )) ; then
         local -i sc=$(( ${self["{shot_cd}$X"]:-0} - 1 ))
         if (( sc <= 0 )) ; then
-            self["{shot_cd}$X"]=6
-            x=$((${self["{x}$X"]}))
-            y=$((${self["{y}$X"]}))
-            local _by=$(( y + h ))
-            local _cx=$(( x + w / 2 ))
-            xo_obj_born BossBullet "$((_cx - 3))" "$_by" 0 1 'O' 1 2 "$C_YELLOW"
-            ENEMY_BULLETS+=("$REPLY")
-            xo_obj_born BossBullet "$((_cx + 3))" "$_by" 0 1 'X' 1 2 "$C_ORANGE"
-            ENEMY_BULLETS+=("$REPLY")
+            local -i x=${self["{x}$X"]} y=${self["{y}$X"]}
+            local -i cx=$(( x + w / 2 )) cy=$(( y + h / 2 ))
+            local -i _i
+            local _sym
+
+            # 向下的一整排：X O X O X O X O
+            local -i by=$(( y + h ))
+            (( by > SCREEN_H - 2 )) && by=$(( SCREEN_H - 2 ))
+            local -i start=$(( cx - 7 ))
+            for (( _i=0; _i<SKULL_KING_ROW_BULLETS; _i++ )) ; do
+                local -i sx=$(( start + _i * 2 ))
+                if (( _i % 2 == 0 )) ; then
+                    _sym='X'
+                    enemy_bullet_spawn BossBullet "$sx" "$by" 0 1 "$_sym" 1 2 "$C_ORANGE"
+                else
+                    _sym='O'
+                    enemy_bullet_spawn BossBullet "$sx" "$by" 0 1 "$_sym" 1 2 "$C_YELLOW"
+                fi
+            done
+
+            # 其余 7 个方向，不含向下（向下已由上面的长排负责）
+            local -a _dx=(1 1 1 0 -1 -1 -1)
+            local -a _dy=(1 0 -1 -1 -1 0 1)
+            for (( _i=0; _i<SKULL_KING_RADIAL_BULLETS; _i++ )) ; do
+                if (( _i % 2 == 0 )) ; then
+                    _sym='O'
+                    enemy_bullet_spawn BossBullet "$cx" "$cy" "${_dx[_i]}" "${_dy[_i]}" "$_sym" 1 2 "$C_YELLOW"
+                else
+                    _sym='X'
+                    enemy_bullet_spawn BossBullet "$cx" "$cy" "${_dx[_i]}" "${_dy[_i]}" "$_sym" 1 2 "$C_ORANGE"
+                fi
+            done
+
+            local -i rl=$(( ${self["{ring_left}$X"]:-1} - 1 ))
+            if (( rl > 0 )) ; then
+                self["{shot_cd}$X"]=$SKULL_KING_RING_GAP
+                self["{ring_left}$X"]=$rl
+            else
+                self["{shot_cd}$X"]=$SKULL_KING_REST
+                self["{ring_left}$X"]=$SKULL_KING_BURST_RINGS
+            fi
         else
             self["{shot_cd}$X"]=$sc
         fi
-    fi
-
-    if (( ${self["{headless}$X"]:-0} )) ; then
-        local -i hc=$(( ${self["{head_cd}$X"]:-0} - 1 ))
-        if (( hc <= 0 )) ; then
-            self["{headless}$X"]=0
-            self["{head_cd}$X"]=0
-            self["{skull_cd}$X"]=100
-        else
-            self["{head_cd}$X"]=$hc
-        fi
-    else
-        local -i kc=$(( ${self["{skull_cd}$X"]:-0} - 1 ))
-        if (( kc <= 0 )) ; then
-            if _skull_king_fire_heads "$1" ; then
-                self["{headless}$X"]=1
-                self["{head_cd}$X"]=120
-                self["{skull_cd}$X"]=100
-            else
-                # 达到骷髅头上限时保留头部，稍后再尝试
-                self["{skull_cd}$X"]=20
-            fi
-        else
-            self["{skull_cd}$X"]=$kc
-        fi
-    fi
-
-    if (( ${self["{headless}$X"]:-0} )) ; then
-        self["{art}$X"]=${self["{headless_art$phase}$X"]}
-    else
-        self["{art}$X"]=${self["{art$phase}$X"]}
     fi
     unset -n self
     return 0

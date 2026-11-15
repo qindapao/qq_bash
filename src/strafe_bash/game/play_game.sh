@@ -16,7 +16,6 @@ _STRAFE_PLAY_GAME_SH=1
 . "$STRAFE_PROJ_DIR/classes/projectiles/bullet.sh"
 . "$STRAFE_PROJ_DIR/classes/projectiles/missile.sh"
 . "$STRAFE_PROJ_DIR/classes/projectiles/enemy_bullet.sh"
-. "$STRAFE_PROJ_DIR/classes/projectiles/skull_bullet.sh"
 . "$STRAFE_PROJ_DIR/classes/enemies/boss_base.sh"
 . "$STRAFE_PROJ_DIR/classes/projectiles/boss_bullet.sh"
 . "$STRAFE_PROJ_DIR/classes/enemies/boss.sh"
@@ -115,7 +114,7 @@ _mouse_apply () {
 _hit_fx_add () {
     local y=$1 x=$2 ch=$3 clr=$4
     (( y >= GAME_TOP && y < SCREEN_H - 1 && x >= 2 && x <= SCREEN_W - 2 )) || return 0
-    (( ${#HIT_FX[@]} >= 200 )) && return 0
+    (( ${#HIT_FX[@]} >= HIT_FX_LIMIT )) && return 0
     HIT_FX+=("$y" "$x" "$ch" "$clr" 3)
 }
 
@@ -326,14 +325,6 @@ _play_game_tick () {
         if (( $? == 0 )) ; then alive_eb+=("$eb") ; else xo_obj_kill "$eb" ; fi
     done
     ENEMY_BULLETS=("${alive_eb[@]}")
-
-    local -a alive_sk=()
-    for sk in "${SKULLS[@]}" ; do
-        [[ -n "$sk" && -n "${XO_OBJ_POOL[$sk]+_}" ]] || continue
-        xo_call "$sk" move
-        if (( $? == 0 )) ; then alive_sk+=("$sk") ; else xo_obj_kill "$sk" ; fi
-    done
-    SKULLS=("${alive_sk[@]}")
 
     local -a alive_e=()
     for e in "${ENEMIES[@]}" ; do
@@ -553,36 +544,6 @@ _play_game_tick () {
     done
     ENEMY_BULLETS=("${survive_eb[@]}")
 
-    # 骷髅头是 5×3 的多格子弹：逐格判断护盾/玩家中心命中点
-    local -a survive_sk=()
-    for sk in "${SKULLS[@]}" ; do
-        [[ -n "$sk" && -n "${XO_OBJ_POOL[$sk]+_}" ]] || continue
-        local -n _sk=$sk
-        local -i _skx=${_sk["{x}$X"]} _sky=${_sk["{y}$X"]}
-        local -i _skw=${_sk["{w}$X"]:-5} _skh=${_sk["{h}$X"]:-3}
-        local -i _skdmg=${_sk["{damage}$X"]:-5}
-        unset -n _sk
-        local -i _cell_shield=0 _cell_hit=0 _dx _dy _cx _cy
-        for (( _dy=0; _dy<_skh; _dy++ )) ; do
-            _cy=$(( _sky + _dy ))
-            for (( _dx=0; _dx<_skw; _dx++ )) ; do
-                _cx=$(( _skx + _dx ))
-                if (( _sh )) ; then
-                    (( _cx >= _sx1 && _cx <= _sx2 && _cy >= _sy1 && _cy <= _sy2 )) && _cell_shield=1
-                else
-                    (( _cx == px && _cy == py )) && _cell_hit=1
-                fi
-            done
-        done
-        if (( _cell_shield || _cell_hit )) ; then
-            (( _cell_hit )) && player_dmg=$(( player_dmg + _skdmg ))
-            xo_obj_kill "$sk"
-        else
-            survive_sk+=("$sk")
-        fi
-    done
-    SKULLS=("${survive_sk[@]}")
-
     for (( _j=0 ; _j<_ne ; _j++ )) ; do
         (( _edead[_j] )) && continue
         (( px >= _ex[_j] && px < _ex[_j] + _ew[_j] &&
@@ -747,14 +708,11 @@ _play_game_tick () {
 
         local spawn_cls=''
         local _r=$(( RANDOM % 1000 ))
-        # 场上最多 2 个 Boss；达到 2 个后只刷小怪
-        if (( alive_Boss >= 2 )) ; then
-            # 2 Boss 时：V42% / Q28% / M20% / B10%
-            if (( _r < 420 )) ; then spawn_cls=EnemyV
-            elif (( _r < 700 )) ; then spawn_cls=EnemyQ
-            elif (( _r < 900 )) ; then spawn_cls=EnemyM
-            else                       spawn_cls=EnemyB
-            fi
+        # Boss 战期间封锁所有新怪；只保留掉落物/飘字等非敌人内容。
+        # 现有小怪不清理，Boss 死后本判定自然恢复。
+        if (( alive_Boss >= BOSS_LIMIT )) ; then
+            spawn_cls=''
+            G_BOSS_DRY=0
         else
             if (( G_BOSS_DRY >= 300 )) ; then
                 _boss_random_class ; spawn_cls=$REPLY ; G_BOSS_DRY=0
@@ -769,13 +727,15 @@ _play_game_tick () {
             fi
         fi
 
-        if [[ "$spawn_cls" == "Boss" || "$spawn_cls" == "BossSpinner" || "$spawn_cls" == "SkullKing" ]] ; then G_BOSS_DRY=0
-        else ((G_BOSS_DRY++)) ; fi
-        if [[ "$spawn_cls" == "EnemyB" ]] ; then G_B_DRY=0
-        elif [[ "$spawn_cls" != "Boss" && "$spawn_cls" != "BossSpinner" && "$spawn_cls" != "SkullKing" ]] ; then ((G_B_DRY++)) ; fi
+        if [[ -n "$spawn_cls" ]] ; then
+            if [[ "$spawn_cls" == "Boss" || "$spawn_cls" == "BossSpinner" || "$spawn_cls" == "SkullKing" ]] ; then G_BOSS_DRY=0
+            else ((G_BOSS_DRY++)) ; fi
+            if [[ "$spawn_cls" == "EnemyB" ]] ; then G_B_DRY=0
+            elif [[ "$spawn_cls" != "Boss" && "$spawn_cls" != "BossSpinner" && "$spawn_cls" != "SkullKing" ]] ; then ((G_B_DRY++)) ; fi
 
-        xo_obj_born "$spawn_cls"
-        ENEMIES+=("$REPLY")
+            xo_obj_born "$spawn_cls"
+            ENEMIES+=("$REPLY")
+        fi
     }
 
     # ---- 13. 刷掉落物 ----
@@ -785,7 +745,7 @@ _play_game_tick () {
         local _drop_type=''
         local _r=$(( RANDOM % 100 ))
         if (( _lanes_now >= 1 && _lanes_now <= 3 )) ; then
-            # 有 lane：L/S 降，m 升，激光(tier2)降
+            # 有 lane：L/S 降，m 升，量子能量武器(tier2)降
             case "$_r" in
                 0|1|2|3|4|5|6|7|8|9|10|11|12|13|14) _drop_type='L' ;;
                 15|16|17|18|19|20|21|22|23|24) _drop_type='S' ;;
@@ -881,7 +841,7 @@ play_game () {
         # ---- 读输入（高频 100Hz）----
         G_DX=0 ; G_DY=0
         local -i paused_changed=0 _in_n=0
-        while IFS= read -rsn1 -t 0.01 key ; do
+        while IFS= read -rsn1 -t 0.002 key ; do
             (( _in_n++ ))
             (( _in_n > 64 )) && break
             case "$key" in
@@ -975,14 +935,6 @@ play_game () {
                 xo_obj_kill "$_ceb"
             done
             ENEMY_BULLETS=()
-
-            # 骷髅头是独立的 SKULLS 集合，普通敌弹清空不会自动带走它们。
-            local _csk
-            for _csk in "${SKULLS[@]}" ; do
-                [[ -n "$_csk" && -n "${XO_OBJ_POOL[$_csk]+_}" ]] || continue
-                xo_obj_kill "$_csk"
-            done
-            SKULLS=()
 
             local -a bomb_alive=()
             local -i bomb_score=0

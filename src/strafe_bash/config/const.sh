@@ -15,13 +15,25 @@ ENEMY_LIMIT=40
 DROP_LIMIT=8
 WORD_LIMIT=2
 BOSS_BULLET_LIMIT=48
-SKULL_LIMIT=6
 BOMB_DAMAGE=20
+# 全局安全阈值：只削极端峰值，不改变正常弹幕密度/HIT 反馈。
+ENEMY_BULLET_LIMIT=112
+HIT_FX_LIMIT=100
+BOSS_LIMIT=1
+
+# 骷髅王 O/X：下方 8 发长排 + 其余 7 个方向，连发 4 波，然后休息 3 秒。
+SKULL_KING_ROW_BULLETS=8
+SKULL_KING_RADIAL_BULLETS=7
+SKULL_KING_WAVE_BULLETS=15
+SKULL_KING_BURST_RINGS=4
+SKULL_KING_RING_GAP=8
+SKULL_KING_REST=90
+SKULL_KING_FIRST_SHOT=30
 
 # 子弹库：tier 1 预留（暂不使用），tier 2..5 每档在开局时随机抽一个类。
 # 默认子弹是独立的 BulletTypeDefault（tier 0），不在这些库里，始终由玩家携带。
 # 以后给某一档加变体，只需往对应数组里追加类名。
-# 当前 4 种（默认除外）：laser / star / at / dollar，对应 tier 2..5。
+# 当前 4 种（默认除外）：quantum / star / at / dollar，对应 tier 2..5。
 declare -a BULLET_LIB_1=()
 declare -a BULLET_LIB_2=(BulletTypeLaser)
 declare -a BULLET_LIB_3=(BulletTypeStar)
@@ -51,6 +63,6 @@ case "${LC_ALL:-${LC_CTYPE:-$LANG}}" in
 esac
 
 # 渲染帧率（独立于逻辑帧率，控制画面刷新频率）
-RENDER_FPS=60
+RENDER_FPS=30
 RENDER_US=$(( 1000000 / RENDER_FPS ))
 

@@ -21,7 +21,6 @@ _STRAFE_BULLETTYPE_SH=1
 #             {Bullet} => null\u001c
 #             {EnemyBullet} => null\u001c
 #                 {BossBullet} => null\u001c
-#                 {SkullBullet} => null\u001c
 #             {Enemy}
 #                 {EnemyQ} => null\u001c
 #                 {EnemyV} => null\u001c
@@ -101,7 +100,7 @@ readonly BulletTypeDefaultStaticTemplate='
         {dr} => .
     '
 
-# tier 2：激光。射速最快，单发伤害最低；8 个方向各自有字符。
+# tier 2：量子能量武器。只有一道，lanes+1 作为威力（1..5）和字符（|/T/F/P/Y）。
 # 注意：模板值会经 str_unescape 反解一层，字面反斜杠必须写成 \\。
 readonly BulletTypeLaserStaticTemplate='
     BulletTypeLaserObj ->

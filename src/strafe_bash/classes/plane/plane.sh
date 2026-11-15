@@ -150,6 +150,24 @@ Plane_fire () {
     local _side=${self["{lanes_side}$X"]:-0}
     local -i _up=$(( -spd )) _left=$(( -spd )) _right=$spd
 
+    # 量子能量武器只有一道：不按 lanes 分裂成多颗子弹，
+    # 而是把 lanes+1 作为威力（1..5）和对应字符。
+    if (( _laser )) ; then
+        local -i _power=$(( _lanes + 1 ))
+        (( _power > 5 )) && _power=5
+        local _lsym='|'
+        case "$_power" in
+            1) _lsym='|' ;;
+            2) _lsym='T' ;;
+            3) _lsym='F' ;;
+            4) _lsym='P' ;;
+            5) _lsym='Y' ;;
+        esac
+        xo_obj_born Bullet "$_fx" "$_fy" "$_lsym" "$_power" 0 "$_up"
+        BULLETS+=("$REPLY")
+        return 0
+    fi
+
     # 正中：向上
     xo_obj_born Bullet "$_fx" "$_fy" "$su" "$dmg" 0 "$_up"
     BULLETS+=("$REPLY")

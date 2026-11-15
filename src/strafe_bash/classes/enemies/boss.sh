@@ -57,11 +57,8 @@ Boss_move () {
     (( RANDOM % 100 < 8 )) || return 0
     local _by=$(( ${self["{y}$X"]} + ${self["{h}$X"]} ))
     local _bx=${self["{x}$X"]}
-    xo_obj_born EnemyBullet $((_bx + 4)) "$_by" '!' 3
-    ENEMY_BULLETS+=("$REPLY")
-    xo_obj_born EnemyBullet $((_bx + 6)) "$_by" '0' 3
-    ENEMY_BULLETS+=("$REPLY")
-    xo_obj_born EnemyBullet $((_bx + 8)) "$_by" '!' 3
-    ENEMY_BULLETS+=("$REPLY")
+    enemy_bullet_spawn EnemyBullet $((_bx + 4)) "$_by" '!' 3
+    enemy_bullet_spawn EnemyBullet $((_bx + 6)) "$_by" '0' 3
+    enemy_bullet_spawn EnemyBullet $((_bx + 8)) "$_by" '!' 3
     return 0
 }

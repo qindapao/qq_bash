@@ -53,9 +53,6 @@ _render_erase_one () {
         printf -v _t '\033[%d;%dH ' "$py" "$px"
         FRAME_BUF+="$_t"
         ;;
-    SkullBullet)
-        _scene_clear_art_at "$py" "$px" "${o["{art}$X"]}"
-        ;;
     Plane|PlaneBee|PlaneHornet|PlaneEagle|PlaneIl2)
         local psh=${o["{prev_shield}$X"]:-0}
         local pal=${o["{prev_al}$X"]:-${o["{al}$X"]:-1}}
@@ -143,10 +140,6 @@ render () {
         # 注意：不能对 Boss/EnemyB/EnemyM 跳过擦除，它们的擦除还要顺带
         # 清空整条血条行（\033[%d;2H\033[K）；跳过会留下上一帧的残影。
         _render_erase_one "$e"
-    done
-    for sk in "${SKULLS[@]}" ; do
-        [[ -n "$sk" && -n "${XO_OBJ_POOL[$sk]+_}" ]] || continue
-        _render_erase_one "$sk"
     done
     for d in "${DROPS[@]}" ; do
         [[ -n "$d" && -n "${XO_OBJ_POOL[$d]+_}" ]] || continue
@@ -274,24 +267,6 @@ render () {
         _eb["{prev_x}$X"]=$_ebx
         _eb["{prev_y}$X"]=$_eby
         unset -n _eb
-    done
-
-    for sk in "${SKULLS[@]}" ; do
-        [[ -n "$sk" && -n "${XO_OBJ_POOL[$sk]+_}" ]] || continue
-        local -n _sk=$sk
-        local _skx=${_sk["{x}$X"]} _sky=${_sk["{y}$X"]}
-        local _skart=${_sk["{art}$X"]} _skcol=${_sk["{color}$X"]:-$C_RED}
-        local _sr=0 _srest=$_skart
-        while [[ -n "$_srest" ]] ; do
-            local _sline=${_srest%%$'\n'*}
-            if [[ "$_srest" == *$'\n'* ]] ; then _srest=${_srest#*$'\n'} ; else _srest='' ; fi
-            printf -v _t '\033[%d;%dH%s%s%s' "$((_sky + _sr))" "$_skx" "$_skcol" "$_sline" "$C_RESET"
-            FRAME_BUF+="$_t"
-            ((_sr++))
-        done
-        _sk["{prev_x}$X"]=$_skx
-        _sk["{prev_y}$X"]=$_sky
-        unset -n _sk
     done
 
     for e in "${ENEMIES[@]}" ; do
