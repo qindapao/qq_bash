@@ -52,17 +52,19 @@ _STRAFE_PLAY_GAME_SH=1
 _mouse_on () {
     (( G_MOUSE_ON )) && return 0
     cursor_hide
-    printf '\033[?1003h\033[?1006h'
+    # 1003 any-event；1002/1000 are fallbacks for terminals that only
+    # implement click/drag tracking (e.g. WindTerm).
+    printf '\033[?1000h\033[?1002h\033[?1003h\033[?1006h'
     G_MOUSE_ON=1
 }
 _mouse_off () {
-    printf '\033[?1003l\033[?1006l'
+    printf '\033[?1000l\033[?1002l\033[?1003l\033[?1006l'
     G_MOUSE_ON=0
 }
 _mouse_assert () {
     # 有些终端在失焦/切换后会悄悄丢掉鼠标上报；定期重新声明一次
     if (( G_MOUSE_ON )) ; then
-        printf '\033[?1003h\033[?1006h'
+        printf '\033[?1000h\033[?1002h\033[?1003h\033[?1006h'
     else
         _mouse_on
     fi
@@ -92,7 +94,9 @@ _mouse_apply () {
     IFS=';' read -r mb mx my <<< "$body"
     [[ "$mx" =~ ^[0-9]+$ && "$my" =~ ^[0-9]+$ ]] || return 0
     (( mb & 64 )) && return 0     # 滚轮不移动飞机
-    [[ "$ev" == "m" ]] && return 0 # 松开按钮不再移动
+    # SGR 的 m 通常是 release，但 WindTerm 的 no-button motion 也会用 m。
+    # 只有“没有 motion 位”的 m 才是真正的释放。
+    [[ "$ev" == "m" ]] && (( !(mb & 32) )) && return 0
     if (( (mb & 3) == 2 && !(mb & 32) )) ; then
         _mouse_bomb
         return 0

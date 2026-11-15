@@ -127,6 +127,17 @@ the plane; firing stays automatic.
   inactive and all keyboard controls still work.
 - Mouse capture is disabled automatically on quit and GAME OVER.
 
+### Terminal compatibility
+
+- Light terminal: `STRAFE_THEME=light ./strafe_bash.sh` selects the darker
+  light-background palette (especially for yellow). `auto` uses `COLORFGBG`
+  when the terminal exports it and otherwise falls back to dark.
+- WindTerm may only implement click/drag mouse tracking rather than any-event
+  motion. Mouse reporting now enables 1000/1002/1003 fallbacks; if WindTerm
+  still only reports clicks, use click-to-move or Git Bash / Windows Terminal
+  for continuous cursor following.
+- Mouse capture is disabled automatically on quit and GAME OVER.
+
 ### Screenshot
 
 <details>
