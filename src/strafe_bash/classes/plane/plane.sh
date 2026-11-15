@@ -147,6 +147,10 @@ Plane_fire () {
     (( cd < 0 ))  && cd=0
     G_FIRE_CD=$cd
 
+    if (( ${#BULLETS[@]} >= PLAYER_BULLET_LIMIT )) ; then
+        return 0
+    fi
+
     local _fx=${self["{x}$X"]}
     local _fy=$(( ${self["{y}$X"]} - 1 ))
     local _lanes=${self["{lanes}$X"]:-0}

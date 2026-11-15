@@ -19,6 +19,7 @@ BOMB_DAMAGE=20
 # 全局安全阈值：只削极端峰值，不改变正常弹幕密度/HIT 反馈。
 ENEMY_BULLET_LIMIT=112
 HIT_FX_LIMIT=100
+PLAYER_BULLET_LIMIT=160
 BOSS_LIMIT=1
 # Boss 每次切换伤害阶段后的无敌窗口（tick）
 BOSS_INV_TICKS=150

@@ -14,8 +14,8 @@ draw_hud_line1 () {
         unset -n _bt
     fi
     local _s
-    printf -v _s 'HP:%d/%d  SCORE:%d  W:%s  BOMB:%d/5  E:%d/%d  OBJ:%d' \
-        "${OBJ_player["{hp}$X"]:-0}" "${OBJ_player["{maxhp}$X"]:-20}" "${OBJ_player["{score}$X"]:-0}" "$weapon" "${OBJ_player["{bombs}$X"]:-0}" \
+    printf -v _s 'HP:%d/%d  SCORE:%d  STAGE:%d  W:%s  BOMB:%d/5  E:%d/%d  OBJ:%d' \
+        "${OBJ_player["{hp}$X"]:-0}" "${OBJ_player["{maxhp}$X"]:-20}" "${OBJ_player["{score}$X"]:-0}" "$(( G_BOSS_KILLS + 1 ))" "$weapon" "${OBJ_player["{bombs}$X"]:-0}" \
         "${#ENEMIES[@]}" "$ENEMY_LIMIT" "${#XO_OBJ_POOL[@]}"
     local _maxw=$(( SCREEN_W - 2 ))
     _s="${_s:0:_maxw}"

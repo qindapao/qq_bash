@@ -9,6 +9,7 @@ _STRAFE_BOSS_SPINNER_SH=1
 . "$STRAFE_PROJ_DIR/config/globals.sh"
 . "$STRAFE_PROJ_DIR/classes/projectiles/enemy_bullet.sh"
 . "$STRAFE_PROJ_DIR/classes/projectiles/boss_bullet.sh"
+. "$STRAFE_PROJ_DIR/classes/enemies/boss_pattern.sh"
 
 # 旋刃四阶段 art（来自任务二设计稿）。
 readonly BOSS_SPINNER_ART_0=$'   o  >-----<  o\n    \\/  .-.  \\/\n    |  ( O )  |\n    /\\  \'-\'  /\\\n   o  >-----<  o'
@@ -34,6 +35,9 @@ readonly BossSpinnerStaticTemplate='
         {death_style} => 1
         {ring_cd} => 0
         {aim_cd} => 0
+        {pat_cd} => 0
+        {pat_step} => -1
+        {pat_mode} => 0
         {spin} => 0
     '
 BossSpinner_born () {
@@ -42,6 +46,9 @@ BossSpinner_born () {
     local -n _self=$1
     _self["{ring_cd}$X"]=18
     _self["{aim_cd}$X"]=36
+    _self["{pat_cd}$X"]=90
+    _self["{pat_step}$X"]=-1
+    _self["{pat_mode}$X"]=0
     _self["{spin}$X"]=0
     unset -n _self
 }
@@ -61,7 +68,7 @@ _boss_spinner_ring () {
     local -i _i _s1=$_spin _s2=$(( (_spin + 4) % 8 ))
     for ((_i=0; _i<8; _i++)) ; do
         (( _i == _s1 || _i == _s2 )) && continue
-        enemy_bullet_spawn BossBullet "$_cx" "$_cy" "${_dx[_i]}" "${_dy[_i]}" 'o' 1 2 "$C_CYAN"
+        enemy_bullet_spawn BossBullet "$_cx" "$_cy" "${_dx[_i]}" "${_dy[_i]}" 'o' 3 2 "$C_CYAN"
     done
     _bs["{spin}$X"]=$(( (_spin + 1) % 8 ))
     unset -n _bs
@@ -95,7 +102,7 @@ _boss_spinner_aim () {
     local -i _o _i
     for _o in -1 0 1 ; do
         _i=$(( (_bi + _o + 8) % 8 ))
-        enemy_bullet_spawn BossBullet "$_cx" "$_cy" "${_dxs[_i]}" "${_dys[_i]}" 'x' 2 2 "$C_ORANGE"
+        enemy_bullet_spawn BossBullet "$_cx" "$_cy" "${_dxs[_i]}" "${_dys[_i]}" 'x' 3 2 "$C_ORANGE"
     done
 }
 
@@ -125,6 +132,29 @@ BossSpinner_move () {
         _boss_spinner_aim "$1"
     else
         self["{aim_cd}$X"]=$_ac
+    fi
+
+    local -i _ps=${self["{pat_step}$X"]:--1}
+    if (( _ps >= 0 )) ; then
+        _boss_pattern_spawn_step "$1" "$_ps" "${self["{pat_mode}$X"]:-0}" 4
+        ((_ps++))
+        if (( _ps >= ${#BOSS_AIM_PATTERN_STEPS[@]} )) ; then
+            self["{pat_step}$X"]=-1
+            self["{pat_cd}$X"]=180
+        else
+            self["{pat_step}$X"]=$_ps
+        fi
+    else
+        local -i _pc=$(( ${self["{pat_cd}$X"]:-0} - 1 ))
+        if (( _pc <= 0 )) ; then
+            _boss_pattern_mode "$1"
+            self["{pat_mode}$X"]=$REPLY
+            _boss_pattern_spawn_step "$1" 0 "$REPLY" 4
+            self["{pat_step}$X"]=1
+            self["{pat_cd}$X"]=180
+        else
+            self["{pat_cd}$X"]=$_pc
+        fi
     fi
     unset -n self
     return 0

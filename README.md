@@ -1,6 +1,6 @@
 # qq_bash
 
-**A pure-Bash toolkit — and a terminal bullet-hell built with it.**
+**A pure-Bash toolkit — and an `xo` object-system validation game built with it.**
 
 `qq_bash` bundles a small standard-library of string/array helpers, a JSON-like
 tree (`x`), an object system (`xo`), and **strafe_bash**: a playable ASCII
@@ -15,13 +15,48 @@ Requires Bash 5+, a UTF-8 locale, and a 256-color terminal.
 
 Project conventions: [CONSTITUTION.md](CONSTITUTION.md).
 
+## Purpose and scope
+
+`qq_bash` is primarily a validation project for the `xo` object system.
+`strafe_bash` exists to prove that `xo` can model a real, stateful, interactive
+application: named objects, inheritance, mixins, lifecycle, composition, and
+method dispatch under a fixed game loop.
+
+`xo` is **not a performance library**. Its intended home is the control plane
+of Bash automation: build pipelines, industrial test harnesses, deployment
+steps, test fixtures, and small DSLs. It trades a little memory and dispatch
+overhead for nested data, inheritance, mixins, and readable composition. It is
+not intended for high-throughput data processing, real-time engines, or
+untrusted input.
+
+### Bash version status
+
+The Bash version of `strafe_bash` is **feature-frozen**. It is not receiving
+new Bosses, weapons, mechanics, or systems. Remaining work is limited to:
+
+- bug fixes
+- balance tuning
+- code cleanup and removal of code smells
+- architectural cleanup, including moving responsibilities out of the main
+  loop into the library/classes where they belong
+- keeping `xo` reusable outside the game
+
+The 30 FPS target is intentional. Bash/MSYS performance limits are accepted;
+the game is a validation showcase, not a performance benchmark.
+
+### Future
+
+If the game is developed further, the likely path is a **Go rewrite**. The Bash
+version would remain as a behavioral, numeric, and art reference. New gameplay
+and higher performance targets belong in Go, not in this Bash codebase.
+
 ## What's inside
 
 | Module | What it does |
 |---|---|
 | **`xo`** | Class templates, single inheritance, mixins, object pool, named objects, method dispatch |
 | **`x`** | In-memory JSON-like tree: objects, arrays, null/bool, paths, DFS, JSON round-trip |
-| **`strafe_bash`** | Terminal shooter: planes, enemies, two Bosses, weapons, drops, save/load |
+| **`strafe_bash`** | Terminal shooter: planes, enemies, three Bosses, weapons, drops, save/load |
 | **`str` / `array` / `float` / `var`** | UTF-8-aware strings, arrays, numbers, indirection helpers |
 
 ## strafe_bash
@@ -40,7 +75,7 @@ positioning, weapon timing, and surviving the Bosses.
   Boss. At most one Boss on screen.
 - **Boss invulnerability windows** — after each damage-phase transition, a Boss
   is invulnerable for 5 seconds and is tinted cyan.
-- **Readable fire** — player bullets use a muted slate-blue/bold palette tone;
+- **Readable fire** — player bullets use a muted slate-blue palette tone;
   enemy bullets use warm or bright accent colors, so the two never blend.
 - **Drops and words** — `H` heal, `b` bomb, `m` missile, `L` lane, `S` shield;
   touching a falling word collects it for score. `m` now launches a missile
@@ -60,8 +95,8 @@ positioning, weapon timing, and surviving the Bosses.
   Either condition triggers the short FIGlet-style `EXCELLENT!` overlay.
   These bonuses are fixed and are not reduced by the Hornet score multiplier.
 - **Minimal save** — score, HP, pickups, active weapon slot, the run's weapon
-  classes, and the chosen plane. Loading starts a fresh wave.
-- **30 Hz logic / 60 Hz render** — fixed tick loop, raw terminal input, ANSI
+  classes, the chosen plane, and cleared Boss count/stage. Loading starts a fresh wave.
+- **30 Hz logic / 30 Hz render** — fixed tick loop, raw terminal input, ANSI
   256-color output, no external runtime.
 
 ### Choose your plane
@@ -92,7 +127,7 @@ Il-2 uses a three-entry Mixin list:
   colliding with an enemy deals 5 damage. The ram has a 10-tick cooldown and
   can kill enemies or a Boss through the normal score/death paths.
 
-Practical use: take one hit to enter the 8-second angry state, then fly into
+Practical use: take one hit to enter the 4-second angry state, then fly into
 enemies. The invulnerability window matches the blink duration.
 
 ### Controls

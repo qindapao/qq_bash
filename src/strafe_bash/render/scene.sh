@@ -7,17 +7,29 @@ _STRAFE_SCENE_SH=1
 . "$STRAFE_PROJ_DIR/config/art.sh"
 . "$STRAFE_PROJ_DIR/config/globals.sh"
 
-_scene_clear_art_at () {
-    local ay=$1 ax=$2 art=$3
-    local r=0 line rest=$art
-    local _buf='' _t
+# ASCII art 行缓存：art 字符串在一局内是稳定的（Boss 阶段切换会换新 art），
+# 避免每帧重复做 %% 和 # 前缀截取。
+declare -A _SCENE_ART_CACHE=()
+_scene_art_lines () {
+    local art=$1
+    [[ -n "${_SCENE_ART_CACHE["$art|__n"]+_}" ]] && return 0
+    local n=0 rest=$art line
     while [[ -n "$rest" ]] ; do
         line=${rest%%$'\n'*}
-        if [[ "$rest" == *$'\n'* ]] ; then
-            rest=${rest#*$'\n'}
-        else
-            rest=''
-        fi
+        if [[ "$rest" == *$'\n'* ]] ; then rest=${rest#*$'\n'} ; else rest='' ; fi
+        _SCENE_ART_CACHE["$art|$n"]=$line
+        ((n++))
+    done
+    _SCENE_ART_CACHE["$art|__n"]=$n
+}
+
+_scene_clear_art_at () {
+    local ay=$1 ax=$2 art=$3
+    _scene_art_lines "$art"
+    local -i r=0 n=${_SCENE_ART_CACHE["$art|__n"]:-0}
+    local line _buf='' _t
+    while (( r < n )) ; do
+        line=${_SCENE_ART_CACHE["$art|$r"]}
         printf -v _t '\033[%d;%dH%*s' $((ay + r)) "$ax" "${#line}" ''
         _buf+=$_t
         ((r++))
@@ -196,14 +208,10 @@ render () {
     local _pax=$(( _px - _al ))
     local _pay=$_py
     (( _sh )) && _pay=$(( _pay + _sht ))
-    local _pr=0 _prest=$_part
-    while [[ -n "$_prest" ]] ; do
-        local _pline=${_prest%%$'\n'*}
-        if [[ "$_prest" == *$'\n'* ]] ; then
-            _prest=${_prest#*$'\n'}
-        else
-            _prest=''
-        fi
+    _scene_art_lines "$_part"
+    local -i _pr=0 _pn=${_SCENE_ART_CACHE["$_part|__n"]:-0}
+    while (( _pr < _pn )) ; do
+        local _pline=${_SCENE_ART_CACHE["$_part|$_pr"]}
         local _out='' _cur_clr='' _c _i _want
         for (( _i=0 ; _i<${#_pline} ; _i++ )) ; do
             _c=${_pline:_i:1}
@@ -308,12 +316,10 @@ render () {
         local _hp2=${_e["{hp}$X"]}
         local _maxhp=${_e["{maxhp}$X"]}
         local _art=${_e["{art}$X"]}
-        local _r=0 _rest=$_art
-        while [[ -n "$_rest" ]] ; do
-            local _line=${_rest%%$'\n'*}
-            if [[ "$_rest" == *$'\n'* ]] ; then _rest=${_rest#*$'\n'}
-            else _rest=''
-            fi
+        _scene_art_lines "$_art"
+        local -i _r=0 _rn=${_SCENE_ART_CACHE["$_art|__n"]:-0}
+        while (( _r < _rn )) ; do
+            local _line=${_SCENE_ART_CACHE["$_art|$_r"]}
             printf -v _t '\033[%d;%dH%s%s%s' $((_ay + _r)) "$_ax" "$_color" "$_line" "$C_RESET"
             FRAME_BUF+="$_t"
             ((_r++))

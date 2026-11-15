@@ -38,11 +38,12 @@ save_game () {
     local _pcls=${XO_OBJ_POOL[OBJ_player]}
     [[ "$_pcls" == "Plane" ]] && _pcls=PlaneBee
     local -A SAVE=(
-        [version]=6
+        [version]=7
         [plane_cls]=$_pcls
         [score]=${OBJ_player["{score}$X"]:-0}
         [hp]=${OBJ_player["{hp}$X"]:-0}
         [bombs]=${OBJ_player["{bombs}$X"]:-0}
+        [boss_kills]=${G_BOSS_KILLS:-0}
         [t2]=${OBJ_player["{t2}$X"]:-0}
         [t3]=${OBJ_player["{t3}$X"]:-0}
         [t4]=${OBJ_player["{t4}$X"]:-0}
@@ -59,10 +60,10 @@ save_game () {
         SAVE["w${i}_cls"]=${_wcls[$i]}
     done
     local _tmp="${STRAFE_SAVE_FILE}.tmp.$$"
-    local -a _keys=(version plane_cls score hp bombs t2 t3 t4 t5 mt lanes lanes_side lt shield st bullet_slot w1_cls w2_cls w3_cls w4_cls w5_cls)
+    local -a _keys=(version plane_cls score hp bombs boss_kills t2 t3 t4 t5 mt lanes lanes_side lt shield st bullet_slot w1_cls w2_cls w3_cls w4_cls w5_cls)
     local _k
     {
-        printf '# strafe save v6\n'
+        printf '# strafe save v7\n'
         for _k in "${_keys[@]}" ; do
             printf '%s=%s\n' "$_k" "${SAVE[$_k]}"
         done
@@ -88,7 +89,7 @@ load_game () {
     done < "$STRAFE_SAVE_FILE"
 
     local _ver=${SAVE[version]:-}
-    [[ "$_ver" == "5" || "$_ver" == "6" ]] || return 1
+    [[ "$_ver" == "5" || "$_ver" == "6" || "$_ver" == "7" ]] || return 1
 
     local _plane_cls
     if [[ "$_ver" == "5" ]] ; then
@@ -109,6 +110,12 @@ load_game () {
     local -n _pc=${_plane_cls}Obj
     local -i _pmax=${_pc["{maxhp}$X"]:-20}
     unset -n _pc
+
+    local -i _boss_kills=0
+    if [[ -n "${SAVE[boss_kills]:-}" ]] ; then
+        _save_is_uint "${SAVE[boss_kills]}" || return 1
+        _boss_kills=${SAVE[boss_kills]}
+    fi
 
     local -a _nums=(score hp bombs t2 t3 t4 t5 mt lanes lanes_side lt shield st bullet_slot)
     for _k in "${_nums[@]}" ; do
@@ -136,6 +143,7 @@ load_game () {
         xo_obj_born_named OBJ_player "$_plane_cls" || return 1
     fi
     init_game || return 1
+    G_BOSS_KILLS=$_boss_kills
     for i in 1 2 3 4 5 ; do
         _cls=${SAVE[w${i}_cls]}
         [[ -n "${XO_OBJ_POOL[OBJ_wpn$i]+_}" ]] && xo_obj_kill "OBJ_wpn$i"

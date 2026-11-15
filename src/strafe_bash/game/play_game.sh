@@ -315,11 +315,22 @@ _play_game_tick () {
         G_MISSILE_CD=10
     fi
     # ---- 5. 所有对象 move ----
+    # 玩家子弹只有 Bullet 一类；这里内联移动，省掉每颗一次 xo_call。
     local -a alive_b=()
     for b in "${BULLETS[@]}" ; do
         [[ -n "$b" && -n "${XO_OBJ_POOL[$b]+_}" ]] || continue
-        xo_call "$b" move
-        if (( $? == 0 )) ; then alive_b+=("$b") ; else xo_obj_kill "$b" ; fi
+        local -n _b=$b
+        local -i bx=${_b["{x}$X"]} by=${_b["{y}$X"]}
+        bx=$(( bx + ${_b["{vx}$X"]} ))
+        by=$(( by + ${_b["{vy}$X"]} ))
+        _b["{x}$X"]=$bx
+        _b["{y}$X"]=$by
+        unset -n _b
+        if (( by < GAME_TOP || bx < 2 || bx > SCREEN_W - 2 )) ; then
+            xo_obj_kill "$b"
+        else
+            alive_b+=("$b")
+        fi
     done
     BULLETS=("${alive_b[@]}")
 

@@ -9,6 +9,7 @@ _STRAFE_SKULL_KING_SH=1
 . "$STRAFE_PROJ_DIR/classes/base_types.sh"
 . "$STRAFE_PROJ_DIR/classes/enemies/boss_base.sh"
 . "$STRAFE_PROJ_DIR/classes/projectiles/boss_bullet.sh"
+. "$STRAFE_PROJ_DIR/classes/enemies/boss_pattern.sh"
 
 IFS= read -r -d '' SKULL_ART_0 <<'EOF' || true
      .-.
@@ -76,6 +77,9 @@ readonly SkullKingStaticTemplate='
         {death_style} => 0
         {shot_cd} => 0
         {ring_left} => 0
+        {pat_cd} => 0
+        {pat_step} => -1
+        {pat_mode} => 0
     '
 
 SkullKing_born () {
@@ -84,6 +88,9 @@ SkullKing_born () {
     local -n _self=$1
     _self["{shot_cd}$X"]=$SKULL_KING_FIRST_SHOT
     _self["{ring_left}$X"]=$SKULL_KING_BURST_RINGS
+    _self["{pat_cd}$X"]=120
+    _self["{pat_step}$X"]=-1
+    _self["{pat_mode}$X"]=0
     unset -n _self
 }
 
@@ -113,10 +120,10 @@ SkullKing_move () {
                 local -i sx=$(( start + _i * 2 ))
                 if (( _i % 2 == 0 )) ; then
                     _sym='X'
-                    enemy_bullet_spawn BossBullet "$sx" "$by" 0 1 "$_sym" 1 2 "$C_ORANGE"
+                    enemy_bullet_spawn BossBullet "$sx" "$by" 0 1 "$_sym" 3 2 "$C_ORANGE"
                 else
                     _sym='O'
-                    enemy_bullet_spawn BossBullet "$sx" "$by" 0 1 "$_sym" 1 2 "$C_YELLOW"
+                    enemy_bullet_spawn BossBullet "$sx" "$by" 0 1 "$_sym" 3 2 "$C_YELLOW"
                 fi
             done
 
@@ -126,10 +133,10 @@ SkullKing_move () {
             for (( _i=0; _i<SKULL_KING_RADIAL_BULLETS; _i++ )) ; do
                 if (( _i % 2 == 0 )) ; then
                     _sym='O'
-                    enemy_bullet_spawn BossBullet "$cx" "$cy" "${_dx[_i]}" "${_dy[_i]}" "$_sym" 1 2 "$C_YELLOW"
+                    enemy_bullet_spawn BossBullet "$cx" "$cy" "${_dx[_i]}" "${_dy[_i]}" "$_sym" 3 2 "$C_YELLOW"
                 else
                     _sym='X'
-                    enemy_bullet_spawn BossBullet "$cx" "$cy" "${_dx[_i]}" "${_dy[_i]}" "$_sym" 1 2 "$C_ORANGE"
+                    enemy_bullet_spawn BossBullet "$cx" "$cy" "${_dx[_i]}" "${_dy[_i]}" "$_sym" 3 2 "$C_ORANGE"
                 fi
             done
 
@@ -143,6 +150,29 @@ SkullKing_move () {
             fi
         else
             self["{shot_cd}$X"]=$sc
+        fi
+    fi
+
+    local -i _ps=${self["{pat_step}$X"]:--1}
+    if (( _ps >= 0 )) ; then
+        _boss_pattern_spawn_step "$1" "$_ps" "${self["{pat_mode}$X"]:-0}" 4
+        ((_ps++))
+        if (( _ps >= ${#BOSS_AIM_PATTERN_STEPS[@]} )) ; then
+            self["{pat_step}$X"]=-1
+            self["{pat_cd}$X"]=240
+        else
+            self["{pat_step}$X"]=$_ps
+        fi
+    else
+        local -i _pc=$(( ${self["{pat_cd}$X"]:-0} - 1 ))
+        if (( _pc <= 0 )) ; then
+            _boss_pattern_mode "$1"
+            self["{pat_mode}$X"]=$REPLY
+            _boss_pattern_spawn_step "$1" 0 "$REPLY" 4
+            self["{pat_step}$X"]=1
+            self["{pat_cd}$X"]=240
+        else
+            self["{pat_cd}$X"]=$_pc
         fi
     fi
     unset -n self

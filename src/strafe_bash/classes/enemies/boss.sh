@@ -5,8 +5,10 @@ _STRAFE_BOSS_SH=1
 . "$STRAFE_PROJ_DIR/classes/base_types.sh"
 . "$STRAFE_PROJ_DIR/classes/enemies/boss_base.sh"
 . "$STRAFE_PROJ_DIR/config/const.sh"
+. "$STRAFE_PROJ_DIR/config/color.sh"
 . "$STRAFE_PROJ_DIR/config/globals.sh"
 . "$STRAFE_PROJ_DIR/classes/projectiles/enemy_bullet.sh"
+. "$STRAFE_PROJ_DIR/classes/projectiles/boss_bullet.sh"
 
 # 标准 Boss 的四段 art。放在类文件里，Boss_move 只认字段，不再写死变量名。
 readonly BOSS_ART_100=$'    _____    \n   /     \\   \n  /  O O  \\  \n  \\_|_|_|_/  \n   \\_____/   '
@@ -30,10 +32,14 @@ readonly BossStaticTemplate='
         {pcut2} => 50
         {pcut3} => 20
         {death_style} => 0
+        {aim_cd} => 0
     '
 Boss_born () {
     _boss_set_arts "$1" "$BOSS_ART_100" "$BOSS_ART_70" "$BOSS_ART_50" "$BOSS_ART_20"
     BossBase_born "$1"
+    local -n _b=$1
+    _b["{aim_cd}$X"]=60
+    unset -n _b
 }
 Boss_move () {
     _boss_update_phase "$1"
@@ -53,10 +59,40 @@ Boss_move () {
     esac
     _boss_move_target "$1" "$_step" "$_yhi" 7 8 9
 
-    # Boss 永不主动离场，只会被打死；这里只有开火逻辑
-    (( RANDOM % 100 < 10 )) || return 0
+    # Boss 永不主动离场，只会被打死。
     local _by=$(( ${self["{y}$X"]} + ${self["{h}$X"]} ))
     local _bx=${self["{x}$X"]}
+
+    # 周期性瞄准散弹：3 发朝玩家方向，补足固定弹幕的威胁。
+    local -i _ac=$(( ${self["{aim_cd}$X"]:-0} - 1 ))
+    if (( _ac <= 0 )) ; then
+        self["{aim_cd}$X"]=90
+        if [[ -n "${XO_OBJ_POOL[OBJ_player]+_}" ]] && (( ${#ENEMY_BULLETS[@]} + 3 <= ENEMY_BULLET_LIMIT )) ; then
+            local -i _cx=$(( _bx + ${self["{w}$X"]} / 2 ))
+            local -i _cy=$(( ${self["{y}$X"]} + ${self["{h}$X"]} / 2 ))
+            local -i _px=${OBJ_player["{x}$X"]} _py=${OBJ_player["{y}$X"]}
+            local -i _dx=$(( _px - _cx )) _dy=$(( _py - _cy )) _bi
+            if (( _dx == 0 && _dy == 0 )) ; then _bi=4
+            elif (( _dy < 0 )) ; then
+                if (( _dx < 0 )) ; then _bi=7 ; elif (( _dx > 0 )) ; then _bi=1 ; else _bi=0 ; fi
+            elif (( _dy > 0 )) ; then
+                if (( _dx < 0 )) ; then _bi=5 ; elif (( _dx > 0 )) ; then _bi=3 ; else _bi=4 ; fi
+            else
+                if (( _dx < 0 )) ; then _bi=6 ; else _bi=2 ; fi
+            fi
+            local -a _dxs=(0 1 1 1 0 -1 -1 -1)
+            local -a _dys=(-1 -1 0 1 1 1 0 -1)
+            local -i _o _i
+            for _o in -1 0 1 ; do
+                _i=$(( (_bi + _o + 8) % 8 ))
+                enemy_bullet_spawn BossBullet "$_cx" "$_cy" "${_dxs[_i]}" "${_dys[_i]}" 'x' 3 3 "$C_ORANGE"
+            done
+        fi
+    else
+        self["{aim_cd}$X"]=_ac
+    fi
+
+    (( RANDOM % 100 < 10 )) || return 0
     enemy_bullet_spawn EnemyBullet $((_bx + 4)) "$_by" '!' 3
     enemy_bullet_spawn EnemyBullet $((_bx + 6)) "$_by" '0' 3
     enemy_bullet_spawn EnemyBullet $((_bx + 8)) "$_by" '!' 3
