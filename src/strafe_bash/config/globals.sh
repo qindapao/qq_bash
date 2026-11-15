@@ -15,7 +15,6 @@ declare -i BOSS_DEATH_CX=0
 declare -i BOSS_DEATH_CY=0
 declare -i BOSS_DEATH_WAVE=0
 declare -a WORDS=()
-declare PLAYER=
 
 # 游戏逻辑状态（tick 内使用）
 declare -i G_FIRE_CD=0
@@ -36,6 +35,8 @@ declare -i G_GAME_OVER=0
 declare -i G_RUN_TICKS=0
 declare -i G_KILLS=0
 declare -i G_BOSS_KILLS=0
+declare -i G_LAST_ESCAPE_TICK=0
+declare -i G_LAST_ACE_TICK=0
 
 declare -g FRAME_BUF=""
 

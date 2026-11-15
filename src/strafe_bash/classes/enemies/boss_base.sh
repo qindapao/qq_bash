@@ -19,6 +19,7 @@ readonly BossBaseStaticTemplate='
         {w} => 13
         {h} => 5
         {art} => 
+        {prev_art} => 
         {art0} => 
         {art1} => 
         {art2} => 

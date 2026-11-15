@@ -8,27 +8,26 @@ _STRAFE_INIT_GAME_SH=1
 . "$STRAFE_PROJ_DIR/classes/base_types.sh"
 
 init_game () {
-    local -n p=$PLAYER
-    p["{x}$X"]=$(( SCREEN_W / 2 ))
-    p["{y}$X"]=$(( SCREEN_H - 2 ))
-    p["{hp}$X"]=${p["{maxhp}$X"]:-20}
-    p["{score}$X"]=0
-    p["{bombs}$X"]=0
-    p["{t2}$X"]=0
-    p["{t3}$X"]=0
-    p["{t4}$X"]=0
-    p["{t5}$X"]=0
-    p["{mt}$X"]=0
-    p["{lanes}$X"]=0
-    p["{lanes_side}$X"]=0
-    p["{lt}$X"]=0
-    p["{shield}$X"]=0
-    p["{st}$X"]=0
-    p["{blink}$X"]=0
-    p["{ram_cd}$X"]=0
-    p["{prev_shield}$X"]=0
-    p["{art}$X"]=${p["{base_art}$X"]}
-    p["{al}$X"]=${p["{base_al}$X"]:-1}
+    OBJ_player["{x}$X"]=$(( SCREEN_W / 2 ))
+    OBJ_player["{y}$X"]=$(( SCREEN_H - 2 ))
+    OBJ_player["{hp}$X"]=${OBJ_player["{maxhp}$X"]:-20}
+    OBJ_player["{score}$X"]=0
+    OBJ_player["{bombs}$X"]=0
+    OBJ_player["{t2}$X"]=0
+    OBJ_player["{t3}$X"]=0
+    OBJ_player["{t4}$X"]=0
+    OBJ_player["{t5}$X"]=0
+    OBJ_player["{mt}$X"]=0
+    OBJ_player["{lanes}$X"]=0
+    OBJ_player["{lanes_side}$X"]=0
+    OBJ_player["{lt}$X"]=0
+    OBJ_player["{shield}$X"]=0
+    OBJ_player["{st}$X"]=0
+    OBJ_player["{blink}$X"]=0
+    OBJ_player["{ram_cd}$X"]=0
+    OBJ_player["{prev_shield}$X"]=0
+    OBJ_player["{art}$X"]=${OBJ_player["{base_art}$X"]}
+    OBJ_player["{al}$X"]=${OBJ_player["{base_al}$X"]:-1}
 
     # ---- 本局武器：默认 tier0 + 每档随机抽一个 tier2..5 ----
     # 先清掉上一局留下的具名武器对象
@@ -39,9 +38,9 @@ init_game () {
     done
 
     # 默认子弹（tier 0，独立于 1..5 号库，不参与随机）
-    xo_obj_born_named OBJ_wpn1 BulletTypeDefault || { unset -n p ; return 1 ; }
-    p["{w1}$X"]=$REPLY
-    p["{bullet}$X"]=$REPLY
+    xo_obj_born_named OBJ_wpn1 BulletTypeDefault || return 1
+    OBJ_player["{w1}$X"]=$REPLY
+    OBJ_player["{bullet}$X"]=$REPLY
 
     # tier 2..5：每档从自己的库里随机抽一个类，组成本局可掉落的 4 种武器
     local _tier _cls _libname _n
@@ -51,17 +50,14 @@ init_game () {
         _n=${#_lib[@]}
         if (( _n == 0 )) ; then
             unset -n _lib
-            unset -n p
             die ERR "BULLET_LIB_$_tier is empty"
             return 1
         fi
         _cls=${_lib[RANDOM % _n]}
         unset -n _lib
-        xo_obj_born_named "OBJ_wpn$_tier" "$_cls" || { unset -n p ; return 1 ; }
-        p["{w$_tier}$X"]=$REPLY
+        xo_obj_born_named "OBJ_wpn$_tier" "$_cls" || return 1
+        OBJ_player["{w$_tier}$X"]=$REPLY
     done
-    unset -n p
-
     local b e d eb m w
     for b in "${BULLETS[@]}" ; do [[ -n "${XO_OBJ_POOL[$b]+_}" ]] && xo_obj_kill "$b" ; done
     for e in "${ENEMIES[@]}" ; do [[ -n "${XO_OBJ_POOL[$e]+_}" ]] && xo_obj_kill "$e" ; done
@@ -96,12 +92,14 @@ init_game () {
     G_FREE_BOMB=0
     G_GAME_OVER=0
     G_RUN_TICKS=0
+    G_LAST_ESCAPE_TICK=0
+    G_LAST_ACE_TICK=0
     G_KILLS=0
     G_BOSS_KILLS=0
 
     # 同步 prev = cur（避免首帧擦 (0,0)）
     local _sync_obj
-    for _sync_obj in "$PLAYER" "${BULLETS[@]}" "${MISSILES[@]}" \
+    for _sync_obj in "OBJ_player" "${BULLETS[@]}" "${MISSILES[@]}" \
                      "${ENEMY_BULLETS[@]}" "${ENEMIES[@]}" \
                      "${DROPS[@]}" "${WORDS[@]}" ; do
         [[ -n "$_sync_obj" && -n "${XO_OBJ_POOL[$_sync_obj]+_}" ]] || continue

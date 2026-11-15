@@ -8,11 +8,8 @@ _STRAFE_GAME_OVER_SH=1
 . "$STRAFE_PROJ_DIR/classes/plane/plane_helpers.sh"
 
 player_death_fx () {
-    [[ -n "$PLAYER" && -n "${XO_OBJ_POOL[$PLAYER]+_}" ]] || return 0
-    local -n p=$PLAYER
-    local -i x=${p["{x}$X"]} y=${p["{y}$X"]}
-    unset -n p
-
+    [[ -n "${XO_OBJ_POOL[OBJ_player]+_}" ]] || return 0
+    local -i x=${OBJ_player["{x}$X"]} y=${OBJ_player["{y}$X"]}
     local -a _dx=(0 1 1 1 0 -1 -1 -1)
     local -a _dy=(-1 -1 0 1 1 1 0 -1)
     local -a _chars=('*' '@' '#' '+' '.')
@@ -21,7 +18,7 @@ player_death_fx () {
     local -i i f nx ny r ci
 
     # 按当前机型/护盾 art 擦掉飞机本体
-    _plane_clear "$PLAYER"
+    _plane_clear "OBJ_player"
 
     # 中心闪白，再向外扩散
     goto "$y" "$x" ; printf '%s@%s' "$C_YELLOW" "$C_RESET"
@@ -64,10 +61,8 @@ EOF
 
 game_over_screen () {
     local -i score=0 secs mm ss
-    if [[ -n "$PLAYER" && -n "${XO_OBJ_POOL[$PLAYER]+_}" ]] ; then
-        local -n p=$PLAYER
-        score=${p["{score}$X"]:-0}
-        unset -n p
+    if [[ -n "${XO_OBJ_POOL[OBJ_player]+_}" ]] ; then
+        score=${OBJ_player["{score}$X"]:-0}
     fi
     secs=$(( G_RUN_TICKS / FPS ))
     mm=$(( secs / 60 ))

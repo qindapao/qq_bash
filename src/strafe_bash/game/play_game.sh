@@ -47,13 +47,21 @@ _STRAFE_PLAY_GAME_SH=1
 
 # ============================================================================
 # 鼠标：xterm SGR 鼠标上报（1003 any-event + 1006 SGR）
-# 只移动飞机；开火仍然是自动的。M 键可临时关闭/恢复。
+# 只移动飞机；开火仍然是自动的。
 # ============================================================================
 _mouse_on () {
     (( G_MOUSE_ON )) && return 0
     cursor_hide
     # 1003 any-event；1002/1000 are fallbacks for terminals that only
     # implement click/drag tracking (e.g. WindTerm).
+    # ESC：控制序列开始
+    # [?：DEC 私有模式
+    # 1000：点击上报
+    # 1002：按住拖动上报
+    # 1003：任何鼠标移动都上报
+    # 1006：SGR 坐标格式
+    # h：开启
+    # l：关闭
     printf '\033[?1000h\033[?1002h\033[?1003h\033[?1006h'
     G_MOUSE_ON=1
 }
@@ -71,18 +79,14 @@ _mouse_assert () {
 }
 _mouse_move_to () {
     local -i tx=$1 ty=$2
-    [[ -n "$PLAYER" && -n "${XO_OBJ_POOL[$PLAYER]+_}" ]] || return 0
-    local -n _mp=$PLAYER
-    local -i cx=${_mp["{x}$X"]} cy=${_mp["{y}$X"]}
-    unset -n _mp
-    xo_call "$PLAYER" move "$((tx - cx))" "$((ty - cy))"
+    [[ -n "${XO_OBJ_POOL[OBJ_player]+_}" ]] || return 0
+    local -i cx=${OBJ_player["{x}$X"]} cy=${OBJ_player["{y}$X"]}
+    xo_call "OBJ_player" move "$((tx - cx))" "$((ty - cy))"
     need_render=1
 }
 _mouse_bomb () {
-    [[ -n "$PLAYER" && -n "${XO_OBJ_POOL[$PLAYER]+_}" ]] || return 0
-    local -n _bp=$PLAYER
-    (( ${_bp["{bombs}$X"]:-0} > 0 )) && G_WANT_BOMB=1
-    unset -n _bp
+    [[ -n "${XO_OBJ_POOL[OBJ_player]+_}" ]] || return 0
+    (( ${OBJ_player["{bombs}$X"]:-0} > 0 )) && G_WANT_BOMB=1
 }
 _mouse_apply () {
     local seq=$1
@@ -117,10 +121,8 @@ _hit_fx_add () {
 
 _score_bonus () {
     local amount=$1
-    [[ -n "$PLAYER" && -n "${XO_OBJ_POOL[$PLAYER]+_}" ]] || return 0
-    local -n _bp=$PLAYER
-    _bp["{score}$X"]=$(( ${_bp["{score}$X"]:-0} + amount ))
-    unset -n _bp
+    [[ -n "${XO_OBJ_POOL[OBJ_player]+_}" ]] || return 0
+    OBJ_player["{score}$X"]=$(( ${OBJ_player["{score}$X"]:-0} + amount ))
 }
 
 # 撞击伤害：由 M_Ram 提供伤害值，游戏层负责计分/死亡/Boss 收尾。
@@ -133,7 +135,7 @@ _ram_enemy () {
     unset -n _re
     local -i rdmg
     REPLY=
-    xo_call "$PLAYER" ram_damage
+    xo_call "OBJ_player" ram_damage
     rdmg=${REPLY:-5}
     REPLY=
     (( rdmg > 0 )) || rdmg=5
@@ -144,7 +146,7 @@ _ram_enemy () {
     _hit_fx_add "$py" "$px" '*' "$C_CYAN"
     (( hp <= 0 )) || return 1
     ((G_KILLS++))
-    p["{score}$X"]=$(( ${p["{score}$X"]:-0} + escore * _score_pct / 100 ))
+    OBJ_player["{score}$X"]=$(( ${OBJ_player["{score}$X"]:-0} + escore * _score_pct / 100 ))
     if Base_is_a "$eid" BossBase ; then
         ((G_BOSS_KILLS++))
         _boss_on_death "$eid" "$ex" "$ey" "$ew" "$eh" "$eart"
@@ -221,37 +223,44 @@ _boss_random_class () {
     fi
 }
 
+# 全清横幅条件：30 秒内没有敌人从底部逃出，且场上敌人已清空。
+# 触发后冷却 60 秒，避免连续清场时横幅和奖励刷屏。
+_clear_banner_ready () {
+    (( CLEAR_BANNER_TICK == 0 )) || return 1
+    (( G_RUN_TICKS - G_LAST_ESCAPE_TICK >= 30 * FPS )) || return 1
+    (( G_LAST_ACE_TICK == 0 || G_RUN_TICKS - G_LAST_ACE_TICK >= 60 * FPS )) || return 1
+    (( ${#ENEMIES[@]} == 0 )) || return 1
+    return 0
+}
+
 # ============================================================================
 # _play_game_tick — 单个逻辑 tick（纯计算，绝不碰终端）
 # ============================================================================
 _play_game_tick () {
     local b e d eb m w
     ((G_RUN_TICKS++))
-    [[ -n "$PLAYER" ]] && xo_call "$PLAYER" blink_tick
-    if [[ -n "$PLAYER" ]] && declare -F "${XO_OBJ_POOL[$PLAYER]}_ram_tick" >/dev/null 2>&1 ; then
-        xo_call "$PLAYER" ram_tick
+    [[ -n "${XO_OBJ_POOL[OBJ_player]+_}" ]] && xo_call "OBJ_player" blink_tick
+    if [[ -n "${XO_OBJ_POOL[OBJ_player]+_}" ]] && declare -F "${XO_OBJ_POOL[OBJ_player]}_ram_tick" >/dev/null 2>&1 ; then
+        xo_call "OBJ_player" ram_tick
     fi
     (( G_RUN_TICKS % 30 == 0 )) && _mouse_assert
 
     # ---- 0. 奖励计时器递减（每 tick 减 1）----
-    local -n _pb=$PLAYER
-    local -i _score_pct=${_pb["{score_pct}$X"]:-100}
+    local -i _score_pct=${OBJ_player["{score_pct}$X"]:-100}
     local _tk _tv
     for _tk in "{t2}$X" "{t3}$X" "{t4}$X" "{t5}$X" "{mt}$X" "{lt}$X" "{st}$X" ; do
-        _tv=${_pb[$_tk]:-0}
-        (( _tv > 0 )) && _pb["$_tk"]=$(( _tv - 1 ))
+        _tv=${OBJ_player[$_tk]:-0}
+        (( _tv > 0 )) && OBJ_player["$_tk"]=$(( _tv - 1 ))
     done
-    (( ${_pb["{lt}$X"]:-0} == 0 )) && _pb["{lanes}$X"]=0
-    if (( ${_pb["{shield}$X"]:-0} && ${_pb["{st}$X"]:-0} == 0 )) ; then
-        unset -n _pb
-        _plane_set_shield "$PLAYER" 0
-        local -n _pb=$PLAYER
+    (( ${OBJ_player["{lt}$X"]:-0} == 0 )) && OBJ_player["{lanes}$X"]=0
+    if (( ${OBJ_player["{shield}$X"]:-0} && ${OBJ_player["{st}$X"]:-0} == 0 )) ; then
+        _plane_set_shield "OBJ_player" 0
     fi
 
     # ---- 0.5 武器过期检测 ----
     # 当前武器是一个独立的 BulletType 子类对象；过期后只切回默认武器，
     # 不再像旧实现那样每 tick 动态 kill/born 一个 BulletType。
-    local _bt=${_pb["{bullet}$X"]}
+    local _bt=${OBJ_player["{bullet}$X"]}
     local _tier=1
     if [[ -n "$_bt" && -n "${XO_OBJ_POOL[$_bt]+_}" ]] ; then
         local -n _bo=$_bt
@@ -259,35 +268,32 @@ _play_game_tick () {
         unset -n _bo
     fi
     local _tk_cur="{t$_tier}$X"
-    if (( _tier >= 2 && _tier <= 5 )) && (( ${_pb[$_tk_cur]:-0} == 0 )) ; then
-        _pb["{bullet}$X"]=${_pb["{w1}$X"]}
+    if (( _tier >= 2 && _tier <= 5 )) && (( ${OBJ_player[$_tk_cur]:-0} == 0 )) ; then
+        OBJ_player["{bullet}$X"]=${OBJ_player["{w1}$X"]}
     fi
-    unset -n _pb
-
     # ---- 1. 冷却递减 ----
     (( G_FIRE_CD > 0 )) && ((G_FIRE_CD--))
     (( G_MISSILE_CD > 0 )) && ((G_MISSILE_CD--))
     (( G_INV > 0 )) && ((G_INV--))
 
     # ---- 2. 玩家移动 ----
-    (( G_DX || G_DY )) && xo_call "$PLAYER" move "$G_DX" "$G_DY"
+    (( G_DX || G_DY )) && xo_call "OBJ_player" move "$G_DX" "$G_DY"
 
     # ---- 3. 玩家开火 ----
     # 射速由当前武器类的 {cd} 决定，Plane_fire 内部会设置 G_FIRE_CD
     if (( G_FIRE_CD == 0 )) ; then
-        xo_call "$PLAYER" fire
+        xo_call "OBJ_player" fire
     fi
 
     # ---- 4. 玩家导弹发射 ----
-    local -n _pm=$PLAYER
-    if (( ${_pm["{mt}$X"]:-0} > 0 && G_MISSILE_CD == 0 )) ; then
-        local _my=$(( ${_pm["{y}$X"]} - 1 ))
+    if (( ${OBJ_player["{mt}$X"]:-0} > 0 && G_MISSILE_CD == 0 )) ; then
+        local _my=$(( ${OBJ_player["{y}$X"]} - 1 ))
         local _mx
         if (( G_MISSILE_SIDE )) ; then
-            _mx=$(( ${_pm["{x}$X"]} - 1 ))
+            _mx=$(( ${OBJ_player["{x}$X"]} - 1 ))
             G_MISSILE_SIDE=0
         else
-            _mx=$(( ${_pm["{x}$X"]} + 1 ))
+            _mx=$(( ${OBJ_player["{x}$X"]} + 1 ))
             G_MISSILE_SIDE=1
         fi
         (( _mx < 2 )) && _mx=2
@@ -296,8 +302,6 @@ _play_game_tick () {
         MISSILES+=("$REPLY")
         G_MISSILE_CD=10
     fi
-    unset -n _pm
-
     # ---- 5. 所有对象 move ----
     local -a alive_b=()
     for b in "${BULLETS[@]}" ; do
@@ -335,7 +339,15 @@ _play_game_tick () {
     for e in "${ENEMIES[@]}" ; do
         [[ -n "$e" && -n "${XO_OBJ_POOL[$e]+_}" ]] || continue
         xo_call "$e" move
-        if (( $? == 0 )) ; then alive_e+=("$e") ; else xo_obj_kill "$e" ; fi
+        if (( $? == 0 )) ; then
+            alive_e+=("$e")
+        else
+            local -n _esc=$e
+            local -i _esc_y=${_esc["{y}$X"]} _esc_h=${_esc["{h}$X"]:-1}
+            unset -n _esc
+            (( _esc_y + _esc_h >= SCREEN_H - 1 )) && G_LAST_ESCAPE_TICK=$G_RUN_TICKS
+            xo_obj_kill "$e"
+        fi
     done
     ENEMIES=("${alive_e[@]}")
 
@@ -370,7 +382,7 @@ _play_game_tick () {
         _ey[_ne]=${_e["{y}$X"]}
         _ew[_ne]=${_e["{w}$X"]}
         _eh[_ne]=${_e["{h}$X"]}
-        _ehp[_ne]=${_e["{hp}$X"]}
+        _ehOBJ_player[_ne]=${_e["{hp}$X"]}
         _escore[_ne]=${_e["{score}$X"]}
         _eart[_ne]=${_e["{art}$X"]}
         _ecls[_ne]=${_e["{CLS}$X"]}
@@ -403,8 +415,8 @@ _play_game_tick () {
         for _j in ${_row_e[$by]:-} ; do
             (( _edead[_j] )) && continue
             if (( bx >= _ex[_j] && bx < _ex[_j] + _ew[_j] )) ; then
-                _newhp=$(( _ehp[_j] - bdmg ))
-                _ehp[_j]=$_newhp
+                _newhp=$(( _ehOBJ_player[_j] - bdmg ))
+                _ehOBJ_player[_j]=$_newhp
                 killed_b[$b]=1
                 _hit_fx_add "$by" "$bx" '*' "$C_ORANGE"
                 if (( _newhp <= 0 )) ; then
@@ -438,8 +450,8 @@ _play_game_tick () {
         for _j in ${_row_e[$my]:-} ; do
             (( _edead[_j] )) && continue
             if (( mx >= _ex[_j] && mx < _ex[_j] + _ew[_j] )) ; then
-                _newhp=$(( _ehp[_j] - mdmg ))
-                _ehp[_j]=$_newhp
+                _newhp=$(( _ehOBJ_player[_j] - mdmg ))
+                _ehOBJ_player[_j]=$_newhp
                 killed_m[$m]=1
                 _hit_fx_add "$my" "$mx" '*' "$C_ORANGE"
                 if (( _newhp <= 0 )) ; then
@@ -503,14 +515,13 @@ _play_game_tick () {
     fi
 
     # ---- 9. 玩家受伤 ----
-    local -n p=$PLAYER
-    local px=${p["{x}$X"]} py=${p["{y}$X"]}
+    local px=${OBJ_player["{x}$X"]} py=${OBJ_player["{y}$X"]}
     local -i player_dmg=0
 
-    local _sh=$(( ${p["{shield}$X"]:-0} ))
-    local -i _shw=${p["{shield_w}$X"]:-9}
-    local -i _shh=${p["{shield_h}$X"]:-3}
-    local -i _sht=${p["{shield_top}$X"]:--1}
+    local _sh=$(( ${OBJ_player["{shield}$X"]:-0} ))
+    local -i _shw=${OBJ_player["{shield_w}$X"]:-9}
+    local -i _shh=${OBJ_player["{shield_h}$X"]:-3}
+    local -i _sht=${OBJ_player["{shield_top}$X"]:--1}
     local _sx1=$(( px - _shw / 2 )) _sx2=$(( px + _shw / 2 ))
     local _sy1=$(( py + _sht ))
     local _sy2=$(( _sy1 + _shh - 1 ))
@@ -583,7 +594,7 @@ _play_game_tick () {
 
     # 撞击型飞机：M_Ram 在闪烁/受伤状态中提供额外撞击伤害
     local -i _has_ram=0
-    if [[ -n "$PLAYER" ]] && declare -F "${XO_OBJ_POOL[$PLAYER]}_ram_ready" >/dev/null 2>&1 ; then
+    if [[ -n "${XO_OBJ_POOL[OBJ_player]+_}" ]] && declare -F "${XO_OBJ_POOL[OBJ_player]}_ram_ready" >/dev/null 2>&1 ; then
         _has_ram=1
     fi
     local -A _ram_killed=()
@@ -592,7 +603,7 @@ _play_game_tick () {
             (( _edead[_j] )) && continue
             (( px >= _ex[_j] && px < _ex[_j] + _ew[_j] &&
                py >= _ey[_j] && py < _ey[_j] + _eh[_j] )) || continue
-            if xo_call "$PLAYER" ram_ready ; then
+            if xo_call "OBJ_player" ram_ready ; then
                 _ram_enemy "${_eid[_j]}" "${_ex[_j]}" "${_ey[_j]}" "${_ew[_j]}" "${_eh[_j]}" "${_eart[_j]}" && \
                     _ram_killed["${_eid[_j]}"]=1
             fi
@@ -608,18 +619,18 @@ _play_game_tick () {
     fi
 
     if (( player_dmg > 0 && G_INV == 0 )) ; then
-        p["{hp}$X"]=$(( ${p["{hp}$X"]} - player_dmg ))
-        xo_call "$PLAYER" blink_start
-        G_INV=${p["{blink}$X"]:-90}
-        if (( ${p["{lt}$X"]:-0} > 0 && ${p["{lanes}$X"]:-0} > 0 )) ; then
-            local _nl=$(( ${p["{lanes}$X"]} - 1 ))
-            p["{lanes}$X"]=$_nl
-            (( _nl == 0 )) && p["{lt}$X"]=0
+        OBJ_player["{hp}$X"]=$(( ${OBJ_player["{hp}$X"]} - player_dmg ))
+        xo_call "OBJ_player" blink_start
+        G_INV=${OBJ_player["{blink}$X"]:-90}
+        if (( ${OBJ_player["{lt}$X"]:-0} > 0 && ${OBJ_player["{lanes}$X"]:-0} > 0 )) ; then
+            local _nl=$(( ${OBJ_player["{lanes}$X"]} - 1 ))
+            OBJ_player["{lanes}$X"]=$_nl
+            (( _nl == 0 )) && OBJ_player["{lt}$X"]=0
         fi
     fi
 
     if (( score_gain > 0 )) ; then
-        p["{score}$X"]=$(( ${p["{score}$X"]} + score_gain ))
+        OBJ_player["{score}$X"]=$(( ${OBJ_player["{score}$X"]} + score_gain ))
     fi
 
     # ---- 10. 掉落物拾取 ----
@@ -628,7 +639,7 @@ _play_game_tick () {
     if (( _sh )) ; then
         _pick_al=$(( _shw / 2 )) ; _pick_h=$_shh ; _pick_top=$(( py + _sht ))
     else
-        _pick_al=$(( ${p["{w}$X"]:-3} / 2 )) ; _pick_h=${p["{h}$X"]:-2} ; _pick_top=$py
+        _pick_al=$(( ${OBJ_player["{w}$X"]:-3} / 2 )) ; _pick_h=${OBJ_player["{h}$X"]:-2} ; _pick_top=$py
     fi
     local _px1=$(( px - _pick_al )) _px2=$(( px + _pick_al ))
     local _py1=$_pick_top _py2=$(( _pick_top + _pick_h - 1 ))
@@ -646,48 +657,46 @@ _play_game_tick () {
                 2|3|4|5)
                     # 切换到本局该档位的武器对象；武器对象常驻，不销毁。
                     # dtype 现在直接对应 tier（2..5），t2..t5 一一对应。
-                    local _wnew=${p["{w$dtype}$X"]}
+                    local _wnew=${OBJ_player["{w$dtype}$X"]}
                     if [[ -n "$_wnew" && -n "${XO_OBJ_POOL[$_wnew]+_}" ]] ; then
-                        p["{t2}$X"]=0 ; p["{t3}$X"]=0 ; p["{t4}$X"]=0 ; p["{t5}$X"]=0
-                        p["{bullet}$X"]=$_wnew
+                        OBJ_player["{t2}$X"]=0 ; OBJ_player["{t3}$X"]=0 ; OBJ_player["{t4}$X"]=0 ; OBJ_player["{t5}$X"]=0
+                        OBJ_player["{bullet}$X"]=$_wnew
                         case "$dtype" in
-                            2) p["{t2}$X"]=$BONUS_T2 ;;
-                            3) p["{t3}$X"]=$BONUS_T3 ;;
-                            4) p["{t4}$X"]=$BONUS_T4 ;;
-                            5) p["{t5}$X"]=$BONUS_T5 ;;
+                            2) OBJ_player["{t2}$X"]=$BONUS_T2 ;;
+                            3) OBJ_player["{t3}$X"]=$BONUS_T3 ;;
+                            4) OBJ_player["{t4}$X"]=$BONUS_T4 ;;
+                            5) OBJ_player["{t5}$X"]=$BONUS_T5 ;;
                         esac
                     fi
                     ;;
                 H)
-                    p["{hp}$X"]=$(( ${p["{hp}$X"]} + 3 ))
-                    (( ${p["{hp}$X"]} > ${p["{maxhp}$X"]:-20} )) && p["{hp}$X"]=${p["{maxhp}$X"]:-20}
+                    OBJ_player["{hp}$X"]=$(( ${OBJ_player["{hp}$X"]} + 3 ))
+                    (( ${OBJ_player["{hp}$X"]} > ${OBJ_player["{maxhp}$X"]:-20} )) && OBJ_player["{hp}$X"]=${OBJ_player["{maxhp}$X"]:-20}
                     ;;
                 b)
-                    if (( ${p["{bombs}$X"]:-0} >= 5 )) ; then
+                    if (( ${OBJ_player["{bombs}$X"]:-0} >= 5 )) ; then
                         # 满弹时再吃 b：直接引爆刚吃到的这一颗，不消耗库存
                         G_WANT_BOMB=1
                         G_FREE_BOMB=1
                     else
-                        p["{bombs}$X"]=$(( ${p["{bombs}$X"]:-0} + 1 ))
+                        OBJ_player["{bombs}$X"]=$(( ${OBJ_player["{bombs}$X"]:-0} + 1 ))
                     fi
                     ;;
                 m)
-                    p["{mt}$X"]=$BONUS_MT
+                    OBJ_player["{mt}$X"]=$BONUS_MT
                     ;;
                 L)
-                    local _cur_lanes=${p["{lanes}$X"]:-0}
+                    local _cur_lanes=${OBJ_player["{lanes}$X"]:-0}
                     case "$_cur_lanes" in
-                        0) p["{lanes}$X"]=1 ; p["{lanes_side}$X"]=$(( RANDOM % 2 )) ; p["{lt}$X"]=$BONUS_LT ;;
-                        1) p["{lanes}$X"]=2 ; p["{lt}$X"]=$BONUS_LT ;;
-                        2) p["{lanes}$X"]=3 ; p["{lanes_side}$X"]=$(( RANDOM % 2 )) ; p["{lt}$X"]=$BONUS_LT ;;
-                        3) p["{lanes}$X"]=4 ; p["{lt}$X"]=$BONUS_LT ;;
-                        *) p["{lt}$X"]=$BONUS_LT ;;
+                        0) OBJ_player["{lanes}$X"]=1 ; OBJ_player["{lanes_side}$X"]=$(( RANDOM % 2 )) ; OBJ_player["{lt}$X"]=$BONUS_LT ;;
+                        1) OBJ_player["{lanes}$X"]=2 ; OBJ_player["{lt}$X"]=$BONUS_LT ;;
+                        2) OBJ_player["{lanes}$X"]=3 ; OBJ_player["{lanes_side}$X"]=$(( RANDOM % 2 )) ; OBJ_player["{lt}$X"]=$BONUS_LT ;;
+                        3) OBJ_player["{lanes}$X"]=4 ; OBJ_player["{lt}$X"]=$BONUS_LT ;;
+                        *) OBJ_player["{lt}$X"]=$BONUS_LT ;;
                     esac
                     ;;
                 S)
-                    unset -n p
-                    _plane_set_shield "$PLAYER" 1
-                    local -n p=$PLAYER
+                    _plane_set_shield "OBJ_player" 1
                     ;;
             esac
         else
@@ -707,7 +716,7 @@ _play_game_tick () {
         if (( _wy >= _py1 && _wy <= _py2 && \
               _wx + _wlen - 1 >= _px1 && _wx <= _px2 )) ; then
             local _wscore=$(( _wlen * 10 * _score_pct / 100 ))
-            p["{score}$X"]=$(( ${p["{score}$X"]} + _wscore ))
+            OBJ_player["{score}$X"]=$(( ${OBJ_player["{score}$X"]} + _wscore ))
             xo_obj_kill "$w"
         else
             survive_w+=("$w")
@@ -716,18 +725,14 @@ _play_game_tick () {
     WORDS=("${survive_w[@]}")
 
     # ---- 11. 死亡判定 ----
-    local -i _hp_final=${p["{hp}$X"]}
-    unset -n p
+    local -i _hp_final=${OBJ_player["{hp}$X"]}
     (( _hp_final <= 0 )) && { G_GAME_OVER=1 ; return 0 ; }
 
     # ---- 12. 刷怪 ----
-    if (( _ne >= 5 && ${#ENEMIES[@]} == 0 )) ; then
+    if (( _ne > 0 && ${#ENEMIES[@]} == 0 )) && _clear_banner_ready ; then
         _score_bonus "$CLEAR_SCORE_BONUS"
-        if (( CLEAR_BANNER_TICK > 0 )) ; then
-            CLEAR_BANNER_TEXT+="  +${CLEAR_SCORE_BONUS} CLEAR"
-        else
-            _clear_banner_start "ALL ENEMIES CLEARED  +${CLEAR_SCORE_BONUS}"
-        fi
+        _clear_banner_start "YOU ARE AN ACE FIGHTER PILOT!  +${CLEAR_SCORE_BONUS}"
+        G_LAST_ACE_TICK=$G_RUN_TICKS
     fi
     (( G_ENEMY_TICK++ % 50 == 0 )) && (( ${#ENEMIES[@]} < ENEMY_LIMIT )) && {
         local alive_B=0 alive_Boss=0
@@ -776,9 +781,7 @@ _play_game_tick () {
     # ---- 13. 刷掉落物 ----
     (( G_DROP_TICK++ % 100 == 0 )) && (( RANDOM % 100 < 60 )) && \
         (( ${#DROPS[@]} < DROP_LIMIT )) && {
-        local -n _pdl=$PLAYER
-        local _lanes_now=${_pdl["{lanes}$X"]:-0}
-        unset -n _pdl
+        local _lanes_now=${OBJ_player["{lanes}$X"]:-0}
         local _drop_type=''
         local _r=$(( RANDOM % 100 ))
         if (( _lanes_now >= 1 && _lanes_now <= 3 )) ; then
@@ -951,9 +954,7 @@ play_game () {
                 n|N)     (( paused )) || { G_DX=1  ; G_DY=1  ; } ;;
                 ' ')
                     if (( !paused )) ; then
-                        local -n _bp_tmp=$PLAYER
-                        (( ${_bp_tmp["{bombs}$X"]:-0} > 0 )) && G_WANT_BOMB=1
-                        unset -n _bp_tmp
+                        (( ${OBJ_player["{bombs}$X"]:-0} > 0 )) && G_WANT_BOMB=1
                     fi
                     ;;
             esac
@@ -963,14 +964,11 @@ play_game () {
         # ---- want_bomb ----
         if (( G_WANT_BOMB )) ; then
             G_WANT_BOMB=0
-            local -n _bp=$PLAYER
             if (( G_FREE_BOMB )) ; then
                 G_FREE_BOMB=0
             else
-                _bp["{bombs}$X"]=$(( ${_bp["{bombs}$X"]:-0} - 1 ))
+                OBJ_player["{bombs}$X"]=$(( ${OBJ_player["{bombs}$X"]:-0} - 1 ))
             fi
-            unset -n _bp
-
             local _ceb
             for _ceb in "${ENEMY_BULLETS[@]}" ; do
                 [[ -n "$_ceb" && -n "${XO_OBJ_POOL[$_ceb]+_}" ]] || continue
@@ -982,9 +980,7 @@ play_game () {
             local -i bomb_score=0
             local -i _bomb_n=${#ENEMIES[@]}
             local -i _bomb_pct=100
-            local -n _bp_pct=$PLAYER
-            _bomb_pct=${_bp_pct["{score_pct}$X"]:-100}
-            unset -n _bp_pct
+            _bomb_pct=${OBJ_player["{score_pct}$X"]:-100}
             for e in "${ENEMIES[@]}" ; do
                 [[ -n "$e" && -n "${XO_OBJ_POOL[$e]+_}" ]] || continue
                 local -n _e=$e
@@ -1008,17 +1004,12 @@ play_game () {
                 fi
             done
             ENEMIES=("${bomb_alive[@]}")
-            if (( _bomb_n >= 5 && ${#ENEMIES[@]} == 0 )) ; then
+            if (( _bomb_n > 0 && ${#ENEMIES[@]} == 0 )) && _clear_banner_ready ; then
                 _score_bonus "$CLEAR_SCORE_BONUS"
-                if (( CLEAR_BANNER_TICK > 0 )) ; then
-                    CLEAR_BANNER_TEXT+="  +${CLEAR_SCORE_BONUS} CLEAR"
-                else
-                    _clear_banner_start "ALL ENEMIES CLEARED  +${CLEAR_SCORE_BONUS}"
-                fi
+                _clear_banner_start "YOU ARE AN ACE FIGHTER PILOT!  +${CLEAR_SCORE_BONUS}"
+                G_LAST_ACE_TICK=$G_RUN_TICKS
             fi
-            local -n _bp2=$PLAYER
-            _bp2["{score}$X"]=$(( ${_bp2["{score}$X"]:-0} + bomb_score ))
-            unset -n _bp2
+            OBJ_player["{score}$X"]=$(( ${OBJ_player["{score}$X"]:-0} + bomb_score ))
             bomb_fx_tick=50
         fi
 
@@ -1081,10 +1072,7 @@ play_game () {
                     draw_hud_line1
                 fi
                 ((hud_tick++))
-
-                local -n _pbh=$PLAYER
-                local _cbs="$(( ${_pbh["{t2}$X"]:-0} / FPS )) $(( ${_pbh["{t3}$X"]:-0} / FPS )) $(( ${_pbh["{t4}$X"]:-0} / FPS )) $(( ${_pbh["{t5}$X"]:-0} / FPS )) $(( ${_pbh["{mt}$X"]:-0} / FPS )) $(( ${_pbh["{lt}$X"]:-0} / FPS )) $(( ${_pbh["{st}$X"]:-0} / FPS )) ${_pbh["{lanes}$X"]:-0}"
-                unset -n _pbh
+                local _cbs="$(( ${OBJ_player["{t2}$X"]:-0} / FPS )) $(( ${OBJ_player["{t3}$X"]:-0} / FPS )) $(( ${OBJ_player["{t4}$X"]:-0} / FPS )) $(( ${OBJ_player["{t5}$X"]:-0} / FPS )) $(( ${OBJ_player["{mt}$X"]:-0} / FPS )) $(( ${OBJ_player["{lt}$X"]:-0} / FPS )) $(( ${OBJ_player["{st}$X"]:-0} / FPS )) ${OBJ_player["{lanes}$X"]:-0}"
                 if [[ "$_cbs" != "$last_bonus_str" ]] ; then
                     draw_bonus_hud
                     last_bonus_str=$_cbs

@@ -24,6 +24,7 @@ readonly EnemyStaticTemplate='
         {w} => 1
         {h} => 1
         {art} => 
+        {prev_art} => 
     '
 Enemy_born () {
     local -n self=$1

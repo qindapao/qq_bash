@@ -37,11 +37,16 @@ main () {
             screen_clear
             printf 'LOAD FAILED — starting a new game...\n'
             sleep 1
-            xo_obj_born "${INTRO_PLANE_CLS:-PlaneBee}" ; PLAYER=$REPLY
+            [[ -n "${XO_OBJ_POOL[OBJ_player]+_}" ]] && xo_obj_kill OBJ_player
+            xo_obj_born_named OBJ_player "${INTRO_PLANE_CLS:-PlaneBee}" || {
+                echo 'PLAYER CREATE FAILED' ; return 1
+            }
             init_game
         fi
     else
-        xo_obj_born "${INTRO_PLANE_CLS:-PlaneBee}" ; PLAYER=$REPLY
+        xo_obj_born_named OBJ_player "${INTRO_PLANE_CLS:-PlaneBee}" || {
+            echo 'PLAYER CREATE FAILED' ; return 1
+        }
         init_game
     fi
 
@@ -57,7 +62,7 @@ main () {
         screen_clear
     done
 
-    if [[ -n "$PLAYER" && -n "${XO_OBJ_POOL[$PLAYER]+_}" ]] ; then
-        xo_obj_kill "$PLAYER" 2>/dev/null || true
+    if [[ -n "${XO_OBJ_POOL[OBJ_player]+_}" ]] ; then
+        xo_obj_kill OBJ_player 2>/dev/null || true
     fi
 }

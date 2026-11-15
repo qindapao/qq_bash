@@ -17,52 +17,47 @@ _save_is_uint () {
 #   score / hp / bombs / 道具计时器 / 当前武器槽 / 五把武器的 class 名
 # 不保存敌人、子弹、掉落物、坐标、对象句柄，也不使用 x_tree。
 save_game () {
-    [[ -n "$PLAYER" && -n "${XO_OBJ_POOL[$PLAYER]+_}" ]] || return 1
-    local -n p=$PLAYER
-
+    [[ -n "${XO_OBJ_POOL[OBJ_player]+_}" ]] || return 1
     local -a _wcls=()
     local -i i _slot=1
     local _h
     for i in 1 2 3 4 5 ; do
-        _h=${p["{w$i}$X"]}
+        _h=${OBJ_player["{w$i}$X"]}
         if [[ -n "$_h" && -n "${XO_OBJ_POOL[$_h]+_}" ]] ; then
             _wcls[$i]=${XO_OBJ_POOL[$_h]}
         elif (( i == 1 )) ; then
             _wcls[$i]=BulletTypeDefault
         else
-            unset -n p
             return 1
         fi
     done
     for i in 1 2 3 4 5 ; do
-        [[ "${p["{bullet}$X"]}" == "${p["{w$i}$X"]}" ]] && _slot=$i
+        [[ "${OBJ_player["{bullet}$X"]}" == "${OBJ_player["{w$i}$X"]}" ]] && _slot=$i
     done
 
-    local _pcls=${XO_OBJ_POOL[$PLAYER]}
+    local _pcls=${XO_OBJ_POOL[OBJ_player]}
     [[ "$_pcls" == "Plane" ]] && _pcls=PlaneBee
     local -A SAVE=(
         [version]=6
         [plane_cls]=$_pcls
-        [score]=${p["{score}$X"]:-0}
-        [hp]=${p["{hp}$X"]:-0}
-        [bombs]=${p["{bombs}$X"]:-0}
-        [t2]=${p["{t2}$X"]:-0}
-        [t3]=${p["{t3}$X"]:-0}
-        [t4]=${p["{t4}$X"]:-0}
-        [t5]=${p["{t5}$X"]:-0}
-        [mt]=${p["{mt}$X"]:-0}
-        [lanes]=${p["{lanes}$X"]:-0}
-        [lanes_side]=${p["{lanes_side}$X"]:-0}
-        [lt]=${p["{lt}$X"]:-0}
-        [shield]=${p["{shield}$X"]:-0}
-        [st]=${p["{st}$X"]:-0}
+        [score]=${OBJ_player["{score}$X"]:-0}
+        [hp]=${OBJ_player["{hp}$X"]:-0}
+        [bombs]=${OBJ_player["{bombs}$X"]:-0}
+        [t2]=${OBJ_player["{t2}$X"]:-0}
+        [t3]=${OBJ_player["{t3}$X"]:-0}
+        [t4]=${OBJ_player["{t4}$X"]:-0}
+        [t5]=${OBJ_player["{t5}$X"]:-0}
+        [mt]=${OBJ_player["{mt}$X"]:-0}
+        [lanes]=${OBJ_player["{lanes}$X"]:-0}
+        [lanes_side]=${OBJ_player["{lanes_side}$X"]:-0}
+        [lt]=${OBJ_player["{lt}$X"]:-0}
+        [shield]=${OBJ_player["{shield}$X"]:-0}
+        [st]=${OBJ_player["{st}$X"]:-0}
         [bullet_slot]=$_slot
     )
     for i in 1 2 3 4 5 ; do
         SAVE["w${i}_cls"]=${_wcls[$i]}
     done
-    unset -n p
-
     local _tmp="${STRAFE_SAVE_FILE}.tmp.$$"
     local -a _keys=(version plane_cls score hp bombs t2 t3 t4 t5 mt lanes lanes_side lt shield st bullet_slot w1_cls w2_cls w3_cls w4_cls w5_cls)
     local _k
@@ -136,47 +131,43 @@ load_game () {
     done
 
     # 读档从新一波开始；机型不同就替换玩家对象。
-    if [[ -z "$PLAYER" || -z "${XO_OBJ_POOL[$PLAYER]+_}" || "${XO_OBJ_POOL[$PLAYER]}" != "$_plane_cls" ]] ; then
-        [[ -n "$PLAYER" && -n "${XO_OBJ_POOL[$PLAYER]+_}" ]] && xo_obj_kill "$PLAYER"
-        xo_obj_born "$_plane_cls" || return 1
-        PLAYER=$REPLY
+    if [[ -z "${XO_OBJ_POOL[OBJ_player]+_}" || "${XO_OBJ_POOL[OBJ_player]}" != "$_plane_cls" ]] ; then
+        [[ -n "${XO_OBJ_POOL[OBJ_player]+_}" ]] && xo_obj_kill OBJ_player
+        xo_obj_born_named OBJ_player "$_plane_cls" || return 1
     fi
     init_game || return 1
-
-    local -n p=$PLAYER
     for i in 1 2 3 4 5 ; do
         _cls=${SAVE[w${i}_cls]}
         [[ -n "${XO_OBJ_POOL[OBJ_wpn$i]+_}" ]] && xo_obj_kill "OBJ_wpn$i"
-        xo_obj_born_named "OBJ_wpn$i" "$_cls" || { unset -n p ; return 1 ; }
-        p["{w$i}$X"]=$REPLY
+        xo_obj_born_named "OBJ_wpn$i" "$_cls" || return 1
+        OBJ_player["{w$i}$X"]=$REPLY
     done
 
-    p["{score}$X"]=${SAVE[score]}
-    p["{hp}$X"]=${SAVE[hp]}
-    p["{bombs}$X"]=${SAVE[bombs]}
-    p["{t2}$X"]=${SAVE[t2]}
-    p["{t3}$X"]=${SAVE[t3]}
-    p["{t4}$X"]=${SAVE[t4]}
-    p["{t5}$X"]=${SAVE[t5]}
-    p["{mt}$X"]=${SAVE[mt]}
-    p["{lanes}$X"]=${SAVE[lanes]}
-    p["{lanes_side}$X"]=${SAVE[lanes_side]}
-    p["{lt}$X"]=${SAVE[lt]}
-    p["{shield}$X"]=${SAVE[shield]}
-    p["{st}$X"]=${SAVE[st]}
+    OBJ_player["{score}$X"]=${SAVE[score]}
+    OBJ_player["{hp}$X"]=${SAVE[hp]}
+    OBJ_player["{bombs}$X"]=${SAVE[bombs]}
+    OBJ_player["{t2}$X"]=${SAVE[t2]}
+    OBJ_player["{t3}$X"]=${SAVE[t3]}
+    OBJ_player["{t4}$X"]=${SAVE[t4]}
+    OBJ_player["{t5}$X"]=${SAVE[t5]}
+    OBJ_player["{mt}$X"]=${SAVE[mt]}
+    OBJ_player["{lanes}$X"]=${SAVE[lanes]}
+    OBJ_player["{lanes_side}$X"]=${SAVE[lanes_side]}
+    OBJ_player["{lt}$X"]=${SAVE[lt]}
+    OBJ_player["{shield}$X"]=${SAVE[shield]}
+    OBJ_player["{st}$X"]=${SAVE[st]}
     local _wk="{w${_slot}}$X"
-    local _bh=${p[$_wk]}
-    p["{bullet}$X"]=$_bh
+    local _bh=${OBJ_player[$_wk]}
+    OBJ_player["{bullet}$X"]=$_bh
     # 护盾不是只靠 {shield}/{st}：还要恢复护盾 art、4 格宽度和 prev_shield。
     if (( ${SAVE[shield]} )) ; then
-        _plane_set_shield "$PLAYER" 1
-        p["{st}$X"]=${SAVE[st]}
+        _plane_set_shield "OBJ_player" 1
+        OBJ_player["{st}$X"]=${SAVE[st]}
     else
-        _plane_set_shield "$PLAYER" 0
-        p["{st}$X"]=${SAVE[st]}
+        _plane_set_shield "OBJ_player" 0
+        OBJ_player["{st}$X"]=${SAVE[st]}
     fi
-    p["{shield}$X"]=${SAVE[shield]}
-    p["{prev_shield}$X"]=${SAVE[shield]}
-    unset -n p
+    OBJ_player["{shield}$X"]=${SAVE[shield]}
+    OBJ_player["{prev_shield}$X"]=${SAVE[shield]}
     return 0
 }

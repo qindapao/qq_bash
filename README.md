@@ -13,6 +13,8 @@ shooter that runs entirely in Bash. No Node, Python, or game engine.
 
 Requires Bash 5+, a UTF-8 locale, and a 256-color terminal.
 
+Project conventions: [CONSTITUTION.md](CONSTITUTION.md).
+
 ## What's inside
 
 | Module | What it does |
@@ -47,11 +49,12 @@ positioning, weapon timing, and surviving the Bosses.
 - **Il-2 multi-mixin** — `{MIX} => M_LongBlink M_Blink M_Ram`: Il-2 blinks for
   8 seconds (other planes 3 seconds), and while blinking its ramming collision
   deals 5 damage to an enemy, with a short cooldown.
-- **Clear banner** — clearing all enemies when there were at least 5 at the
-  start of the tick shows `ALL ENEMIES CLEARED  +1000`; killing a Boss shows
-  `<BOSS NAME> WAS KILLED BY YOU!  +2000`. Either condition triggers the short
-  FIGlet-style `EXCELLENT!` overlay. These bonuses are fixed and are not
-  reduced by the Hornet score multiplier.
+- **Clear banner** — clearing the field after at least 30 seconds without an
+  enemy escaping off the bottom shows `YOU ARE AN ACE FIGHTER PILOT!  +1000`;
+  the ace banner has a 60-second cooldown and cannot stack while one is
+  showing. Killing a Boss shows `<BOSS NAME> WAS KILLED BY YOU!  +2000`.
+  Either condition triggers the short FIGlet-style `EXCELLENT!` overlay.
+  These bonuses are fixed and are not reduced by the Hornet score multiplier.
 - **Minimal save** — score, HP, pickups, active weapon slot, the run's weapon
   classes, and the chosen plane. Loading starts a fresh wave.
 - **30 Hz logic / 60 Hz render** — fixed tick loop, raw terminal input, ANSI

@@ -75,7 +75,10 @@ _render_erase_one () {
         fi
         ;;
     EnemyV|EnemyQ|EnemyM|EnemyB|Boss|BossSpinner|SkullKing)
-        _scene_clear_art_at "$py" "$px" "${o["{art}$X"]}"
+        # 用上一帧的 art 擦除：Boss 换阶段/无头时，当前 art 可能比旧 art 窄，
+        # 拿当前 art 去擦会留下旧头/旧腿的残影。
+        local _old_art=${o["{prev_art}$X"]:-${o["{art}$X"]}}
+        _scene_clear_art_at "$py" "$px" "$_old_art"
         local _bcls=${o["{CLS}$X"]}
         if [[ "$_bcls" == "Boss" ]] || [[ "$_bcls" == "BossSpinner" ]] || [[ "$_bcls" == "SkullKing" ]] || [[ "$_bcls" == "EnemyB" ]] || [[ "$_bcls" == "EnemyM" ]] ; then
             local _bh=${o["{h}$X"]:-1}
@@ -94,8 +97,8 @@ render () {
     local _ex _ey
 
     # ===== 阶段 1：擦除所有活对象的 prev =====
-    [[ -n "$PLAYER" && -n "${XO_OBJ_POOL[$PLAYER]+_}" ]] && \
-        _render_erase_one "$PLAYER"
+    [[ -n "${XO_OBJ_POOL[OBJ_player]+_}" ]] && \
+        _render_erase_one "OBJ_player"
     # 单字符对象（子弹/导弹/敌弹/掉落）数量最多，内联擦除，
     # 省掉每个对象一次函数调用 + 一次 {CLS} 读取 + case 分派。
     for b in "${BULLETS[@]}" ; do
@@ -167,10 +170,9 @@ render () {
 
     # ===== 阶段 2：绘制所有活对象的 cur =====
     local _blink_visible=1
-    xo_call "$PLAYER" blink_visible || _blink_visible=0
-    local -n p=$PLAYER
-    local _hp=${p["{hp}$X"]:-0}
-    local _maxhp=${p["{maxhp}$X"]:-20}
+    xo_call "OBJ_player" blink_visible || _blink_visible=0
+    local _hp=${OBJ_player["{hp}$X"]:-0}
+    local _maxhp=${OBJ_player["{maxhp}$X"]:-20}
     local _ph=''
     if (( _hp >= _maxhp )) ; then _ph="${C_BLUE}${C_BOLD}"
     elif (( _hp * 2 < _maxhp )) ; then _ph="${C_RED}${C_BOLD}"
@@ -178,12 +180,12 @@ render () {
     fi
     local _green_bold="${C_GREEN}${C_BOLD}"
 
-    local _px=${p["{x}$X"]} _py=${p["{y}$X"]}
-    local _part=${p["{art}$X"]}
-    local _al=${p["{al}$X"]:-1}
-    local _bal=${p["{base_al}$X"]:-1}
-    local _sht=${p["{shield_top}$X"]:--1}
-    local _sh=${p["{shield}$X"]:-0}
+    local _px=${OBJ_player["{x}$X"]} _py=${OBJ_player["{y}$X"]}
+    local _part=${OBJ_player["{art}$X"]}
+    local _al=${OBJ_player["{al}$X"]:-1}
+    local _bal=${OBJ_player["{base_al}$X"]:-1}
+    local _sht=${OBJ_player["{shield_top}$X"]:--1}
+    local _sh=${OBJ_player["{shield}$X"]:-0}
     local _pax=$(( _px - _al ))
     local _pay=$_py
     (( _sh )) && _pay=$(( _pay + _sht ))
@@ -225,13 +227,11 @@ render () {
         (( _blink_visible )) && FRAME_BUF+="$_t"
         ((_pr++))
     done
-    p["{prev_x}$X"]=$_px
-    p["{prev_y}$X"]=$_py
-    p["{prev_art}$X"]=$_part
-    p["{prev_al}$X"]=$_al
-    p["{prev_shield}$X"]=$_sh
-    unset -n p
-
+    OBJ_player["{prev_x}$X"]=$_px
+    OBJ_player["{prev_y}$X"]=$_py
+    OBJ_player["{prev_art}$X"]=$_part
+    OBJ_player["{prev_al}$X"]=$_al
+    OBJ_player["{prev_shield}$X"]=$_sh
     if (( ${#BULLETS[@]} )) ; then
         for b in "${BULLETS[@]}" ; do
             [[ -n "$b" && -n "${XO_OBJ_POOL[$b]+_}" ]] || continue
@@ -331,6 +331,7 @@ render () {
         fi
         _e["{prev_x}$X"]=$_ax
         _e["{prev_y}$X"]=$_ay
+        _e["{prev_art}$X"]=$_art
         unset -n _e
     done
 

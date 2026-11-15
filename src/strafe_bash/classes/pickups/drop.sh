@@ -27,10 +27,8 @@ Drop_born () {
     # 武器对象在本局 init_game 时已经创建好，这里只查它的 {u}。
     case "$t" in
         1|2|3|4|5)
-            if [[ -n "$PLAYER" && -n "${XO_OBJ_POOL[$PLAYER]+_}" ]] ; then
-                local -n _p=$PLAYER
-                local _w=${_p["{w$t}$X"]}
-                unset -n _p
+            if [[ -n "${XO_OBJ_POOL[OBJ_player]+_}" ]] ; then
+                local _w=${OBJ_player["{w$t}$X"]}
                 if [[ -n "$_w" && -n "${XO_OBJ_POOL[$_w]+_}" ]] ; then
                     local -n _wobj=$_w
                     self["{symbol}$X"]=${_wobj["{u}$X"]}

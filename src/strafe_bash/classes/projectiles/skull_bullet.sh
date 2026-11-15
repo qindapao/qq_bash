@@ -9,6 +9,14 @@ _STRAFE_SKULL_BULLET_SH=1
 . "$STRAFE_PROJ_DIR/classes/base_types.sh"
 
 readonly SKULL_BULLET_ART=$' .-. \n(o.o)\n |=| '
+# SkullBullet 占据 5×3 的格子：
+#
+#     .-.       第 0 行：3 个非空格
+#    (o.o)      第 1 行：5 个非空格
+#     |=|       第 2 行：3 个非空格
+#
+# 移动时整块坐标一起走；碰撞时逐格检查，任意一格进入护盾就整颗吸收。
+# ttl 是燃料，step 是“几 tick 走一格”，越大越慢。
 readonly SkullBulletStaticTemplate='
     SkullBulletObj ->
         {CLS} => SkullBullet
@@ -22,7 +30,7 @@ readonly SkullBulletStaticTemplate='
         {ttl} => 240
         {damage} => 5
         {cd} => 0
-        {step} => 3
+        {step} => 4
         {color} => 
     '
 SkullBullet_born () {
@@ -32,7 +40,7 @@ SkullBullet_born () {
     self["{art}$X"]=$SKULL_BULLET_ART
     self["{ttl}$X"]=${4:-240}
     self["{damage}$X"]=${5:-5}
-    self["{step}$X"]=${6:-3}
+    self["{step}$X"]=${6:-4}
     self["{color}$X"]=${7:-$C_RED}
     self["{cd}$X"]=0
 }
@@ -49,10 +57,8 @@ SkullBullet_move () {
 
     local -i x=${self["{x}$X"]} y=${self["{y}$X"]}
     local -i w=${self["{w}$X"]} h=${self["{h}$X"]}
-    if [[ -n "$PLAYER" && -n "${XO_OBJ_POOL[$PLAYER]+_}" ]] ; then
-        local -n _p=$PLAYER
-        local -i px=${_p["{x}$X"]} py=${_p["{y}$X"]}
-        unset -n _p
+    if [[ -n "${XO_OBJ_POOL[OBJ_player]+_}" ]] ; then
+        local -i px=${OBJ_player["{x}$X"]} py=${OBJ_player["{y}$X"]}
         local -i cx=$(( x + w / 2 )) cy=$(( y + h / 2 ))
         (( cx < px )) && ((x++))
         (( cx > px )) && ((x--))

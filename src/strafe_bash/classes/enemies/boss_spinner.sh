@@ -75,10 +75,8 @@ _boss_spinner_aim () {
     local -i _cy=$(( ${_bs["{y}$X"]} + ${_bs["{h}$X"]} / 2 ))
     unset -n _bs
 
-    [[ -n "$PLAYER" && -n "${XO_OBJ_POOL[$PLAYER]+_}" ]] || return 0
-    local -n _p=$PLAYER
-    local -i _px=${_p["{x}$X"]} _py=${_p["{y}$X"]}
-    unset -n _p
+    [[ -n "${XO_OBJ_POOL[OBJ_player]+_}" ]] || return 0
+    local -i _px=${OBJ_player["{x}$X"]} _py=${OBJ_player["{y}$X"]}
     local -i _dx=$(( _px - _cx )) _dy=$(( _py - _cy ))
     local -i _bi
     if (( _dx == 0 && _dy == 0 )) ; then

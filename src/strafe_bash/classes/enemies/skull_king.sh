@@ -79,7 +79,7 @@ IFS= read -r -d '' SKULL_ART_3 <<'EOF' || true
                             
 EOF
 
-IFS= read -r -d '' SKULL_ART_HEADLESS <<'EOF' || true
+IFS= read -r -d '' SKULL_ART_HEADLESS_0 <<'EOF' || true
 
 
 
@@ -94,6 +94,44 @@ IFS= read -r -d '' SKULL_ART_HEADLESS <<'EOF' || true
            || ||   
            || ||   
           ==' '==  
+EOF
+
+IFS= read -r -d '' SKULL_ART_HEADLESS_1 <<'EOF' || true
+
+
+
+           __|__   
+         //.=|=.\\ 
+        // .=|=. \\
+        /  .=|=.  \
+           (_=_)   
+              |:   
+              ||   
+              ()   
+              ||   
+              ||   
+              '==  
+EOF
+
+IFS= read -r -d '' SKULL_ART_HEADLESS_2 <<'EOF' || true
+
+
+
+           __|__   
+         //.=|=.\\ 
+        // .=|=. \\
+        /  .=|=.  \
+           (_=_)   
+EOF
+
+IFS= read -r -d '' SKULL_ART_HEADLESS_3 <<'EOF' || true
+
+
+
+           __|__   
+         //  |  \\ 
+        //   |   \\
+        /    |    \
 EOF
 
 readonly SkullKingStaticTemplate='
@@ -112,7 +150,10 @@ readonly SkullKingStaticTemplate='
         {pcut2} => 50
         {pcut3} => 25
         {death_style} => 0
-        {headless_art} => 
+        {headless_art0} => 
+        {headless_art1} => 
+        {headless_art2} => 
+        {headless_art3} => 
         {headless} => 0
         {skull_cd} => 0
         {head_cd} => 0
@@ -123,13 +164,26 @@ SkullKing_born () {
     _boss_set_arts "$1" "$SKULL_ART_0" "$SKULL_ART_1" "$SKULL_ART_2" "$SKULL_ART_3"
     BossBase_born "$1"
     local -n _self=$1
-    _self["{headless_art}$X"]=$SKULL_ART_HEADLESS
+    _self["{headless_art0}$X"]=$SKULL_ART_HEADLESS_0
+    _self["{headless_art1}$X"]=$SKULL_ART_HEADLESS_1
+    _self["{headless_art2}$X"]=$SKULL_ART_HEADLESS_2
+    _self["{headless_art3}$X"]=$SKULL_ART_HEADLESS_3
     _self["{headless}$X"]=0
     _self["{skull_cd}$X"]=70
     _self["{head_cd}$X"]=0
     _self["{shot_cd}$X"]=8
     unset -n _self
 }
+
+# 骷髅王状态机：
+#
+#   有头 ──(70 tick)──> 发射 3 颗头，进入无头
+#     ↑                         │
+#     └────(70 tick)────────────┘
+#
+# 有头时每 6 tick 从底部发射一对 O/X 普通弹。
+# HP 100% → 75% → 50% → 25% 切换四套身体 art；
+# 每套身体都有对应的无头版本，发射后不会退回满血身体。
 
 _skull_king_fire_heads () {
     local -n _bs=$1
@@ -145,7 +199,7 @@ _skull_king_fire_heads () {
     unset -n _bs
     local _sx
     for _sx in "$sx1" "$sx2" "$sx3" ; do
-        xo_obj_born SkullBullet "$_sx" "$sy" 240 5 3 "$C_RED"
+        xo_obj_born SkullBullet "$_sx" "$sy" 240 5 4 "$C_RED"
         SKULLS+=("$REPLY")
     done
     return 0
@@ -191,7 +245,7 @@ SkullKing_move () {
         if (( kc <= 0 )) ; then
             if _skull_king_fire_heads "$1" ; then
                 self["{headless}$X"]=1
-                self["{head_cd}$X"]=40
+                self["{head_cd}$X"]=70
                 self["{skull_cd}$X"]=70
             else
                 # 达到骷髅头上限时保留头部，稍后再尝试
@@ -203,7 +257,7 @@ SkullKing_move () {
     fi
 
     if (( ${self["{headless}$X"]:-0} )) ; then
-        self["{art}$X"]=${self["{headless_art}$X"]}
+        self["{art}$X"]=${self["{headless_art$phase}$X"]}
     else
         self["{art}$X"]=${self["{art$phase}$X"]}
     fi
