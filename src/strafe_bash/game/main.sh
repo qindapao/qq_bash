@@ -24,13 +24,18 @@ fatal () {
 }
 
 main () {
-    xo_init || fatal 'xo_init failed'
-
+    # 先把恢复钩子装上再干别的：xo_init 要跑好几秒，这段时间被打断（Ctrl-C）
+    # 也必须能还原终端，否则会留下半初始化状态。
     trap 'term_restore' EXIT
     trap 'term_restore ; exit 130' INT
     trap 'term_restore ; exit 143' TERM
     # 关窗口（HUP）也要还原，否则终端会被留在备用屏幕里
     trap 'term_restore ; exit 129' HUP
+
+    xo_init || fatal 'xo_init failed'
+
+    # 上一次异常退出可能把鼠标上报留在打开状态，进场前先归零一次。
+    printf '\033[?1000l\033[?1002l\033[?1003l\033[?1006l'
 
     # 先进备用屏幕再画：intro 也是全屏画面，退出时由 term_restore 原样还原
     alt_screen_enter

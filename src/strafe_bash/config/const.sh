@@ -21,8 +21,32 @@ ENEMY_BULLET_LIMIT=112
 HIT_FX_LIMIT=100
 PLAYER_BULLET_LIMIT=160
 BOSS_LIMIT=1
-# Boss 每次切换伤害阶段后的无敌窗口（tick）
-BOSS_INV_TICKS=150
+# Boss 每次切换伤害阶段后的无敌窗口（tick）：3 秒。
+# Boss 已经有周期无敌增益，阶段切换只给一个看清换形态的缓冲，不需要 5 秒那么长。
+BOSS_INV_TICKS=90
+
+# Boss 动态增益（对象级 Mixin）：槽位上限、无敌增益的间歇、回血比例
+BOSS_BUFF_MAX=2
+# 无敌增益的节奏：4 秒无敌 + 6 秒可受伤（打起来才不至于太难）。
+# 与阶段切换用的 BOSS_INV_TICKS（3 秒）分开，互不影响；两者重叠时不会叠加。
+# 注意：一次循环的周期是两者之和；若把周期写成"只有持续时间"，无敌会首尾相接变成永久。
+BOSS_BUFF_INV_ON=120       # 无敌 4 秒
+BOSS_BUFF_INV_OFF=180      # 可受伤 6 秒
+BOSS_BUFF_HEAL_WAIT=300    # 回血的观察窗口：10 秒内没等到机会就卸载
+
+# 增益：敌跟踪导弹（伤害 1、有燃料、比玩家慢、用敌方配色）
+BOSS_BUFF_MISSILE_CD=90     # 3 秒一发（稍微提高出弹频率；导弹现在可以被打掉）
+BOSS_BUFF_MISSILE_FUEL=60   # 燃料：能走 60 格（约 4 秒的移动量），烧完自毁
+BOSS_BUFF_MISSILE_STEP=3    # 每 3 tick 走 1 格（玩家导弹是每 tick 1 格）
+BOSS_BUFF_MISSILE_MAX=3     # 同时在场上限，避免叠得太狠
+# 导弹字符：U+2B24 BLACK LARGE CIRCLE，East Asian Width = N（单宽，实测对齐）。
+# 个别字体缺这个字时可以只改这一个常量（例如换成 'O' 或 '▪' U+25AA）。
+BOSS_BUFF_MISSILE_SYM='⬤'
+
+# 增益：我方子弹减速
+BOSS_BUFF_SLOW_PCT=50       # 弹速降到 50%
+BOSS_BUFF_SLOW_CD_PCT=150   # 同时射速压到 2/3（cd ×1.5）：只降弹速不会减少输出
+BONUS_SLOW=$(( 30 * FPS ))  # 持续 30 秒
 
 # 骷髅王 O/X：下方 8 发长排 + 其余 7 个方向，连发 5 波，然后休息约 2.7 秒。
 SKULL_KING_ROW_BULLETS=8

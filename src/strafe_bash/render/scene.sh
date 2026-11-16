@@ -112,7 +112,8 @@ render () {
     local _ex _ey
     local -i _qi _ptx _pty
 
-    # 已死亡导弹的最后一个尾点，由 tick 侧排队，这里统一擦除。
+    # 已死亡导弹（玩家 / 敌方跟踪弹）的最后一格，由 tick 侧排队，这里统一擦除。
+    # 画面中间死亡的弹不会再从 ENEMY_BULLETS 里被擦除，所以必须在这里补一刀。
     for (( _qi=0; _qi<${#MISSILE_TRAIL_CLEAR[@]}; _qi+=2 )) ; do
         printf -v _t '\033[%d;%dH ' "${MISSILE_TRAIL_CLEAR[_qi]}" "${MISSILE_TRAIL_CLEAR[_qi+1]}"
         FRAME_BUF+="$_t"
@@ -206,7 +207,9 @@ render () {
             [[ -n "$b" && -n "${XO_OBJ_POOL[$b]+_}" ]] || continue
             local -n _b=$b
             local _bx=${_b["{x}$X"]} _by=${_b["{y}$X"]} _bsym=${_b["{symbol}$X"]}
-            printf -v _t '\033[%d;%dH%s%s%s' "$_by" "$_bx" "$C_PLAYER_BULLET" "$_bsym" "$C_RESET"
+            # {color} 为空就用玩家的统一弹色；激光按威力写了自己的颜色
+            local _bclr=${_b["{color}$X"]:-$C_PLAYER_BULLET}
+            printf -v _t '\033[%d;%dH%s%s%s' "$_by" "$_bx" "$_bclr" "$_bsym" "$C_RESET"
             FRAME_BUF+="$_t"
             _b["{prev_x}$X"]=$_bx
             _b["{prev_y}$X"]=$_by
@@ -280,8 +283,11 @@ render () {
         done
         if [[ "$_cls" == "Boss" ]] || [[ "$_cls" == "BossSpinner" ]] || [[ "$_cls" == "SkullKing" ]] || [[ "$_cls" == "EnemyB" ]] || [[ "$_cls" == "EnemyM" ]] ; then
             if (( _ay + _h < SCREEN_H )) ; then
-                printf -v _t '\033[%d;%dH\033[K%s[%d/%d]%s\033[%d;%dH%s' $((_ay + _h)) "$_ax" \
-                    "$_color" "$_hp2" "$_maxhp" "$C_RESET" $((_ay + _h)) "$SCREEN_W" "$FRAME_V"
+                # 动态增益标签挂在 HP 行尾（非 Boss 没有这个字段，读出来是空）
+                local _buff=''
+                [[ -n "${_e["{buff_str}$X"]-}" ]] && _buff=" ${_e["{buff_str}$X"]}"
+                printf -v _t '\033[%d;%dH\033[K%s[%d/%d]%s%s\033[%d;%dH%s' $((_ay + _h)) "$_ax" \
+                    "$_color" "$_hp2" "$_maxhp" "$C_RESET" "$_buff" $((_ay + _h)) "$SCREEN_W" "$FRAME_V"
                 FRAME_BUF+="$_t"
             fi
         fi

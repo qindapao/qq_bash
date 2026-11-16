@@ -61,6 +61,9 @@ readonly PlaneStaticTemplate='
         {prev_art} => 
         {prev_al} => 1
         {prev_shield} => 0
+        {OBJMIX} => 
+        {spd_pct} => 100
+        {slow} => 0
     '
 Plane_born () {
     local -n self=$1
@@ -141,10 +144,22 @@ Plane_fire () {
     local -i _cddelta=${self["{cd_delta}$X"]:-0}
     local -i _lex=${self["{laser_exempt}$X"]:-0}
     (( _laser && _lex )) && _sdelta=0
+
+    # 敌方减速：既降弹速（命中延迟），也压射速 —— 只降弹速的话 DPS 一点不变，
+    # 玩家只会觉得"手感变钝"，不会觉得被削弱。
+    local -i _spct=${self["{spd_pct}$X"]:-100}
     spd=$(( spd + _sdelta ))
+    if (( _spct < 100 )) ; then
+        spd=$(( spd * _spct / 100 ))
+    fi
     (( spd < 1 )) && spd=1
+
     cd=$(( cd + _cddelta ))
-    (( cd < 0 ))  && cd=0
+    (( cd < 0 )) && cd=0
+    if (( _spct < 100 )) ; then
+        cd=$(( cd * BOSS_BUFF_SLOW_CD_PCT / 100 ))
+        (( cd < 1 )) && cd=1
+    fi
     G_FIRE_CD=$cd
 
     if (( ${#BULLETS[@]} >= PLAYER_BULLET_LIMIT )) ; then
@@ -157,21 +172,28 @@ Plane_fire () {
     local _side=${self["{lanes_side}$X"]:-0}
     local -i _up=$(( -spd )) _left=$(( -spd )) _right=$spd
 
-    # 量子能量武器只有一道：不按 lanes 分裂成多颗子弹，
-    # 而是把 lanes+1 作为威力（1..5）和对应字符。
+    # 量子能量武器只有一道：不按 lanes 分裂成多颗子弹，而是把 lanes+1 作为威力（1..5）。
+    # 符号统一用 |：T/F/P/Y 跟威力没有直观对应，玩家学不会。
+    # 威力改用「颜色」表达（白→橙→绿→紫→红），相邻等级色相差别大，一眼能分清。
     if (( _laser )) ; then
         local -i _power=$(( _lanes + 1 ))
         (( _power > 5 )) && _power=5
-        local _lsym='|'
+        local _lclr=''
         case "$_power" in
-            1) _lsym='|' ;;
-            2) _lsym='T' ;;
-            3) _lsym='F' ;;
-            4) _lsym='P' ;;
-            5) _lsym='Y' ;;
+            2) _lclr=$C_CYAN ;;
+            3) _lclr=$C_GREEN ;;
+            4) _lclr=$C_PURPLE ;;
+            # 最高档红 + 加粗：不用蓝色——终端里蓝色偏暗，排在紫后面像降级
+            5) _lclr="${C_BOLD}${C_RED}" ;;
         esac
-        xo_obj_born Bullet "$_fx" "$_fy" "$_lsym" "$_power" 0 "$_up"
-        BULLETS+=("$REPLY")
+        xo_obj_born Bullet "$_fx" "$_fy" '|' "$_power" 0 "$_up"
+        local _nbid=$REPLY
+        if [[ -n "$_lclr" ]] ; then
+            local -n _nbref=$_nbid
+            _nbref["{color}$X"]=$_lclr
+            unset -n _nbref
+        fi
+        BULLETS+=("$_nbid")
         return 0
     fi
 

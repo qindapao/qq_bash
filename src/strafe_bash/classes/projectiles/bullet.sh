@@ -15,6 +15,7 @@ readonly BulletStaticTemplate='
         {damage} => 1
         {vx} => 0
         {vy} => -1
+        {color} => 
     '
 Bullet_born () {
     local -n self=$1

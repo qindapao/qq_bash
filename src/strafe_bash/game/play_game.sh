@@ -16,11 +16,13 @@ _STRAFE_PLAY_GAME_SH=1
 . "$STRAFE_PROJ_DIR/classes/projectiles/bullet.sh"
 . "$STRAFE_PROJ_DIR/classes/projectiles/missile.sh"
 . "$STRAFE_PROJ_DIR/classes/projectiles/enemy_bullet.sh"
+. "$STRAFE_PROJ_DIR/classes/projectiles/enemy_missile.sh"
 . "$STRAFE_PROJ_DIR/classes/enemies/boss_base.sh"
 . "$STRAFE_PROJ_DIR/classes/projectiles/boss_bullet.sh"
 . "$STRAFE_PROJ_DIR/classes/enemies/boss.sh"
 . "$STRAFE_PROJ_DIR/classes/enemies/boss_spinner.sh"
 . "$STRAFE_PROJ_DIR/classes/enemies/skull_king.sh"
+. "$STRAFE_PROJ_DIR/classes/enemies/boss_buff.sh"
 . "$STRAFE_PROJ_DIR/classes/enemies/enemy_base.sh"
 . "$STRAFE_PROJ_DIR/classes/enemies/enemy_v.sh"
 . "$STRAFE_PROJ_DIR/classes/enemies/enemy_q.sh"
@@ -110,12 +112,30 @@ _mouse_apply () {
 
 # ============================================================================
 # _hit_fx_add — 命中火花（短命，不创建 xo 对象）
+# ttl 可选：普通命中用默认 3 tick，回血那种需要看得见的动画会传更大值
 # ============================================================================
 _hit_fx_add () {
     local y=$1 x=$2 ch=$3 clr=$4
+    local -i ttl=${5:-3}
     (( y >= GAME_TOP && y < SCREEN_H - 1 && x >= 2 && x <= SCREEN_W - 2 )) || return 0
     (( ${#HIT_FX[@]} >= HIT_FX_LIMIT )) && return 0
-    HIT_FX+=("$y" "$x" "$ch" "$clr" 3)
+    HIT_FX+=("$y" "$x" "$ch" "$clr" "$ttl")
+}
+
+# ============================================================================
+# _enemy_bullet_kill — 敌方子弹 / 导弹的唯一死亡出口
+# 死之前先把「最后画过的那一格」交给擦除队列：炸弹清屏、撞玩家、燃料耗尽都会让它们
+# 在画面中间消失，对象一旦被 kill，渲染阶段就再也找不到它，不登记就会留下一个残格。
+# ============================================================================
+_enemy_bullet_kill () {
+    local obj=$1
+    local -n _k=$obj
+    local -i py=${_k["{prev_y}$X"]:--1} px=${_k["{prev_x}$X"]:--1}
+    unset -n _k
+    if (( py >= GAME_TOP && py < SCREEN_H - 1 && px >= 2 && px <= SCREEN_W - 2 )) ; then
+        MISSILE_TRAIL_CLEAR+=("$py" "$px")
+    fi
+    xo_obj_kill "$obj"
 }
 
 _score_bonus () {
@@ -260,11 +280,15 @@ _play_game_tick () {
     # ---- 0. 奖励计时器递减（每 tick 减 1）----
     local -i _score_pct=${OBJ_player["{score_pct}$X"]:-100}
     local _tk _tv
-    for _tk in "{t2}$X" "{t3}$X" "{t4}$X" "{t5}$X" "{mt}$X" "{lt}$X" "{st}$X" ; do
+    for _tk in "{t2}$X" "{t3}$X" "{t4}$X" "{t5}$X" "{mt}$X" "{lt}$X" "{st}$X" "{slow}$X" ; do
         _tv=${OBJ_player[$_tk]:-0}
         (( _tv > 0 )) && OBJ_player["$_tk"]=$(( _tv - 1 ))
     done
     (( ${OBJ_player["{lt}$X"]:-0} == 0 )) && OBJ_player["{lanes}$X"]=0
+    # 减速到期：恢复我方子弹速度（增益由 Boss 的 M_BuffSlow 施加）
+    if (( ${OBJ_player["{slow}$X"]:-0} == 0 && ${OBJ_player["{spd_pct}$X"]:-100} != 100 )) ; then
+        OBJ_player["{spd_pct}$X"]=100
+    fi
     if (( ${OBJ_player["{shield}$X"]:-0} && ${OBJ_player["{st}$X"]:-0} == 0 )) ; then
         _plane_set_shield "OBJ_player" 0
     fi
@@ -342,11 +366,46 @@ _play_game_tick () {
     done
     MISSILES=("${alive_m[@]}")
 
+    # 我方子弹的位置表：只在场上真有跟踪导弹时才惰性构建（导弹可被打掉才需要它）。
+    local -A _pbmap=()
+    local -i _pbmap_ready=0
+
     local -a alive_eb=()
     for eb in "${ENEMY_BULLETS[@]}" ; do
         [[ -n "$eb" && -n "${XO_OBJ_POOL[$eb]+_}" ]] || continue
         xo_call "$eb" move
-        if (( $? == 0 )) ; then alive_eb+=("$eb") ; else xo_obj_kill "$eb" ; fi
+        if (( $? == 0 )) ; then
+            # 跟踪导弹可以被我方子弹打掉，一碰即毁；普通敌弹不参与，保持原来的手感。
+            if [[ "${XO_OBJ_POOL[$eb]}" == "EnemyMissile" ]] ; then
+                if (( ! _pbmap_ready )) ; then
+                    _pbmap=()
+                    local _pb _py _px
+                    for _pb in "${BULLETS[@]}" ; do
+                        [[ -n "$_pb" && -n "${XO_OBJ_POOL[$_pb]+_}" ]] || continue
+                        local -n _pob=$_pb
+                        _py=${_pob["{y}$X"]} ; _px=${_pob["{x}$X"]}
+                        unset -n _pob
+                        _pbmap["$_py,$_px"]=$_pb
+                    done
+                    _pbmap_ready=1
+                fi
+                local -n _emb=$eb
+                local -i _emy=${_emb["{y}$X"]} _emx=${_emb["{x}$X"]}
+                unset -n _emb
+                if [[ -n "${_pbmap["$_emy,$_emx"]+_}" ]] ; then
+                    local _hitb=${_pbmap["$_emy,$_emx"]}
+                    # 命中火花既做反馈，也负责把这个格子擦干净（和打中敌人同一套）
+                    _hit_fx_add "$_emy" "$_emx" '*' "$C_YELLOW"
+                    _enemy_bullet_kill "$eb"
+                    [[ -n "${XO_OBJ_POOL[$_hitb]+_}" ]] && xo_obj_kill "$_hitb"
+                    unset "_pbmap[$_emy,$_emx]"
+                    continue
+                fi
+            fi
+            alive_eb+=("$eb")
+        else
+            _enemy_bullet_kill "$eb"
+        fi
     done
     ENEMY_BULLETS=("${alive_eb[@]}")
 
@@ -356,6 +415,10 @@ _play_game_tick () {
         xo_call "$e" move
         if (( $? == 0 )) ; then
             alive_e+=("$e")
+            # Boss 动态增益：类名比较比 Base_is_a 便宜，且只有 3 个 Boss 会进入
+            case "${XO_OBJ_POOL[$e]}" in
+                Boss|BossSpinner|SkullKing) _boss_buff_tick "$e" ;;
+            esac
         else
             local -n _esc=$e
             local -i _esc_y=${_esc["{y}$X"]} _esc_h=${_esc["{h}$X"]:-1}
@@ -574,7 +637,7 @@ _play_game_tick () {
             fi
             (( ! _sh )) && player_dmg=$(( player_dmg + ${_eb["{damage}$X"]} ))
             unset -n _eb
-            xo_obj_kill "$eb"
+            _enemy_bullet_kill "$eb"
         else
             unset -n _eb
             survive_eb+=("$eb")
@@ -968,7 +1031,7 @@ play_game () {
             local _ceb
             for _ceb in "${ENEMY_BULLETS[@]}" ; do
                 [[ -n "$_ceb" && -n "${XO_OBJ_POOL[$_ceb]+_}" ]] || continue
-                xo_obj_kill "$_ceb"
+                _enemy_bullet_kill "$_ceb"
             done
             ENEMY_BULLETS=()
 
@@ -1069,7 +1132,7 @@ play_game () {
                     draw_hud_line1
                 fi
                 ((hud_tick++))
-                local _cbs="$(( ${OBJ_player["{t2}$X"]:-0} / FPS )) $(( ${OBJ_player["{t3}$X"]:-0} / FPS )) $(( ${OBJ_player["{t4}$X"]:-0} / FPS )) $(( ${OBJ_player["{t5}$X"]:-0} / FPS )) $(( ${OBJ_player["{mt}$X"]:-0} / FPS )) $(( ${OBJ_player["{lt}$X"]:-0} / FPS )) $(( ${OBJ_player["{st}$X"]:-0} / FPS )) ${OBJ_player["{lanes}$X"]:-0}"
+                local _cbs="$(( ${OBJ_player["{t2}$X"]:-0} / FPS )) $(( ${OBJ_player["{t3}$X"]:-0} / FPS )) $(( ${OBJ_player["{t4}$X"]:-0} / FPS )) $(( ${OBJ_player["{t5}$X"]:-0} / FPS )) $(( ${OBJ_player["{mt}$X"]:-0} / FPS )) $(( ${OBJ_player["{lt}$X"]:-0} / FPS )) $(( ${OBJ_player["{st}$X"]:-0} / FPS )) ${OBJ_player["{lanes}$X"]:-0} $(( ${OBJ_player["{slow}$X"]:-0} / FPS ))"
                 if [[ "$_cbs" != "$last_bonus_str" ]] ; then
                     draw_bonus_hud
                     last_bonus_str=$_cbs

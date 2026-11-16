@@ -14,8 +14,13 @@ draw_hud_line1 () {
         unset -n _bt
     fi
     local _s
-    printf -v _s 'HP:%d/%d  SCORE:%d  STAGE:%d  W:%s  BOMB:%d/5  E:%d/%d  OBJ:%d' \
-        "${OBJ_player["{hp}$X"]:-0}" "${OBJ_player["{maxhp}$X"]:-20}" "${OBJ_player["{score}$X"]:-0}" "$(( G_BOSS_KILLS + 1 ))" "$weapon" "${OBJ_player["{bombs}$X"]:-0}" \
+    # 被 Boss 减速时在主状态行上直接标出来（玩家最常看的一行），比藏在 BONUS 行尾显眼
+    local _slow=$(( ${OBJ_player["{slow}$X"]:-0} / FPS ))
+    local _slowseg=''
+    (( _slow > 0 )) && printf -v _slowseg '  SLOW:%d' "$_slow"
+    printf -v _s 'HP:%d/%d%s  SCORE:%d  STAGE:%d  W:%s  BOMB:%d/5  E:%d/%d  OBJ:%d' \
+        "${OBJ_player["{hp}$X"]:-0}" "${OBJ_player["{maxhp}$X"]:-20}" "$_slowseg" \
+        "${OBJ_player["{score}$X"]:-0}" "$(( G_BOSS_KILLS + 1 ))" "$weapon" "${OBJ_player["{bombs}$X"]:-0}" \
         "${#ENEMIES[@]}" "$ENEMY_LIMIT" "${#XO_OBJ_POOL[@]}"
     local _maxw=$(( SCREEN_W - 2 ))
     _s="${_s:0:_maxw}"
@@ -70,6 +75,12 @@ draw_bonus_hud () {
     local lcount=$(( ${OBJ_player["{lanes}$X"]:-0} + 1 ))
     printf -v _part '  m:%3d  L:%3d(%d)  S:%3d' "$mt" "$lt" "$lcount" "$st"
     _s+=$_part
+    # 被 Boss 减速时给个倒计时提示（简单动画：数字每秒跳动）
+    local slow=$(( ${OBJ_player["{slow}$X"]:-0} / FPS ))
+    if (( slow > 0 )) ; then
+        printf -v _part '  SLOW:%3d' "$slow"
+        _s+=$_part
+    fi
     local _maxw=$(( SCREEN_W - 2 ))
     _s="${_s:0:_maxw}"
     local _t
