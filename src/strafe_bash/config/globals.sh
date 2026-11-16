@@ -40,3 +40,22 @@ declare -i G_LAST_ACE_TICK=0
 
 declare -g FRAME_BUF=""
 
+# 扫描电网：同一时刻只允许一条（Boss 的和我方的互斥，后来的覆盖）
+# owner 0 = Boss（红，自上而下，打玩家）；1 = 我方（绿，自下而上，打敌人）
+declare -i WAVE_ON=0
+declare -i WAVE_Y=0
+declare -i WAVE_DIR=1
+declare -i WAVE_OWNER=0
+declare -i WAVE_DMG=0
+declare -i WAVE_CD=0
+declare -i WAVE_LAST_Y=-1
+declare -i G_WAVE_HIT_PLAYER=0
+declare -i WAVE_CLEAR_LO=0
+declare -i WAVE_CLEAR_HI=0
+# 逃生缝（字符串下标，0 = 屏幕第 2 列）。我方电网没有缝，两个值都是负数。
+declare -i WAVE_GAP1=-99
+declare -i WAVE_GAP2=-99
+declare -g WAVE_CLR=''
+declare -g WAVE_LINE=''
+declare -gA WAVE_HIT_ENEMY=()
+

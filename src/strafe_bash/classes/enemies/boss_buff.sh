@@ -23,6 +23,7 @@ declare -ga BOSS_BUFF_POOL=(
     M_BuffHeal
     M_BuffMissile
     M_BuffSlow
+    M_BuffWave
 )
 
 # HP 行尾的短标签（{buff_str} 由这里映射出来，只在增益变化时重算）
@@ -263,6 +264,18 @@ M_BuffMissile_buff_tick () {
     (( live >= BOSS_BUFF_MISSILE_MAX )) && return 0
     enemy_bullet_spawn EnemyMissile "$sx" "$sy" \
         "$BOSS_BUFF_MISSILE_FUEL" "$BOSS_BUFF_MISSILE_STEP" >/dev/null 2>&1
+    return 0
+}
+
+# ---------------------------------------------------------------------------
+# 能力：扫描电网（一次性，红色，自上而下扫过整个战场）
+# 无视护盾（命中时把玩家的护盾打掉），但仍受无敌帧保护。
+# ---------------------------------------------------------------------------
+M_BuffWave_buff_gain () {
+    _wave_start 0 "$BOSS_WAVE_DAMAGE"
+    # 一次性：放完就卸载，把槽位还给后面的阶段
+    xo_obj_mixin_delete "$1" M_BuffWave
+    _boss_buff_sync_str "$1"
     return 0
 }
 

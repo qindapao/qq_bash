@@ -43,6 +43,18 @@ BOSS_BUFF_MISSILE_MAX=3     # 同时在场上限，避免叠得太狠
 # 个别字体缺这个字时可以只改这一个常量（例如换成 'O' 或 '▪' U+25AA）。
 BOSS_BUFF_MISSILE_SYM='⬤'
 
+# 扫描电网（Boss 增益 / 我方拾取物 W）
+# 每 WAVE_STEP_TICKS 个 tick 走一行：慢速扫描，玩家有时机躲开/看清
+WAVE_STEP_TICKS=3
+BOSS_WAVE_DAMAGE=3          # Boss 电网打玩家的伤害
+BOSS_WAVE_STRIP_SHIELD=1    # 电网无视护盾：命中时把护盾直接打掉
+PLAYER_WAVE_DAMAGE=30       # 我方电网对敌人的伤害（每敌人每条波只结算一次）
+WAVE_SYMBOL='~'             # 电网用的字符（ASCII，宽度无风险）
+# Boss 电网的逃生缝：每条波随机挖 WAVE_GAP_COUNT 个 WAVE_GAP_W 格宽的洞。
+# 玩家判定点只有中心 1 格，3 格宽的洞足够站；洞里的子弹也不清。
+WAVE_GAP_COUNT=2
+WAVE_GAP_W=3
+
 # 增益：我方子弹减速
 BOSS_BUFF_SLOW_PCT=50       # 弹速降到 50%
 BOSS_BUFF_SLOW_CD_PCT=150   # 同时射速压到 2/3（cd ×1.5）：只降弹速不会减少输出

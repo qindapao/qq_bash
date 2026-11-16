@@ -495,6 +495,218 @@ test_case1 ()
     OBJ_player["{lanes}$X"]=0
     OBJ_player["{bullet}$X"]=OBJ_player["{w1}$X"]
 
+    printf '\n== K. 扫描电网（Boss 红色自上而下 / 我方绿色自下而上）==\n'
+    if [[ -z "${XO_OBJ_POOL[OBJ_player]+_}" ]] ; then
+        xo_obj_born_named OBJ_player PlaneBee >/dev/null 2>&1 || { log_test 0 1 ; return 1 ; }
+    fi
+
+    # K1 启动参数：我方波自下而上、绿色
+    _wave_start 1 "$PLAYER_WAVE_DAMAGE"
+    check '我方波：自下而上' -1 "$WAVE_DIR"
+    check '我方波：绿色' "$C_GREEN" "$WAVE_CLR"
+    check '我方波：从底部开始' "$(( SCREEN_H - 1 ))" "$WAVE_Y"
+    check '我方波：整行字符已准备好' 1 "$(( ${#WAVE_LINE} > 0 ? 1 : 0 ))"
+    # 渲染：确认真的画出了整行（颜色 + 字符）
+    ENEMIES=()
+    FRAME_BUF=''
+    render
+    local wseen=0
+    [[ "$FRAME_BUF" == *"$WAVE_CLR$WAVE_LINE"* ]] && wseen=1
+    check '电网真的被画到屏幕上' 1 "$wseen"
+
+    # K2 每 WAVE_STEP_TICKS 走一行（慢速扫描）
+    local -i y0=$WAVE_Y i
+    ENEMIES=() ; ENEMY_BULLETS=() ; DROPS=() ; WORDS=()
+    for (( i=0 ; i<WAVE_STEP_TICKS ; i++ )) ; do _play_game_tick >/dev/null 2>&1 ; done
+    check '走满一个 step 前进 1 行' "$(( y0 - 1 ))" "$WAVE_Y"
+
+    # K3 Boss 波：打到玩家 -3 血、打掉护盾、一条波只结算一次
+    # 洞是随机的，本段测"命中"，所以强制不留洞（否则玩家/子弹可能正好落在洞里）
+    OBJ_player["{hp}$X"]=20
+    OBJ_player["{shield}$X"]=1
+    G_INV=0
+    _wave_start 0 "$BOSS_WAVE_DAMAGE"
+    check 'Boss 波：红色' "$C_RED" "$WAVE_CLR"
+    check 'Boss 波：自上而下' 1 "$WAVE_DIR"
+    WAVE_GAP1=-99 ; WAVE_GAP2=-99
+    local -i guard=0 hp_after=0
+    while (( WAVE_ON && guard < 200 )) ; do
+        ((guard++))
+        ENEMIES=() ; ENEMY_BULLETS=() ; DROPS=() ; WORDS=()
+        _play_game_tick >/dev/null 2>&1
+    done
+    hp_after=${OBJ_player["{hp}$X"]}
+    check 'Boss 波：命中扣 3 血' 17 "$hp_after"
+    check 'Boss 波：无视护盾，命中即打掉' 0 "${OBJ_player["{shield}$X"]}"
+
+    # 再来一条波：血量只再扣一次 3（说明每条波只结算一次）
+    OBJ_player["{hp}$X"]=20
+    G_INV=0
+    _wave_start 0 "$BOSS_WAVE_DAMAGE"
+    WAVE_GAP1=-99 ; WAVE_GAP2=-99
+    guard=0
+    while (( WAVE_ON && guard < 200 )) ; do
+        ((guard++))
+        ENEMIES=() ; ENEMY_BULLETS=() ; DROPS=() ; WORDS=()
+        _play_game_tick >/dev/null 2>&1
+    done
+    check '每条波对玩家只结算一次' 17 "${OBJ_player["{hp}$X"]}"
+
+    # K4 我方波：对同一个敌人只结算 30 点，且只结算一次
+    ENEMIES=() ; ENEMY_BULLETS=() ; DROPS=() ; WORDS=() ; BULLETS=()
+    xo_obj_born_named OBJ_wv EnemyQ >/dev/null 2>&1 || { log_test 0 1 ; return 1 ; }
+    local -n _we=OBJ_wv
+    _we["{x}$X"]=$(( ${OBJ_player["{x}$X"]} + 10 ))
+    _we["{y}$X"]=10
+    _we["{hp}$X"]=60
+    _we["{maxhp}$X"]=60
+    unset -n _we
+    ENEMIES=(OBJ_wv)
+    G_INV=900        # 别让路上的敌人影响玩家，本段只关心敌人掉血
+    _wave_start 1 "$PLAYER_WAVE_DAMAGE"
+    guard=0
+    while (( WAVE_ON && guard < 200 )) ; do
+        ((guard++))
+        # 只保留被测敌人，避免它被自动射击/其他怪干扰
+        ENEMIES=(OBJ_wv)
+        ENEMY_BULLETS=() ; DROPS=() ; WORDS=() ; BULLETS=()
+        _play_game_tick >/dev/null 2>&1
+    done
+    local -n _wv=OBJ_wv
+    local -i wv_hp=${_wv["{hp}$X"]}
+    unset -n _wv
+    check '我方波：对敌人结算 30 点' 30 "$wv_hp"
+
+    for (( i=0 ; i<20 ; i++ )) ; do
+        ENEMIES=(OBJ_wv) ; ENEMY_BULLETS=() ; DROPS=() ; WORDS=() ; BULLETS=()
+        _play_game_tick >/dev/null 2>&1
+    done
+    local -n _wv2=OBJ_wv
+    check '同一敌人不会被同一条波重复结算' 30 "${_wv2["{hp}$X"]}"
+    unset -n _wv2
+    ENEMIES=() ; G_INV=0
+
+    # K5 掉落物 W：捡到即发射我方波
+    xo_obj_born Drop W >/dev/null 2>&1 || { log_test 0 1 ; return 1 ; }
+    local wdrop=$REPLY
+    check '掉落 W 的 dtype' 'W' "$(field "$wdrop" dtype)"
+    check '掉落 W 的字符' 'W' "$(field "$wdrop" symbol)"
+    WAVE_ON=0
+    local -n _wd=$wdrop
+    _wd["{x}$X"]=${OBJ_player["{x}$X"]}
+    _wd["{y}$X"]=${OBJ_player["{y}$X"]}
+    unset -n _wd
+    DROPS=("$wdrop")
+    ENEMIES=() ; ENEMY_BULLETS=() ; BULLETS=() ; WORDS=()
+    _play_game_tick >/dev/null 2>&1
+    check '捡到 W 立刻发射我方波' 1 "$WAVE_ON"
+    check '捡到的波打敌人（owner=我方）' 1 "$WAVE_OWNER"
+    WAVE_ON=0 ; WAVE_LAST_Y=-1
+
+    # K4b 电网同时清除那一行的子弹
+    #     我方波：清敌方子弹；Boss 波：清我方子弹
+    #     注意 tick 顺序：对象先 move，电网后推进。EnemyBullet 每 4 tick 才动一格，
+    #     所以把敌弹放在"移动后仍在 20 行"的位置（cd=0 时本 tick 不动）。
+    ENEMIES=() ; ENEMY_BULLETS=() ; BULLETS=() ; DROPS=() ; WORDS=()
+    xo_obj_born EnemyBullet 30 20 >/dev/null 2>&1
+    local ebul=$REPLY
+    ENEMY_BULLETS=("$ebul")
+    WAVE_ON=0
+    _wave_start 1 "$PLAYER_WAVE_DAMAGE"
+    WAVE_Y=21                    # 本 tick 前进到 20
+    WAVE_CD=$(( WAVE_STEP_TICKS - 1 ))
+    G_INV=900
+    _play_game_tick >/dev/null 2>&1
+    check '我方电网清掉扫到的敌方子弹' '' "${XO_OBJ_POOL[$ebul]+_}"
+
+    ENEMIES=() ; ENEMY_BULLETS=() ; BULLETS=() ; DROPS=() ; WORDS=()
+    xo_obj_born Bullet 30 21 '|' 1 0 -1 >/dev/null 2>&1
+    local pbul=$REPLY
+    BULLETS=("$pbul")
+    WAVE_ON=0
+    _wave_start 0 "$BOSS_WAVE_DAMAGE"
+    WAVE_GAP1=-99 ; WAVE_GAP2=-99     # 本段测清弹，强制不留洞
+    WAVE_Y=19                    # 本 tick 前进到 20
+    WAVE_CD=$(( WAVE_STEP_TICKS - 1 ))
+    _play_game_tick >/dev/null 2>&1
+    check 'Boss 电网清掉扫到的我方子弹' '' "${XO_OBJ_POOL[$pbul]+}"
+
+    # 波在同一行停留的那几个 tick 里也要清扫（否则会因 3:4 的节奏错拍漏掉子弹）
+    ENEMIES=() ; ENEMY_BULLETS=() ; BULLETS=() ; DROPS=() ; WORDS=()
+    xo_obj_born EnemyBullet 30 15 >/dev/null 2>&1
+    local ebul2=$REPLY
+    ENEMY_BULLETS=("$ebul2")
+    WAVE_ON=0
+    _wave_start 1 "$PLAYER_WAVE_DAMAGE"
+    WAVE_Y=15
+    WAVE_CD=0                    # 本 tick 不前进，只停留清扫
+    G_INV=900
+    _play_game_tick >/dev/null 2>&1
+    check '波停留期间也会清扫子弹' '' "${XO_OBJ_POOL[$ebul2]+}"
+
+    # 擦肩而过：波 9→8、敌弹 8→9 在同一 tick 内交换行，从未同格，也必须清掉
+    ENEMIES=() ; ENEMY_BULLETS=() ; BULLETS=() ; DROPS=() ; WORDS=()
+    xo_obj_born EnemyBullet 30 8 >/dev/null 2>&1
+    local ebul3=$REPLY
+    local -n _eb3=$ebul3
+    _eb3["{cd}$X"]=3             # 本 tick 会移动一格：8 -> 9
+    unset -n _eb3
+    ENEMY_BULLETS=("$ebul3")
+    WAVE_ON=0
+    _wave_start 1 "$PLAYER_WAVE_DAMAGE"
+    WAVE_Y=9                     # 本 tick 前进到 8
+    WAVE_CD=$(( WAVE_STEP_TICKS - 1 ))
+    G_INV=900
+    _play_game_tick >/dev/null 2>&1
+    check '与波擦肩而过的敌弹也会被清掉' '' "${XO_OBJ_POOL[$ebul3]+}"
+    WAVE_ON=0 ; WAVE_LAST_Y=-1 ; G_INV=0
+
+    # K6 逃生缝：Boss 波随机挖两个 3 格宽的洞，站在洞里不挨打
+    WAVE_ON=0
+    _wave_start 0 "$BOSS_WAVE_DAMAGE"
+    local -i line_len=${#WAVE_LINE}
+    check '挖洞后行宽不变' "$(( SCREEN_W - 4 ))" "$line_len"
+    local -i gap_ok=1
+    (( WAVE_GAP1 >= 0 && WAVE_GAP2 >= 0 )) || gap_ok=0
+    # 两个洞不能重叠（至少隔 1 格）
+    if (( WAVE_GAP2 + WAVE_GAP_W >= WAVE_GAP1 && WAVE_GAP2 <= WAVE_GAP1 + WAVE_GAP_W )) ; then
+        gap_ok=0
+    fi
+    check '随机生成了两个不重叠的洞' 1 "$gap_ok"
+    check '洞中心是安全格' 0 "$( _wave_gap_x $(( WAVE_GAP1 + 1 + 2 )) ; echo $? )"
+
+    # 下面两条测"缝内安全 / 缝外受伤"，把缝固定成已知位置，避免随机位置让断言不稳
+    OBJ_player["{hp}$X"]=20
+    OBJ_player["{shield}$X"]=0
+    G_INV=0
+    WAVE_ON=0
+    _wave_start 0 "$BOSS_WAVE_DAMAGE"
+    WAVE_GAP1=0 ; WAVE_GAP2=40
+    OBJ_player["{x}$X"]=3            # 第 3 列 = 缝 1 的中心
+    local -i guard6=0
+    while (( WAVE_ON && guard6 < 200 )) ; do
+        ((guard6++))
+        ENEMIES=() ; ENEMY_BULLETS=() ; DROPS=() ; WORDS=()
+        _play_game_tick >/dev/null 2>&1
+    done
+    check '站在逃生缝里不受伤' 20 "${OBJ_player["{hp}$X"]}"
+
+    # 站在缝外：照常挨打
+    OBJ_player["{hp}$X"]=20
+    OBJ_player["{x}$X"]=20           # 第 20 列不在任何一个缝里
+    G_INV=0
+    guard6=0
+    WAVE_ON=0
+    _wave_start 0 "$BOSS_WAVE_DAMAGE"
+    WAVE_GAP1=0 ; WAVE_GAP2=40
+    while (( WAVE_ON && guard6 < 200 )) ; do
+        ((guard6++))
+        ENEMIES=() ; ENEMY_BULLETS=() ; DROPS=() ; WORDS=()
+        _play_game_tick >/dev/null 2>&1
+    done
+    check '站在缝外照常受伤' 17 "${OBJ_player["{hp}$X"]}"
+    WAVE_ON=0 ; WAVE_LAST_Y=-1 ; G_INV=0
+
     printf '\n---- 共断言 %d 项，失败 %d 项 ----\n' "$CHECKS" "$FAILS"
     if (( FAILS == 0 )) ; then
         log_test 1 1

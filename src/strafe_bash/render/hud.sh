@@ -43,7 +43,7 @@ draw_hud_line2 () {
             unset -n _wobj
         done
     fi
-    _s+='  DROP H:+3 b:BOMB m:MISSILE L:LANE S:SHIELD'
+    _s+='  DROP H:+3 b:BOMB m:MISSILE L:LANE S:SHIELD W:NET'
     local _maxw=$(( SCREEN_W - 2 ))
     _s="${_s:0:_maxw}"
     local _t

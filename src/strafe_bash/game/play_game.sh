@@ -123,6 +123,68 @@ _hit_fx_add () {
 }
 
 # ============================================================================
+# _wave_start — 启动一条扫描电网（同一时刻只允许一条，后来的覆盖先前的）
+# owner 0 = Boss（红，自上而下，打玩家）；1 = 我方（绿，自下而上，打敌人）
+# 注意：不要重置 WAVE_LAST_Y —— 让渲染器先把上一条波的最后一行擦掉。
+# ============================================================================
+_wave_start () {
+    local -i owner=$1
+    local -i dmg=$2
+    WAVE_ON=1
+    WAVE_OWNER=$owner
+    WAVE_DMG=$dmg
+    WAVE_CD=0
+    WAVE_HIT_ENEMY=()
+    G_WAVE_HIT_PLAYER=0
+    if (( owner == 0 )) ; then
+        WAVE_DIR=1
+        WAVE_Y=$(( GAME_TOP - 1 ))
+        WAVE_CLR=$C_RED
+    else
+        WAVE_DIR=-1
+        WAVE_Y=$(( SCREEN_H - 1 ))
+        WAVE_CLR=$C_GREEN
+    fi
+    # 整行字符只在这里拼一次，之后每帧直接复用
+    local -i _n=$(( SCREEN_W - 4 ))
+    printf -v WAVE_LINE '%*s' "$_n" ''
+    WAVE_LINE=${WAVE_LINE// /$WAVE_SYMBOL}
+
+    # Boss 的波随机挖两个逃生缝（同一条波内固定，玩家能提前看到并跑过去）。
+    # 我方波不留缝：它是来救场的，留洞反而放过敌人子弹。
+    WAVE_GAP1=-99
+    WAVE_GAP2=-99
+    if (( owner == 0 )) ; then
+        local -i _room=$(( _n - WAVE_GAP_W ))
+        (( _room < 0 )) && _room=0
+        local -i _try
+        WAVE_GAP1=$(( RANDOM % (_room + 1) ))
+        WAVE_GAP2=$(( RANDOM % (_room + 1) ))
+        for (( _try=0 ; _try<20 ; _try++ )) ; do
+            # 两洞之间至少隔 1 格，避免连成一个大洞
+            if (( WAVE_GAP2 + WAVE_GAP_W < WAVE_GAP1 || WAVE_GAP2 > WAVE_GAP1 + WAVE_GAP_W )) ; then
+                break
+            fi
+            WAVE_GAP2=$(( RANDOM % (_room + 1) ))
+        done
+        local -i _g
+        for _g in "$WAVE_GAP1" "$WAVE_GAP2" ; do
+            (( _g < 0 || _g > _room )) && continue
+            WAVE_LINE="${WAVE_LINE:0:_g}   ${WAVE_LINE:_g+WAVE_GAP_W}"
+        done
+    fi
+    return 0
+}
+
+# 某个屏幕列是否落在逃生缝里（$1=屏幕列）
+_wave_gap_x () {
+    local -i idx=$(( $1 - 2 ))
+    (( idx >= WAVE_GAP1 && idx < WAVE_GAP1 + WAVE_GAP_W )) && return 0
+    (( idx >= WAVE_GAP2 && idx < WAVE_GAP2 + WAVE_GAP_W )) && return 0
+    return 1
+}
+
+# ============================================================================
 # _enemy_bullet_kill — 敌方子弹 / 导弹的唯一死亡出口
 # 死之前先把「最后画过的那一格」交给擦除队列：炸弹清屏、撞玩家、燃料耗尽都会让它们
 # 在画面中间消失，对象一旦被 kill，渲染阶段就再也找不到它，不登记就会留下一个残格。
@@ -445,6 +507,80 @@ _play_game_tick () {
     done
     WORDS=("${alive_w[@]}")
 
+    # ---- 5.5 扫描电网推进 ----
+    if (( WAVE_ON )) ; then
+        # 本 tick 波"扫过"的行区间：不前进时就是当前行；前进时包含前后两行。
+        # 必须按区间清弹：波向上、敌弹向下，同一 tick 里可能互相交换行而从未同格
+        # （波 9→8、子弹 8→9），只比"行相等"会漏掉这种擦肩而过的子弹。
+        WAVE_CLEAR_LO=$WAVE_Y
+        WAVE_CLEAR_HI=$WAVE_Y
+        if (( ++WAVE_CD >= WAVE_STEP_TICKS )) ; then
+            WAVE_CD=0
+            local -i _wy_from=$WAVE_Y
+            WAVE_Y=$(( WAVE_Y + WAVE_DIR ))
+            if (( WAVE_Y < _wy_from )) ; then
+                WAVE_CLEAR_LO=$WAVE_Y ; WAVE_CLEAR_HI=$_wy_from
+            else
+                WAVE_CLEAR_LO=$_wy_from ; WAVE_CLEAR_HI=$WAVE_Y
+            fi
+            if (( WAVE_OWNER == 0 && ! G_WAVE_HIT_PLAYER )) ; then
+                # Boss 的波：整架飞机（连护盾一起）都在扫描面上，但站在逃生缝里就没事
+                local -i _wpy=${OBJ_player["{y}$X"]} _wph=${OBJ_player["{h}$X"]:-2}
+                local -i _wpx=${OBJ_player["{x}$X"]}
+                if (( WAVE_Y >= _wpy && WAVE_Y < _wpy + _wph )) && ! _wave_gap_x "$_wpx" ; then
+                    G_WAVE_HIT_PLAYER=1
+                fi
+            fi
+            if (( WAVE_Y < GAME_TOP || WAVE_Y > SCREEN_H - 2 )) ; then
+                WAVE_ON=0
+            fi
+        fi
+    fi
+
+    # ---- 5.6 电网清扫扫过的行区间里的子弹 ----
+    # 每个 tick 都扫：波会在一行停留 WAVE_STEP_TICKS 个 tick，而敌弹是每 4 tick 才
+    # 移动一格。只在"刚到达"那个 tick 检查会因节奏错拍漏掉大部分子弹。
+    if (( WAVE_ON )) ; then
+        if (( WAVE_OWNER == 0 )) ; then
+            # Boss 的波：清我方子弹（这一行随后会被重画，不留残格）
+            if (( ${#BULLETS[@]} )) ; then
+                local -a _wb_keep=()
+                local _wb
+                for _wb in "${BULLETS[@]}" ; do
+                    [[ -n "$_wb" && -n "${XO_OBJ_POOL[$_wb]+_}" ]] || continue
+                    local -n _wbb=$_wb
+                    local -i _wby=${_wbb["{y}$X"]}
+                    local -i _wbx=${_wbb["{x}$X"]}
+                    unset -n _wbb
+                    if (( _wby >= WAVE_CLEAR_LO && _wby <= WAVE_CLEAR_HI )) && ! _wave_gap_x "$_wbx" ; then
+                        xo_obj_kill "$_wb"
+                    else
+                        _wb_keep+=("$_wb")
+                    fi
+                done
+                BULLETS=("${_wb_keep[@]}")
+            fi
+        else
+            # 我方的波：清敌方子弹 / 跟踪导弹
+            if (( ${#ENEMY_BULLETS[@]} )) ; then
+                local -a _eb_keep=()
+                local _eb
+                for _eb in "${ENEMY_BULLETS[@]}" ; do
+                    [[ -n "$_eb" && -n "${XO_OBJ_POOL[$_eb]+_}" ]] || continue
+                    local -n _ebb=$_eb
+                    local -i _eby=${_ebb["{y}$X"]}
+                    unset -n _ebb
+                    if (( _eby >= WAVE_CLEAR_LO && _eby <= WAVE_CLEAR_HI )) ; then
+                        _enemy_bullet_kill "$_eb"
+                    else
+                        _eb_keep+=("$_eb")
+                    fi
+                done
+                ENEMY_BULLETS=("${_eb_keep[@]}")
+            fi
+        fi
+    fi
+
     # ---- 6. 敌人快照（几何/血量/奖励），供子弹、导弹、玩家碰撞共用 ----
     # 每 tick 只绑定每个敌人一次。旧实现每对 (子弹, 敌人) 都要
     # nameref 绑定 + 读 4 个字段；80 子弹 × 20 敌人时是 1600 次绑定、
@@ -564,6 +700,38 @@ _play_game_tick () {
         done
     done
 
+    # ---- 8.5 我方扫描电网 vs 敌人（同一敌人一条波只结算一次，且必须真的扫到它）----
+    if (( WAVE_ON && WAVE_OWNER == 1 )) ; then
+        local _wj
+        for _wj in ${_row_e[$WAVE_Y]:-} ; do
+            (( _edead[_wj] )) && continue
+            [[ -n "${WAVE_HIT_ENEMY[${_eid[_wj]}]+_}" ]] && continue
+            WAVE_HIT_ENEMY["${_eid[_wj]}"]=1
+            local -i _wdmg=$WAVE_DMG
+            local _wcol="$C_GREEN"
+            if (( ${_einv[_wj]:-0} > 0 )) ; then
+                _wdmg=0
+                _wcol="$C_CYAN"
+            fi
+            _ehp[_wj]=$(( _ehp[_wj] - _wdmg ))
+            _hit_fx_add "$WAVE_Y" "$(( _ex[_wj] + _ew[_wj] / 2 ))" '*' "$_wcol"
+            if (( _ehp[_wj] <= 0 )) ; then
+                _edead[_wj]=1
+                ((_ndead++))
+                ((G_KILLS++))
+                score_gain=$(( score_gain + _escore[_wj] * _score_pct / 100 ))
+                if Base_is_a "${_eid[_wj]}" BossBase ; then
+                    ((G_BOSS_KILLS++))
+                    _boss_on_death "${_eid[_wj]}" "${_ex[_wj]}" "${_ey[_wj]}" "${_ew[_wj]}" "${_eh[_wj]}" "${_eart[_wj]}"
+                fi
+            else
+                local -n _we=${_eid[_wj]}
+                _we["{hp}$X"]=${_ehp[_wj]}
+                unset -n _we
+            fi
+        done
+    fi
+
     # ---- 9. 清理被击中的子弹/导弹/敌人 ----
     if ((${#killed_b[@]})) ; then
         local -a nb=()
@@ -680,16 +848,25 @@ _play_game_tick () {
         ENEMIES=("${_kept[@]}")
     fi
 
+    # 扫描电网命中：无视护盾（命中时直接把护盾打掉），但仍受无敌帧保护
+    if (( G_WAVE_HIT_PLAYER )) ; then
+        player_dmg=$(( player_dmg + WAVE_DMG ))
+    fi
+
     if (( player_dmg > 0 && G_INV == 0 )) ; then
         OBJ_player["{hp}$X"]=$(( ${OBJ_player["{hp}$X"]} - player_dmg ))
         xo_call "OBJ_player" blink_start
         G_INV=${OBJ_player["{blink}$X"]:-90}
+        if (( G_WAVE_HIT_PLAYER && BOSS_WAVE_STRIP_SHIELD )) ; then
+            _plane_set_shield "OBJ_player" 0
+        fi
         if (( ${OBJ_player["{lt}$X"]:-0} > 0 && ${OBJ_player["{lanes}$X"]:-0} > 0 )) ; then
             local _nl=$(( ${OBJ_player["{lanes}$X"]} - 1 ))
             OBJ_player["{lanes}$X"]=$_nl
             (( _nl == 0 )) && OBJ_player["{lt}$X"]=0
         fi
     fi
+    G_WAVE_HIT_PLAYER=0
 
     if (( score_gain > 0 )) ; then
         OBJ_player["{score}$X"]=$(( ${OBJ_player["{score}$X"]} + score_gain ))
@@ -759,6 +936,10 @@ _play_game_tick () {
                     ;;
                 S)
                     _plane_set_shield "OBJ_player" 1
+                    ;;
+                W)
+                    # 我方扫描电网：捡到即发射，自下而上扫敌人
+                    _wave_start 1 "$PLAYER_WAVE_DAMAGE"
                     ;;
             esac
         else
@@ -849,7 +1030,8 @@ _play_game_tick () {
             # 有 lane：L/S 降，m 升，量子能量武器(tier2)降
             case "$_r" in
                 0|1|2|3|4|5|6|7|8|9|10|11|12|13|14) _drop_type='L' ;;
-                15|16|17|18|19|20|21|22|23|24) _drop_type='S' ;;
+                15|16|17|18|19) _drop_type='S' ;;
+                20|21|22|23|24) _drop_type='W' ;;
                 25|26|27|28|29|30|31|32|33|34|35|36|37|38|39|40|41|42|43|44) _drop_type='m' ;;
                 45|46|47|48|49|50|51|52|53|54) _drop_type='H' ;;
                 55|56|57|58|59) _drop_type='b' ;;
@@ -861,7 +1043,8 @@ _play_game_tick () {
         elif (( _lanes_now == 0 )) ; then
             case "$_r" in
                 0|1|2|3|4|5|6|7|8|9) _drop_type='L' ;;
-                10|11|12|13|14|15|16|17|18|19) _drop_type='S' ;;
+                10|11|12|13|14) _drop_type='S' ;;
+                15|16|17|18|19) _drop_type='W' ;;
                 20|21|22|23|24|25|26|27|28|29|30|31|32|33|34|35|36|37|38|39) _drop_type='m' ;;
                 40|41|42|43|44|45|46|47|48|49) _drop_type='H' ;;
                 50|51|52|53|54) _drop_type='b' ;;
@@ -874,7 +1057,8 @@ _play_game_tick () {
             case "$_r" in
                 0|1|2|3|4) _drop_type='L' ;;
                 5|6|7|8|9) _drop_type='S' ;;
-                10|11|12|13|14|15|16|17|18|19|20|21|22|23|24|25|26|27|28|29) _drop_type='m' ;;
+                10|11|12|13|14|15|16|17|18|19|20|21|22|23|24) _drop_type='m' ;;
+                25|26|27|28|29) _drop_type='W' ;;
                 30|31|32|33|34|35|36|37|38|39) _drop_type='H' ;;
                 40|41|42|43|44) _drop_type='b' ;;
                 45|46|47|48|49) _drop_type='2' ;;

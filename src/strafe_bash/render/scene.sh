@@ -199,6 +199,23 @@ render () {
         _render_erase_one "$w" 1
     done
 
+    # ===== 扫描电网 =====
+    # 先擦上一行、再画当前行；画在对象之前，避免遮住子弹和敌人（对象随后会覆盖它）
+    if (( WAVE_ON )) ; then
+        if (( WAVE_LAST_Y >= 0 && WAVE_LAST_Y != WAVE_Y )) ; then
+            printf -v _t '\033[%d;2H%*s' "$WAVE_LAST_Y" "$(( SCREEN_W - 3 ))" ''
+            FRAME_BUF+="$_t"
+        fi
+        printf -v _t '\033[%d;2H%s%s%s' "$WAVE_Y" "$WAVE_CLR" "$WAVE_LINE" "$C_RESET"
+        FRAME_BUF+="$_t"
+        WAVE_LAST_Y=$WAVE_Y
+    elif (( WAVE_LAST_Y >= 0 )) ; then
+        # 波已结束：把最后一行擦掉，否则会留在画面上
+        printf -v _t '\033[%d;2H%*s' "$WAVE_LAST_Y" "$(( SCREEN_W - 3 ))" ''
+        FRAME_BUF+="$_t"
+        WAVE_LAST_Y=-1
+    fi
+
     # ===== 阶段 2：绘制所有活对象的 cur =====
     # 玩家放在阶段 2 最后画（见函数末尾）。子弹出生点就在机体上方（护盾时正是
     # 顶罩那一行），机翼又不是判定点，先画玩家会让这些对象反复盖住机体 → 闪烁。
