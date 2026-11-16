@@ -7,12 +7,11 @@ tree (`x`), an object system (`xo`), and **strafe_bash**: a playable ASCII
 shooter that runs entirely in Bash. No Node, Python, or game engine.
 
 ```bash
+chmod +x ./build.sh ./src/strafe_bash/strafe_bash.sh
 ./build.sh
-./src/strafe_bash/strafe_bash.sh
-
-# If you are on a terminal with a light background, add environment
-# variables before running
-STRAFE_THEME=light ./src/strafe_bash/strafe_bash.sh
+./src/strafe_bash/strafe_bash.sh              # play
+./src/strafe_bash/strafe_bash.sh -t light     # light-background terminal
+./src/strafe_bash/strafe_bash.sh -h           # controls, options, author
 ```
 
 Requires Bash 5+, a UTF-8 locale, and a 256-color terminal.
@@ -117,8 +116,9 @@ not cover it.
 
 ### Terminal notes
 
-- Light background: `STRAFE_THEME=light ./strafe_bash.sh`. The default `auto`
-  follows `COLORFGBG` and otherwise assumes a dark terminal.
+- Theme: `./strafe_bash.sh -t light` (or `--theme dark|auto`). The default
+  `auto` follows `COLORFGBG` and otherwise assumes a dark terminal. `-h` prints
+  the full help: options, controls, drops, weapons and author.
 - Tested on mintty (MSYS2 / Git Bash). A plain Windows console window cannot
   report the mouse at all, so the plane is keyboard-only there.
 - WindTerm may report clicks but not continuous movement; click-to-move still

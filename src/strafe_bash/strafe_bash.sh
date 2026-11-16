@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# STRAFE_BASH — 入口（只负责 source game 层入口 + 调 main）
+# STRAFE_BASH — 入口（解析命令行参数 → source game 层入口 → 调 main）
 #
 # 路径定位说明：
 #   - 基于 BASH_SOURCE[0] 自定位，不依赖调用时的 cwd。
@@ -12,6 +12,9 @@
 STRAFE_PROJ_DIR=$(cd -P -- "$(dirname -- "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd -P)
 STRAFE_LIB_HOME="$(cd -P -- "$STRAFE_PROJ_DIR/.." >/dev/null 2>&1 && pwd -P)/bashlib"
 export STRAFE_PROJ_DIR STRAFE_LIB_HOME
+# 参数要先解析：--theme 必须在 color.sh 被 source 之前写好 STRAFE_THEME
+. "$STRAFE_PROJ_DIR/game/cli.sh"
+cli_parse "$@" || exit $?
 . "$STRAFE_PROJ_DIR/game/main.sh"
 main
 

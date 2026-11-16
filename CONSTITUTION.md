@@ -46,4 +46,4 @@
 - 新功能、新敌人、新子弹、新机制在性能/架构完成前冻结。
 - 用户想加功能时，先提醒当前冻结约定。
 - 不引入 Windows 专属实现；Linux 是主要目标，但 Linux 终端差异需要显式验证。
-- 终端主题用 `STRAFE_THEME=light|dark|auto`；鼠标使用标准 xterm SGR 协议。
+- 终端主题用 `-t/--theme light|dark|auto`（`STRAFE_THEME` 环境变量仍兼容）；鼠标使用标准 xterm SGR 协议。
