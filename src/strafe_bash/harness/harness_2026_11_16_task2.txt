@@ -1,0 +1,108 @@
+
+
+
+任务：xo.in 模块增加对象动态 Mixin功能-----------------------------------------
+
+我考虑给 Boss 增加增益，当Boss在受伤害阶段的时候，它可以随机获得新的能力。下一个
+受伤害阶段的时候又获得新的能力，能力叠加。你可以理解为Boss越来越强。但是这会让帧率
+变差，增加这个功能主要是为了验证 xo.in 库新增加的对象动态注入(不是在初始化阶段的
+类注入) Mixin 方法的功能。
+
+或者这样：Boss最多获得两个增益，后面获得增益的时候随机取消掉前面获得的某项能力，这
+可以验证 xo.in 新增加的Mixin能力动态卸载功能。Boss一共有4个伤害阶段(满血出厂的时
+候就获得一个随机增益)。
+
+xo.in 新的对象级 Mixin 新功能。
+
+
+xo_call ()
+{
+    "${XO_OBJ_POOL[$1]}_${2}" "$1" "${@:3}"
+}
+
+作为热路径保留，大部分的类调用它，我们应该是要增加一个新的 xo_obj_call
+
+xo_obj_call ()
+{
+    伪代码：
+    检查是否有对象专用的 Mixin 混入，函数格式是 对象名_method，比如说当前的对象名
+    是OBJ_123，然后混入的方法名是 ram，那么新生成的函数名是：OBJ_123_ram
+    if declare -F "${1}_${2}" ; then
+        "${$1}_${2}" "$1" "${@:3}"
+    else
+        "${XO_OBJ_POOL[$1]}_${2}" "$1" "${@:3}"
+    fi
+}
+
+
+给对象动态注入能力的方法：
+PlaneObj ->
+    {CLS} => Plane
+    {SUP} => Entity
+    {MIX} => M_Blink
+    {OBJMIX} =>  M_Ram M_Xx M_Yy
+
+xo.in 模块可能需要初始化一个关联数组 XO_METHOD_OBJ_INHERITED
+它用来记录当前系统中被动态注入过的函数名
+
+xo_obj_mixin_add ()
+{
+    local -n o=$1
+    local obj_name=$1 mixin=$2 mm=
+    local mix_pattern
+    local -a mix_methods=()
+
+    # 检查 {OBJMIX} 字段是否已经记录
+    # 不重复注入
+    local obj_mix_list=${o[{OBJMIX}$X]}
+    if [[ "$obj_mix_list" == *" $mixin"* ]] ; then
+        return 0
+    fi
+
+    printf -v mix_pattern '!%s_[!_]*' "$mixin"
+         #@if compgen_v==1
+    compgen -V mix_methods -A function -X "$mix_pattern"
+        #@endif
+        #@if compgen_v==0
+    mix_methods=($(compgen -A function -X "$mix_pattern"))
+        #@endif
+    mix_methods=("${mix_methods[@]#${mix}_}")
+
+    for mm in "${mix_methods[@]}" ; do
+        mix_fn="${obj_name}_${mm}"
+        # 对象已有 → 保留（已有的优先）
+        # 前面的 Mixin 已注入 → 保留（列表前面的优先）
+        declare -F "$mix_fn" >/dev/null && continue
+        eval -- "${mix_fn} () { ${mix}_${mm} \"\$@\" ; }"
+        XO_METHOD_OBJ_INHERITED[$mix_fn]=$mix
+    done
+
+    # 对象能力列表中增加新的 Mixin
+    o[{OBJMIX}$X]+=" $mixin"
+}
+
+
+给对象动态卸载能力的方法：
+
+# 这个函数
+xo_obj_mixin_delete ()
+{
+    local -n o=$1
+    local obj_name=$1
+    shift
+    local mixins=("$@")
+    local mixin
+    # 如果用户没有传参数，默认卸载掉所有的 Mixin
+    ((${#mixins[@]})) || mixins=(${o[{OBJMIX}$X]})
+    
+    for mixin in "${mixins[@]}" ; do
+        
+    done
+}
+
+
+
+
+-------------------------------------------------------------------------------
+
+
