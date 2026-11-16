@@ -20,3 +20,9 @@ frame_flush () {
     FRAME_BUF=''
     return 0
 }
+
+# 备用屏幕：它没有回滚缓冲。mintty 在存在 scrollback 时会把回滚行数算进鼠标
+# 行号（飞机被顶到屏幕边缘），备用屏幕下这种偏移不存在；退出时原样还原玩家
+# 进入前的画面。只在启动/退出各发一次，不进入帧循环。
+alt_screen_enter () { printf '%s[?1049h' "$ESC" ; }
+alt_screen_leave () { printf '%s[?1049l' "$ESC" ; }

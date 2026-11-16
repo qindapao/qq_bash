@@ -21,7 +21,11 @@ main () {
     trap 'term_restore' EXIT
     trap 'term_restore ; exit 130' INT
     trap 'term_restore ; exit 143' TERM
+    # 关窗口（HUP）也要还原，否则终端会被留在备用屏幕里
+    trap 'term_restore ; exit 129' HUP
 
+    # 先进备用屏幕再画：intro 也是全屏画面，退出时由 term_restore 原样还原
+    alt_screen_enter
     cursor_hide
     stty -echo -icanon time 0 min 0
 

@@ -11,5 +11,6 @@ term_restore () {
     stty sane
     cursor_show
     printf '%s' "$C_RESET"
-    screen_clear
+    # 退出备用屏幕会把玩家进入前的画面原样还回来，所以这里绝不能清屏
+    alt_screen_leave
 }
