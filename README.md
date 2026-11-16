@@ -137,7 +137,7 @@ Protocols, synchronized output and the alternate-screen rationale are in
 ```text
 ┌─────────────────────────────────────────────────────────────────────────────────┐
 │HP:3/20  SCORE:58440  W:@  BOMB:2/5  E:9/25  OBJ:116                             │
-│BULLET |:1 #:2 @:3 $:4  DROP H:+3 b:BOMB m:MISSILE L:LANE S:SHIELD               │
+│BULLET |:1 #:2 @:3 $:4  DROP H:+3 b:BOMB m:MISSILE L:LANE S:SHIELD W:NET         │
 │BONUS  |:  0  #:  0  @: 35  $:  0  m:  9  L:  0(1)  S:  0                        │
 │                                  ___                      _____                 │
 │                                 | M |                    /     \                │

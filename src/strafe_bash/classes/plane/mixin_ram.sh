@@ -8,6 +8,8 @@ readonly M_RamStaticTemplate='
         {CLS} => M_Ram
         {SUP} => Base
         {MIX} => 
+        # 依赖字段（当前仅作文档，不校验）：{blink} 判断是否处于无敌/受伤态，
+        # {ram_cd} 是撞击冷却计时器
         {REQUIRES} => blink ram_cd
     '
 

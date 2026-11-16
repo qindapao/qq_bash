@@ -8,10 +8,14 @@ readonly EnemyQStaticTemplate='
         {CLS} => EnemyQ
         {SUP} => Enemy
         {MIX} => 
+        # 单字符符号（有 art，仅调试用）
         {symbol} => Q
+        # 血量 5：普通杂兵
         {hp} => 5
         {maxhp} => 5
+        # 击杀得分基数
         {score} => 30
+        # 包围盒（3x2，与 art 同尺寸）
         {w} => 3
         {h} => 2
     '

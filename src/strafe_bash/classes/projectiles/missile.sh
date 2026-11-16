@@ -10,12 +10,18 @@ readonly MissileStaticTemplate='
         {CLS} => Missile
         {SUP} => Entity
         {MIX} => 
+        # 位置（每 tick 朝最近敌人方向走一格）
         {x} => 0
         {y} => 0
+        # 符号：按方向显示 ^ v < >
         {symbol} => ^
+        # 单发伤害（由装备等级决定，默认 2）
         {damage} => 2
+        # 追踪方向（vx/vy 取值 -1/0/1）
         {vx} => 0
         {vy} => -1
+        # 上一个尾迹点：渲染时在身后补一个 '.'，形成一条会拐弯的轨迹
+        # -1 表示还没有尾迹（刚出生）
         {prev_trail_x} => -1
         {prev_trail_y} => -1
     '

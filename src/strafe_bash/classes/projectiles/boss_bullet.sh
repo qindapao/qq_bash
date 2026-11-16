@@ -11,11 +11,16 @@ readonly BossBulletStaticTemplate='
         {CLS} => BossBullet
         {SUP} => EnemyBullet
         {MIX} => 
+        # 符号：按方向取，默认小圆点
         {symbol} => o
+        # 单发伤害
         {damage} => 1
+        # 每 step 个 tick 走一格的位移量（-1/0/1）
         {vx} => 0
         {vy} => 1
+        # 移动间隔（tick）：越大越慢
         {step} => 2
+        # 颜色覆盖：空 = 用敌方子弹默认色
         {color} => 
     '
 BossBullet_born () {

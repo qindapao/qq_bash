@@ -8,6 +8,7 @@ readonly M_BlinkStaticTemplate='
         {CLS} => M_Blink
         {SUP} => Base
         {MIX} => 
+        # 依赖字段（当前仅作文档，不校验）：使用方必须有 {blink} 这个计时器字段
         {REQUIRES} => blink
     '
 

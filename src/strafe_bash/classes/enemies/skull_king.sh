@@ -64,19 +64,29 @@ readonly SkullKingStaticTemplate='
         {CLS} => SkullKing
         {SUP} => BossBase
         {MIX} => 
+        # 死亡横幅上的名字
         {name} => THE SKULL KING
+        # 包围盒（13x11，立绘很高）
         {w} => 13
         {h} => 11
+        # 血量：最终 Boss 级（600）
         {hp} => 600
         {maxhp} => 600
+        # 击杀得分基数（最高）
         {score} => 20000
+        # 单字符符号（立绘走 art，仅调试用）
         {symbol} => K
+        # 阶段边界百分比
         {pcut1} => 75
         {pcut2} => 50
         {pcut3} => 25
+        # 死亡演出样式
         {death_style} => 0
+        # 射击冷却：归零打一波 8 方向
         {shot_cd} => 0
+        # 本波还剩几轮 8 方向连发
         {ring_left} => 0
+        # 走位模式计时器/步号/模式号
         {pat_cd} => 0
         {pat_step} => -1
         {pat_mode} => 0

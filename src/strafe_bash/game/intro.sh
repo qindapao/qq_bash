@@ -108,7 +108,7 @@ _intro_draw () {
     _intro_text 14 50 "$C_BLUE" 'RMB BOMB'
 
     _intro_text 15 4 "$C_BLUE" 'DROPS'
-    _intro_text 15 10 "$C_YELLOW" 'H +3HP   b BOMB   m MISSILE   L LANE   S SHIELD'
+    _intro_text 15 10 "$C_YELLOW" 'H +3HP  b BOMB  m MISSILE  L LANE  S SHIELD  W NET'
     _intro_text 16 4 "$C_BLUE" 'WEAPONS'
     _intro_text 16 12 "$C_YELLOW" '2 |    3 #    4 @    5 $'
 

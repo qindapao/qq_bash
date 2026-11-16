@@ -235,3 +235,57 @@ missiles, enemy bullets, enemies, drops and words, then the player last, so
 nothing can cover the plane. The player's own erase is skipped while it is
 stationary and its art shape is unchanged, because that frame redraws the same
 cells anyway.
+
+## Scanning waves
+
+A wave is one full-width row of `~` that sweeps the playfield, damages whatever
+it passes over and clears the bullets on the rows it sweeps. One shared system
+drives both sides; only the owner differs.
+
+- Boss wave (`M_BuffWave`): red, top to bottom, 3 damage, strips the player's
+  shield even though the damage itself still respects invulnerability frames.
+  It also clears *our* bullets. It is a one-shot ability and uninstalls itself
+  the moment it fires, so its slot goes back to the pool.
+- Player wave (drop `W`, fired on pickup): green, bottom to top, 30 damage per
+  enemy and per wave, and it clears enemy bullets and homing missiles. No gaps:
+  a defensive tool should not have holes in it.
+
+State lives in `config/globals.sh` (`WAVE_ON`, `WAVE_Y`, `WAVE_DIR`,
+`WAVE_OWNER`, `WAVE_CLR`, `WAVE_LINE`, the swept band, and the two gaps); the
+constants are in `config/const.sh`.
+
+### Why clearing uses a swept band, not a row comparison
+
+Naively clearing "bullets whose row equals the wave row" misses most of them,
+and there are two independent reasons:
+
+1. The wave dwells `WAVE_STEP_TICKS` (3) ticks per row while `EnemyBullet`
+   moves every 4 ticks. At the tick the wave arrives, most bullets are not on
+   that row yet, and by the time they are, the wave has moved on.
+2. A bullet and the wave can even swap rows inside a single tick: the wave goes
+   9 -> 8 while a bullet goes 8 -> 9, so they never share a cell at all.
+
+So the wave records the row band it swept during the current tick (one row
+while it dwells, two rows on the tick it advances) and clears bullets inside
+that band, on every tick it dwells. The check is two comparisons instead of one
+and removes both misses.
+
+### Escape gaps
+
+The boss wave punches `WAVE_GAP_COUNT` (2) gaps of `WAVE_GAP_W` (3) cells at
+random, and the positions stay fixed for that wave. Re-rolling them per row
+would force the player to chase the gap downwards while the wave descends,
+which is harder than standing still. The player's hitbox is a single cell, so a
+three-cell gap is comfortable to stand in but still has to be hit.
+
+Gaps also let bullets through: the clear check skips bullets inside a gap, so
+"the net only catches what it touches" holds for both damage and bullets.
+
+### Rendering and cost
+
+The wave is drawn right after the erase pass and before the objects, so it
+never hides bullets or enemies, and the objects redraw over it. When the wave
+advances, the previous row is erased; when it ends, the last row is erased
+once. A row costs roughly 260 bytes per frame (about 4% of a frame), and the
+clearing pass only runs while a wave is alive (~90 ticks), so the frame budget
+is untouched. `WAVE_LINE` is built once per wave and reused every frame.

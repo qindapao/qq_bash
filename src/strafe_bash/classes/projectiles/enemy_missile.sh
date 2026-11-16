@@ -17,10 +17,18 @@ readonly EnemyMissileStaticTemplate='
         {CLS} => EnemyMissile
         {SUP} => EnemyBullet
         {MIX} => 
+        # 位置（贪心追踪玩家，每 step tick 走一格）
+        {x} => 0
+        {y} => 0
+        # 符号：统一实心大圆点（单宽 N 类字符），方向看移动即可
         {symbol} => v
+        # 伤害固定 1：靠数量而不是单体爆发施压
         {damage} => 1
+        # 燃料：每走一格 -1，烧完自毁（不会无限追）
         {fuel} => 30
+        # 移动间隔（tick）：每 step tick 走一格
         {step} => 2
+        # 颜色覆盖：出生时写入加粗亮红
         {color} => 
     '
 EnemyMissile_born () {

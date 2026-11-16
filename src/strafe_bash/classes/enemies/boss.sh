@@ -21,17 +21,25 @@ readonly BossStaticTemplate='
         {CLS} => Boss
         {SUP} => BossBase
         {MIX} => 
+        # 死亡横幅上的名字
         {name} => THE CLASSIC BOSS
+        # 包围盒（13x5，与立绘同尺寸）
         {w} => 13
         {h} => 5
+        # 血量：三阶段 Boss，比 BossBase 默认更耐打
         {hp} => 180
         {maxhp} => 180
+        # 击杀得分基数
         {score} => 5000
+        # 单字符符号（立绘走 art，仅调试用）
         {symbol} => X
+        # 阶段边界百分比（覆盖父类默认值需与血量匹配）
         {pcut1} => 70
         {pcut2} => 50
         {pcut3} => 20
+        # 死亡演出样式
         {death_style} => 0
+        # 瞄准射击冷却：归零时朝玩家打一发，然后重置
         {aim_cd} => 0
     '
 Boss_born () {

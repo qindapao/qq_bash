@@ -8,10 +8,14 @@ readonly EnemyMStaticTemplate='
         {CLS} => EnemyM
         {SUP} => Enemy
         {MIX} => 
+        # 单字符符号（有 art，仅调试用）
         {symbol} => M
+        # 血量 10：入门级带血条小怪
         {hp} => 10
         {maxhp} => 10
+        # 击杀得分基数
         {score} => 100
+        # 包围盒（5x3，与 art 同尺寸）
         {w} => 5
         {h} => 3
     '

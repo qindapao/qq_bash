@@ -23,11 +23,16 @@ readonly EnemyBulletStaticTemplate='
         {CLS} => EnemyBullet
         {SUP} => Entity
         {MIX} => 
+        # 位置（每 4 tick 向下一格；子类可覆盖 move 改节奏）
         {x} => 0
         {y} => 0
+        # 弹体字符
         {symbol} => .
+        # 命中玩家扣的血（有护盾时被护盾吸收）
         {damage} => 1
+        # 移动节拍计时器：攒到 4 才走一格
         {cd} => 0
+        # 颜色覆盖：空 = 用敌方子弹默认色
         {color} => 
     '
 EnemyBullet_born () {

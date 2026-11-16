@@ -8,10 +8,14 @@ readonly EnemyVStaticTemplate='
         {CLS} => EnemyV
         {SUP} => Enemy
         {MIX} => 
+        # 单字符符号（有 art，仅调试用）
         {symbol} => v
+        # 血量 1：一碰就碎的最基础杂兵
         {hp} => 1
         {maxhp} => 1
+        # 击杀得分基数
         {score} => 10
+        # 包围盒（3x2，与 art 同尺寸）
         {w} => 3
         {h} => 2
     '

@@ -8,10 +8,14 @@ readonly EnemyBStaticTemplate='
         {CLS} => EnemyB
         {SUP} => Enemy
         {MIX} => 
+        # 单字符符号（有 art，仅调试用）
         {symbol} => B
+        # 血量 40：中 bosses 的小 BOSS，会掉武器
         {hp} => 40
         {maxhp} => 40
+        # 击杀得分基数
         {score} => 500
+        # 包围盒（5x3，与 art 同尺寸）
         {w} => 5
         {h} => 3
     '

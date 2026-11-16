@@ -10,11 +10,16 @@ readonly WordStaticTemplate='
         {CLS} => Word
         {SUP} => Entity
         {MIX} => 
+        # 位置（缓慢下落，碰到即加分）
         {x} => 0
         {y} => 0
+        # 显示的单词文本
         {text} => 
+        # 文本的显示宽度（字符数）：拾取包围盒用它算
         {len} => 0
+        # 横向漂移速度（-1/0/1）
         {vx} => 0
+        # 下落节拍计时器：每若干 tick 落一行
         {cd} => 0
     '
 Word_born () {
