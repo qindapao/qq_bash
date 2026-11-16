@@ -15,8 +15,16 @@ _STRAFE_MAIN_SH=1
 . "$STRAFE_PROJ_DIR/game/play_game.sh"
 . "$STRAFE_PROJ_DIR/game/intro.sh"
 
+# 致命错误：此时画面已在备用屏幕里，直接打印的提示会随备用屏幕一起被还原掉，
+# 所以先退出备用屏幕再报错。
+fatal () {
+    alt_screen_leave
+    printf '%s\n' "$*" >&2
+    exit 1
+}
+
 main () {
-    xo_init || { echo "xo_init failed" ; exit 1 ; }
+    xo_init || fatal 'xo_init failed'
 
     trap 'term_restore' EXIT
     trap 'term_restore ; exit 130' INT
@@ -42,15 +50,13 @@ main () {
             printf 'LOAD FAILED — starting a new game...\n'
             sleep 1
             [[ -n "${XO_OBJ_POOL[OBJ_player]+_}" ]] && xo_obj_kill OBJ_player
-            xo_obj_born_named OBJ_player "${INTRO_PLANE_CLS:-PlaneBee}" || {
-                echo 'PLAYER CREATE FAILED' ; return 1
-            }
+            xo_obj_born_named OBJ_player "${INTRO_PLANE_CLS:-PlaneBee}" || \
+                fatal 'PLAYER CREATE FAILED'
             init_game
         fi
     else
-        xo_obj_born_named OBJ_player "${INTRO_PLANE_CLS:-PlaneBee}" || {
-            echo 'PLAYER CREATE FAILED' ; return 1
-        }
+        xo_obj_born_named OBJ_player "${INTRO_PLANE_CLS:-PlaneBee}" || \
+            fatal 'PLAYER CREATE FAILED'
         init_game
     fi
 

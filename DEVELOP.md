@@ -173,15 +173,60 @@ Full parameters and return codes are documented in the function headers of
 The generated `.sh` files are not tracked by git; run `./build.sh` after a fresh
 clone or a clean, and `./build.sh -d` to remove them again.
 
+## Terminal and input notes
+
+### Mouse reporting
+
+The game uses xterm SGR mouse reporting (`1006`) plus the `1000` / `1002` /
+`1003` tracking fallbacks, so terminals that implement only click or drag
+tracking still move the plane. Coordinates are cell-based, not pixel-based.
+
+- Capture is always enabled while playing; there is no toggle, which is why
+  terminal text selection is unavailable until the game exits.
+- `_mouse_assert` re-sends the enable sequence every 30 ticks, because some
+  terminals silently drop mouse reporting after a focus change.
+- The input loop caps mouse events per iteration so a fast mouse cannot starve
+  the game loop.
+- `ESC[?25l` hides the text cursor. ANSI cannot hide the OS pointer; that is a
+  terminal preference (Windows Terminal / mintty mouse settings).
+- The pointer target is two rows below the plane centre, so the pointer does not
+  sit on the sprite. Mouse motion and left-click both move the plane.
+- A plain Windows console window (conhost) does not translate mouse input into
+  VT sequences, so the mouse is inert there; mintty provides its own pty and
+  does report it.
+- WindTerm may implement only click/drag tracking rather than any-event motion.
+- Mouse capture is disabled on quit and on GAME OVER.
+
+### Synchronized output
+
+Each frame is wrapped in `DECSET 2026`: the buffer goes out between
+`ESC[?2026h` and `ESC[?2026l`, so the terminal composes the frame once instead
+of painting the intermediate erase/redraw state. Terminals without `2026`
+ignore the sequences.
+
+### Alternate screen
+
+The game enters the alternate screen (`ESC[?1049h`) at startup and leaves it
+(`ESC[?1049l`) in `term_restore`, instead of clearing the screen on exit.
+
+- The alternate screen has no scrollback, which avoids the scrollback-based
+  mouse row offset some terminals report: mintty counts scrollback lines into
+  the mouse row number, which pushed the plane to the edge of the screen.
+- Leaving the alternate screen restores the player's previous content, so
+  `term_restore` must not clear the screen afterwards.
+- A `HUP` trap covers window close, so the terminal is not left on the
+  alternate screen.
+
 ## Rendering notes
 
 Everything the game draws is appended to one buffer (`FRAME_BUF`) and flushed
 once per frame; nothing in the render path writes to the terminal directly.
 That keeps two properties that later fixes depend on:
 
-- **Frames are atomic.** `frame_flush` wraps the whole buffer in `DECSET 2026`
-  (synchronized output), so the terminal composes one frame instead of showing
-  the intermediate "erase old position, then draw new one" state.
+- **Frames are atomic.** `frame_flush` wraps the whole buffer in one
+  synchronized-output bracket (see above), so the terminal composes one frame
+  instead of showing the intermediate "erase old position, then draw new one"
+  state.
 - **One write per frame.** The flush is a single `printf`; adding per-frame
   work here costs frames, so keep it to one call.
 

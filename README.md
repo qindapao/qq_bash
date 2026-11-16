@@ -104,46 +104,30 @@ into enemies. The invulnerability window matches the blink duration.
 
 ### Mouse support
 
-Mouse control uses the terminal's xterm SGR mouse reporting, so it is
-cell-based rather than pixel-based. Moving the mouse over the terminal moves
-the plane; firing stays automatic.
+Moving the mouse over the terminal moves the plane; right-click uses a bomb;
+firing stays automatic. The pointer sits two cells below the plane so it does
+not cover it.
 
-- Mouse capture is always enabled while playing; there is no toggle. Terminal
-  text selection is therefore unavailable until the game exits.
-- Right-click uses a bomb. Mouse motion and left-click move the plane.
-- The pointer is placed two cells below the plane's center, so it does not sit
-  on top of the plane.
-- Mouse events only arrive while the terminal window has OS focus and the
-  pointer is inside it. Moving outside or clicking another window stops the
-  events — the game cannot capture the pointer outside its terminal.
-- The game periodically re-asserts mouse reporting to recover from terminals
-  that silently drop it after focus changes.
-- The input loop caps mouse events per iteration so a fast mouse cannot starve
-  the game loop.
-- `ESC[?25l` hides the text cursor while the game runs. A terminal application
-  cannot portably hide the OS mouse pointer with ANSI; that is a terminal
-  emulator preference (Windows Terminal / mintty mouse settings).
-- If the terminal does not support SGR mouse reporting, the mouse is simply
-  inactive and all keyboard controls still work.
-- Mouse capture is disabled automatically on quit and GAME OVER.
+- Mouse capture is always on while playing, so terminal text selection is
+  unavailable until the game exits.
+- The mouse only works while the terminal window has focus and the pointer is
+  inside it.
+- Without mouse support the plane is keyboard-only and every control still
+  works.
 
-### Terminal compatibility
+### Terminal notes
 
-- Light terminal: `STRAFE_THEME=light ./strafe_bash.sh` selects the darker
-  light-background palette (especially for yellow). `auto` uses `COLORFGBG`
-  when the terminal exports it and otherwise falls back to dark.
-- Each frame is wrapped in terminal synchronized-output mode (`DECSET 2026`),
-  so the terminal composes a whole frame instead of showing partial repaints
-  (visible as flicker at 30 fps). Terminals without it ignore the sequences.
-- The game runs on the terminal's alternate screen, so whatever the player had
-  on screen before (including scrollback) is restored untouched on exit. This
-  also removes the scrollback-based mouse offset some terminals report, because
-  the alternate screen has no scrollback at all.
-- WindTerm may only implement click/drag mouse tracking rather than any-event
-  motion. Mouse reporting now enables 1000/1002/1003 fallbacks; if WindTerm
-  still only reports clicks, use click-to-move or Git Bash / Windows Terminal
-  for continuous cursor following.
-- Mouse capture is disabled automatically on quit and GAME OVER.
+- Light background: `STRAFE_THEME=light ./strafe_bash.sh`. The default `auto`
+  follows `COLORFGBG` and otherwise assumes a dark terminal.
+- Tested on mintty (MSYS2 / Git Bash). A plain Windows console window cannot
+  report the mouse at all, so the plane is keyboard-only there.
+- WindTerm may report clicks but not continuous movement; click-to-move still
+  works there.
+- The game runs on the alternate screen and restores your previous terminal
+  content when it exits.
+
+Protocols, synchronized output and the alternate-screen rationale are in
+[DEVELOP.md](DEVELOP.md#terminal-and-input-notes).
 
 ### Screenshot
 
