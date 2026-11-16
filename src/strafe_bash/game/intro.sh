@@ -71,8 +71,7 @@ _intro_draw () {
     screen_clear
     FRAME_BUF=""
     draw_frame
-    printf '%s' "$FRAME_BUF"
-    FRAME_BUF=""
+    frame_flush
 
     local _title='STRAFE_BASH'
     local -a _tc=("$C_CYAN" "$C_BLUE" "$C_CYAN" "$C_MAGENTA" "$C_PURPLE" "$C_MAGENTA" "$C_YELLOW" "$C_RED" "$C_ORANGE" "$C_YELLOW" "$C_CYAN")

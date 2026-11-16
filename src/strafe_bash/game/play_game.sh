@@ -864,8 +864,7 @@ play_game () {
     FRAME_BUF=""
     draw_frame
     draw_hud_line2
-    printf '%s' "$FRAME_BUF"
-    FRAME_BUF=""
+    frame_flush
 
     while : ; do
         # ---- 采样时间，两个累加器独立 ----
@@ -928,8 +927,7 @@ play_game () {
                             FRAME_BUF=""
                             draw_frame
                             draw_hud_line2
-                            printf '%s' "$FRAME_BUF"
-                            FRAME_BUF=""
+                            frame_flush
                             need_render=1
                             # 读档后屏幕已清空，强制下一帧重画 bonus 行，
                             # 否则 last_bonus_str 可能和读档前的值相同而跳过绘制。
@@ -1041,10 +1039,7 @@ play_game () {
                     paused_drawn=0
                 fi
             fi
-            if [[ -n "$FRAME_BUF" ]] ; then
-                printf '%s' "$FRAME_BUF"
-                FRAME_BUF=""
-            fi
+            frame_flush
             LOGIC_ACC_US=0
             continue
         fi
@@ -1127,10 +1122,7 @@ play_game () {
 
             (( CLEAR_BANNER_TICK > 0 )) && render_clear_banner
 
-            if [[ -n "$FRAME_BUF" ]] ; then
-                printf '%s' "$FRAME_BUF"
-                FRAME_BUF=""
-            fi
+            frame_flush
         fi
 
         (( G_GAME_OVER )) && { _mouse_off ; return 0 ; }

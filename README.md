@@ -9,6 +9,10 @@ shooter that runs entirely in Bash. No Node, Python, or game engine.
 ```bash
 ./build.sh
 ./src/strafe_bash/strafe_bash.sh
+
+# If you are on a terminal with a light background, add environment
+# variables before running
+STRAFE_THEME=light ./src/strafe_bash/strafe_bash.sh
 ```
 
 Requires Bash 5+, a UTF-8 locale, and a 256-color terminal.
@@ -176,6 +180,9 @@ the plane; firing stays automatic.
 - Light terminal: `STRAFE_THEME=light ./strafe_bash.sh` selects the darker
   light-background palette (especially for yellow). `auto` uses `COLORFGBG`
   when the terminal exports it and otherwise falls back to dark.
+- Each frame is wrapped in terminal synchronized-output mode (`DECSET 2026`),
+  so the terminal composes a whole frame instead of showing partial repaints
+  (visible as flicker at 30 fps). Terminals without it ignore the sequences.
 - WindTerm may only implement click/drag mouse tracking rather than any-event
   motion. Mouse reporting now enables 1000/1002/1003 fallbacks; if WindTerm
   still only reports clicks, use click-to-move or Git Bash / Windows Terminal

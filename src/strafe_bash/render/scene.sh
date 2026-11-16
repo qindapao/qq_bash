@@ -51,11 +51,17 @@ _render_erase_one () {
     fi
 
     # skip_static=1：位置没变时不必擦除，本帧的绘制会把这块重新盖住。
-    # 擦除只会留下空格，而绘制本来就要覆盖同样的格子，省掉一次写。
+    # 但 art 形态也算"变"——护盾开关会换 art/宽度/行数（2 行变 3 行且上移 1 行），
+    # 只比位置会漏擦，屏幕上留下旧护盾的轮廓。
     if (( skip_static )) && \
        (( px == ${o["{x}$X"]:-0} && py == ${o["{y}$X"]:-0} )) ; then
-        unset -n o
-        return 0
+        if [[ -z "${o[{prev_art}$X]+_}" ]] \
+           || [[ "${o[{prev_art}$X]}" == "${o[{art}$X]}" \
+              && "${o[{prev_al}$X]}" == "${o[{al}$X]}" \
+              && "${o[{prev_shield}$X]}" == "${o[{shield}$X]}" ]] ; then
+            unset -n o
+            return 0
+        fi
     fi
 
     local cls=${o["{CLS}$X"]}
@@ -113,9 +119,14 @@ render () {
     done
     MISSILE_TRAIL_CLEAR=()
 
+    # 闪烁隐藏的帧机体不会被重绘，那几帧必须照常擦除，所以先取可见性
+    local _blink_visible=1
+    xo_call "OBJ_player" blink_visible || _blink_visible=0
+
     # ===== 阶段 1：擦除所有活对象的 prev =====
+    # 玩家静止且形态未变时可跳过擦除（本帧重绘会覆盖同样格子），省一半写入
     [[ -n "${XO_OBJ_POOL[OBJ_player]+_}" ]] && \
-        _render_erase_one "OBJ_player"
+        _render_erase_one "OBJ_player" "$_blink_visible"
     # 单字符对象（子弹/导弹/敌弹/掉落）数量最多，内联擦除，
     # 省掉每个对象一次函数调用 + 一次 {CLS} 读取 + case 分派。
     for b in "${BULLETS[@]}" ; do
@@ -188,65 +199,8 @@ render () {
     done
 
     # ===== 阶段 2：绘制所有活对象的 cur =====
-    local _blink_visible=1
-    xo_call "OBJ_player" blink_visible || _blink_visible=0
-    local _hp=${OBJ_player["{hp}$X"]:-0}
-    local _maxhp=${OBJ_player["{maxhp}$X"]:-20}
-    local _ph=''
-    if (( _hp >= _maxhp )) ; then _ph="${C_BLUE}${C_BOLD}"
-    elif (( _hp * 2 < _maxhp )) ; then _ph="${C_RED}${C_BOLD}"
-    else _ph="${C_FG_DEFAULT}${C_BOLD}"
-    fi
-    local _green_bold="${C_GREEN}${C_BOLD}"
-
-    local _px=${OBJ_player["{x}$X"]} _py=${OBJ_player["{y}$X"]}
-    local _part=${OBJ_player["{art}$X"]}
-    local _al=${OBJ_player["{al}$X"]:-1}
-    local _bal=${OBJ_player["{base_al}$X"]:-1}
-    local _sht=${OBJ_player["{shield_top}$X"]:--1}
-    local _sh=${OBJ_player["{shield}$X"]:-0}
-    local _pax=$(( _px - _al ))
-    local _pay=$_py
-    (( _sh )) && _pay=$(( _pay + _sht ))
-    _scene_art_lines "$_part"
-    local -i _pr=0 _pn=${_SCENE_ART_CACHE["$_part|__n"]:-0}
-    while (( _pr < _pn )) ; do
-        local _pline=${_SCENE_ART_CACHE["$_part|$_pr"]}
-        local _out='' _cur_clr='' _c _i _want
-        for (( _i=0 ; _i<${#_pline} ; _i++ )) ; do
-            _c=${_pline:_i:1}
-            if [[ "$_c" == " " ]] ; then
-                _out+=' '
-                continue
-            fi
-            if (( _sh )) ; then
-                # 护盾描边统一绿色；机体和尾翼仍用飞机血量颜色
-                if (( _pr == 2 )) ; then
-                    _want=$_ph
-                elif (( _pr == 1 && _i >= _al - _bal && _i <= _al + _bal )) ; then
-                    _want=$_ph
-                else
-                    _want=$_green_bold
-                fi
-            else
-                _want=$_ph
-            fi
-            if [[ "$_want" != "$_cur_clr" ]] ; then
-                _out+="$_want"
-                _cur_clr=$_want
-            fi
-            _out+="$_c"
-        done
-        _out+="$C_RESET"
-        printf -v _t '\033[%d;%dH%s' $((_pay + _pr)) "$_pax" "$_out"
-        (( _blink_visible )) && FRAME_BUF+="$_t"
-        ((_pr++))
-    done
-    OBJ_player["{prev_x}$X"]=$_px
-    OBJ_player["{prev_y}$X"]=$_py
-    OBJ_player["{prev_art}$X"]=$_part
-    OBJ_player["{prev_al}$X"]=$_al
-    OBJ_player["{prev_shield}$X"]=$_sh
+    # 玩家放在阶段 2 最后画（见函数末尾）。子弹出生点就在机体上方（护盾时正是
+    # 顶罩那一行），机翼又不是判定点，先画玩家会让这些对象反复盖住机体 → 闪烁。
     if (( ${#BULLETS[@]} )) ; then
         for b in "${BULLETS[@]}" ; do
             [[ -n "$b" && -n "${XO_OBJ_POOL[$b]+_}" ]] || continue
@@ -358,4 +312,65 @@ render () {
         _w["{prev_y}$X"]=$_wy
         unset -n _w
     done
+
+    # ===== 阶段 3：玩家最后画（层级最高）=====
+    # 玩家先画会被自己的子弹（出生点在 y-1，护盾时正压顶罩）和敌弹（机翼不是
+    # 判定点，会飞过机翼）覆盖，表现为机体/护盾反复被遮住。放最后即不再被遮。
+    local _hp=${OBJ_player["{hp}$X"]:-0}
+    local _maxhp=${OBJ_player["{maxhp}$X"]:-20}
+    local _ph=''
+    if (( _hp >= _maxhp )) ; then _ph="${C_BLUE}${C_BOLD}"
+    elif (( _hp * 2 < _maxhp )) ; then _ph="${C_RED}${C_BOLD}"
+    else _ph="${C_FG_DEFAULT}${C_BOLD}"
+    fi
+    local _green_bold="${C_GREEN}${C_BOLD}"
+
+    local _px=${OBJ_player["{x}$X"]} _py=${OBJ_player["{y}$X"]}
+    local _part=${OBJ_player["{art}$X"]}
+    local _al=${OBJ_player["{al}$X"]:-1}
+    local _bal=${OBJ_player["{base_al}$X"]:-1}
+    local _sht=${OBJ_player["{shield_top}$X"]:--1}
+    local _sh=${OBJ_player["{shield}$X"]:-0}
+    local _pax=$(( _px - _al ))
+    local _pay=$_py
+    (( _sh )) && _pay=$(( _pay + _sht ))
+    _scene_art_lines "$_part"
+    local -i _pr=0 _pn=${_SCENE_ART_CACHE["$_part|__n"]:-0}
+    while (( _pr < _pn )) ; do
+        local _pline=${_SCENE_ART_CACHE["$_part|$_pr"]}
+        local _out='' _cur_clr='' _c _i _want
+        for (( _i=0 ; _i<${#_pline} ; _i++ )) ; do
+            _c=${_pline:_i:1}
+            if [[ "$_c" == " " ]] ; then
+                _out+=' '
+                continue
+            fi
+            if (( _sh )) ; then
+                # 护盾描边统一绿色；机体和尾翼仍用飞机血量颜色
+                if (( _pr == 2 )) ; then
+                    _want=$_ph
+                elif (( _pr == 1 && _i >= _al - _bal && _i <= _al + _bal )) ; then
+                    _want=$_ph
+                else
+                    _want=$_green_bold
+                fi
+            else
+                _want=$_ph
+            fi
+            if [[ "$_want" != "$_cur_clr" ]] ; then
+                _out+="$_want"
+                _cur_clr=$_want
+            fi
+            _out+="$_c"
+        done
+        _out+="$C_RESET"
+        printf -v _t '\033[%d;%dH%s' $((_pay + _pr)) "$_pax" "$_out"
+        (( _blink_visible )) && FRAME_BUF+="$_t"
+        ((_pr++))
+    done
+    OBJ_player["{prev_x}$X"]=$_px
+    OBJ_player["{prev_y}$X"]=$_py
+    OBJ_player["{prev_art}$X"]=$_part
+    OBJ_player["{prev_al}$X"]=$_al
+    OBJ_player["{prev_shield}$X"]=$_sh
 }
