@@ -49,9 +49,10 @@ readonly EntityStaticTemplate='
         {prev_y} => 0
     '
 
-# Entity 析构钩子：如果游戏层加载了擦除函数，擦除最后一次画面
-# 纯 xo 测试环境（没加载 render 层）时 declare -F 为假，跳过
-Entity_bury () {
+# Entity 退役钩子：如果游戏层加载了擦除函数，擦除最后一次画面
+# 纯 xo 测试环境（没加载 render 层）时 declare -F 为假，跳过。
+# 注意：retire 是"离开世界"的统一钩子，bury（销毁）和 fire（返聘）都会调它。
+Entity_retire () {
     if declare -F _render_erase_one >/dev/null ; then
         _render_erase_one "$1"
     fi

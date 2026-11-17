@@ -119,8 +119,8 @@ Plane_use_skill () {
     # 预留接口：具体机型以后覆盖这个方法。
     :
 }
-Plane_bury () {
-    Entity_bury "$1"
+Plane_retire () {
+    Entity_retire "$1"
     local -n self=$1
     local i wpn
     for i in 1 2 3 4 5 ; do

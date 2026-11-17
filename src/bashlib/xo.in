@@ -326,11 +326,13 @@ Base_born ()
     :
 }
 
-Base_bury ()
+Base_retire ()
 {
-    # 默认安葬钩子（对应 born），子类可覆盖：对象出池、资源释放之前调用。
-    # 拥有其它对象的类要在这里把它们一并 bury（例：Plane_bury 埋葬自己的武器对象）。
-    # 框架要求每个类都有 <CLS>_bury（继承 Base_bury 即可），缺失会被当成错误。
+    # 默认"退役"钩子（对应 born）：对象**离开世界**之前调用，子类可覆盖。
+    # 两种离开方式共用它：bury（肉体也销毁）和 fire（肉体留着待返聘）。
+    # 这里要理解成"埋葬对象的记忆与灵魂"，不是消灭它的肉体：
+    # 帧上残留要擦掉、持有的其它对象要一并退役（例：Plane_retire 处理武器对象）。
+    # 框架要求每个类都有 <CLS>_retire（继承 Base_retire 即可），缺失会被当成错误。
     # $1=对象句柄
     :
 }
@@ -802,11 +804,11 @@ xo_obj_bury ()
         return 1
     }
 
-    # 2. 调 bury 钩子（如果存在）
-    # 组合对象 bury 等等
+    # 2. 调退役钩子（如果存在）
+    # 组合对象退役等等
     local cls=${XO_OBJ_POOL[$obj]}
-    "${cls}_bury" "$obj" || {
-        die ERR "xo: ${cls}_bury failed for ${obj}"
+    "${cls}_retire" "$obj" || {
+        die ERR "xo: ${cls}_retire failed for ${obj}"
         return 1
     }
 
@@ -833,9 +835,209 @@ xo_obj_bury ()
     return 0
 }
 
-xo_class_methods ()
+# ==============================================================================
+# 【资源市场：hire（返聘） / fire（解聘）】
+#
+# 生与死仍然是 born / bury：born 从类模板反序列化出一个全新的关联数组，bury 彻底销毁。
+# hire/fire 是**存储层的复用**，不改变生命语义：
+#
+#   born  出生   新肉体 + 进入世界
+#   hire  返聘   复用待业肉体 + 重新进入世界（内部走同一个 <cls>_born）
+#   fire  解聘   离开世界，肉体保留 → 资源市场
+#   bury  埋葬   离开世界，肉体销毁
+#
+# 【硬约束：hire / fire 只用于"简单对象"】
+#
+#   简单对象 = 不拥有其它对象的类：子弹、敌弹、导弹、掉落、飘字都是。
+#   组合对象 = 字段里持有其它对象句柄的类：目前只有 Plane（{w1}..{w5} 指向武器）。
+#
+#   组合对象一律用 bury，父子一起消灭。
+#   绝对不要对组合对象调 fire —— retire 钩子只知道"我要离开世界了"，不知道
+#   自己处在 bury 还是 fire 里：它会把子对象按 bury 处理（销毁），而父对象却
+#   进了资源市场；返聘回来的父对象字段里就挂着一把悬空的子句柄。
+#
+#   将来若真要回收组合对象，必须先扩展契约：<cls>_retire 传入出口模式
+#   （bury|fire），并让 <cls>_born 重建父子关系。在那之前这条约束不做例外。
+#
+# 关键约束（性能）：复用时**不能全字段重置**——逐字段写回比重新解析还慢
+# （实测 39 字段 469µs vs 类串解析 245µs）。所以：
+#   - 类可以在类文件里声明 `<cls>ResetFields='prev_x prev_y color'`（易变字段）；
+#   - fire 只重置这些字段（3~6 个 ≈ 15~30µs）；
+#   - 没声明的类退回"全字段重置"（用类 KV 串重建，仍比 born 便宜），保证正确性。
+#   - 默认值直接从类对象读（`${cls}Obj["{字段}$X"]`），不需要额外的默认值表。
+#
+# 市场结构（O(1) 后进先出，单关联数组，避免每类一个动态变量名）：
+#   RES_COUNT[类]           当前存货数
+#   RES_MARKET["类:序号"]    句柄
+#   RES_LIMIT[类]           容量上限，缺省 RES_LIMIT_DEFAULT
+#
+# 契约（和 bury 一样）：调用 fire 之前必须把句柄从调用方自己的集合里摘掉；
+# 用句柄前必须查 XO_OBJ_POOL。原因是 fire 之后变量仍然存在，过期句柄会读到
+# "默认值"而不是空——错误会从显式变成隐式。
+# ==============================================================================
+declare -gA RES_COUNT=() RES_MARKET=() RES_LIMIT=()
+declare -gai RES_LIMIT_DEFAULT=512
+declare -gA XO_RESET_FIELDS=() XO_RESET_DEF=() XO_RESET_READY=()
+
+# 预处理一个类的重置清单（每类只做一次）
+_xo_reset_prepare ()
 {
     local cls=$1
+    local var="${cls}ResetFields"
+    local list=''
+    if declare -p "$var" >/dev/null 2>&1 ; then
+        list=${!var}
+    fi
+    XO_RESET_FIELDS[$cls]=$list
+    if [[ -n "$list" ]] ; then
+        local -n _c="${cls}Obj"
+        local f
+        for f in $list ; do
+            if [[ -z "${_c["{$f}$X"]+_}" ]] ; then
+                die ERR "xo: class '${cls}' ResetFields lists unknown field '${f}'"
+                return 1
+            fi
+            XO_RESET_DEF["$cls|$f"]=${_c["{$f}$X"]}
+        done
+    fi
+    XO_RESET_READY[$cls]=1
+    return 0
+}
+
+# 把对象的易变字段恢复成模板默认值（fire 前调用）
+_xo_obj_reset_fields ()
+{
+    local cls=$1
+    local obj=$2
+    (( XO_RESET_READY[$cls] )) || _xo_reset_prepare "$cls" || return 1
+    local list=${XO_RESET_FIELDS[$cls]:-}
+    if [[ -z "$list" ]] ; then
+        # 安全路径：没有声明易变字段 → 用类 KV 串整体重建（等价于 born 的初始化）
+        local -n _rs="${cls}ObjStr"
+        declare -gA "${obj}=($_rs)"
+        return 0
+    fi
+    local -n o=$obj
+    local f
+    for f in $list ; do
+        o["{$f}$X"]=${XO_RESET_DEF["$cls|$f"]}
+    done
+    return 0
+}
+
+# 解聘：对象离开世界，肉体保留进资源市场
+xo_obj_fire ()
+{
+    local obj=$1
+    [[ -n "${XO_OBJ_POOL[$obj]+_}" ]] || {
+        die ERR "xo: '${obj}' is not a managed object"
+        return 1
+    }
+    local cls=${XO_OBJ_POOL[$obj]}
+
+    # 1. 退役钩子：和 bury 完全同一套语义（记忆与灵魂离开世界）
+    "${cls}_retire" "$obj" || {
+        die ERR "xo: ${cls}_retire failed for ${obj}"
+        return 1
+    }
+
+    # 2. 动态能力必须清掉：否则返聘的雇员会带着前任的技能。
+    # 注意和 bury 的区别：bury 会把对象整体 unset，所以只清路由就够；
+    # fire 的肉体留着，{OBJMIX} 字段本身也必须清空，否则名单里还留着旧能力。
+    if (( ${#XO_OBJ_MIXED[@]} )) && [[ -n "${XO_OBJ_MIXED[$obj]+_}" ]] ; then
+        _xo_obj_mixin_drop_table "$obj"
+        unset -v 'XO_OBJ_MIXED[$obj]'
+        local -n _mo=$obj
+        _mo["{OBJMIX}$X"]=''
+        unset -n _mo
+    fi
+
+    # 3. 恢复易变字段（此时对象还在池里，字段可读写）
+    _xo_obj_reset_fields "$cls" "$obj" || return 1
+
+    # 4. 进市场；超过容量就当场销毁，不囤货
+    local -i n=${RES_COUNT[$cls]:-0}
+    local -i lim=${RES_LIMIT[$cls]:-$RES_LIMIT_DEFAULT}
+    if (( n < lim )) ; then
+        RES_MARKET["$cls:$n"]=$obj
+        RES_COUNT[$cls]=$(( n + 1 ))
+        unset -v 'XO_OBJ_POOL[$obj]'
+    else
+        unset -v "$obj"
+        unset -v 'XO_OBJ_POOL[$obj]'
+    fi
+    return 0
+}
+
+# 返聘：优先从市场捞一个，没有就 born。空市场时与 born 完全等价。
+xo_obj_hire ()
+{
+    REPLY=
+    local cls=$1
+    shift
+    local -i n=${RES_COUNT[$cls]:-0}
+    if (( n > 0 )) ; then
+        local -i idx=$(( n - 1 ))
+        local obj=${RES_MARKET["$cls:$idx"]}
+        unset -v "RES_MARKET[$cls:$idx]"
+        RES_COUNT[$cls]=$(( n - 1 ))
+        # 顺序与 born 一致：先登记回池，再调 born 钩子（钩子可读写自己的字段）
+        XO_OBJ_POOL[$obj]=$cls
+        "${cls}_born" "$obj" "$@" || {
+            unset -v "$obj"
+            unset -v 'XO_OBJ_POOL[$obj]'
+            die ERR "xo: ${cls}_born failed for ${obj}"
+            return 1
+        }
+        REPLY=$obj
+        return 0
+    fi
+    xo_obj_born "$cls" "$@"
+}
+
+# 一次返聘 N 个：省掉调用方 N 次函数调用（环形弹幕用）。REPLY=空格分隔的句柄。
+xo_obj_hire_n ()
+{
+    local -i n=$1
+    local cls=$2
+    shift 2
+    local out=''
+    local h
+    local -i i
+    for (( i=0 ; i<n ; i++ )) ; do
+        xo_obj_hire "$cls" "$@" || { REPLY=$out ; return 1 ; }
+        h=$REPLY
+        out+="${out:+ }$h"
+    done
+    REPLY=$out
+    return 0
+}
+
+# 市场概况（调试/测试用）：不带参数打印全部类
+xo_fire_stats ()
+{
+    local cls
+    if [[ -n "${1:-}" ]] ; then
+        printf '%-16s %s / %s\n' "$1" "${RES_COUNT[$1]:-0}" "${RES_LIMIT[$1]:-$RES_LIMIT_DEFAULT}"
+        return 0
+    fi
+    for cls in $( printf '%s\n' "${!RES_COUNT[@]}" | sort ) ; do
+        printf '%-16s %s / %s\n' "$cls" "${RES_COUNT[$cls]}" "${RES_LIMIT[$cls]:-$RES_LIMIT_DEFAULT}"
+    done
+    return 0
+}
+
+# 清空市场（测试/换局用）。注意：对象变量本身不会被销毁（它们是"待业"的肉体），
+# 这里只是丢弃所有引用。需要彻底回收请逐个 bury。
+xo_fire_clear ()
+{
+    RES_MARKET=()
+    RES_COUNT=()
+    return 0
+}
+
+xo_class_methods ()
+{    local cls=$1
 
     local -n cls_obj_var="${cls}Obj"
     ((${#cls_obj_var[@]})) || {

@@ -5,6 +5,249 @@ the game's class tree, build/test flow, and the rules that keep the Bash version
 frozen. Player-facing documentation lives in [README.md](README.md); project
 conventions live in [CONSTITUTION.md](CONSTITUTION.md).
 
+---
+
+## Architecture at a glance
+
+Read this before touching code: it is the map of the whole system. The
+sections below expand each topic in detail. Diagrams are plain ASCII so they
+stay aligned in any editor, terminal or diff viewer.
+
+### 1.1 Layers
+
+```text
++----------------------------------------------------------------------------+
+| GAME LAYER  src/strafe_bash/                                               |
+|   cli.sh              command line entry (-h prints the version)           |
+|   intro.sh            title screen, plane choice, controls                 |
+|   game/main.sh        main loop: tick + render per frame                   |
+|   game/play_game.sh   all per-tick game logic (pipeline in 1.3)            |
+|   game/init_game.sh   resets globals for a new run                         |
+|   render/scene.sh     scene rendering (pipeline in 1.4)                    |
+|   save/save.sh        save/load, versioned (v1.x.y only)                   |
+|   config/version.sh   single source of the version string                  |
+|   config/const.sh     tunable constants (screen, limits, waves, boss)      |
+|   config/globals.sh   all runtime state (object lists, counters, waves)    |
+|----------------------------------------------------------------------------|
+| CLASS LAYER  src/strafe_bash/classes/   (template + _methods per class)    |
+|   base_types.sh   Entity (root of movers), BulletType*, Drop, Word         |
+|   projectiles/    Bullet, EnemyBullet, BossBullet, Missile, EnemyMissile   |
+|   enemies/        EnemyQ/V/M/B, BossBase, Boss, BossSpinner, SkullKing     |
+|   plane/          Plane -> PlaneIl2, owns OBJ_wpn1..5 (composite object)   |
+|   pickups/        Drop, Word                                               |
+|----------------------------------------------------------------------------|
+| OBJECT SYSTEM  src/bashlib/xo.in                                           |
+|   class template --xo_init--> class object ${cls}Obj (x tree + fields)     |
+|                                   |                                        |
+|                                   +-- KV snapshot ${cls}ObjStr             |
+|   instance OBJ_n = one assoc array; keys "{field}\x1c", values = fields    |
+|   lifecycle   born / hire / fire / bury                                    |
+|   hooks       <cls>_born (enters the world)  <cls>_retire (leaves it)      |
+|   dispatch    xo_call (class method)  xo_obj_call (capability, first wins) |
+|               xo_obj_call_all (hook fan-out, no fallback to class)         |
+|   mixins      {OBJMIX} field + XO_OBJ_METHOD routing (boss abilities)      |
+|   market      where fired objects wait; hire reuses them first             |
+|----------------------------------------------------------------------------|
+| DATA STRUCTURE  src/bashlib/x.in                                           |
+|   x tree: node ids, .c child table, .s order, <id>.k key, <id> value       |
+|   x_walk / x_dump / CLASS_INHER_TREE (class inheritance)                   |
++----------------------------------------------------------------------------+
+```
+
+### 1.2 Object lifecycle
+
+Four verbs, two hooks. Life is only born/bury; hire/fire is storage-level reuse.
+
+```text
+      xo_obj_born / xo_obj_born_named
+      one declare -gA from the class KV string
+                      |
+                      v
+      +------------------------------------------+
+      | ALIVE   (registered in XO_OBJ_POOL)      |
+      +------------------------------------------+
+           |                              |
+           | xo_obj_fire                  | xo_obj_bury
+           v                              v
+      +------------------------------------------+
+      | 1 <cls>_retire   (both exits share it)   |
+      | 2 drop object-level mixin routes         |
+      | 3 reset volatile fields (fire only)      |
+      | 4 fire: push to RES_MARKET               |
+      |   bury: unset the variable + leave pool  |
+      +------------------------------------------+
+           |                              |
+           v                              v
+   fire -> IDLE (RES_MARKET)   bury -> GONE (no variable)
+           |
+           +---- xo_obj_hire ----> ALIVE
+```
+
+Hard constraints:
+
+- **Composite objects can only be buried.** A class that owns other objects
+  (today only `Plane`, whose `{w1}..{w5}` fields hold weapon handles) must die
+  together with its children. A retire hook cannot tell whether it runs inside
+  a bury or a fire, so firing a composite leaves the parent alive and its child
+  handles dangling.
+- **Callers must remove the handle from their own arrays before fire** and must
+  check `XO_OBJ_POOL` before using a handle.
+- **With an empty market, hire is identical to born**, so code that never fires
+  behaves exactly as before.
+
+### 1.3 Tick pipeline (`_play_game_tick`)
+
+```text
+ 0      bonus timers decay (invulnerability, slow, laser, ...)
+ 0.5    expired weapons check
+ 1      cooldowns decay (fire, missile, bomb)
+ 2      player movement (keyboard/mouse direction -> new position)
+ 3      player fire            -> xo_obj_born Bullet
+ 4      player missile launch  -> xo_obj_born Missile
+ 5      every live object moves (bullets, enemies, missiles, drops, words)
+ ----
+ 5.5    scanning waves advance (per slot: row, gaps, player hit)
+ 5.6    wave sweep clears bullets in the band it swept this tick
+        (boss wave clears ours; player wave clears enemy bullets/missiles)
+ ----
+ 6      enemy snapshot (geometry/hp/score shared by all later collisions)
+ 7      our bullets vs enemies
+ 8      our missiles vs enemies
+ 8.5    our waves vs enemies (once per wave per enemy)
+ 9      clean up what was hit (mark first, bury together)
+ 9.5    player damage (incl. G_WAVE_DMG_PENDING, i-frames, shield)
+ 10     drop pickup           10.5  word pickup
+ 11     death check
+ 12     enemy spawning (throttle counters + boss dry period)
+ 13     drop spawning         14    floating word spawning
+```
+
+### 1.4 Render pipeline (`render`)
+
+```text
+ phase 1  erase the prev cell of every live object
+          waves: erase every slot old row first, then draw every current
+          row (two passes, so overlapping waves cannot erase each other)
+ phase 2  draw the cur cell of every live object (plus HUD, fx, banners)
+ phase 3  draw the player last (topmost layer)
+ ----
+ one single flush of FRAME_BUF to the terminal per frame
+```
+
+### 1.5 Global variables
+
+**Object system (`xo.in`)**
+
+| Variable | Purpose |
+|---|---|
+| `XO_OBJ_POOL[handle]` | handle -> class. The only registry of live objects; every "is it alive" check uses it |
+| `XO_OBJ_SEQ` | anonymous handle counter, produces `OBJ_11`, `OBJ_12`, ... |
+| `${cls}Obj` | per-class class object: x tree plus flat fields (field defaults live here) |
+| `${cls}ObjStr` | KV snapshot of the class object; born does one `declare -gA` with it (the expensive part) |
+| `${cls}StaticTemplate` | the class template text, the single source of a class definition |
+| `${cls}ResetFields` | volatile fields of a recyclable class; fire resets only those (e.g. `prev_x prev_y color`) |
+| `CLASS_INHER_TREE` | class inheritance chain (x tree); used by `xo_init` to build dispatch |
+| `XO_METHOD_INHERITED` | forwarding table for inherited methods |
+| `XO_INHER_CHAIN_DUMP_CACHE` | cached inheritance dump, avoids recomputation |
+| `_XO_INIT_CALLED` | `xo_init` may run only once |
+| `XO_MIXIN_METHODS[mixin]` | which methods each mixin provides |
+| `XO_OBJ_METHOD[handle:method]` | per-object method routing (mixin implementation names) |
+| `XO_OBJ_MIXED[handle]` | set of objects carrying mixins (cheap gate: empty set means bury does one length check) |
+| `RES_COUNT[class]` | resource market: number of idle bodies of that class |
+| `RES_MARKET["class:index"]` | resource market: idle handles, O(1) LIFO |
+| `RES_LIMIT[class]` / `RES_LIMIT_DEFAULT` | per-class recycle cap / default 512 |
+| `XO_RESET_FIELDS[class]` | cache: the class reset list |
+| `XO_RESET_DEF["class\|field"]` | cache: template default of a volatile field |
+| `XO_RESET_READY[class]` | cache: the class reset list was preprocessed |
+
+**Data structures (`x.in`, `grammar.sh`)**
+
+| Variable | Purpose |
+|---|---|
+| `BASH_GRAMMAR[...]` | bash capability switches probed at build time, used by `#@if` |
+| `RENDER_FPS` / `RENDER_US` | measured render figures, diagnostics only |
+
+**Game runtime (`config/globals.sh`)**
+
+Live-object handle lists, rebuilt every tick (collect first, then clean up once):
+`BULLETS`, `ENEMY_BULLETS`, `MISSILES`, `ENEMIES`, `DROPS`, `WORDS`.
+
+| Variable | Purpose |
+|---|---|
+| `MISSILE_TRAIL_CLEAR` | cells a missile trail still has to erase |
+| `HIT_FX`, `BOMB_FX_POS`, `BOSS_DEATH_POS` | hit sparks, bomb and boss-death effect queues |
+| `BOSS_DEATH_*` | boss death animation state (tick, style, centre, wave) |
+| `CLEAR_BANNER_*` | the "ACE" banner remaining ticks and text |
+| `FRAME_BUF` | the whole frame output buffer; render only appends, one flush per frame |
+| `G_FIRE_CD`, `G_MISSILE_CD`, `G_MISSILE_SIDE` | player fire/missile cadence and left-right alternation |
+| `G_INV` | player invulnerability frames (blink and damage immunity) |
+| `G_DX`, `G_DY`, `G_MOUSE_ON` | input direction and mouse mode |
+| `G_WANT_BOMB`, `G_FREE_BOMB` | bomb requests (paid / free) |
+| `G_ENEMY_TICK`, `G_DROP_TICK`, `G_WORD_TICK` | spawn cadence for each kind (every N ticks) |
+| `G_B_DRY`, `G_BOSS_DRY` | small-enemy / boss dry periods, control rarity |
+| `G_RUN_TICKS` | ticks in this run (effects, i-frames, saves, diagnostics) |
+| `G_KILLS`, `G_BOSS_KILLS` | kill counters (scoring) |
+| `G_LAST_ESCAPE_TICK`, `G_LAST_ACE_TICK` | cooldowns for the two reward banners |
+| `G_GAME_OVER` | death flag; the main loop ends the run on it |
+| `G_WAVE_DMG_PENDING` | damage from all waves hitting the player this tick, settled once in the damage phase |
+| `WAVE_SLOTS` | wave slot count (5 = boss burst 4 + player 1) |
+| `WAVE_ON` | derived flag: any wave alive (hot-path early exit, never maintained by hand) |
+
+**Wave slot table (one entry per wave)**
+
+| Variable | Purpose |
+|---|---|
+| `WV_ON[slot]` | slot in use |
+| `WV_Y[slot]`, `WV_DIR[slot]` | current row / direction (boss +1 down, player -1 up) |
+| `WV_OWNER[slot]` | 0 = boss (hits player, clears our bullets), 1 = player (hits enemies, clears enemy bullets) |
+| `WV_DMG[slot]` | damage of this wave |
+| `WV_CD[slot]` | counter, advances one row every `WAVE_STEP_TICKS` |
+| `WV_LAST_Y[slot]` | render bookkeeping: row drawn last frame (-1 = never) |
+| `WV_HIT[slot]` | this wave already hit the player (once per wave) |
+| `WV_GAP1[slot]`, `WV_GAP2[slot]` | escape gaps (string index, 0 = screen column 2; negative on player waves) |
+| `WV_CLEAR_LO[slot]`, `WV_CLEAR_HI[slot]` | row band swept this tick (bullet clearing covers swaps) |
+| `WV_CLR[slot]`, `WV_LINE[slot]` | colour escape / full row characters |
+| `WAVE_HIT_ENEMY["slot:enemy"]` | hit table: once per wave per enemy |
+
+**Constants (`config/const.sh`, `config/version.sh`)**
+
+- **screen / cadence**: `SCREEN_W`, `SCREEN_H`, `FPS`, `TICK_US`, `GAME_TOP`
+- **limits**: `ENEMY_LIMIT`, `PLAYER_BULLET_LIMIT`, `ENEMY_BULLET_LIMIT`,
+  `BOSS_BULLET_LIMIT`, `DROP_LIMIT`, `WORD_LIMIT`, `HIT_FX_LIMIT`, `BOSS_LIMIT`
+- **waves**: `WAVE_STEP_TICKS`, `WAVE_SYMBOL`, `WAVE_GAP_COUNT`, `WAVE_GAP_W`,
+  `BOSS_WAVE_DAMAGE`, `BOSS_WAVE_STRIP_SHIELD`, `PLAYER_WAVE_DAMAGE`,
+  `BOSS_WAVE_BURST_MIN/MAX`, `BOSS_WAVE_GAP_MIN/MAX`
+- **boss abilities**: `BOSS_INV_TICKS`, `BOSS_BUFF_MAX`, `BOSS_BUFF_INV_ON/OFF`,
+  `BOSS_BUFF_HEAL_WAIT`, `BOSS_BUFF_MISSILE_*`, `BOSS_BUFF_SLOW_*`
+- **SkullKing**: `SKULL_KING_ROW_BULLETS`, `SKULL_KING_RADIAL_BULLETS`,
+  `SKULL_KING_WAVE_BULLETS`, `SKULL_KING_BURST_RINGS`, `SKULL_KING_RING_GAP`,
+  `SKULL_KING_REST`, `SKULL_KING_FIRST_SHOT`
+- **rewards**: `BONUS_T2/T3/T4/T5`, `BONUS_MT`, `BONUS_LT`, `BONUS_ST`,
+  `BONUS_SLOW`, `CLEAR_SCORE_BONUS`, `BOSS_SCORE_BONUS`
+- **look**: `FRAME_H`, `FRAME_V`, `FRAME_TL/TR/BL/BR`, `LOCALE_UTF8`
+- **version / save**: `STRAFE_VERSION` (`version.sh`), `STRAFE_SAVE_FILE`
+
+### 1.6 Invariants (read before changing code)
+
+1. **A live object is always in `XO_OBJ_POOL`.** Check the pool before using a handle,
+   or you may operate on an idle or dead object.
+2. **Before `bury`/`fire`**, the caller must have removed the handle from its arrays
+   (`BULLETS` and friends are rebuilt every tick, so this holds naturally).
+3. **Composites are buried, never fired**: parent and children die together.
+   `hire`/`fire` are for simple objects only.
+4. **One flush per frame.** Render only appends to `FRAME_BUF`; never `printf`
+   straight to the terminal from a render function.
+5. **No forks on hot paths**: no `$(...)`, no external commands (`sort`, `grep`,
+   `awk`); bash builtins only.
+6. **Class templates and class objects are read-only**; an instance is one assoc
+   array per object, keys formatted `{field}\x1c`.
+7. **Mark first, clean up once**: collisions only set `killed_*` flags; the cleanup
+   phase buries everything together.
+8. **Measure any mechanic change**: compare before/after with the fixed-load harness;
+   "it feels faster" is not evidence.
+
+---
+
 ## Purpose and scope
 
 `qq_bash` is primarily a validation project for the `xo` object system.
@@ -84,21 +327,39 @@ Key ideas:
   `Boss_move`, etc.
 - **Type checks** — `Base_is_a "$obj" BossBase`.
 
-### Object lifecycle: born and bury
+### Object lifecycle: born and retire
 
 ```bash
 xo_obj_born Enemy                # template fields copied in, then Enemy_born runs
 xo_obj_born_named OBJ_boss Boss  # same, with a stable handle
-xo_obj_bury "$obj"               # <CLS>_bury runs, then the pool entry is removed
+xo_obj_bury "$obj"               # <CLS>_retire runs, then the pool entry is removed
 ```
 
 - `xo_obj_born*` copies the class template's fields, registers the object in
   `XO_OBJ_POOL`, then calls `<CLS>_born` (default no-op).
-- `xo_obj_bury` calls `<CLS>_bury` before freeing anything, so an owner buries
-  what it owns (`Plane_bury` buries its weapon objects). Every class inherits
-  `Base_bury`; a missing `<CLS>_bury` is an error.
-- Burying also drops the object's `{OBJMIX}` routing, so a reused named handle
+- `xo_obj_bury` calls `<CLS>_retire` before freeing anything. Retire means "the
+  object leaves the world" — the memory and soul, not the body: whatever it owns
+  is retired with it (`Plane_retire` handles its weapon objects). Every class
+  inherits `Base_retire`; a missing `<CLS>_retire` is an error.
+- Retiring also drops the object's `{OBJMIX}` routing, so a reused named handle
   cannot inherit the previous object's abilities.
+
+#### hire / fire (reuse)
+
+`xo_obj_hire` / `xo_obj_fire` are storage-level reuse, not a new life cycle.
+`hire` pops a fired body from the resource market (falling back to `born` when it
+is empty), and `fire` retires a body and keeps it instead of destroying it. An
+empty market makes `hire` identical to `born`, so code that never fires behaves
+exactly as before.
+
+**Simple objects only.** A composite object — a class that owns other objects,
+today only `Plane` with its weapon handles in `{w1}`..`{w5}` — must always use
+`bury` and die together with its children. A retire hook cannot tell whether it
+runs inside a bury or a fire: firing a composite would destroy the children
+while keeping the parent, and the re-hired parent would hold handles to dead
+objects. Recycling composites would require passing the exit mode to the retire
+hook and rebuilding the parent/child links in the born hook; until then this
+constraint has no exceptions.
 
 The game's class tree:
 
