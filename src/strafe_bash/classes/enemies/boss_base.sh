@@ -129,10 +129,9 @@ _boss_update_phase () {
 # $7=y 底部留白（默认 4，旋刃可传 3 换更大活动范围）
 # $8=边缘巡逻模式（默认 0；旋刃传 1，目标点打屏幕边缘）
 _boss_move_target () {
-    local obj=$1
     local -i _step=$2 _yhi=$3 _jitter=$4 _ttl_base=$5 _ttl_span=$6
     local -i _ymargin=${7:-4} _wide=${8:-0}
-    local -n _bs=$obj
+    local -n _bs=$1
 
     local -i _w=${_bs["{w}$X"]:-1} _h=${_bs["{h}$X"]:-1}
     local -i _xmin=2 _xmax=$(( SCREEN_W - 2 - _w ))

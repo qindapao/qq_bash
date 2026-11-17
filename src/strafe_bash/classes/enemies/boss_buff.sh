@@ -39,8 +39,7 @@ declare -gA BOSS_BUFF_LABEL=(
 
 # 把 {OBJMIX} 映射成短标签写回 {buff_str}；{OBJMIX} 是唯一事实来源。
 _boss_buff_sync_str () {
-    local boss=$1
-    local -n _b=$boss
+    local -n _b=$1
     local list=${_b["{OBJMIX}$X"]} out='' m
     for m in $list ; do
         out+="${BOSS_BUFF_LABEL[$m]:-?} "
@@ -50,10 +49,9 @@ _boss_buff_sync_str () {
 
 # 能力是否"当前值得拿"：没写 buff_ok 谓词的能力默认永远可用
 _boss_buff_ok () {
-    local boss=$1 mixin=$2
     local fn="${mixin}_buff_ok"
     declare -F "$fn" >/dev/null || return 0
-    "$fn" "$boss"
+    "$fn" "$1"
 }
 
 # 发一次增益：先定新能力（不与已持有重复），再按上限随机删一个旧的

@@ -39,8 +39,7 @@ _intro_center () {
 }
 
 _intro_plane_fields () {
-    local n=$1
-    case "$n" in
+    case "$1" in
         2) _icls=PlaneHornet ; _iname='[2] HORNET' ; _iart="$PLANE_ART_HORNET" ; _istat='HP 30  SCORE 60%' ; _idesc='ARMORED' ;;
         3) _icls=PlaneEagle  ; _iname='[3] EAGLE-1' ; _iart="$PLANE_ART_EAGLE"  ; _istat='HP 15  SPD +1' ; _idesc='LASER NO BOOST' ;;
         4) _icls=PlaneIl2    ; _iname='[4] IL-2' ; _iart="$PLANE_ART_IL2" ; _istat='HP 40  SPD -1' ; _idesc='HEAVY ARMOR' ;;

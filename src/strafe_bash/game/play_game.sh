@@ -200,9 +200,8 @@ _enemy_bullet_bury () {
 }
 
 _score_bonus () {
-    local amount=$1
     [[ -n "${XO_OBJ_POOL[OBJ_player]+_}" ]] || return 0
-    OBJ_player["{score}$X"]=$(( ${OBJ_player["{score}$X"]:-0} + amount ))
+    OBJ_player["{score}$X"]=$(( ${OBJ_player["{score}$X"]:-0} + $1 ))
 }
 
 # 导弹尾点清理：只记录最后渲染过的尾点，死亡时交给场景统一擦除。
@@ -231,8 +230,7 @@ _ram_enemy () {
     (( rdmg > 0 )) || rdmg=5
     (( _rinv > 0 )) && rdmg=0
     hp=$(( hp - rdmg ))
-    local -n _re2=$eid
-    _re2["{hp}$X"]=$hp
+    _re["{hp}$X"]=$hp
     _hit_fx_add "$py" "$px" '*' "$C_CYAN"
     (( hp <= 0 )) || return 1
     ((G_KILLS++))
@@ -610,18 +608,17 @@ _play_game_tick () {
         [[ -n "$b" && -n "${XO_OBJ_POOL[$b]+_}" ]] || continue
         local -n _b=$b
         local bx=${_b["{x}$X"]} by=${_b["{y}$X"]}
-        local bdmg=${_b["{damage}$X"]}
+        local -i bdmg=${_b["{damage}$X"]}
 
         for _j in ${_row_e[$by]:-} ; do
             (( _edead[_j] )) && continue
             if (( bx >= _ex[_j] && bx < _ex[_j] + _ew[_j] )) ; then
-                local -i _bdmg=$bdmg
                 local _fxcol="$C_ORANGE"
                 if (( ${_einv[_j]:-0} > 0 )) ; then
-                    _bdmg=0
+                    bdmg=0
                     _fxcol="$C_CYAN"
                 fi
-                _newhp=$(( _ehp[_j] - _bdmg ))
+                _newhp=$(( _ehp[_j] - bdmg ))
                 _ehp[_j]=$_newhp
                 killed_b[$b]=1
                 _hit_fx_add "$by" "$bx" '*' "$_fxcol"

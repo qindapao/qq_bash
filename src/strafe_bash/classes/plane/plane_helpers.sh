@@ -21,8 +21,7 @@ _art_clear_at () {
 }
 
 _plane_clear () {
-    local p=$1
-    local -n _pl_self=$p
+    local -n _pl_self=$1
     local _atop=${_pl_self["{y}$X"]}
     (( ${_pl_self["{shield}$X"]:-0} )) && _atop=$(( _atop - 1 ))
     _art_clear_at "$_atop" $(( ${_pl_self["{x}$X"]} - ${_pl_self["{al}$X"]} )) "${_pl_self["{art}$X"]}"

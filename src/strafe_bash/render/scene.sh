@@ -38,9 +38,8 @@ _scene_clear_art_at () {
 }
 
 _render_erase_one () {
-    local obj=$1
     local -i skip_static=${2:-0}
-    local -n o=$obj
+    local -n o=$1
     local px=${o["{prev_x}$X"]:-${o["{x}$X"]:-0}}
     local py=${o["{prev_y}$X"]:-${o["{y}$X"]:-0}}
 
