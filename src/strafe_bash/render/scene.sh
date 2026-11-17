@@ -65,8 +65,7 @@ _render_erase_one () {
     local _t
     case "$cls" in
     Bullet|Missile|EnemyBullet|BossBullet|Drop)
-        printf -v _t '\033[%d;%dH ' "$py" "$px"
-        FRAME_BUF+="$_t"
+        FRAME_BUF+="$ESC[${py};${px}H "
         ;;
     Plane|PlaneBee|PlaneHornet|PlaneEagle|PlaneIl2)
         local psh=${o["{prev_shield}$X"]:-0}
@@ -111,6 +110,9 @@ Entity_retire () { _render_erase_one "$1" ; }
 
 render () {
     local b e d eb m w _t
+    # 擦行用的行尾填充串只与屏幕宽度有关：每帧算一次，别在逐对象循环里 printf %*s
+    local _WSP
+    printf -v _WSP '%*s' "$(( SCREEN_W - 3 ))" ''
     local _ex _ey
     local -i _qi _ptx _pty
 
@@ -138,8 +140,7 @@ render () {
         _ex=${_b["{prev_x}$X"]:-${_b["{x}$X"]:-0}}
         _ey=${_b["{prev_y}$X"]:-${_b["{y}$X"]:-0}}
         if (( _ex || _ey )) ; then
-            printf -v _t '\033[%d;%dH ' "$_ey" "$_ex"
-            FRAME_BUF+="$_t"
+            FRAME_BUF+="$ESC[${_ey};${_ex}H "
         fi
     done
     for m in "${MISSILES[@]}" ; do
@@ -148,14 +149,12 @@ render () {
         _ex=${_m["{prev_x}$X"]:-${_m["{x}$X"]:-0}}
         _ey=${_m["{prev_y}$X"]:-${_m["{y}$X"]:-0}}
         if (( _ex || _ey )) ; then
-            printf -v _t '\033[%d;%dH ' "$_ey" "$_ex"
-            FRAME_BUF+="$_t"
+            FRAME_BUF+="$ESC[${_ey};${_ex}H "
         fi
         _ptx=${_m["{prev_trail_x}$X"]:--1}
         _pty=${_m["{prev_trail_y}$X"]:--1}
         if (( _ptx >= 0 && _pty >= 0 )) ; then
-            printf -v _t '\033[%d;%dH ' "$_pty" "$_ptx"
-            FRAME_BUF+="$_t"
+            FRAME_BUF+="$ESC[${_pty};${_ptx}H "
         fi
     done
     for eb in "${ENEMY_BULLETS[@]}" ; do
@@ -167,8 +166,7 @@ render () {
             continue
         fi
         if (( _ex || _ey )) ; then
-            printf -v _t '\033[%d;%dH ' "$_ey" "$_ex"
-            FRAME_BUF+="$_t"
+            FRAME_BUF+="$ESC[${_ey};${_ex}H "
         fi
     done
     for e in "${ENEMIES[@]}" ; do
@@ -186,8 +184,7 @@ render () {
             continue
         fi
         if (( _ex || _ey )) ; then
-            printf -v _t '\033[%d;%dH ' "$_ey" "$_ex"
-            FRAME_BUF+="$_t"
+            FRAME_BUF+="$ESC[${_ey};${_ex}H "
         fi
     done
     for w in "${WORDS[@]}" ; do
@@ -205,15 +202,13 @@ render () {
             (( WV_ON[_ws] )) || continue
             local -i _ly=${WV_LAST_Y[_ws]:--1}
             if (( _ly >= 0 && _ly != WV_Y[_ws] )) ; then
-                printf -v _t '\033[%d;2H%*s' "$_ly" "$(( SCREEN_W - 3 ))" ''
-                FRAME_BUF+="$_t"
+                FRAME_BUF+="$ESC[${_ly};2H$_WSP"
             fi
             WV_LAST_Y[_ws]=-1
         done
         for (( _ws=0 ; _ws<WAVE_SLOTS ; _ws++ )) ; do
             (( WV_ON[_ws] )) || continue
-            printf -v _t '\033[%d;2H%s%s%s' "${WV_Y[_ws]}" "${WV_CLR[_ws]}" "${WV_LINE[_ws]}" "$C_RESET"
-            FRAME_BUF+="$_t"
+            FRAME_BUF+="$ESC[${WV_Y[_ws]};2H${WV_CLR[_ws]}${WV_LINE[_ws]}$C_RESET"
             WV_LAST_Y[_ws]=${WV_Y[_ws]}
         done
     else
@@ -221,8 +216,7 @@ render () {
         for (( _ws=0 ; _ws<WAVE_SLOTS ; _ws++ )) ; do
             local -i _ly=${WV_LAST_Y[_ws]:--1}
             (( _ly >= 0 )) || continue
-            printf -v _t '\033[%d;2H%*s' "$_ly" "$(( SCREEN_W - 3 ))" ''
-            FRAME_BUF+="$_t"
+            FRAME_BUF+="$ESC[${_ly};2H$_WSP"
             WV_LAST_Y[_ws]=-1
         done
     fi
@@ -237,8 +231,7 @@ render () {
             local _bx=${_b["{x}$X"]} _by=${_b["{y}$X"]} _bsym=${_b["{symbol}$X"]}
             # {color} 为空就用玩家的统一弹色；激光按威力写了自己的颜色
             local _bclr=${_b["{color}$X"]:-$C_PLAYER_BULLET}
-            printf -v _t '\033[%d;%dH%s%s%s' "$_by" "$_bx" "$_bclr" "$_bsym" "$C_RESET"
-            FRAME_BUF+="$_t"
+            FRAME_BUF+="$ESC[${_by};${_bx}H$_bclr$_bsym$C_RESET"
             _b["{prev_x}$X"]=$_bx
             _b["{prev_y}$X"]=$_by
         done
@@ -250,13 +243,11 @@ render () {
         local _mx=${_m["{x}$X"]} _my=${_m["{y}$X"]} _msym=${_m["{symbol}$X"]}
         local _ptx=${_m["{prev_x}$X"]:-} _pty=${_m["{prev_y}$X"]:-}
         if [[ -n "$_ptx" && -n "$_pty" ]] && (( _ptx != _mx || _pty != _my )) ; then
-            printf -v _t '\033[%d;%dH%s.%s' "$_pty" "$_ptx" "$C_PLAYER_BULLET" "$C_RESET"
-            FRAME_BUF+="$_t"
+            FRAME_BUF+="$ESC[${_pty};${_ptx}H$C_PLAYER_BULLET.$C_RESET"
             _m["{prev_trail_x}$X"]=$_ptx
             _m["{prev_trail_y}$X"]=$_pty
         fi
-        printf -v _t '\033[%d;%dH%s%s%s' "$_my" "$_mx" "$C_PLAYER_BULLET" "$_msym" "$C_RESET"
-        FRAME_BUF+="$_t"
+        FRAME_BUF+="$ESC[${_my};${_mx}H$C_PLAYER_BULLET$_msym$C_RESET"
         _m["{prev_x}$X"]=$_mx
         _m["{prev_y}$X"]=$_my
     done
@@ -267,11 +258,10 @@ render () {
         local _ebx=${_eb["{x}$X"]} _eby=${_eb["{y}$X"]} _ebsym=${_eb["{symbol}$X"]}
         local _ebcol=${_eb["{color}$X"]:-}
         if [[ -n "$_ebcol" ]] ; then
-            printf -v _t '\033[%d;%dH%s%s%s' "$_eby" "$_ebx" "$_ebcol" "$_ebsym" "$C_RESET"
+            FRAME_BUF+="$ESC[${_eby};${_ebx}H$_ebcol$_ebsym$C_RESET"
         else
-            printf -v _t '\033[%d;%dH%s' "$_eby" "$_ebx" "$_ebsym"
+            FRAME_BUF+="$ESC[${_eby};${_ebx}H$_ebsym"
         fi
-        FRAME_BUF+="$_t"
         _eb["{prev_x}$X"]=$_ebx
         _eb["{prev_y}$X"]=$_eby
     done
@@ -325,8 +315,7 @@ render () {
         [[ -n "$d" ]] || continue
         local -n _d=$d
         local _dx=${_d["{x}$X"]} _dy=${_d["{y}$X"]} _dsym=${_d["{symbol}$X"]}
-        printf -v _t '\033[%d;%dH%s%s%s' "$_dy" "$_dx" "$C_REVERSE" "$_dsym" "$C_RESET"
-        FRAME_BUF+="$_t"
+        FRAME_BUF+="$ESC[${_dy};${_dx}H$C_REVERSE$_dsym$C_RESET"
         _d["{prev_x}$X"]=$_dx
         _d["{prev_y}$X"]=$_dy
     done
@@ -335,8 +324,7 @@ render () {
         [[ -n "$w" ]] || continue
         local -n _w=$w
         local _wx=${_w["{x}$X"]} _wy=${_w["{y}$X"]} _wtxt=${_w["{text}$X"]}
-        printf -v _t '\033[%d;%dH%s%s%s' "$_wy" "$_wx" "$C_CYAN" "$_wtxt" "$C_RESET"
-        FRAME_BUF+="$_t"
+        FRAME_BUF+="$ESC[${_wy};${_wx}H$C_CYAN$_wtxt$C_RESET"
         _w["{prev_x}$X"]=$_wx
         _w["{prev_y}$X"]=$_wy
     done
