@@ -33,11 +33,10 @@ readonly EnemyMissileStaticTemplate='
     '
 EnemyMissile_born () {
     local -n self=$1
-    self["{x}$X"]=$2
-    self["{y}$X"]=$3
-    self["{fuel}$X"]=${4:-$BOSS_BUFF_MISSILE_FUEL}
-    self["{step}$X"]=${5:-$BOSS_BUFF_MISSILE_STEP}
-    self["{damage}$X"]=1
+    self["{x}$X"]=$2 self["{y}$X"]=$3 \
+         self["{fuel}$X"]=${4:-$BOSS_BUFF_MISSILE_FUEL} \
+         self["{step}$X"]=${5:-$BOSS_BUFF_MISSILE_STEP} \
+         self["{damage}$X"]=1
     # 实心大圆点（单宽）+ 加粗亮红：在弹幕里最容易分辨；颜色是直接拼进渲染的前缀
     self["{symbol}$X"]=$BOSS_BUFF_MISSILE_SYM
     self["{color}$X"]="${C_BOLD}${C_RED}"
@@ -53,8 +52,7 @@ readonly EnemyMissileResetFields='prev_x prev_y'
 # 贪心追踪玩家：每 step 个 tick 走一格，燃料每走一格 -1，烧完返回 1（自毁）。
 EnemyMissile_move () {
     local -n self=$1
-    local -i cd=$(( ${self["{cd}$X"]:-0} + 1 ))
-    local -i step=${self["{step}$X"]:-2}
+    local -i cd=$(( ${self["{cd}$X"]:-0} + 1 )) step=${self["{step}$X"]:-2}
     (( step < 1 )) && step=1
     if (( cd < step )) ; then
         self["{cd}$X"]=$cd
@@ -78,7 +76,7 @@ EnemyMissile_move () {
     fi
     # 符号固定为实心大圆点：方向看它怎么移动即可，不占用字符宽度去表达朝向
     x=$(( x + vx )) ; y=$(( y + vy ))
-    self["{x}$X"]=$x ; self["{y}$X"]=$y
+    self["{x}$X"]=$x self["{y}$X"]=$y
     if (( x < 2 || x > SCREEN_W - 2 || y < GAME_TOP || y >= SCREEN_H - 1 )) ; then
         return 1
     fi

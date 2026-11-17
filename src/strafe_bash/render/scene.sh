@@ -40,8 +40,7 @@ _scene_clear_art_at () {
 _render_erase_one () {
     local -i skip_static=${2:-0}
     local -n o=$1
-    local px=${o["{prev_x}$X"]:-${o["{x}$X"]:-0}}
-    local py=${o["{prev_y}$X"]:-${o["{y}$X"]:-0}}
+    local px=${o["{prev_x}$X"]:-${o["{x}$X"]:-0}} py=${o["{prev_y}$X"]:-${o["{y}$X"]:-0}}
 
     # 新对象首帧 prev=(0,0)，跳过擦除
     if (( px == 0 && py == 0 )) ; then
@@ -109,11 +108,9 @@ _render_erase_one () {
 Entity_retire () { _render_erase_one "$1" ; }
 
 render () {
-    local b e d eb m w _t
+    local b e d eb m w _t _WSP _ex _ey
     # 擦行用的行尾填充串只与屏幕宽度有关：每帧算一次，别在逐对象循环里 printf %*s
-    local _WSP
     printf -v _WSP '%*s' "$(( SCREEN_W - 3 ))" ''
-    local _ex _ey
     local -i _qi _ptx _pty
 
     # 已死亡导弹（玩家 / 敌方跟踪弹）的最后一格，由 tick 侧排队，这里统一擦除。
@@ -225,8 +222,7 @@ render () {
             # {color} 为空就用玩家的统一弹色；激光按威力写了自己的颜色
             local _bclr=${_b["{color}$X"]:-$C_PLAYER_BULLET}
             FRAME_BUF+="$ESC[${_by};${_bx}H$_bclr$_bsym$C_RESET"
-            _b["{prev_x}$X"]=$_bx
-            _b["{prev_y}$X"]=$_by
+            _b["{prev_x}$X"]=$_bx _b["{prev_y}$X"]=$_by
         done
     fi
 
@@ -240,8 +236,7 @@ render () {
             _m["{prev_trail_y}$X"]=$_pty
         fi
         FRAME_BUF+="$ESC[${_my};${_mx}H$C_PLAYER_BULLET$_msym$C_RESET"
-        _m["{prev_x}$X"]=$_mx
-        _m["{prev_y}$X"]=$_my
+        _m["{prev_x}$X"]=$_mx _m["{prev_y}$X"]=$_my
     done
 
     for eb in "${ENEMY_BULLETS[@]}" ; do
@@ -253,8 +248,7 @@ render () {
         else
             FRAME_BUF+="$ESC[${_eby};${_ebx}H$_ebsym"
         fi
-        _eb["{prev_x}$X"]=$_ebx
-        _eb["{prev_y}$X"]=$_eby
+        _eb["{prev_x}$X"]=$_ebx _eb["{prev_y}$X"]=$_eby
     done
 
     for e in "${ENEMIES[@]}" ; do
@@ -305,16 +299,14 @@ render () {
         local -n _d=$d
         local _dx=${_d["{x}$X"]} _dy=${_d["{y}$X"]} _dsym=${_d["{symbol}$X"]}
         FRAME_BUF+="$ESC[${_dy};${_dx}H$C_REVERSE$_dsym$C_RESET"
-        _d["{prev_x}$X"]=$_dx
-        _d["{prev_y}$X"]=$_dy
+        _d["{prev_x}$X"]=$_dx _d["{prev_y}$X"]=$_dy
     done
 
     for w in "${WORDS[@]}" ; do
         local -n _w=$w
         local _wx=${_w["{x}$X"]} _wy=${_w["{y}$X"]} _wtxt=${_w["{text}$X"]}
         FRAME_BUF+="$ESC[${_wy};${_wx}H$C_CYAN$_wtxt$C_RESET"
-        _w["{prev_x}$X"]=$_wx
-        _w["{prev_y}$X"]=$_wy
+        _w["{prev_x}$X"]=$_wx _w["{prev_y}$X"]=$_wy
     done
 
     # ===== 阶段 3：玩家最后画（层级最高）=====
@@ -329,14 +321,15 @@ render () {
     fi
     local _green_bold="${C_GREEN}${C_BOLD}"
 
-    local _px=${OBJ_player["{x}$X"]} _py=${OBJ_player["{y}$X"]}
-    local _part=${OBJ_player["{art}$X"]}
-    local _al=${OBJ_player["{al}$X"]:-1}
-    local _bal=${OBJ_player["{base_al}$X"]:-1}
-    local _sht=${OBJ_player["{shield_top}$X"]:--1}
-    local _sh=${OBJ_player["{shield}$X"]:-0}
-    local _pax=$(( _px - _al ))
-    local _pay=$_py
+    # 独立的赋值合成一条（每条 local 约 3µs）；有依赖的必须另起一条——
+    # bash 先把整条命令的字展开再赋值，同一条里的后半段看不到前半段。
+    local _px=${OBJ_player["{x}$X"]} _py=${OBJ_player["{y}$X"]} \
+          _part=${OBJ_player["{art}$X"]} \
+          _al=${OBJ_player["{al}$X"]:-1} \
+          _bal=${OBJ_player["{base_al}$X"]:-1} \
+          _sht=${OBJ_player["{shield_top}$X"]:--1} \
+          _sh=${OBJ_player["{shield}$X"]:-0}
+    local _pax=$(( _px - _al )) _pay=$_py
     (( _sh )) && _pay=$(( _pay + _sht ))
     _scene_art_lines "$_part"
     local -i _pr=0 _pn=${_SCENE_ART_CACHE["$_part|__n"]:-0}

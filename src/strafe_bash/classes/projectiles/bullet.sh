@@ -24,12 +24,8 @@ readonly BulletStaticTemplate='
     '
 Bullet_born () {
     local -n self=$1
-    self["{x}$X"]=$2
-    self["{y}$X"]=$3
-    self["{symbol}$X"]=$4
-    self["{damage}$X"]=$5
-    self["{vx}$X"]=${6:-0}
-    self["{vy}$X"]=${7:--1}
+    self["{x}$X"]=$2 self["{y}$X"]=$3 self["{symbol}$X"]=$4 \
+         self["{damage}$X"]=$5 self["{vx}$X"]=${6:-0} self["{vy}$X"]=${7:--1}
 }
 
 # 可回收类的易变字段：fire 时只把这几个恢复成模板默认值（其余字段每次 _born 都重设）。
@@ -38,8 +34,8 @@ Bullet_born () {
 readonly BulletResetFields='prev_x prev_y color'
 Bullet_move () {
     local -n self=$1
-    self["{x}$X"]=$(( ${self["{x}$X"]} + ${self["{vx}$X"]} ))
-    self["{y}$X"]=$(( ${self["{y}$X"]} + ${self["{vy}$X"]} ))
+    self["{x}$X"]=$(( ${self["{x}$X"]} + ${self["{vx}$X"]} )) \
+         self["{y}$X"]=$(( ${self["{y}$X"]} + ${self["{vy}$X"]} ))
     (( ${self["{y}$X"]} < GAME_TOP )) && return 1
     (( ${self["{x}$X"]} < 2 )) && return 1
     (( ${self["{x}$X"]} > SCREEN_W - 2 )) && return 1

@@ -37,11 +37,8 @@ readonly EnemyBulletStaticTemplate='
     '
 EnemyBullet_born () {
     local -n self=$1
-    self["{x}$X"]=$2
-    self["{y}$X"]=$3
-    self["{symbol}$X"]=$4
-    self["{damage}$X"]=$5
-    self["{cd}$X"]=0
+    self["{x}$X"]=$2 self["{y}$X"]=$3 self["{symbol}$X"]=$4 \
+         self["{damage}$X"]=$5 self["{cd}$X"]=0
 }
 
 # 易变字段（复用前要恢复）：位置句柄由渲染每帧写入，不清会让返聘的第一帧擦错格子。
@@ -51,8 +48,7 @@ EnemyBullet_move () {
     local -n self=$1
     local cd=$(( ${self["{cd}$X"]} + 1 ))
     (( cd < 4 )) && { self["{cd}$X"]=$cd ; return 0 ; }
-    self["{cd}$X"]=0
-    self["{y}$X"]=$(( ${self["{y}$X"]} + 1 ))
+    self["{cd}$X"]=0 self["{y}$X"]=$(( ${self["{y}$X"]} + 1 ))
     (( ${self["{y}$X"]} >= SCREEN_H - 1 )) && return 1
     return 0
 }

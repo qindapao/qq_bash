@@ -51,6 +51,11 @@
   * 给"数组只含活句柄"补一条断言型测试（render 循环现在已经依赖它）。
 
 [P4] 收尾 / 待观察
+  * `local` / 赋值合并：**热路径已扫完**。规则见 CONSTITUTION §3。
+    已合并：render 头与玩家块、_render_erase_one、五类弹体的 _born/_move、
+    敌人 Enemy_born/EnemyB_move、BossBase_born、tick 内联子弹移动、渲染里
+    5 处 prev_x/prev_y 写回。剩下的（Boss/_Spinner/SkullKing 的 move）是
+    分支里各写一次，没有相邻的独立赋值，无可合并。
   * scene.sh 还剩 8 处 printf -v：全在低频路径或需要 %*s 填充（帧缓冲后会消失）。
   * born vs hire/fire 比值重测：born 变轻后小类约 1.18x；大类场景未验证。
     建议造一个 60 字段的测试类，验证"born 随字段数线性增长、hire 基本不变"。

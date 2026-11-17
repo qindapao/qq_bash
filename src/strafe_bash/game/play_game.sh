@@ -489,8 +489,7 @@ _play_game_tick () {
         local -i bx=${_b["{x}$X"]} by=${_b["{y}$X"]}
         bx=$(( bx + ${_b["{vx}$X"]} ))
         by=$(( by + ${_b["{vy}$X"]} ))
-        _b["{x}$X"]=$bx
-        _b["{y}$X"]=$by
+        _b["{x}$X"]=$bx _b["{y}$X"]=$by
         if (( by < GAME_TOP || bx < 2 || bx > SCREEN_W - 2 )) ; then
             # 飞出屏幕：解聘，肉体回资源市场（BULLETS 在循环后重建，句柄随后摘除）
             xo_obj_fire "$b"

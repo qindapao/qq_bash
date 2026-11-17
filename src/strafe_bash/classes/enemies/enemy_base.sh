@@ -38,11 +38,9 @@ Enemy_born () {
     local -n self=$1
     local w=${self["{w}$X"]:-1}
     (( w < 1 )) && w=1
-    self["{x}$X"]=$(( RANDOM % (SCREEN_W - 2 - w) + 2 ))
-    self["{y}$X"]=$GAME_TOP
-    self["{vx}$X"]=0
-    self["{vy}$X"]=1
-    self["{cd}$X"]=0
+    self["{x}$X"]=$(( RANDOM % (SCREEN_W - 2 - w) + 2 )) \
+         self["{y}$X"]=$GAME_TOP self["{vx}$X"]=0 self["{vy}$X"]=1 \
+         self["{cd}$X"]=0
 }
 
 _enemy_fire () {

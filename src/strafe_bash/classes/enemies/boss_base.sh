@@ -72,19 +72,13 @@ BossBase_born () {
     local -n self=$1
     local -i _w=${self["{w}$X"]:-13}
     local -i _bx=$(( (SCREEN_W - _w) / 2 ))
-    self["{x}$X"]=$_bx
-    self["{y}$X"]=$GAME_TOP
-    self["{cd}$X"]=0
-    self["{phase}$X"]=0
-    self["{art}$X"]=${self["{art0}$X"]}
-    self["{tx}$X"]=$_bx
-    self["{ty}$X"]=$GAME_TOP
-    self["{ttl}$X"]=0
-    self["{inv_cd}$X"]=0
+    self["{x}$X"]=$_bx self["{y}$X"]=$GAME_TOP self["{cd}$X"]=0 \
+         self["{phase}$X"]=0 self["{art}$X"]=${self["{art0}$X"]} \
+         self["{tx}$X"]=$_bx self["{ty}$X"]=$GAME_TOP self["{ttl}$X"]=0 \
+         self["{inv_cd}$X"]=0
     # 动态增益：-1 表示还没发过，所以第一次 tick 会把 phase 0 也算作一次发放
-    self["{buff_phase}$X"]=-1
-    self["{buff_str}$X"]=''
-    self["{bi_cd}$X"]=$BOSS_BUFF_INV_GAP
+    self["{buff_phase}$X"]=-1 self["{buff_str}$X"]='' \
+         self["{bi_cd}$X"]=$BOSS_BUFF_INV_GAP
 }
 
 # 具体 Boss 在 born 时把四段 art 写进自己的类字段。

@@ -56,7 +56,6 @@ EnemyB_move () {
     elif (( y < GAME_TOP )) ; then
         y=$GAME_TOP ; vy=1
     fi
-    self["{vy}$X"]=$vy
-    self["{y}$X"]=$y
+    self["{vy}$X"]=$vy self["{y}$X"]=$y
     return 0
 }

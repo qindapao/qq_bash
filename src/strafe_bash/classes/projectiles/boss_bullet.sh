@@ -25,15 +25,9 @@ readonly BossBulletStaticTemplate='
     '
 BossBullet_born () {
     local -n self=$1
-    self["{x}$X"]=$2
-    self["{y}$X"]=$3
-    self["{vx}$X"]=$4
-    self["{vy}$X"]=$5
-    self["{symbol}$X"]=$6
-    self["{damage}$X"]=$7
-    self["{step}$X"]=${8:-2}
-    self["{color}$X"]=${9:-}
-    self["{cd}$X"]=0
+    self["{x}$X"]=$2 self["{y}$X"]=$3 self["{vx}$X"]=$4 self["{vy}$X"]=$5 \
+         self["{symbol}$X"]=$6 self["{damage}$X"]=$7 self["{step}$X"]=${8:-2} \
+         self["{color}$X"]=${9:-} self["{cd}$X"]=0
 }
 
 # 易变字段（复用前要恢复）：只有渲染写入的位置句柄。
@@ -41,16 +35,14 @@ BossBullet_born () {
 readonly BossBulletResetFields='prev_x prev_y'
 BossBullet_move () {
     local -n self=$1
-    local -i cd=$(( ${self["{cd}$X"]:-0} + 1 ))
-    local -i _step=${self["{step}$X"]:-2}
+    local -i cd=$(( ${self["{cd}$X"]:-0} + 1 )) _step=${self["{step}$X"]:-2}
     (( _step < 1 )) && _step=1
     (( cd < _step )) && { self["{cd}$X"]=$cd ; return 0 ; }
     self["{cd}$X"]=0
 
     local -i x=$(( ${self["{x}$X"]} + ${self["{vx}$X"]:-0} ))
     local -i y=$(( ${self["{y}$X"]} + ${self["{vy}$X"]:-0} ))
-    self["{x}$X"]=$x
-    self["{y}$X"]=$y
+    self["{x}$X"]=$x self["{y}$X"]=$y
     (( x < 2 || x > SCREEN_W - 2 || y < GAME_TOP || y >= SCREEN_H - 1 )) && return 1
     return 0
 }
