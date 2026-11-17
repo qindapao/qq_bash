@@ -191,7 +191,7 @@ _wave_start () {
     if (( ${#WAVE_HIT_ENEMY[@]} )) ; then
         local _k
         for _k in "${!WAVE_HIT_ENEMY[@]}" ; do
-            [[ "$_k" == "$slot:"* ]] && unset -v 'WAVE_HIT_ENEMY[$_k]'
+            [[ "$_k" == "$slot|"* ]] && unset -v 'WAVE_HIT_ENEMY[$_k]'
         done
     fi
     REPLY=$slot
@@ -787,8 +787,8 @@ _play_game_tick () {
             local _wj
             for _wj in ${_row_e[$_wy]:-} ; do
                 (( _edead[_wj] )) && continue
-                [[ -n "${WAVE_HIT_ENEMY["${_ws3}:${_eid[_wj]}"]+_}" ]] && continue
-                WAVE_HIT_ENEMY["${_ws3}:${_eid[_wj]}"]=1
+                [[ -n "${WAVE_HIT_ENEMY["${_ws3}|${_eid[_wj]}"]+_}" ]] && continue
+                WAVE_HIT_ENEMY["${_ws3}|${_eid[_wj]}"]=1
                 local -i _wdmg=${WV_DMG[_ws3]}
                 local _wcol="$C_GREEN"
                 if (( ${_einv[_wj]:-0} > 0 )) ; then

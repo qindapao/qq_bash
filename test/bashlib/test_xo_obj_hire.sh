@@ -128,7 +128,7 @@ test_case2 ()
 # 3) hire 拿回同一个句柄，重新进池并跑 born 钩子
 test_case3 ()
 {
-    local h=${RES_MARKET["HireObj:0"]}
+    local h=${RES_MARKET["HireObj|0"]}
     xo_obj_hire HireObj 5 6
     local -i ok=1
     [[ "$REPLY" == "$h" ]] || ok=0
@@ -179,8 +179,8 @@ test_case5 ()
 
     local -i ok=1
     (( ${RES_COUNT[HireObj]:-0} == 1 )) || ok=0
-    [[ -n "${RES_MARKET["HireObj:0"]}" ]] || ok=0
-    [[ "${RES_MARKET["HireObj:0"]}" == "$h1" ]] || ok=0
+    [[ -n "${RES_MARKET["HireObj|0"]}" ]] || ok=0
+    [[ "${RES_MARKET["HireObj|0"]}" == "$h1" ]] || ok=0
     declare -p "$h2" >/dev/null 2>&1 && ok=0          # 超限 → 真销毁
     RES_LIMIT[HireObj]=512
 

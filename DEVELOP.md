@@ -151,21 +151,38 @@ Hard constraints:
 | `XO_INHER_CHAIN_DUMP_CACHE` | cached inheritance dump, avoids recomputation |
 | `_XO_INIT_CALLED` | `xo_init` may run only once |
 | `XO_MIXIN_METHODS[mixin]` | which methods each mixin provides |
-| `XO_OBJ_METHOD[handle:method]` | per-object method routing (mixin implementation names) |
+| `XO_OBJ_METHOD[handle\|method]` | per-object method routing (mixin implementation names) |
 | `XO_OBJ_MIXED[handle]` | set of objects carrying mixins (cheap gate: empty set means bury does one length check) |
 | `RES_COUNT[class]` | resource market: number of idle bodies of that class |
-| `RES_MARKET["class:index"]` | resource market: idle handles, O(1) LIFO |
-| `RES_LIMIT[class]` / `RES_LIMIT_DEFAULT` | per-class recycle cap / default 512 |
-| `XO_RESET_FIELDS[class]` | cache: the class reset list |
-| `XO_RESET_DEF["class\|field"]` | cache: template default of a volatile field |
-| `XO_RESET_READY[class]` | cache: the class reset list was preprocessed |
+| `RES_MARKET["class\|index"]` | resource market: idle handles, O(1) LIFO |
+| `RES_LIMIT[class]` `RES_LIMIT_DEFAULT` | per-class recycle cap / default 512 |
+| `XO_RESET_FIELDS[class]` | cache: the class reset list, copied from `<cls>ResetFields` |
+| `XO_RESET_DEF["class\|field"]` | cache: template default of a volatile field, read from the class object |
+| `XO_RESET_READY[class]` | cache: flag, the reset list was preprocessed (lazy, on first fire) |
+
+The three `XO_RESET_*` tables are one lazy cache per class, filled on the first
+`fire` of that class and never rebuilt:
+
+```text
+fire(Bullet) with XO_RESET_READY[Bullet] unset
+   |
+   +-- read BulletResetFields = "prev_x prev_y color"
+   +-- XO_RESET_FIELDS[Bullet]       = "prev_x prev_y color"  (which fields)
+   +-- XO_RESET_DEF["Bullet|prev_x"] = 0                      (their defaults,
+   +-- XO_RESET_DEF["Bullet|prev_y"] = 0                       straight from
+   +-- XO_RESET_DEF["Bullet|color"]  = ""                      the template)
+   +-- XO_RESET_READY[Bullet]        = 1                      (prepared)
+
+every later fire: 3 hash lookups + 3 writes (~20us) instead of
+declare -p + indirect lookup per field on every single fire.
+```
 
 **Data structures (`x.in`, `grammar.sh`)**
 
 | Variable | Purpose |
 |---|---|
 | `BASH_GRAMMAR[...]` | bash capability switches probed at build time, used by `#@if` |
-| `RENDER_FPS` / `RENDER_US` | measured render figures, diagnostics only |
+| `RENDER_FPS` `RENDER_US` | measured render figures, diagnostics only |
 
 **Game runtime (`config/globals.sh`)**
 
@@ -207,7 +224,7 @@ Live-object handle lists, rebuilt every tick (collect first, then clean up once)
 | `WV_GAP1[slot]`, `WV_GAP2[slot]` | escape gaps (string index, 0 = screen column 2; negative on player waves) |
 | `WV_CLEAR_LO[slot]`, `WV_CLEAR_HI[slot]` | row band swept this tick (bullet clearing covers swaps) |
 | `WV_CLR[slot]`, `WV_LINE[slot]` | colour escape / full row characters |
-| `WAVE_HIT_ENEMY["slot:enemy"]` | hit table: once per wave per enemy |
+| `WAVE_HIT_ENEMY["slot\|enemy"]` | hit table: once per wave per enemy |
 
 **Constants (`config/const.sh`, `config/version.sh`)**
 

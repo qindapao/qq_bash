@@ -61,7 +61,7 @@ declare -gai WV_CLEAR_LO=()  # 本 tick 扫过的行区间（清弹用）
 declare -gai WV_CLEAR_HI=()
 declare -ga WV_CLR=()        # 颜色转义串
 declare -ga WV_LINE=()       # 整行字符（每条波自己的洞）
-# 我方电网对敌人的命中表："slot:敌人句柄" => 1（每条波对每个敌人只结算一次）
+# 我方电网对敌人的命中表："slot|敌人句柄" => 1（每条波对每个敌人只结算一次）
 declare -gA WAVE_HIT_ENEMY=()
 # 本 tick 电网对玩家造成的伤害累计（伤害结算时并入 player_dmg）
 declare -gi G_WAVE_DMG_PENDING=0
