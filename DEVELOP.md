@@ -256,11 +256,17 @@ Live-object handle lists, rebuilt every tick (collect first, then clean up once)
    straight to the terminal from a render function.
 5. **No forks on hot paths**: no `$(...)`, no external commands (`sort`, `grep`,
    `awk`); bash builtins only.
-6. **Class templates and class objects are read-only**; an instance is one assoc
+6. **Per-object loops dispatch inline.** In a loop over live objects, write
+   `"${XO_OBJ_POOL[$obj]}_move" "$obj"` instead of `xo_call "$obj" move`: the
+   expression is identical, so polymorphism still comes from the pool lookup,
+   but the wrapper frame is gone (~20 us per object per tick). `xo_call` stays
+   for one-off calls (the player, the frame) where the frame does not matter.
+   Never hardcode the class (`Bullet_move`) — that would break subclass override.
+7. **Class templates and class objects are read-only**; an instance is one assoc
    array per object, keys formatted `{field}\x1c`.
-7. **Mark first, clean up once**: collisions only set `killed_*` flags; the cleanup
+8. **Mark first, clean up once**: collisions only set `killed_*` flags; the cleanup
    phase buries everything together.
-8. **Measure any mechanic change**: compare before/after with the fixed-load harness;
+9. **Measure any mechanic change**: compare before/after with the fixed-load harness;
    "it feels faster" is not evidence.
 
 ---

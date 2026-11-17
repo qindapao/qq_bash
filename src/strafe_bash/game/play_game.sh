@@ -501,7 +501,8 @@ _play_game_tick () {
     local -a alive_m=()
     for m in "${MISSILES[@]}" ; do
         [[ -n "$m" && -n "${XO_OBJ_POOL[$m]+_}" ]] || continue
-        xo_call "$m" move
+        # 逐对象循环统一内联分发（同敌弹循环）：类名仍从池子取，多态不变
+        "${XO_OBJ_POOL[$m]}_move" "$m"
         if (( $? == 0 )) ; then alive_m+=("$m") ; else _missile_queue_trail_clear "$m" ; xo_obj_fire "$m" ; fi
     done
     MISSILES=("${alive_m[@]}")
@@ -513,7 +514,9 @@ _play_game_tick () {
     local -a alive_eb=()
     for eb in "${ENEMY_BULLETS[@]}" ; do
         [[ -n "$eb" && -n "${XO_OBJ_POOL[$eb]+_}" ]] || continue
-        xo_call "$eb" move
+        # 内联分发：与 xo_call "$eb" move 逐字等价（多态性不丢：类名仍从池子取），
+        # 只省掉 xo_call 那层包装帧。这一循环是全场最热的调用点之一（一屏上百发）。
+        "${XO_OBJ_POOL[$eb]}_move" "$eb"
         if (( $? == 0 )) ; then
             # 跟踪导弹可以被我方子弹打掉，一碰即毁；普通敌弹不参与，保持原来的手感。
             if [[ "${XO_OBJ_POOL[$eb]}" == "EnemyMissile" ]] ; then
@@ -553,7 +556,8 @@ _play_game_tick () {
     local -a alive_e=()
     for e in "${ENEMIES[@]}" ; do
         [[ -n "$e" && -n "${XO_OBJ_POOL[$e]+_}" ]] || continue
-        xo_call "$e" move
+        # 逐对象循环统一内联分发（同敌弹循环）：类名仍从池子取，多态不变
+        "${XO_OBJ_POOL[$e]}_move" "$e"
         if (( $? == 0 )) ; then
             alive_e+=("$e")
             # Boss 动态增益：类名比较比 Base_is_a 便宜，且只有 3 个 Boss 会进入
@@ -572,7 +576,7 @@ _play_game_tick () {
     local -a alive_d=()
     for d in "${DROPS[@]}" ; do
         [[ -n "$d" && -n "${XO_OBJ_POOL[$d]+_}" ]] || continue
-        xo_call "$d" move
+        "${XO_OBJ_POOL[$d]}_move" "$d"
         if (( $? == 0 )) ; then alive_d+=("$d") ; else xo_obj_bury "$d" ; fi
     done
     DROPS=("${alive_d[@]}")
@@ -580,7 +584,7 @@ _play_game_tick () {
     local -a alive_w=()
     for w in "${WORDS[@]}" ; do
         [[ -n "$w" && -n "${XO_OBJ_POOL[$w]+_}" ]] || continue
-        xo_call "$w" move
+        "${XO_OBJ_POOL[$w]}_move" "$w"
         if (( $? == 0 )) ; then alive_w+=("$w") ; else xo_obj_bury "$w" ; fi
     done
     WORDS=("${alive_w[@]}")
