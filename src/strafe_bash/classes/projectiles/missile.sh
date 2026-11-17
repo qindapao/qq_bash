@@ -36,6 +36,10 @@ Missile_born () {
     self["{prev_trail_x}$X"]=-1
     self["{prev_trail_y}$X"]=-1
 }
+
+# 易变字段（复用前要恢复）：只有渲染写入的位置句柄。
+# prev_trail_x/y 由 _born 重设成 -1，所以不用列。
+readonly MissileResetFields='prev_x prev_y'
 Missile_move () {
     local -n self=$1
     local -i x=${self["{x}$X"]} y=${self["{y}$X"]}

@@ -378,6 +378,19 @@ objects. Recycling composites would require passing the exit mode to the retire
 hook and rebuilding the parent/child links in the born hook; until then this
 constraint has no exceptions.
 
+The game recycles the five hot projectile classes — `Bullet`, `EnemyBullet`,
+`BossBullet`, `EnemyMissile`, `Missile` — through one spawn point per family
+(`enemy_bullet_spawn` for enemy bullets, the plane/missile launch code for ours)
+and the matching death exits. Each declares `<cls>ResetFields` with what its
+lifetime mutates: `prev_x prev_y` for all of them, plus `color` for player
+bullets (lasers paint their power colour onto the body).
+
+Measured on the reference machine: a bullet lifecycle drops from ~0.95 ms
+(born+bury) to ~0.75 ms (hire+fire), and the other four classes land between
+1.3x and 1.5x. The rest of the cost is the retire hook, the born hook and the
+reset writes, which both paths pay; recycling removes only the class-template
+deserialisation.
+
 The game's class tree:
 
 ```text

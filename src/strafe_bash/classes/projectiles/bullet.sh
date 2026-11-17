@@ -31,6 +31,11 @@ Bullet_born () {
     self["{vx}$X"]=${6:-0}
     self["{vy}$X"]=${7:--1}
 }
+
+# 可回收类的易变字段：fire 时只把这几个恢复成模板默认值（其余字段每次 _born 都重设）。
+#   prev_x/prev_y —— 渲染每帧写入；不清会让返聘出来的第一帧擦错格子
+#   color        —— 激光按威力写入颜色；不清会让普通子弹继承上一任的激光色
+readonly BulletResetFields='prev_x prev_y color'
 Bullet_move () {
     local -n self=$1
     self["{x}$X"]=$(( ${self["{x}$X"]} + ${self["{vx}$X"]} ))

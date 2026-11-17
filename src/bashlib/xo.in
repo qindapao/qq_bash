@@ -949,7 +949,6 @@ xo_obj_fire ()
         unset -v 'XO_OBJ_MIXED[$obj]'
         local -n _mo=$obj
         _mo["{OBJMIX}$X"]=''
-        unset -n _mo
     fi
 
     # 3. 恢复易变字段（此时对象还在池里，字段可读写）

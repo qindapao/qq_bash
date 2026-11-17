@@ -13,7 +13,7 @@ enemy_bullet_spawn () {
     (( ${#ENEMY_BULLETS[@]} >= ENEMY_BULLET_LIMIT )) && return 1
     local cls=$1
     shift
-    xo_obj_born "$cls" "$@" || return 1
+    xo_obj_hire "$cls" "$@" || return 1
     ENEMY_BULLETS+=("$REPLY")
     return 0
 }
@@ -43,6 +43,10 @@ EnemyBullet_born () {
     self["{damage}$X"]=$5
     self["{cd}$X"]=0
 }
+
+# 易变字段（复用前要恢复）：位置句柄由渲染每帧写入，不清会让返聘的第一帧擦错格子。
+# symbol/damage/cd 每次 _born 都重设；color 只有子类才会写（各自有清单）。
+readonly EnemyBulletResetFields='prev_x prev_y'
 EnemyBullet_move () {
     local -n self=$1
     local cd=$(( ${self["{cd}$X"]} + 1 ))

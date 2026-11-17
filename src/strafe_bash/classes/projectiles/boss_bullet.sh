@@ -35,6 +35,10 @@ BossBullet_born () {
     self["{color}$X"]=${9:-}
     self["{cd}$X"]=0
 }
+
+# 易变字段（复用前要恢复）：只有渲染写入的位置句柄。
+# 其余字段（含 color）每次 _born 都按参数重设。
+readonly BossBulletResetFields='prev_x prev_y'
 BossBullet_move () {
     local -n self=$1
     local -i cd=$(( ${self["{cd}$X"]:-0} + 1 ))

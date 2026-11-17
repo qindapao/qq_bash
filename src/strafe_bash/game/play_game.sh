@@ -232,7 +232,8 @@ _enemy_bullet_bury () {
     if (( py >= GAME_TOP && py < SCREEN_H - 1 && px >= 2 && px <= SCREEN_W - 2 )) ; then
         MISSILE_TRAIL_CLEAR+=("$py" "$px")
     fi
-    xo_obj_bury "$obj"
+    # 解聘而不是销毁：弹体回到资源市场，下一发直接复用（省掉类模板反序列化）
+    xo_obj_fire "$obj"
 }
 
 _score_bonus () {
@@ -473,7 +474,7 @@ _play_game_tick () {
         fi
         (( _mx < 2 )) && _mx=2
         (( _mx > SCREEN_W - 2 )) && _mx=$(( SCREEN_W - 2 ))
-        xo_obj_born Missile "$_mx" "$_my" 2
+        xo_obj_hire Missile "$_mx" "$_my" 2
         MISSILES+=("$REPLY")
         G_MISSILE_CD=10
     fi
@@ -489,7 +490,8 @@ _play_game_tick () {
         _b["{x}$X"]=$bx
         _b["{y}$X"]=$by
         if (( by < GAME_TOP || bx < 2 || bx > SCREEN_W - 2 )) ; then
-            xo_obj_bury "$b"
+            # 飞出屏幕：解聘，肉体回资源市场（BULLETS 在循环后重建，句柄随后摘除）
+            xo_obj_fire "$b"
         else
             alive_b+=("$b")
         fi
@@ -500,7 +502,7 @@ _play_game_tick () {
     for m in "${MISSILES[@]}" ; do
         [[ -n "$m" && -n "${XO_OBJ_POOL[$m]+_}" ]] || continue
         xo_call "$m" move
-        if (( $? == 0 )) ; then alive_m+=("$m") ; else _missile_queue_trail_clear "$m" ; xo_obj_bury "$m" ; fi
+        if (( $? == 0 )) ; then alive_m+=("$m") ; else _missile_queue_trail_clear "$m" ; xo_obj_fire "$m" ; fi
     done
     MISSILES=("${alive_m[@]}")
 
@@ -533,6 +535,9 @@ _play_game_tick () {
                     # 命中火花既做反馈，也负责把这个格子擦干净（和打中敌人同一套）
                     _hit_fx_add "$_emy" "$_emx" '*' "$C_YELLOW"
                     _enemy_bullet_bury "$eb"
+                    # 这里保持 bury：我方子弹仍留在 BULLETS 里（要等下面的清理段才重建），
+                    # 如果解聘，下一 tick 它可能被重新返聘，而这条旧句柄还在数组里
+                    # → 同一对象被当两颗子弹处理。这条路径很少，不值得为它加一次摘除。
                     [[ -n "${XO_OBJ_POOL[$_hitb]+_}" ]] && xo_obj_bury "$_hitb"
                     unset "_pbmap[$_emy,$_emx]"
                     continue
@@ -637,7 +642,8 @@ _play_game_tick () {
                         local -i _wbx=${_wbb["{x}$X"]}
                         if (( _wby >= WV_CLEAR_LO[_ws2] && _wby <= WV_CLEAR_HI[_ws2] )) && \
                            ! _wave_gap_x "$_ws2" "$_wbx" ; then
-                            xo_obj_bury "$_wb"
+                            # 被电网扫掉：解聘（BULLETS 在循环后重建）
+                            xo_obj_fire "$_wb"
                         else
                             _wb_keep+=("$_wb")
                         fi
@@ -820,7 +826,7 @@ _play_game_tick () {
         for b in "${BULLETS[@]}" ; do
             if [[ -n "${killed_b[$b]+_}" ]] ; then
                 [[ -n "$b" && -n "${XO_OBJ_POOL[$b]+_}" ]] || continue
-                xo_obj_bury "$b"
+                xo_obj_fire "$b"
             else
                 nb+=("$b")
             fi
@@ -834,7 +840,7 @@ _play_game_tick () {
             if [[ -n "${killed_m[$m]+_}" ]] ; then
                 [[ -n "$m" && -n "${XO_OBJ_POOL[$m]+_}" ]] || continue
                 _missile_queue_trail_clear "$m"
-                xo_obj_bury "$m"
+                xo_obj_fire "$m"
             else
                 nm+=("$m")
             fi

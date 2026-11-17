@@ -44,6 +44,9 @@ EnemyMissile_born () {
     self["{cd}$X"]=0
 }
 
+# 易变字段（复用前要恢复）：只有渲染写入的位置句柄；其余字段每次 _born 都重设。
+readonly EnemyMissileResetFields='prev_x prev_y'
+
 # 死亡清理统一由 play_game 的 _enemy_bullet_bury 负责（它会在 bury 前登记擦除格），
 # 所以这里只负责返回 1 表示"我该消失了"。
 

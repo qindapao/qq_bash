@@ -212,7 +212,7 @@ Plane_fire () {
             # 最高档红 + 加粗：不用蓝色——终端里蓝色偏暗，排在紫后面像降级
             5) _lclr="${C_BOLD}${C_RED}" ;;
         esac
-        xo_obj_born Bullet "$_fx" "$_fy" '|' "$_power" 0 "$_up"
+        xo_obj_hire Bullet "$_fx" "$_fy" '|' "$_power" 0 "$_up"
         local _nbid=$REPLY
         if [[ -n "$_lclr" ]] ; then
             local -n _nbref=$_nbid
@@ -223,7 +223,7 @@ Plane_fire () {
     fi
 
     # 正中：向上
-    xo_obj_born Bullet "$_fx" "$_fy" "$su" "$dmg" 0 "$_up"
+    xo_obj_hire Bullet "$_fx" "$_fy" "$su" "$dmg" 0 "$_up"
     BULLETS+=("$REPLY")
 
     if (( _lanes >= 1 )) ; then
@@ -235,12 +235,12 @@ Plane_fire () {
         fi
         if (( _do_l )) ; then
             # 左上：用该武器的 {ul} 字符
-            xo_obj_born Bullet "$_fx" "$_fy" "$sul" "$dmg" "$_left" "$_up"
+            xo_obj_hire Bullet "$_fx" "$_fy" "$sul" "$dmg" "$_left" "$_up"
             BULLETS+=("$REPLY")
         fi
         if (( _do_r )) ; then
             # 右上：用该武器的 {ur} 字符
-            xo_obj_born Bullet "$_fx" "$_fy" "$sur" "$dmg" "$_right" "$_up"
+            xo_obj_hire Bullet "$_fx" "$_fy" "$sur" "$dmg" "$_right" "$_up"
             BULLETS+=("$REPLY")
         fi
     fi
@@ -256,14 +256,14 @@ Plane_fire () {
             # 左侧：用该武器的 {l} 字符
             local _lox=$(( _fx - 2 ))
             (( _lox < 2 )) && _lox=2
-            xo_obj_born Bullet "$_lox" "$_fy" "$sl" "$dmg" "$_left" 0
+            xo_obj_hire Bullet "$_lox" "$_fy" "$sl" "$dmg" "$_left" 0
             BULLETS+=("$REPLY")
         fi
         if (( _do_or )) ; then
             # 右侧：用该武器的 {r} 字符
             local _rox=$(( _fx + 2 ))
             (( _rox > SCREEN_W - 2 )) && _rox=$(( SCREEN_W - 2 ))
-            xo_obj_born Bullet "$_rox" "$_fy" "$sr" "$dmg" "$_right" 0
+            xo_obj_hire Bullet "$_rox" "$_fy" "$sr" "$dmg" "$_right" 0
             BULLETS+=("$REPLY")
         fi
     fi
