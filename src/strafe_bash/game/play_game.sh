@@ -485,7 +485,6 @@ _play_game_tick () {
     # 玩家子弹只有 Bullet 一类；这里内联移动，省掉每颗一次 xo_call。
     local -a alive_b=()
     for b in "${BULLETS[@]}" ; do
-        [[ -n "$b" && -n "${XO_OBJ_POOL[$b]+_}" ]] || continue
         local -n _b=$b
         local -i bx=${_b["{x}$X"]} by=${_b["{y}$X"]}
         bx=$(( bx + ${_b["{vx}$X"]} ))
@@ -503,7 +502,6 @@ _play_game_tick () {
 
     local -a alive_m=()
     for m in "${MISSILES[@]}" ; do
-        [[ -n "$m" && -n "${XO_OBJ_POOL[$m]+_}" ]] || continue
         # 逐对象循环统一内联分发（同敌弹循环）：类名仍从池子取，多态不变
         "${XO_OBJ_POOL[$m]}_move" "$m"
         if (( $? == 0 )) ; then alive_m+=("$m") ; else _missile_queue_trail_clear "$m" ; xo_obj_fire "$m" ; fi
@@ -516,7 +514,6 @@ _play_game_tick () {
 
     local -a alive_eb=()
     for eb in "${ENEMY_BULLETS[@]}" ; do
-        [[ -n "$eb" && -n "${XO_OBJ_POOL[$eb]+_}" ]] || continue
         # 内联分发：与 xo_call "$eb" move 逐字等价（多态性不丢：类名仍从池子取），
         # 只省掉 xo_call 那层包装帧。这一循环是全场最热的调用点之一（一屏上百发）。
         "${XO_OBJ_POOL[$eb]}_move" "$eb"
@@ -558,7 +555,6 @@ _play_game_tick () {
 
     local -a alive_e=()
     for e in "${ENEMIES[@]}" ; do
-        [[ -n "$e" && -n "${XO_OBJ_POOL[$e]+_}" ]] || continue
         # 逐对象循环统一内联分发（同敌弹循环）：类名仍从池子取，多态不变
         "${XO_OBJ_POOL[$e]}_move" "$e"
         if (( $? == 0 )) ; then
@@ -578,7 +574,6 @@ _play_game_tick () {
 
     local -a alive_d=()
     for d in "${DROPS[@]}" ; do
-        [[ -n "$d" && -n "${XO_OBJ_POOL[$d]+_}" ]] || continue
         "${XO_OBJ_POOL[$d]}_move" "$d"
         if (( $? == 0 )) ; then alive_d+=("$d") ; else xo_obj_bury "$d" ; fi
     done
@@ -586,7 +581,6 @@ _play_game_tick () {
 
     local -a alive_w=()
     for w in "${WORDS[@]}" ; do
-        [[ -n "$w" && -n "${XO_OBJ_POOL[$w]+_}" ]] || continue
         "${XO_OBJ_POOL[$w]}_move" "$w"
         if (( $? == 0 )) ; then alive_w+=("$w") ; else xo_obj_bury "$w" ; fi
     done
@@ -882,7 +876,6 @@ _play_game_tick () {
 
     local -a survive_eb=()
     for eb in "${ENEMY_BULLETS[@]}" ; do
-        [[ -n "$eb" && -n "${XO_OBJ_POOL[$eb]+_}" ]] || continue
         local -n _eb=$eb
         local _ebx=${_eb["{x}$X"]} _eby=${_eb["{y}$X"]}
         local -i _hit=0
