@@ -40,22 +40,40 @@ declare -i G_LAST_ACE_TICK=0
 
 declare -g FRAME_BUF=""
 
-# 扫描电网：同一时刻只允许一条（Boss 的和我方的互斥，后来的覆盖）
+# 扫描电网：固定槽位表，**允许同屏多条**（Boss 连发 2..4 条 + 我方净 1 条）。
 # owner 0 = Boss（红，自上而下，打玩家）；1 = 我方（绿，自下而上，打敌人）
-declare -i WAVE_ON=0
-declare -i WAVE_Y=0
-declare -i WAVE_DIR=1
-declare -i WAVE_OWNER=0
-declare -i WAVE_DMG=0
-declare -i WAVE_CD=0
-declare -i WAVE_LAST_Y=-1
-declare -i G_WAVE_HIT_PLAYER=0
-declare -i WAVE_CLEAR_LO=0
-declare -i WAVE_CLEAR_HI=0
-# 逃生缝（字符串下标，0 = 屏幕第 2 列）。我方电网没有缝，两个值都是负数。
-declare -i WAVE_GAP1=-99
-declare -i WAVE_GAP2=-99
-declare -g WAVE_CLR=''
-declare -g WAVE_LINE=''
+# WAVE_SLOTS 要 >= 4（Boss 一次连发上限）+ 1（我方）。1 秒间隔 + 约 2 秒扫屏时
+# 最多同时 3 条在屏上，5 个槽足够。
+declare -gi WAVE_SLOTS=5
+# 派生标量：是否有任何波存活（热路径早退用，不要手工维护）
+declare -gi WAVE_ON=0
+declare -gai WV_ON=()        # 每槽：1=活 0=空
+declare -gai WV_Y=()         # 当前行
+declare -gai WV_DIR=()       # +1 向下 / -1 向上
+declare -gai WV_OWNER=()     # 0=Boss 1=我方
+declare -gai WV_DMG=()       # 伤害
+declare -gai WV_CD=()        # 每 WAVE_STEP_TICKS 走一行的计数
+declare -gai WV_LAST_Y=()    # 渲染用：上一帧画在哪行（-1 = 没画过）
+declare -gai WV_HIT=()       # 本波是否已经打过玩家（Boss 波用，每波只结算一次）
+declare -gai WV_GAP1=()      # 逃生缝（字符串下标，0 = 屏幕第 2 列）；我方波为负
+declare -gai WV_GAP2=()
+declare -gai WV_CLEAR_LO=()  # 本 tick 扫过的行区间（清弹用）
+declare -gai WV_CLEAR_HI=()
+declare -ga WV_CLR=()        # 颜色转义串
+declare -ga WV_LINE=()       # 整行字符（每条波自己的洞）
+# 我方电网对敌人的命中表："slot:敌人句柄" => 1（每条波对每个敌人只结算一次）
 declare -gA WAVE_HIT_ENEMY=()
+# 本 tick 电网对玩家造成的伤害累计（伤害结算时并入 player_dmg）
+declare -gi G_WAVE_DMG_PENDING=0
+
+# 初始把每槽的"上一帧行"标成 -1，其余数值元素默认 0
+globals_init_WV () {
+    local -i _wv_i
+    for (( _wv_i=0 ; _wv_i<WAVE_SLOTS ; _wv_i++ )) ; do
+        WV_LAST_Y[_wv_i]=-1
+        WV_GAP1[_wv_i]=-99
+        WV_GAP2[_wv_i]=-99
+    done
+}
+globals_init_WV
 

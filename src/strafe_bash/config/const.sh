@@ -56,6 +56,13 @@ WAVE_SYMBOL='~'             # 电网用的字符（ASCII，宽度无风险）
 # 玩家判定点只有中心 1 格，3 格宽的洞足够站；洞里的子弹也不清。
 WAVE_GAP_COUNT=2
 WAVE_GAP_W=3
+# Boss 电网连发：一次能力放 2..4 根，相邻两根间隔 1..3 秒。
+# 允许同屏多条（最多 WAVE_SLOTS 条），缝隙每根重新随机 → 玩家要连续换位躲。
+# 24 行终端扫一屏约 1.8 秒、30 行约 2.4 秒，所以 1 秒间隔时最多同时 2~3 条。
+BOSS_WAVE_BURST_MIN=2
+BOSS_WAVE_BURST_MAX=4
+BOSS_WAVE_GAP_MIN=1
+BOSS_WAVE_GAP_MAX=3
 
 # 增益：我方子弹减速
 BOSS_BUFF_SLOW_PCT=50       # 弹速降到 50%

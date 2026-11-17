@@ -63,6 +63,10 @@ readonly BossBaseStaticTemplate='
         {ms_cd} => 0
         # HEAL 增益的观察窗口：窗口内本阶段血掉够一半就补回阶段上限，超时自卸
         {heal_cd} => 0
+        # WAVE 增益的连发状态：剩余发数 / 下一发倒计时(tick) / 间隔(tick)
+        {wv_left} => 0
+        {wv_cd} => 0
+        {wv_gap} => 0
     '
 BossBase_born () {
     local -n self=$1

@@ -492,36 +492,40 @@ test_case1 ()
     fi
 
     # K1 启动参数：我方波自下而上、绿色
+    _wave_clear_all
     _wave_start 1 "$PLAYER_WAVE_DAMAGE"
-    check '我方波：自下而上' -1 "$WAVE_DIR"
-    check '我方波：绿色' "$C_GREEN" "$WAVE_CLR"
-    check '我方波：从底部开始' "$(( SCREEN_H - 1 ))" "$WAVE_Y"
-    check '我方波：整行字符已准备好' 1 "$(( ${#WAVE_LINE} > 0 ? 1 : 0 ))"
+    local -i s=$REPLY
+    check '我方波：自下而上' -1 "${WV_DIR[$s]}"
+    check '我方波：绿色' "$C_GREEN" "${WV_CLR[$s]}"
+    check '我方波：从底部开始' "$(( SCREEN_H - 1 ))" "${WV_Y[$s]}"
+    check '我方波：整行字符已准备好' 1 "$(( ${#WV_LINE[$s]} > 0 ? 1 : 0 ))"
     # 渲染：确认真的画出了整行（颜色 + 字符）
     ENEMIES=()
     FRAME_BUF=''
     render
     local wseen=0
-    [[ "$FRAME_BUF" == *"$WAVE_CLR$WAVE_LINE"* ]] && wseen=1
+    [[ "$FRAME_BUF" == *"${WV_CLR[$s]}${WV_LINE[$s]}"* ]] && wseen=1
     check '电网真的被画到屏幕上' 1 "$wseen"
 
     # K2 每 WAVE_STEP_TICKS 走一行（慢速扫描）
-    local -i y0=$WAVE_Y i
+    local -i y0=${WV_Y[$s]} i
     ENEMIES=() ; ENEMY_BULLETS=() ; DROPS=() ; WORDS=()
     for (( i=0 ; i<WAVE_STEP_TICKS ; i++ )) ; do _play_game_tick >/dev/null 2>&1 ; done
-    check '走满一个 step 前进 1 行' "$(( y0 - 1 ))" "$WAVE_Y"
+    check '走满一个 step 前进 1 行' "$(( y0 - 1 ))" "${WV_Y[$s]}"
 
     # K3 Boss 波：打到玩家 -3 血、打掉护盾、一条波只结算一次
     # 洞是随机的，本段测"命中"，所以强制不留洞（否则玩家/子弹可能正好落在洞里）
     OBJ_player["{hp}$X"]=20
     OBJ_player["{shield}$X"]=1
     G_INV=0
+    _wave_clear_all
     _wave_start 0 "$BOSS_WAVE_DAMAGE"
-    check 'Boss 波：红色' "$C_RED" "$WAVE_CLR"
-    check 'Boss 波：自上而下' 1 "$WAVE_DIR"
-    WAVE_GAP1=-99 ; WAVE_GAP2=-99
+    s=$REPLY
+    check 'Boss 波：红色' "$C_RED" "${WV_CLR[$s]}"
+    check 'Boss 波：自上而下' 1 "${WV_DIR[$s]}"
+    WV_GAP1[s]=-99 ; WV_GAP2[s]=-99
     local -i guard=0 hp_after=0
-    while (( WAVE_ON && guard < 200 )) ; do
+    while (( WV_ON[s] && guard < 200 )) ; do
         ((guard++))
         ENEMIES=() ; ENEMY_BULLETS=() ; DROPS=() ; WORDS=()
         _play_game_tick >/dev/null 2>&1
@@ -533,10 +537,12 @@ test_case1 ()
     # 再来一条波：血量只再扣一次 3（说明每条波只结算一次）
     OBJ_player["{hp}$X"]=20
     G_INV=0
+    _wave_clear_all
     _wave_start 0 "$BOSS_WAVE_DAMAGE"
-    WAVE_GAP1=-99 ; WAVE_GAP2=-99
+    s=$REPLY
+    WV_GAP1[s]=-99 ; WV_GAP2[s]=-99
     guard=0
-    while (( WAVE_ON && guard < 200 )) ; do
+    while (( WV_ON[s] && guard < 200 )) ; do
         ((guard++))
         ENEMIES=() ; ENEMY_BULLETS=() ; DROPS=() ; WORDS=()
         _play_game_tick >/dev/null 2>&1
@@ -554,9 +560,11 @@ test_case1 ()
     unset -n _we
     ENEMIES=(OBJ_wv)
     G_INV=900        # 别让路上的敌人影响玩家，本段只关心敌人掉血
+    _wave_clear_all
     _wave_start 1 "$PLAYER_WAVE_DAMAGE"
+    s=$REPLY
     guard=0
-    while (( WAVE_ON && guard < 200 )) ; do
+    while (( WV_ON[s] && guard < 200 )) ; do
         ((guard++))
         # 只保留被测敌人，避免它被自动射击/其他怪干扰
         ENEMIES=(OBJ_wv)
@@ -582,7 +590,7 @@ test_case1 ()
     local wdrop=$REPLY
     check '掉落 W 的 dtype' 'W' "$(field "$wdrop" dtype)"
     check '掉落 W 的字符' 'W' "$(field "$wdrop" symbol)"
-    WAVE_ON=0
+    _wave_clear_all
     local -n _wd=$wdrop
     _wd["{x}$X"]=${OBJ_player["{x}$X"]}
     _wd["{y}$X"]=${OBJ_player["{y}$X"]}
@@ -591,8 +599,12 @@ test_case1 ()
     ENEMIES=() ; ENEMY_BULLETS=() ; BULLETS=() ; WORDS=()
     _play_game_tick >/dev/null 2>&1
     check '捡到 W 立刻发射我方波' 1 "$WAVE_ON"
-    check '捡到的波打敌人（owner=我方）' 1 "$WAVE_OWNER"
-    WAVE_ON=0 ; WAVE_LAST_Y=-1
+    local -i ally_slot=0 i2
+    for (( i2=0 ; i2<WAVE_SLOTS ; i2++ )) ; do
+        (( WV_ON[i2] && WV_OWNER[i2] == 1 )) && ally_slot=1
+    done
+    check '捡到的波打敌人（owner=我方）' 1 "$ally_slot"
+    _wave_clear_all
 
     # K4b 电网同时清除那一行的子弹
     #     我方波：清敌方子弹；Boss 波：清我方子弹
@@ -602,10 +614,11 @@ test_case1 ()
     xo_obj_born EnemyBullet 30 20 >/dev/null 2>&1
     local ebul=$REPLY
     ENEMY_BULLETS=("$ebul")
-    WAVE_ON=0
+    _wave_clear_all
     _wave_start 1 "$PLAYER_WAVE_DAMAGE"
-    WAVE_Y=21                    # 本 tick 前进到 20
-    WAVE_CD=$(( WAVE_STEP_TICKS - 1 ))
+    s=$REPLY
+    WV_Y[s]=21                    # 本 tick 前进到 20
+    WV_CD[s]=$(( WAVE_STEP_TICKS - 1 ))
     G_INV=900
     _play_game_tick >/dev/null 2>&1
     check '我方电网清掉扫到的敌方子弹' '' "${XO_OBJ_POOL[$ebul]+_}"
@@ -614,11 +627,12 @@ test_case1 ()
     xo_obj_born Bullet 30 21 '|' 1 0 -1 >/dev/null 2>&1
     local pbul=$REPLY
     BULLETS=("$pbul")
-    WAVE_ON=0
+    _wave_clear_all
     _wave_start 0 "$BOSS_WAVE_DAMAGE"
-    WAVE_GAP1=-99 ; WAVE_GAP2=-99     # 本段测清弹，强制不留洞
-    WAVE_Y=19                    # 本 tick 前进到 20
-    WAVE_CD=$(( WAVE_STEP_TICKS - 1 ))
+    s=$REPLY
+    WV_GAP1[s]=-99 ; WV_GAP2[s]=-99      # 本段测清弹，强制不留洞
+    WV_Y[s]=19                    # 本 tick 前进到 20
+    WV_CD[s]=$(( WAVE_STEP_TICKS - 1 ))
     _play_game_tick >/dev/null 2>&1
     check 'Boss 电网清掉扫到的我方子弹' '' "${XO_OBJ_POOL[$pbul]+}"
 
@@ -627,10 +641,11 @@ test_case1 ()
     xo_obj_born EnemyBullet 30 15 >/dev/null 2>&1
     local ebul2=$REPLY
     ENEMY_BULLETS=("$ebul2")
-    WAVE_ON=0
+    _wave_clear_all
     _wave_start 1 "$PLAYER_WAVE_DAMAGE"
-    WAVE_Y=15
-    WAVE_CD=0                    # 本 tick 不前进，只停留清扫
+    s=$REPLY
+    WV_Y[s]=15
+    WV_CD[s]=0                    # 本 tick 不前进，只停留清扫
     G_INV=900
     _play_game_tick >/dev/null 2>&1
     check '波停留期间也会清扫子弹' '' "${XO_OBJ_POOL[$ebul2]+}"
@@ -643,39 +658,42 @@ test_case1 ()
     _eb3["{cd}$X"]=3             # 本 tick 会移动一格：8 -> 9
     unset -n _eb3
     ENEMY_BULLETS=("$ebul3")
-    WAVE_ON=0
+    _wave_clear_all
     _wave_start 1 "$PLAYER_WAVE_DAMAGE"
-    WAVE_Y=9                     # 本 tick 前进到 8
-    WAVE_CD=$(( WAVE_STEP_TICKS - 1 ))
+    s=$REPLY
+    WV_Y[s]=9                     # 本 tick 前进到 8
+    WV_CD[s]=$(( WAVE_STEP_TICKS - 1 ))
     G_INV=900
     _play_game_tick >/dev/null 2>&1
     check '与波擦肩而过的敌弹也会被清掉' '' "${XO_OBJ_POOL[$ebul3]+}"
-    WAVE_ON=0 ; WAVE_LAST_Y=-1 ; G_INV=0
+    _wave_clear_all ; G_INV=0
 
     # K6 逃生缝：Boss 波随机挖两个 3 格宽的洞，站在洞里不挨打
-    WAVE_ON=0
+    _wave_clear_all
     _wave_start 0 "$BOSS_WAVE_DAMAGE"
-    local -i line_len=${#WAVE_LINE}
+    s=$REPLY
+    local -i line_len=${#WV_LINE[$s]}
     check '挖洞后行宽不变' "$(( SCREEN_W - 4 ))" "$line_len"
     local -i gap_ok=1
-    (( WAVE_GAP1 >= 0 && WAVE_GAP2 >= 0 )) || gap_ok=0
+    (( WV_GAP1[s] >= 0 && WV_GAP2[s] >= 0 )) || gap_ok=0
     # 两个洞不能重叠（至少隔 1 格）
-    if (( WAVE_GAP2 + WAVE_GAP_W >= WAVE_GAP1 && WAVE_GAP2 <= WAVE_GAP1 + WAVE_GAP_W )) ; then
+    if (( WV_GAP2[s] + WAVE_GAP_W >= WV_GAP1[s] && WV_GAP2[s] <= WV_GAP1[s] + WAVE_GAP_W )) ; then
         gap_ok=0
     fi
     check '随机生成了两个不重叠的洞' 1 "$gap_ok"
-    check '洞中心是安全格' 0 "$( _wave_gap_x $(( WAVE_GAP1 + 1 + 2 )) ; echo $? )"
+    check '洞中心是安全格' 0 "$( _wave_gap_x "$s" $(( WV_GAP1[s] + 1 + 2 )) ; echo $? )"
 
     # 下面两条测"缝内安全 / 缝外受伤"，把缝固定成已知位置，避免随机位置让断言不稳
     OBJ_player["{hp}$X"]=20
     OBJ_player["{shield}$X"]=0
     G_INV=0
-    WAVE_ON=0
+    _wave_clear_all
     _wave_start 0 "$BOSS_WAVE_DAMAGE"
-    WAVE_GAP1=0 ; WAVE_GAP2=40
+    s=$REPLY
+    WV_GAP1[s]=0 ; WV_GAP2[s]=40
     OBJ_player["{x}$X"]=3            # 第 3 列 = 缝 1 的中心
     local -i guard6=0
-    while (( WAVE_ON && guard6 < 200 )) ; do
+    while (( WV_ON[s] && guard6 < 200 )) ; do
         ((guard6++))
         ENEMIES=() ; ENEMY_BULLETS=() ; DROPS=() ; WORDS=()
         _play_game_tick >/dev/null 2>&1
@@ -687,16 +705,17 @@ test_case1 ()
     OBJ_player["{x}$X"]=20           # 第 20 列不在任何一个缝里
     G_INV=0
     guard6=0
-    WAVE_ON=0
+    _wave_clear_all
     _wave_start 0 "$BOSS_WAVE_DAMAGE"
-    WAVE_GAP1=0 ; WAVE_GAP2=40
-    while (( WAVE_ON && guard6 < 200 )) ; do
+    s=$REPLY
+    WV_GAP1[s]=0 ; WV_GAP2[s]=40
+    while (( WV_ON[s] && guard6 < 200 )) ; do
         ((guard6++))
         ENEMIES=() ; ENEMY_BULLETS=() ; DROPS=() ; WORDS=()
         _play_game_tick >/dev/null 2>&1
     done
     check '站在缝外照常受伤' 17 "${OBJ_player["{hp}$X"]}"
-    WAVE_ON=0 ; WAVE_LAST_Y=-1 ; G_INV=0
+    _wave_clear_all ; G_INV=0
 
     # ------------------------------------------------------------------
     # 能力生命周期钩子：add 即初始化、delete 即清理，重复获取不窜状态
@@ -736,20 +755,61 @@ test_case1 ()
     xo_obj_mixin_list OBJ_rbX
     check '列表形式一次注入两个能力' 'M_BuffInvuln M_BuffMissile' "$REPLY"
 
-    # 一次性能力的 _init 会自卸：add 返回后它不该还在名单里
+    # WAVE 连发：add 立刻放第一根，之后按 {wv_cd} 定时再放，最后一根放完立刻自卸
     xo_obj_mixin_delete OBJ_rbX
-    WAVE_ON=0
+    _wave_clear_all
     xo_obj_mixin_add OBJ_rbX M_BuffWave
+    local -i wv_gap=${OBJ_rbX["{wv_gap}$X"]} wv_left=${OBJ_rbX["{wv_left}$X"]}
+    check 'WAVE 获得即放第一根' 1 "$WAVE_ON"
+    check 'WAVE 间隔落在 1..3 秒' 1 "$(( wv_gap >= 1*FPS && wv_gap <= 3*FPS ? 1 : 0 ))"
+    check 'WAVE 总发数 2..4（已放 1）' 1 "$(( wv_left >= 1 && wv_left <= 3 ? 1 : 0 ))"
     xo_obj_mixin_list OBJ_rbX
-    check '一次性能力放完自卸' '' "$REPLY"
-    check '电网确实被放出' 1 "$WAVE_ON"
-    WAVE_ON=0
+    check 'WAVE 不是一次性：连发期间仍持有' 'M_BuffWave' "$REPLY"
 
-    # 列表 + 自卸能力：后一个能力不能被过期的名单重复加入（add 每轮重读 {OBJMIX}）
+    # 固定成"还剩 1 根、间隔 3 tick"，验证倒计时、放第二根、随后立即自卸
+    OBJ_rbX["{wv_gap}$X"]=3 ; OBJ_rbX["{wv_cd}$X"]=3 ; OBJ_rbX["{wv_left}$X"]=1
+    _wave_clear_all
+    xo_obj_call_all OBJ_rbX buff_tick
+    check '倒计时递减' 2 "${OBJ_rbX["{wv_cd}$X"]}"
+    xo_obj_call_all OBJ_rbX buff_tick
+    xo_obj_call_all OBJ_rbX buff_tick
+    check '倒计时没走完不放' 0 "$WAVE_ON"
+    xo_obj_call_all OBJ_rbX buff_tick
+    check '到点放下一根' 1 "$WAVE_ON"
+    xo_obj_mixin_list OBJ_rbX
+    check '最后一根放完立刻自卸' '' "$REPLY"
+
+    # 同屏多条：间隔到点就开新槽，不和正在扫的波抢（这是压迫感的来源）
+    _wave_clear_all
+    xo_obj_mixin_add OBJ_rbX M_BuffWave
+    OBJ_rbX["{wv_cd}$X"]=0 ; OBJ_rbX["{wv_left}$X"]=3
+    xo_obj_call_all OBJ_rbX buff_tick
+    xo_obj_call_all OBJ_rbX buff_tick
+    local -i wave_cnt=0 i3
+    for (( i3=0 ; i3<WAVE_SLOTS ; i3++ )) ; do
+        (( WV_ON[i3] )) && ((wave_cnt++))
+    done
+    check '同屏允许多条波并存' 1 "$(( wave_cnt >= 2 ? 1 : 0 ))"
+    check '连发期间仍持有能力' 'M_BuffWave' "$( xo_obj_mixin_list OBJ_rbX ; echo "$REPLY" )"
+    _wave_clear_all
+
+    # 槽位耗尽时不能丢发：放不下就下一 tick 重试
+    OBJ_rbX["{wv_cd}$X"]=0 ; OBJ_rbX["{wv_left}$X"]=2
+    for (( i3=0 ; i3<WAVE_SLOTS ; i3++ )) ; do
+        _wave_start 0 "$BOSS_WAVE_DAMAGE" >/dev/null
+    done
+    xo_obj_call_all OBJ_rbX buff_tick
+    check '槽满时保留发数（下一 tick 重试）' 2 "${OBJ_rbX["{wv_left}$X"]}"
+    check '槽满时倒计时设为 1（下 tick 再试）' 1 "${OBJ_rbX["{wv_cd}$X"]}"
+    _wave_clear_all
+
+    # 列表形式同时注入：WAVE 不会在 init 里自卸，两个都留在名单里
+    xo_obj_mixin_delete OBJ_rbX
+    _wave_clear_all
     xo_obj_mixin_add OBJ_rbX M_BuffWave M_BuffInvuln
     xo_obj_mixin_list OBJ_rbX
-    check '同批里的一次性能力自卸不影响其它能力' 'M_BuffInvuln' "$REPLY"
-    WAVE_ON=0
+    check '同批注入的 WAVE 与 INV 都保留' 'M_BuffWave M_BuffInvuln' "$REPLY"
+    _wave_clear_all
 
     # bury 时逐个 cleanup（只清能力自己的节拍，共享字段不动）
     OBJ_rbX["{inv_cd}$X"]=99

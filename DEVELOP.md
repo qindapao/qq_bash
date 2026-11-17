@@ -311,15 +311,27 @@ drives both sides; only the owner differs.
 
 - Boss wave (`M_BuffWave`): red, top to bottom, 3 damage, strips the player's
   shield even though the damage itself still respects invulnerability frames.
-  It also clears *our* bullets. It is a one-shot ability and uninstalls itself
-  the moment it fires, so its slot goes back to the pool.
+  It also clears *our* bullets. One grant fires a burst of 2-4 waves, 1-3 seconds
+  apart, and the ability uninstalls itself as soon as the last one is fired — so
+  it is driven by `buff_tick`, not fired once from `_init`.
 - Player wave (drop `W`, fired on pickup): green, bottom to top, 30 damage per
   enemy and per wave, and it clears enemy bullets and homing missiles. No gaps:
   a defensive tool should not have holes in it.
 
-State lives in `config/globals.sh` (`WAVE_ON`, `WAVE_Y`, `WAVE_DIR`,
-`WAVE_OWNER`, `WAVE_CLR`, `WAVE_LINE`, the swept band, and the two gaps); the
-constants are in `config/const.sh`.
+Waves live in a small fixed slot table (`WAVE_SLOTS` = 5), so several can be on
+screen at once — that overlap is the point of the boss burst: each wave re-rolls
+its gaps, so the safe corridor keeps moving and the player has to reposition
+continuously. State is one parallel array per attribute (`WV_ON`, `WV_Y`,
+`WV_DIR`, `WV_OWNER`, `WV_DMG`, `WV_CD`, `WV_LAST_Y`, `WV_HIT`, `WV_GAP1/2`,
+`WV_LINE`, `WV_CLR`); `WAVE_ON` is only a derived "any wave alive" flag for hot
+paths. `_wave_start` takes the first free slot and returns its index in `REPLY`,
+or fails when the table is full (the ability then retries on the next tick rather
+than dropping a shot).
+
+Player damage from overlapping waves is summed per tick and then still goes
+through the usual invulnerability window, so three waves sweeping over the player
+in quick succession cost one hit, not three. The pressure is about dodging, not
+about melting the health bar.
 
 ### Why clearing uses a swept band, not a row comparison
 

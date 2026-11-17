@@ -93,11 +93,9 @@ init_game () {
     G_RUN_TICKS=0
     G_LAST_ESCAPE_TICK=0
     G_LAST_ACE_TICK=0
-    # 扫描电网：换局时清空，WAVE_LAST_Y 交给渲染器收尾（不能在这里抹掉，否则残留）
-    WAVE_ON=0
-    WAVE_CD=0
-    WAVE_HIT_ENEMY=()
-    G_WAVE_HIT_PLAYER=0
+    # 扫描电网：换局时清空所有槽。WV_LAST_Y 不在这里抹：交给渲染器擦完最后一行
+    # （直接清 -1 会把残影留在屏幕上）。
+    _wave_clear_all
     G_KILLS=0
     G_BOSS_KILLS=0
 

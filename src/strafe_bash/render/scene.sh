@@ -189,21 +189,36 @@ render () {
         _render_erase_one "$w" 1
     done
 
-    # ===== 扫描电网 =====
-    # 先擦上一行、再画当前行；画在对象之前，避免遮住子弹和敌人（对象随后会覆盖它）
+    # ===== 扫描电网（同屏可多条）=====
+    # 画在对象之前，避免遮住子弹和敌人（对象随后会覆盖它）。
+    # 两趟：先擦所有波走过的旧行，再画所有当前行 —— 否则后一条波的擦除会把
+    # 前一条刚画好的行抹掉（两条波可能同处一行）。
     if (( WAVE_ON )) ; then
-        if (( WAVE_LAST_Y >= 0 && WAVE_LAST_Y != WAVE_Y )) ; then
-            printf -v _t '\033[%d;2H%*s' "$WAVE_LAST_Y" "$(( SCREEN_W - 3 ))" ''
+        local -i _ws
+        for (( _ws=0 ; _ws<WAVE_SLOTS ; _ws++ )) ; do
+            (( WV_ON[_ws] )) || continue
+            local -i _ly=${WV_LAST_Y[_ws]:--1}
+            if (( _ly >= 0 && _ly != WV_Y[_ws] )) ; then
+                printf -v _t '\033[%d;2H%*s' "$_ly" "$(( SCREEN_W - 3 ))" ''
+                FRAME_BUF+="$_t"
+            fi
+            WV_LAST_Y[_ws]=-1
+        done
+        for (( _ws=0 ; _ws<WAVE_SLOTS ; _ws++ )) ; do
+            (( WV_ON[_ws] )) || continue
+            printf -v _t '\033[%d;2H%s%s%s' "${WV_Y[_ws]}" "${WV_CLR[_ws]}" "${WV_LINE[_ws]}" "$C_RESET"
             FRAME_BUF+="$_t"
-        fi
-        printf -v _t '\033[%d;2H%s%s%s' "$WAVE_Y" "$WAVE_CLR" "$WAVE_LINE" "$C_RESET"
-        FRAME_BUF+="$_t"
-        WAVE_LAST_Y=$WAVE_Y
-    elif (( WAVE_LAST_Y >= 0 )) ; then
-        # 波已结束：把最后一行擦掉，否则会留在画面上
-        printf -v _t '\033[%d;2H%*s' "$WAVE_LAST_Y" "$(( SCREEN_W - 3 ))" ''
-        FRAME_BUF+="$_t"
-        WAVE_LAST_Y=-1
+            WV_LAST_Y[_ws]=${WV_Y[_ws]}
+        done
+    else
+        # 波已全部结束：把每条波最后画过的行擦掉，否则会留在画面上
+        for (( _ws=0 ; _ws<WAVE_SLOTS ; _ws++ )) ; do
+            local -i _ly=${WV_LAST_Y[_ws]:--1}
+            (( _ly >= 0 )) || continue
+            printf -v _t '\033[%d;2H%*s' "$_ly" "$(( SCREEN_W - 3 ))" ''
+            FRAME_BUF+="$_t"
+            WV_LAST_Y[_ws]=-1
+        done
     fi
 
     # ===== 阶段 2：绘制所有活对象的 cur =====

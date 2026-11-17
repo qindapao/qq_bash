@@ -273,15 +273,55 @@ M_BuffMissile_buff_tick () {
 }
 
 # ---------------------------------------------------------------------------
-# 能力：扫描电网（一次性，红色，自上而下扫过整个战场）
+# 能力：扫描电网（红色，自上而下扫过整个战场；一次能力连放 2..4 根）
 # 无视护盾（命中时把玩家的护盾打掉），但仍受无敌帧保护。
-# 没有对象状态：_init 里放完波就自卸，把槽位还给后面的阶段。
+# 获得时立刻放第一根；之后每隔 1..3 秒放一根，**允许同屏多条波**（压迫感的来源：
+# 缝隙每根都重新随机，玩家要连续换位躲）。放完最后一根立刻卸载，把槽位还回去。
+# 这是延迟动作，所以状态放在 {wv_left}/{wv_cd}/{wv_gap} 里由 buff_tick 推进，
+# 不能在 _init 里放完就删。
 # ---------------------------------------------------------------------------
 M_BuffWave__init () {
+    local -n self=$1
+    local -i gap_s=$(( BOSS_WAVE_GAP_MIN + RANDOM % (BOSS_WAVE_GAP_MAX - BOSS_WAVE_GAP_MIN + 1) ))
+    local -i n=$(( BOSS_WAVE_BURST_MIN + RANDOM % (BOSS_WAVE_BURST_MAX - BOSS_WAVE_BURST_MIN + 1) ))
+    self["{wv_gap}$X"]=$(( gap_s * FPS ))
+    self["{wv_cd}$X"]=$(( gap_s * FPS ))
+    self["{wv_left}$X"]=$(( n - 1 ))      # 第一根立刻放，所以剩下 n-1 根
     _wave_start 0 "$BOSS_WAVE_DAMAGE"
-    # 一次性：放完就卸载，把槽位还给后面的阶段
-    xo_obj_mixin_delete "$1" M_BuffWave
-    _boss_buff_sync_str "$1"
+    return 0
+}
+
+M_BuffWave_buff_tick () {
+    local -n self=$1
+    local -i cd=${self["{wv_cd}$X"]:-0}
+    if (( cd > 0 )) ; then
+        self["{wv_cd}$X"]=$(( cd - 1 ))
+        return 0
+    fi
+
+    # 到点：占一个空槽放一条波（同屏可以有多条）
+    if ! _wave_start 0 "$BOSS_WAVE_DAMAGE" ; then
+        # 槽位满了：下一 tick 再试，别把这一根丢掉
+        self["{wv_cd}$X"]=1
+        return 0
+    fi
+    local -i left=$(( ${self["{wv_left}$X"]:-0} - 1 ))
+    if (( left <= 0 )) ; then
+        # 最后一根已经放出去了：立刻卸载，把槽位还给后面的阶段
+        xo_obj_mixin_delete "$1" M_BuffWave
+        _boss_buff_sync_str "$1"
+        return 0
+    fi
+    self["{wv_left}$X"]=$left
+    self["{wv_cd}$X"]=${self["{wv_gap}$X"]}
+    return 0
+}
+
+M_BuffWave__cleanup () {
+    local -n self=$1
+    # 只清自己的连发状态；已经放出去的波属于场景系统，让它自然扫完
+    self["{wv_left}$X"]=0
+    self["{wv_cd}$X"]=0
     return 0
 }
 
