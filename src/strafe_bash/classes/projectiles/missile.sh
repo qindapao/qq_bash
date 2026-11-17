@@ -29,7 +29,7 @@ Missile_born () {
     local -n self=$1
     self["{x}$X"]=$2 self["{y}$X"]=$3 self["{damage}$X"]=${4:-2} \
          self["{vx}$X"]=0 self["{vy}$X"]=-1 self["{symbol}$X"]='^' \
-         self["{prev_trail_x}$X"]=-1 self["{prev_trail_y}$X"]=-1
+             self["{prev_trail_x}$X"]=-1 self["{prev_trail_y}$X"]=-1
 }
 
 # 易变字段（复用前要恢复）：只有渲染写入的位置句柄。

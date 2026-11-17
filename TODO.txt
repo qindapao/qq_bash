@@ -57,11 +57,10 @@
     （目前 Bullet/EnemyBullet/BossBullet/EnemyMissile/Missile）。
 
 [P4] 收尾 / 待观察
-  * `local` / 赋值合并：**热路径已扫完**。规则见 CONSTITUTION §3。
-    已合并：render 头与玩家块、_render_erase_one、五类弹体的 _born/_move、
-    敌人 Enemy_born/EnemyB_move、BossBase_born、tick 内联子弹移动、渲染里
-    5 处 prev_x/prev_y 写回。剩下的（Boss/_Spinner/SkullKing 的 move）是
-    分支里各写一次，没有相邻的独立赋值，无可合并。
+  * `local` / 赋值合并：**已扫完**（scene.sh、play_game.sh、classes 全量）。
+    连续字段写回（如 `_e["{prev_x}"]=.. _e["{prev_y}"]=.. _e["{prev_art}"]=..`）
+    现在都合成一条。剩 2 处不能合：`local -i` 与普通 `local` 属性不同、
+    `local eff=$len` 有依赖。
   * scene.sh 还剩 8 处 printf -v：全在低频路径或需要 %*s 填充（帧缓冲后会消失）。
   * born vs hire/fire 比值重测：born 变轻后小类约 1.18x；大类场景未验证。
     建议造一个 60 字段的测试类，验证"born 随字段数线性增长、hire 基本不变"。

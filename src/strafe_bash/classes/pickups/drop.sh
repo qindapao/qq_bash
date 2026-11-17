@@ -25,8 +25,8 @@ readonly DropStaticTemplate='
 Drop_born () {
     local -n self=$1
     local t=$2
-    self["{dtype}$X"]=$t
-    self["{symbol}$X"]=$t
+    self["{dtype}$X"]=$t \
+        self["{symbol}$X"]=$t
 
     # 武器掉落（tier 1..5）显示对应武器的主字符，而不是数字。
     # 武器对象在本局 init_game 时已经创建好，这里只查它的 {u}。
@@ -42,16 +42,16 @@ Drop_born () {
             ;;
     esac
 
-    self["{x}$X"]=$(( (RANDOM % (SCREEN_W - 4)) + 2 ))
-    self["{y}$X"]=$GAME_TOP
-    self["{cd}$X"]=0
+    self["{x}$X"]=$(( (RANDOM % (SCREEN_W - 4)) + 2 )) \
+        self["{y}$X"]=$GAME_TOP \
+        self["{cd}$X"]=0
 }
 Drop_move () {
     local -n self=$1
     local cd=$(( ${self["{cd}$X"]} + 1 ))
     (( cd < 6 )) && { self["{cd}$X"]=$cd ; return 0 ; }
-    self["{cd}$X"]=0
-    self["{y}$X"]=$(( ${self["{y}$X"]} + 1 ))
+    self["{cd}$X"]=0 \
+        self["{y}$X"]=$(( ${self["{y}$X"]} + 1 ))
     (( ${self["{y}$X"]} >= SCREEN_H - 1 )) && return 1
     return 0
 }

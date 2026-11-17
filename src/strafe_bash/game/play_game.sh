@@ -93,9 +93,7 @@ _mouse_apply () {
     local seq=$1
     [[ "$seq" == '[<'* ]] || return 0
     [[ "$seq" == *M || "$seq" == *m ]] || return 0
-    local ev=${seq: -1}
-    local body=${seq:2:${#seq}-3}
-    local mb mx my
+    local ev=${seq: -1} body=${seq:2:${#seq}-3} mb mx my
     IFS=';' read -r mb mx my <<< "$body"
     [[ "$mx" =~ ^[0-9]+$ && "$my" =~ ^[0-9]+$ ]] || return 0
     (( mb & 64 )) && return 0     # 滚轮不移动飞机
@@ -129,9 +127,7 @@ _hit_fx_add () {
 # 注意：不复位该槽的 WV_LAST_Y —— 让渲染器先把上一条波的最后一行擦掉。
 # ============================================================================
 _wave_start () {
-    local -i owner=$1
-    local -i dmg=$2
-    local -i slot=-1 i
+    local -i owner=$1 dmg=$2 slot=-1 i
     for (( i=0 ; i<WAVE_SLOTS ; i++ )) ; do
         (( WV_ON[i] )) || { slot=$i ; break ; }
     done
@@ -200,8 +196,7 @@ _wave_start () {
 
 # 某个屏幕列是否落在第 $1 条波的逃生缝里（$2=屏幕列）
 _wave_gap_x () {
-    local -i slot=$1
-    local -i idx=$(( $2 - 2 ))
+    local -i slot=$1 idx=$(( $2 - 2 ))
     (( idx >= WV_GAP1[slot] && idx < WV_GAP1[slot] + WAVE_GAP_W )) && return 0
     (( idx >= WV_GAP2[slot] && idx < WV_GAP2[slot] + WAVE_GAP_W )) && return 0
     return 1
@@ -294,8 +289,7 @@ _drop_pick_type () {
 # 导弹尾点清理：只记录最后渲染过的尾点，死亡时交给场景统一擦除。
 _missile_queue_trail_clear () {
     local -n _mt=$1
-    local -i tx=${_mt["{prev_trail_x}$X"]:--1}
-    local -i ty=${_mt["{prev_trail_y}$X"]:--1}
+    local -i tx=${_mt["{prev_trail_x}$X"]:--1} ty=${_mt["{prev_trail_y}$X"]:--1}
     if (( tx >= 0 && ty >= 0 )) ; then
         MISSILE_TRAIL_CLEAR+=("$ty" "$tx")
     fi
@@ -306,10 +300,7 @@ _missile_queue_trail_clear () {
 _ram_enemy () {
     local eid=$1 ex=$2 ey=$3 ew=$4 eh=$5 eart=$6
     local -n _re=$eid
-    local -i hp=${_re["{hp}$X"]:-1}
-    local -i escore=${_re["{score}$X"]:-0}
-    local -i _rinv=${_re["{inv_cd}$X"]:-0}
-    local -i rdmg
+    local -i hp=${_re["{hp}$X"]:-1} escore=${_re["{score}$X"]:-0} _rinv=${_re["{inv_cd}$X"]:-0} rdmg
     REPLY=
     xo_call "OBJ_player" ram_damage
     rdmg=${REPLY:-5}
@@ -374,12 +365,12 @@ _boss_on_death () {
         done
     fi
 
-    local _bdt=(2 3 4 5 H b m L S)
+    local -a _bdt=(2 3 4 5 H b m L S)
     local _bdc="${_bdt[RANDOM % 9]}"
     xo_obj_born Drop "$_bdc"
     local -n _bd=$REPLY
-    _bd["{x}$X"]=$(( ex + ew / 2 ))
-    _bd["{y}$X"]=$(( ey + eh - 1 ))
+    _bd["{x}$X"]=$(( ex + ew / 2 )) \
+        _bd["{y}$X"]=$(( ey + eh - 1 ))
     DROPS+=("$REPLY")
 }
 
@@ -440,8 +431,7 @@ _play_game_tick () {
     # ---- 0.5 武器过期检测 ----
     # 当前武器是一个独立的 BulletType 子类对象；过期后只切回默认武器，
     # 不再像旧实现那样每 tick 动态 bury/born 一个 BulletType。
-    local _bt=${OBJ_player["{bullet}$X"]}
-    local _tier=1
+    local _bt=${OBJ_player["{bullet}$X"]} _tier=1
     if [[ -n "$_bt" && -n "${XO_OBJ_POOL[$_bt]+_}" ]] ; then
         local -n _bo=$_bt
         _tier=${_bo["{tier}$X"]:-1}
@@ -466,8 +456,7 @@ _play_game_tick () {
 
     # ---- 4. 玩家导弹发射 ----
     if (( ${OBJ_player["{mt}$X"]:-0} > 0 && G_MISSILE_CD == 0 )) ; then
-        local _my=$(( ${OBJ_player["{y}$X"]} - 1 ))
-        local _mx
+        local _my=$(( ${OBJ_player["{y}$X"]} - 1 )) _mx
         if (( G_MISSILE_SIDE )) ; then
             _mx=$(( ${OBJ_player["{x}$X"]} - 1 ))
             G_MISSILE_SIDE=0
@@ -603,8 +592,7 @@ _play_game_tick () {
                 else _wlo=$_wy_from ; _whi=$_wy ; fi
                 if (( WV_OWNER[_ws] == 0 && ! WV_HIT[_ws] )) ; then
                     # Boss 的波：整架飞机（连护盾一起）都在扫描面上，站在逃生缝里就没事
-                    local -i _wpy=${OBJ_player["{y}$X"]} _wph=${OBJ_player["{h}$X"]:-2}
-                    local -i _wpx=${OBJ_player["{x}$X"]}
+                    local -i _wpy=${OBJ_player["{y}$X"]} _wph=${OBJ_player["{h}$X"]:-2} _wpx=${OBJ_player["{x}$X"]}
                     if (( _wy >= _wpy && _wy < _wpy + _wph )) && ! _wave_gap_x "$_ws" "$_wpx" ; then
                         WV_HIT[_ws]=1
                         G_WAVE_DMG_PENDING=$(( G_WAVE_DMG_PENDING + WV_DMG[_ws] ))
@@ -638,8 +626,7 @@ _play_game_tick () {
                     for _wb in "${BULLETS[@]}" ; do
                         [[ -n "$_wb" && -n "${XO_OBJ_POOL[$_wb]+_}" ]] || continue
                         local -n _wbb=$_wb
-                        local -i _wby=${_wbb["{y}$X"]}
-                        local -i _wbx=${_wbb["{x}$X"]}
+                        local -i _wby=${_wbb["{y}$X"]} _wbx=${_wbb["{x}$X"]}
                         if (( _wby >= WV_CLEAR_LO[_ws2] && _wby <= WV_CLEAR_HI[_ws2] )) && \
                            ! _wave_gap_x "$_ws2" "$_wbx" ; then
                             # 被电网扫掉：解聘（BULLETS 在循环后重建）
@@ -675,8 +662,7 @@ _play_game_tick () {
     # 每 tick 只绑定每个敌人一次。旧实现每对 (子弹, 敌人) 都要
     # nameref 绑定 + 读 4 个字段；80 子弹 × 20 敌人时是 1600 次绑定、
     # 6400 次关联数组读取，是本 tick 最大的热点。
-    local -a _eid=() _ex=() _ey=() _ew=() _eh=() _ehp=() _escore=() _eart=() _ecls=() _einv=()
-    local -a _edead=()
+    local -a _eid=() _ex=() _ey=() _ew=() _eh=() _ehp=() _escore=() _eart=() _ecls=() _einv=() _edead=()
     local -i _ne=0 _ndead=0 _j _r _newhp
     for e in "${ENEMIES[@]}" ; do
         [[ -n "$e" && -n "${XO_OBJ_POOL[$e]+_}" ]] || continue
@@ -749,8 +735,7 @@ _play_game_tick () {
         [[ -n "${killed_m[$m]+_}" ]] && continue
         [[ -n "$m" && -n "${XO_OBJ_POOL[$m]+_}" ]] || continue
         local -n _m=$m
-        local mx=${_m["{x}$X"]} my=${_m["{y}$X"]}
-        local mdmg=${_m["{damage}$X"]}
+        local mx=${_m["{x}$X"]} my=${_m["{y}$X"]} mdmg=${_m["{damage}$X"]}
 
         for _j in ${_row_e[$my]:-} ; do
             (( _edead[_j] )) && continue
@@ -866,11 +851,8 @@ _play_game_tick () {
     local -i player_dmg=0
 
     local _sh=$(( ${OBJ_player["{shield}$X"]:-0} ))
-    local -i _shw=${OBJ_player["{shield_w}$X"]:-9}
-    local -i _shh=${OBJ_player["{shield_h}$X"]:-3}
-    local -i _sht=${OBJ_player["{shield_top}$X"]:--1}
-    local _sx1=$(( px - _shw / 2 )) _sx2=$(( px + _shw / 2 ))
-    local _sy1=$(( py + _sht ))
+    local -i _shw=${OBJ_player["{shield_w}$X"]:-9} _shh=${OBJ_player["{shield_h}$X"]:-3} _sht=${OBJ_player["{shield_top}$X"]:--1}
+    local _sx1=$(( px - _shw / 2 )) _sx2=$(( px + _shw / 2 )) _sy1=$(( py + _sht ))
     local _sy2=$(( _sy1 + _shh - 1 ))
 
     local -a survive_eb=()
@@ -966,8 +948,7 @@ _play_game_tick () {
     else
         _pick_al=$(( ${OBJ_player["{w}$X"]:-3} / 2 )) ; _pick_h=${OBJ_player["{h}$X"]:-2} ; _pick_top=$py
     fi
-    local _px1=$(( px - _pick_al )) _px2=$(( px + _pick_al ))
-    local _py1=$_pick_top _py2=$(( _pick_top + _pick_h - 1 ))
+    local _px1=$(( px - _pick_al )) _px2=$(( px + _pick_al )) _py1=$_pick_top _py2=$(( _pick_top + _pick_h - 1 ))
 
     local -a survive_d2=()
     for d in "${DROPS[@]}" ; do
@@ -983,8 +964,8 @@ _play_game_tick () {
                     # dtype 现在直接对应 tier（2..5），t2..t5 一一对应。
                     local _wnew=${OBJ_player["{w$dtype}$X"]}
                     if [[ -n "$_wnew" && -n "${XO_OBJ_POOL[$_wnew]+_}" ]] ; then
-                        OBJ_player["{t2}$X"]=0 ; OBJ_player["{t3}$X"]=0 ; OBJ_player["{t4}$X"]=0 ; OBJ_player["{t5}$X"]=0
-                        OBJ_player["{bullet}$X"]=$_wnew
+                        OBJ_player["{t2}$X"]=0 ; OBJ_player["{t3}$X"]=0 ; OBJ_player["{t4}$X"]=0 ; OBJ_player["{t5}$X"]=0 \
+                            OBJ_player["{bullet}$X"]=$_wnew
                         case "$dtype" in
                             2) OBJ_player["{t2}$X"]=$BONUS_T2 ;;
                             3) OBJ_player["{t3}$X"]=$BONUS_T3 ;;
@@ -1070,8 +1051,7 @@ _play_game_tick () {
             Base_is_a "$e" BossBase && ((alive_Boss++))
         done
 
-        local spawn_cls=''
-        local _r=$(( RANDOM % 1000 ))
+        local spawn_cls='' _r=$(( RANDOM % 1000 ))
         # Boss 战期间封锁所有新怪；只保留掉落物/飘字等非敌人内容。
         # 现有小怪不清理，Boss 死后本判定自然恢复。
         if (( alive_Boss >= BOSS_LIMIT )) ; then
@@ -1105,9 +1085,7 @@ _play_game_tick () {
     # ---- 13. 刷掉落物 ----
     (( G_DROP_TICK++ % 100 == 0 )) && (( RANDOM % 100 < 60 )) && \
         (( ${#DROPS[@]} < DROP_LIMIT )) && {
-        local _lanes_now=${OBJ_player["{lanes}$X"]:-0}
-        local _drop_type=''
-        local _r=$(( RANDOM % 100 ))
+        local _lanes_now=${OBJ_player["{lanes}$X"]:-0} _drop_type='' _r=$(( RANDOM % 100 ))
         _drop_pick_type "$_lanes_now" "$_r"
         _drop_type=$REPLY
         xo_obj_born Drop "$_drop_type"
@@ -1116,8 +1094,7 @@ _play_game_tick () {
 
     # ---- 14. 刷飘字 ----
     (( G_WORD_TICK++ % 250 == 0 )) && (( ${#WORDS[@]} < WORD_LIMIT )) && {
-        local _wtext="${WORD_LIST[RANDOM % ${#WORD_LIST[@]}]}"
-        local _ww
+        local _wtext="${WORD_LIST[RANDOM % ${#WORD_LIST[@]}]}" _ww
         str_display_width "$_wtext" _ww
         if (( _ww <= SCREEN_W - 4 )) ; then
             xo_obj_born Word "$_wtext"
@@ -1135,16 +1112,14 @@ play_game () {
     local key running=1
     local -i paused=0 paused_drawn=0
     local msg= msg_tick=0
-    local -i bomb_fx_tick=0
-    local -i hud_tick=0
+    local -i bomb_fx_tick=0 hud_tick=0
     local last_bonus_str='__init__'
     # 注意：这里不能声明为 local -i。下面多处用 printf -v _t 写入 ANSI
     # 转义字符串，integer 属性会让 bash 把字符串当算术表达式求值并报错。
     local _t
 
     local LAST_US=${EPOCHREALTIME/./}
-    local -i LOGIC_ACC_US=0
-    local -i RENDER_ACC_US=$RENDER_US
+    local -i LOGIC_ACC_US=0 RENDER_ACC_US=$RENDER_US
     # 只有逻辑 tick 会改变场景；两个 tick 之间的重复渲染是纯浪费。
     # 需要重画时置 1（首次 / 每次 tick / load 后）。
     local -i need_render=1
@@ -1263,9 +1238,7 @@ play_game () {
             ENEMY_BULLETS=()
 
             local -a bomb_alive=()
-            local -i bomb_score=0
-            local -i _bomb_n=${#ENEMIES[@]}
-            local -i _bomb_pct=100
+            local -i bomb_score=0 _bomb_n=${#ENEMIES[@]} _bomb_pct=100
             _bomb_pct=${OBJ_player["{score_pct}$X"]:-100}
             for e in "${ENEMIES[@]}" ; do
                 [[ -n "$e" && -n "${XO_OBJ_POOL[$e]+_}" ]] || continue
@@ -1276,10 +1249,7 @@ play_game () {
                 fi
                 local new_hp=$(( ${_e["{hp}$X"]} - _bomb_dmg ))
                 _e["{hp}$X"]=$new_hp
-                local escore=${_e["{score}$X"]}
-                local _ex=${_e["{x}$X"]} _ey=${_e["{y}$X"]}
-                local _ew=${_e["{w}$X"]} _eh=${_e["{h}$X"]}
-                local _eart=${_e["{art}$X"]}
+                local escore=${_e["{score}$X"]} _ex=${_e["{x}$X"]} _ey=${_e["{y}$X"]} _ew=${_e["{w}$X"]} _eh=${_e["{h}$X"]} _eart=${_e["{art}$X"]}
                 if (( new_hp <= 0 )) ; then
                     bomb_score=$(( bomb_score + escore * _bomb_pct / 100 ))
                     ((G_KILLS++))
@@ -1305,8 +1275,7 @@ play_game () {
         # ---- 暂停 ----
         if (( paused )) ; then
             if (( !paused_drawn )) ; then
-                local _s='PAUSED  (p=resume  q=quit  s=save  l=load)'
-                local _maxw=$(( SCREEN_W - 2 ))
+                local _s='PAUSED  (p=resume  q=quit  s=save  l=load)' _maxw=$(( SCREEN_W - 2 ))
                 _s="${_s:0:_maxw}"
                 local _t
                 printf -v _t '\033[5;2H\033[K%s\033[5;%dH%s' "$_s" "$SCREEN_W" "$FRAME_V"
@@ -1314,8 +1283,7 @@ play_game () {
                 paused_drawn=1
             fi
             if (( msg_tick > 0 )) ; then
-                local _s="$msg"
-                local _maxw=$(( SCREEN_W - 2 ))
+                local _s="$msg" _maxw=$(( SCREEN_W - 2 ))
                 _s="${_s:0:_maxw}"
                 local _t
                 printf -v _t '\033[5;2H\033[K%s\033[5;%dH%s' "$_s" "$SCREEN_W" "$FRAME_V"
@@ -1371,8 +1339,7 @@ play_game () {
             fi
 
             if (( msg_tick > 0 )) ; then
-                local _s="$msg"
-                local _maxw=$(( SCREEN_W - 2 ))
+                local _s="$msg" _maxw=$(( SCREEN_W - 2 ))
                 _s="${_s:0:_maxw}"
                 local _t
                 printf -v _t '\033[5;2H\033[K%s\033[5;%dH%s' "$_s" "$SCREEN_W" "$FRAME_V"

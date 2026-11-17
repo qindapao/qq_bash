@@ -40,7 +40,7 @@ Enemy_born () {
     (( w < 1 )) && w=1
     self["{x}$X"]=$(( RANDOM % (SCREEN_W - 2 - w) + 2 )) \
          self["{y}$X"]=$GAME_TOP self["{vx}$X"]=0 self["{vy}$X"]=1 \
-         self["{cd}$X"]=0
+             self["{cd}$X"]=0
 }
 
 _enemy_fire () {

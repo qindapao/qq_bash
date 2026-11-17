@@ -102,18 +102,18 @@ Plane_born () {
         PlaneIl2)    _base=$PLANE_ART_IL2    ; _shield=$PLANE_ART_SHIELD_IL2    ;;
         *)           _base=$PLANE_ART_BASE   ; _shield=$PLANE_ART_SHIELD       ;;
     esac
-    self["{base_art}$X"]=$_base
-    self["{shield_art}$X"]=$_shield
-    self["{art}$X"]=$_base
-    self["{x}$X"]=$(( SCREEN_W / 2 ))
-    self["{y}$X"]=$(( SCREEN_H - 2 ))
-    self["{al}$X"]=${self["{base_al}$X"]:-1}
-    self["{shield}$X"]=0
-    self["{st}$X"]=0
-    self["{prev_art}$X"]=$_base
-    self["{prev_al}$X"]=${self["{base_al}$X"]:-1}
-    self["{prev_shield}$X"]=0
-    self["{hp}$X"]=${self["{maxhp}$X"]:-20}
+    self["{base_art}$X"]=$_base \
+        self["{shield_art}$X"]=$_shield \
+        self["{art}$X"]=$_base \
+        self["{x}$X"]=$(( SCREEN_W / 2 )) \
+        self["{y}$X"]=$(( SCREEN_H - 2 )) \
+        self["{al}$X"]=${self["{base_al}$X"]:-1} \
+        self["{shield}$X"]=0 \
+        self["{st}$X"]=0 \
+        self["{prev_art}$X"]=$_base \
+        self["{prev_al}$X"]=${self["{base_al}$X"]:-1} \
+        self["{prev_shield}$X"]=0 \
+        self["{hp}$X"]=${self["{maxhp}$X"]:-20}
 }
 Plane_use_skill () {
     # 预留接口：具体机型以后覆盖这个方法。
@@ -143,8 +143,8 @@ Plane_move () {
     (( _sh )) && _miny=$(( GAME_TOP + 1 ))
     (( y < _miny )) && y=$_miny
     (( y > SCREEN_H - 2 )) && y=$(( SCREEN_H - 2 ))
-    self["{x}$X"]=$x
-    self["{y}$X"]=$y
+    self["{x}$X"]=$x \
+        self["{y}$X"]=$y
 }
 Plane_fire () {
     local -n self=$1

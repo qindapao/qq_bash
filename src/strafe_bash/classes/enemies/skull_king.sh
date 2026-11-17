@@ -96,11 +96,11 @@ SkullKing_born () {
     _boss_set_arts "$1" "$SKULL_ART_0" "$SKULL_ART_1" "$SKULL_ART_2" "$SKULL_ART_3"
     BossBase_born "$1"
     local -n _self=$1
-    _self["{shot_cd}$X"]=$SKULL_KING_FIRST_SHOT
-    _self["{ring_left}$X"]=$SKULL_KING_BURST_RINGS
-    _self["{pat_cd}$X"]=120
-    _self["{pat_step}$X"]=-1
-    _self["{pat_mode}$X"]=0
+    _self["{shot_cd}$X"]=$SKULL_KING_FIRST_SHOT \
+        _self["{ring_left}$X"]=$SKULL_KING_BURST_RINGS \
+        _self["{pat_cd}$X"]=120 \
+        _self["{pat_step}$X"]=-1 \
+        _self["{pat_mode}$X"]=0
 }
 
 # 8 方向 O/X：每波 8 发，连发 4 波，然后休息约 3 秒。
@@ -151,11 +151,11 @@ SkullKing_move () {
 
             local -i rl=$(( ${self["{ring_left}$X"]:-1} - 1 ))
             if (( rl > 0 )) ; then
-                self["{shot_cd}$X"]=$SKULL_KING_RING_GAP
-                self["{ring_left}$X"]=$rl
+                self["{shot_cd}$X"]=$SKULL_KING_RING_GAP \
+                    self["{ring_left}$X"]=$rl
             else
-                self["{shot_cd}$X"]=$SKULL_KING_REST
-                self["{ring_left}$X"]=$SKULL_KING_BURST_RINGS
+                self["{shot_cd}$X"]=$SKULL_KING_REST \
+                    self["{ring_left}$X"]=$SKULL_KING_BURST_RINGS
             fi
         else
             self["{shot_cd}$X"]=$sc
@@ -167,8 +167,8 @@ SkullKing_move () {
         _boss_pattern_spawn_step "$1" "$_ps" "${self["{pat_mode}$X"]:-0}" 4
         ((_ps++))
         if (( _ps >= ${#BOSS_AIM_PATTERN_STEPS[@]} )) ; then
-            self["{pat_step}$X"]=-1
-            self["{pat_cd}$X"]=240
+            self["{pat_step}$X"]=-1 \
+                self["{pat_cd}$X"]=240
         else
             self["{pat_step}$X"]=$_ps
         fi
@@ -178,8 +178,8 @@ SkullKing_move () {
             _boss_pattern_mode "$1"
             self["{pat_mode}$X"]=$REPLY
             _boss_pattern_spawn_step "$1" 0 "$REPLY" 4
-            self["{pat_step}$X"]=1
-            self["{pat_cd}$X"]=240
+            self["{pat_step}$X"]=1 \
+                self["{pat_cd}$X"]=240
         else
             self["{pat_cd}$X"]=$_pc
         fi

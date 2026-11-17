@@ -284,9 +284,9 @@ M_BuffWave__init () {
     local -n self=$1
     local -i gap_s=$(( BOSS_WAVE_GAP_MIN + RANDOM % (BOSS_WAVE_GAP_MAX - BOSS_WAVE_GAP_MIN + 1) ))
     local -i n=$(( BOSS_WAVE_BURST_MIN + RANDOM % (BOSS_WAVE_BURST_MAX - BOSS_WAVE_BURST_MIN + 1) ))
-    self["{wv_gap}$X"]=$(( gap_s * FPS ))
-    self["{wv_cd}$X"]=$(( gap_s * FPS ))
-    self["{wv_left}$X"]=$(( n - 1 ))      # 第一根立刻放，所以剩下 n-1 根
+    self["{wv_gap}$X"]=$(( gap_s * FPS )) \
+        self["{wv_cd}$X"]=$(( gap_s * FPS )) \
+        self["{wv_left}$X"]=$(( n - 1 ))      # 第一根立刻放，所以剩下 n-1 根
     _wave_start 0 "$BOSS_WAVE_DAMAGE"
     return 0
 }
@@ -312,16 +312,16 @@ M_BuffWave_buff_tick () {
         _boss_buff_sync_str "$1"
         return 0
     fi
-    self["{wv_left}$X"]=$left
-    self["{wv_cd}$X"]=${self["{wv_gap}$X"]}
+    self["{wv_left}$X"]=$left \
+        self["{wv_cd}$X"]=${self["{wv_gap}$X"]}
     return 0
 }
 
 M_BuffWave__cleanup () {
     local -n self=$1
     # 只清自己的连发状态；已经放出去的波属于场景系统，让它自然扫完
-    self["{wv_left}$X"]=0
-    self["{wv_cd}$X"]=0
+    self["{wv_left}$X"]=0 \
+        self["{wv_cd}$X"]=0
     return 0
 }
 
@@ -333,7 +333,7 @@ M_BuffWave__cleanup () {
 # ---------------------------------------------------------------------------
 M_BuffSlow__init () {
     [[ -n "${XO_OBJ_POOL[OBJ_player]+_}" ]] || return 0
-    OBJ_player["{spd_pct}$X"]=$BOSS_BUFF_SLOW_PCT
-    OBJ_player["{slow}$X"]=$BONUS_SLOW
+    OBJ_player["{spd_pct}$X"]=$BOSS_BUFF_SLOW_PCT \
+        OBJ_player["{slow}$X"]=$BONUS_SLOW
     return 0
 }

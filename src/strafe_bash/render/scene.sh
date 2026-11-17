@@ -60,17 +60,14 @@ _render_erase_one () {
         fi
     fi
 
-    local cls=${o["{CLS}$X"]}
-    local _t
+    local cls=${o["{CLS}$X"]} _t
     case "$cls" in
     Bullet|Missile|EnemyBullet|BossBullet|Drop)
         FRAME_BUF+="$ESC[${py};${px}H "
         ;;
     Plane|PlaneBee|PlaneHornet|PlaneEagle|PlaneIl2)
-        local psh=${o["{prev_shield}$X"]:-0}
-        local pal=${o["{prev_al}$X"]:-${o["{al}$X"]:-1}}
-        local part=${o["{prev_art}$X"]:-${o["{art}$X"]}}
-        local pay=$py
+        local psh=${o["{prev_shield}$X"]:-0} pal=${o["{prev_al}$X"]:-${o["{al}$X"]:-1}} \
+              part=${o["{prev_art}$X"]:-${o["{art}$X"]}} pay=$py
         (( psh )) && pay=$(( py + ${o["{shield_top}$X"]:--1} ))
         _scene_clear_art_at "$pay" $(( px - pal )) "$part"
         ;;
@@ -90,7 +87,9 @@ _render_erase_one () {
         local _old_art=${o["{prev_art}$X"]:-${o["{art}$X"]}}
         _scene_clear_art_at "$py" "$px" "$_old_art"
         local _bcls=${o["{CLS}$X"]}
-        if [[ "$_bcls" == "Boss" ]] || [[ "$_bcls" == "BossSpinner" ]] || [[ "$_bcls" == "SkullKing" ]] || [[ "$_bcls" == "EnemyB" ]] || [[ "$_bcls" == "EnemyM" ]] ; then
+        if [[ "$_bcls" == "Boss" ]] || [[ "$_bcls" == "BossSpinner" ]] \
+           || [[ "$_bcls" == "SkullKing" ]] || [[ "$_bcls" == "EnemyB" ]] \
+           || [[ "$_bcls" == "EnemyM" ]] ; then
             local _bh=${o["{h}$X"]:-1}
             if (( py + _bh < SCREEN_H )) ; then
                 printf -v _t '\033[%d;2H\033[K\033[%d;%dH%s' $((py + _bh)) $((py + _bh)) "$SCREEN_W" "$FRAME_V"
@@ -228,12 +227,12 @@ render () {
 
     for m in "${MISSILES[@]}" ; do
         local -n _m=$m
-        local _mx=${_m["{x}$X"]} _my=${_m["{y}$X"]} _msym=${_m["{symbol}$X"]}
-        local _ptx=${_m["{prev_x}$X"]:-} _pty=${_m["{prev_y}$X"]:-}
+        local _mx=${_m["{x}$X"]} _my=${_m["{y}$X"]} _msym=${_m["{symbol}$X"]} \
+              _ptx=${_m["{prev_x}$X"]:-} _pty=${_m["{prev_y}$X"]:-}
         if [[ -n "$_ptx" && -n "$_pty" ]] && (( _ptx != _mx || _pty != _my )) ; then
             FRAME_BUF+="$ESC[${_pty};${_ptx}H$C_PLAYER_BULLET.$C_RESET"
-            _m["{prev_trail_x}$X"]=$_ptx
-            _m["{prev_trail_y}$X"]=$_pty
+            _m["{prev_trail_x}$X"]=$_ptx \
+                _m["{prev_trail_y}$X"]=$_pty
         fi
         FRAME_BUF+="$ESC[${_my};${_mx}H$C_PLAYER_BULLET$_msym$C_RESET"
         _m["{prev_x}$X"]=$_mx _m["{prev_y}$X"]=$_my
@@ -241,8 +240,7 @@ render () {
 
     for eb in "${ENEMY_BULLETS[@]}" ; do
         local -n _eb=$eb
-        local _ebx=${_eb["{x}$X"]} _eby=${_eb["{y}$X"]} _ebsym=${_eb["{symbol}$X"]}
-        local _ebcol=${_eb["{color}$X"]:-}
+        local _ebx=${_eb["{x}$X"]} _eby=${_eb["{y}$X"]} _ebsym=${_eb["{symbol}$X"]} _ebcol=${_eb["{color}$X"]:-}
         if [[ -n "$_ebcol" ]] ; then
             FRAME_BUF+="$ESC[${_eby};${_ebx}H$_ebcol$_ebsym$C_RESET"
         else
@@ -253,8 +251,7 @@ render () {
 
     for e in "${ENEMIES[@]}" ; do
         local -n _e=$e
-        local _cls=${_e["{CLS}$X"]}
-        local _color=''
+        local _cls=${_e["{CLS}$X"]} _color=''
         case "$_cls" in
             Boss|EnemyB) _color=$C_RED ;;
             BossSpinner) _color=$C_PURPLE ;;
@@ -267,11 +264,8 @@ render () {
            (( ${_e["{inv_cd}$X"]:-0} > 0 )) ; then
             _color=$C_CYAN
         fi
-        local _ay=${_e["{y}$X"]} _ax=${_e["{x}$X"]}
-        local _h=${_e["{h}$X"]}
-        local _hp2=${_e["{hp}$X"]}
-        local _maxhp=${_e["{maxhp}$X"]}
-        local _art=${_e["{art}$X"]}
+        local _ay=${_e["{y}$X"]} _ax=${_e["{x}$X"]} _h=${_e["{h}$X"]} \
+              _hp2=${_e["{hp}$X"]} _maxhp=${_e["{maxhp}$X"]} _art=${_e["{art}$X"]}
         _scene_art_lines "$_art"
         local -i _r=0 _rn=${_SCENE_ART_CACHE["$_art|__n"]:-0}
         while (( _r < _rn )) ; do
@@ -280,7 +274,9 @@ render () {
             FRAME_BUF+="$_t"
             ((_r++))
         done
-        if [[ "$_cls" == "Boss" ]] || [[ "$_cls" == "BossSpinner" ]] || [[ "$_cls" == "SkullKing" ]] || [[ "$_cls" == "EnemyB" ]] || [[ "$_cls" == "EnemyM" ]] ; then
+        if [[ "$_cls" == "Boss" ]] || [[ "$_cls" == "BossSpinner" ]] \
+           || [[ "$_cls" == "SkullKing" ]] || [[ "$_cls" == "EnemyB" ]] \
+           || [[ "$_cls" == "EnemyM" ]] ; then
             if (( _ay + _h < SCREEN_H )) ; then
                 # 动态增益标签挂在 HP 行尾（非 Boss 没有这个字段，读出来是空）
                 local _buff=''
@@ -290,9 +286,9 @@ render () {
                 FRAME_BUF+="$_t"
             fi
         fi
-        _e["{prev_x}$X"]=$_ax
-        _e["{prev_y}$X"]=$_ay
-        _e["{prev_art}$X"]=$_art
+        _e["{prev_x}$X"]=$_ax \
+            _e["{prev_y}$X"]=$_ay \
+            _e["{prev_art}$X"]=$_art
     done
 
     for d in "${DROPS[@]}" ; do
@@ -312,9 +308,7 @@ render () {
     # ===== 阶段 3：玩家最后画（层级最高）=====
     # 玩家先画会被自己的子弹（出生点在 y-1，护盾时正压顶罩）和敌弹（机翼不是
     # 判定点，会飞过机翼）覆盖，表现为机体/护盾反复被遮住。放最后即不再被遮。
-    local _hp=${OBJ_player["{hp}$X"]:-0}
-    local _maxhp=${OBJ_player["{maxhp}$X"]:-20}
-    local _ph=''
+    local _hp=${OBJ_player["{hp}$X"]:-0} _maxhp=${OBJ_player["{maxhp}$X"]:-20} _ph=''
     if (( _hp >= _maxhp )) ; then _ph="${C_BLUE}${C_BOLD}"
     elif (( _hp * 2 < _maxhp )) ; then _ph="${C_RED}${C_BOLD}"
     else _ph="${C_FG_DEFAULT}${C_BOLD}"
@@ -334,8 +328,7 @@ render () {
     _scene_art_lines "$_part"
     local -i _pr=0 _pn=${_SCENE_ART_CACHE["$_part|__n"]:-0}
     while (( _pr < _pn )) ; do
-        local _pline=${_SCENE_ART_CACHE["$_part|$_pr"]}
-        local _out='' _cur_clr='' _c _i _want
+        local _pline=${_SCENE_ART_CACHE["$_part|$_pr"]} _out='' _cur_clr='' _c _i _want
         for (( _i=0 ; _i<${#_pline} ; _i++ )) ; do
             _c=${_pline:_i:1}
             if [[ "$_c" == " " ]] ; then
@@ -365,9 +358,9 @@ render () {
         (( _blink_visible )) && FRAME_BUF+="$_t"
         ((_pr++))
     done
-    OBJ_player["{prev_x}$X"]=$_px
-    OBJ_player["{prev_y}$X"]=$_py
-    OBJ_player["{prev_art}$X"]=$_part
-    OBJ_player["{prev_al}$X"]=$_al
-    OBJ_player["{prev_shield}$X"]=$_sh
+    OBJ_player["{prev_x}$X"]=$_px \
+        OBJ_player["{prev_y}$X"]=$_py \
+        OBJ_player["{prev_art}$X"]=$_part \
+        OBJ_player["{prev_al}$X"]=$_al \
+        OBJ_player["{prev_shield}$X"]=$_sh
 }

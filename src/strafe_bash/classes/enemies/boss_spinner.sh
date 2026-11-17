@@ -55,12 +55,12 @@ BossSpinner_born () {
     _boss_set_arts "$1" "$BOSS_SPINNER_ART_0" "$BOSS_SPINNER_ART_1" "$BOSS_SPINNER_ART_2" "$BOSS_SPINNER_ART_3"
     BossBase_born "$1"
     local -n _self=$1
-    _self["{ring_cd}$X"]=18
-    _self["{aim_cd}$X"]=36
-    _self["{pat_cd}$X"]=90
-    _self["{pat_step}$X"]=-1
-    _self["{pat_mode}$X"]=0
-    _self["{spin}$X"]=0
+    _self["{ring_cd}$X"]=18 \
+        _self["{aim_cd}$X"]=36 \
+        _self["{pat_cd}$X"]=90 \
+        _self["{pat_step}$X"]=-1 \
+        _self["{pat_mode}$X"]=0 \
+        _self["{spin}$X"]=0
 }
 
 # 旋转环：8 方向留 2 个对向缺口，每轮转 45°。
@@ -146,8 +146,8 @@ BossSpinner_move () {
         _boss_pattern_spawn_step "$1" "$_ps" "${self["{pat_mode}$X"]:-0}" 4
         ((_ps++))
         if (( _ps >= ${#BOSS_AIM_PATTERN_STEPS[@]} )) ; then
-            self["{pat_step}$X"]=-1
-            self["{pat_cd}$X"]=180
+            self["{pat_step}$X"]=-1 \
+                self["{pat_cd}$X"]=180
         else
             self["{pat_step}$X"]=$_ps
         fi
@@ -157,8 +157,8 @@ BossSpinner_move () {
             _boss_pattern_mode "$1"
             self["{pat_mode}$X"]=$REPLY
             _boss_pattern_spawn_step "$1" 0 "$REPLY" 4
-            self["{pat_step}$X"]=1
-            self["{pat_cd}$X"]=180
+            self["{pat_step}$X"]=1 \
+                self["{pat_cd}$X"]=180
         else
             self["{pat_cd}$X"]=$_pc
         fi
