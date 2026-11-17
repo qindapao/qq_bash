@@ -4,11 +4,13 @@
 # 规则：先定新能力（不与已持有重复），再按上限随机删掉一个旧的；一次性能力用掉后会
 # 自己卸载，因此槽位自然腾出。
 #
-# 每个能力就是一个对象级 Mixin，提供三个可选方法：
-#   M_<能力>_buff_ok    现在值不值得被拿？返回非 0 就不进候选池
-#                       （例：满血时回血没有意义，此时不该占用槽位）
-#   M_<能力>_buff_gain  获得时执行一次（回血、启动计时器……）
-#   M_<能力>_buff_tick  每 tick 执行（周期无敌、发射导弹……）
+# 每个能力就是一个对象级 Mixin，可用这些方法（都写成 M_<能力>_<方法名>）：
+#   buff_ok      现在值不值得被拿？返回非 0 就不进候选池
+#                （例：满血时回血没有意义，此时不该占用槽位）
+#   _init        获得时执行一次（初始化状态 + 对世界的效果，由框架自动调用）
+#   _cleanup     失去时收尾（由框架在卸载前调用；bury 不需要，对象整体销毁）
+#   buff_tick    每 tick 执行（周期无敌、发射导弹……）
+# 私有方法名自带一个下划线，所以完整函数名是 M_<能力>__init / M_<能力>__cleanup 这种双下划线。
 # 未实现的钩子直接跳过，不需要在游戏层写任何特例。
 [[ -n "${_STRAFE_BOSS_BUFF_SH:-}" ]] && return 0
 _STRAFE_BOSS_BUFF_SH=1
@@ -80,8 +82,7 @@ _boss_buff_gain () {
     fi
 
     xo_obj_mixin_add "$boss" "$new"
-    # 用 call_all：多个能力都实现了 buff_gain，必须每个都跑一次（xo_obj_call 只跑第一个）
-    xo_obj_call_all "$boss" buff_gain
+    # 初始化与"获得即生效"的效果都由 add 触发的 _init 负责，这里不需要再调别的钩子
     _boss_buff_sync_str "$boss"
     return 0
 }
@@ -107,10 +108,20 @@ _boss_buff_tick () {
 # 读取，所以这里只需要周期性把它置满，零新增渲染与判定代码。
 # 周期必须是「无敌时长 + 可受伤时长」：两者相等时若只按无敌时长轮转，无敌会首尾相接。
 # ---------------------------------------------------------------------------
-M_BuffInvuln_buff_gain () {
+M_BuffInvuln__init () {
     local -n self=$1
     # 获得时先等一个"可受伤"间隔再触发，避免和"阶段切换自带的无敌"重叠浪费
     self["{bi_cd}$X"]=$BOSS_BUFF_INV_OFF
+    unset -n self
+    return 0
+}
+
+M_BuffInvuln__cleanup () {
+    local -n self=$1
+    # 只清自己的节拍。{inv_cd} 是与"阶段切换无敌"共用的字段，能力清理不能去动它——
+    # 否则会提前结束一段与本能力无关的无敌窗口（越权清别人的状态）。
+    # 正在生效的无敌也随它自然走完（最多 BOSS_BUFF_INV_ON），本能力只是不再续期。
+    self["{bi_cd}$X"]=0
     unset -n self
     return 0
 }
@@ -177,9 +188,17 @@ M_BuffHeal_buff_ok () {
 # 为什么不是拿到就立刻回：刚跨过阶段边界时 Boss 正贴着本阶段上限，那一刻最多只能加
 # 1 点（等于空技能）。所以拿到后先挂一个观察窗口，等玩家把本阶段的血又打掉一半，
 # 才一次性补回本阶段上限 —— 既守住"不破阶"，又让回血真的看得见。
-M_BuffHeal_buff_gain () {
+M_BuffHeal__init () {
     local -n self=$1
     self["{heal_cd}$X"]=$BOSS_BUFF_HEAL_WAIT
+    unset -n self
+    return 0
+}
+
+M_BuffHeal__cleanup () {
+    local -n self=$1
+    # 能力被摘掉：观察窗口作废（正在等待的回血不再发生）
+    self["{heal_cd}$X"]=0
     unset -n self
     return 0
 }
@@ -232,9 +251,17 @@ M_BuffHeal_buff_tick () {
 # ---------------------------------------------------------------------------
 # 能力：敌跟踪导弹（周期发射，场上最多 BOSS_BUFF_MISSILE_MAX 枚）
 # ---------------------------------------------------------------------------
-M_BuffMissile_buff_gain () {
+M_BuffMissile__init () {
     local -n self=$1
     # 获得即发射：否则玩家要等 4 秒才看到第一次效果，容易以为能力没生效
+    self["{ms_cd}$X"]=0
+    unset -n self
+    return 0
+}
+
+M_BuffMissile__cleanup () {
+    local -n self=$1
+    # 只清自己的发射节拍；已经在飞的导弹属于游戏层的子弹表，不在这里回收
     self["{ms_cd}$X"]=0
     unset -n self
     return 0
@@ -270,8 +297,9 @@ M_BuffMissile_buff_tick () {
 # ---------------------------------------------------------------------------
 # 能力：扫描电网（一次性，红色，自上而下扫过整个战场）
 # 无视护盾（命中时把玩家的护盾打掉），但仍受无敌帧保护。
+# 没有对象状态：_init 里放完波就自卸，把槽位还给后面的阶段。
 # ---------------------------------------------------------------------------
-M_BuffWave_buff_gain () {
+M_BuffWave__init () {
     _wave_start 0 "$BOSS_WAVE_DAMAGE"
     # 一次性：放完就卸载，把槽位还给后面的阶段
     xo_obj_mixin_delete "$1" M_BuffWave
@@ -283,8 +311,9 @@ M_BuffWave_buff_gain () {
 # 能力：30 秒内我方子弹速度 -50%
 # 一次性挂到玩家身上（百分比 + 计时器）；到期由 _play_game_tick 的计时器循环恢复。
 # 只影响之后发射的子弹，已经在飞的子弹速度已定。
+# 状态在玩家身上、由独立计时器收尾，所以只有 _init（获得即生效），没有 cleanup。
 # ---------------------------------------------------------------------------
-M_BuffSlow_buff_gain () {
+M_BuffSlow__init () {
     [[ -n "${XO_OBJ_POOL[OBJ_player]+_}" ]] || return 0
     OBJ_player["{spd_pct}$X"]=$BOSS_BUFF_SLOW_PCT
     OBJ_player["{slow}$X"]=$BONUS_SLOW

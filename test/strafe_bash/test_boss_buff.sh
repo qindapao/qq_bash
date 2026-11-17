@@ -34,11 +34,11 @@ check ()        # $1=标签 $2=期望 $3=实际
     fi
 }
 
-# 假能力：只提供 buff_gain，用来验证发放规则
-M_Ta_buff_gain () { : ; }
-M_Tb_buff_gain () { : ; }
-M_Tc_buff_gain () { : ; }
-M_Td_buff_gain () { : ; }
+# 假能力：只提供 _init 钩子，用来验证发放规则
+M_Ta__init () { : ; }
+M_Tb__init () { : ; }
+M_Tc__init () { : ; }
+M_Td__init () { : ; }
 
 xo_init
 
@@ -143,14 +143,14 @@ test_case1 ()
     printf '\n== B. 单个真实能力 ==\n'
 
     # B1 周期无敌：获得后先等 6 秒，冷却走完触发 4 秒无敌
+    # 注意：{bi_cd} 的初值由 add 触发的 M_BuffInvuln_init 写入，不要再手工置零
+    # （那样会覆盖掉 init，测的就不是真实流程了）。
     xo_obj_born_named OBJ_rb Boss >/dev/null 2>&1 || { log_test 0 1 ; return 1 ; }
-    xo_obj_mixin_add OBJ_rb M_BuffInvuln || { log_test 0 1 ; return 1 ; }
     local -n _r0=OBJ_rb
-    _r0["{bi_cd}$X"]=0
     _r0["{inv_cd}$X"]=0
     unset -n _r0
 
-    xo_obj_call_all OBJ_rb buff_gain
+    xo_obj_mixin_add OBJ_rb M_BuffInvuln || { log_test 0 1 ; return 1 ; }
     buf_read OBJ_rb
     check '无敌：获得后先进入可受伤间隔' "$BOSS_BUFF_INV_OFF" "$BUF_BI"
 
@@ -169,7 +169,6 @@ test_case1 ()
     hp_to OBJ_rb2 80          # phase 0，上限 180，下界 0 → 需要打掉 90 才算"一半"
     xo_obj_mixin_add OBJ_rb2 M_BuffHeal || { log_test 0 1 ; return 1 ; }
     HIT_FX=()
-    xo_obj_call_all OBJ_rb2 buff_gain
     buf_read OBJ_rb2
     check '回血：获得时不立刻加（避免只加 1 点）' 80 "$BUF_HP"
     check '回血：获得后挂上观察窗口' "$BOSS_BUFF_HEAL_WAIT" "$(field OBJ_rb2 heal_cd)"
@@ -185,7 +184,6 @@ test_case1 ()
     xo_obj_born_named OBJ_rb9 Boss >/dev/null 2>&1 || { log_test 0 1 ; return 1 ; }
     hp_to OBJ_rb9 179         # 只差 1 点，永远到不了"一半"
     xo_obj_mixin_add OBJ_rb9 M_BuffHeal || { log_test 0 1 ; return 1 ; }
-    xo_obj_call_all OBJ_rb9 buff_gain
     local -i wt
     for (( wt=0 ; wt<BOSS_BUFF_HEAL_WAIT + 1 ; wt++ )) ; do
         xo_obj_call_all OBJ_rb9 buff_tick
@@ -206,7 +204,6 @@ test_case1 ()
     check '阶段刚切换（血量略高于上限）时回血仍可被选中' 0 "$okrc"
 
     xo_obj_mixin_add OBJ_rb10 M_BuffHeal || { log_test 0 1 ; return 1 ; }
-    xo_obj_call_all OBJ_rb10 buff_gain
     xo_obj_call_all OBJ_rb10 buff_tick
     buf_read OBJ_rb10
     check '刚切换时不回血（此时没空间）' 127 "$BUF_HP"
@@ -225,7 +222,6 @@ test_case1 ()
     xo_obj_mixin_add OBJ_rb3 M_BuffInvuln || { log_test 0 1 ; return 1 ; }
     xo_obj_mixin_add OBJ_rb3 M_BuffHeal   || { log_test 0 1 ; return 1 ; }
 
-    xo_obj_call_all OBJ_rb3 buff_gain
     buf_read OBJ_rb3
     check '同时持有：无敌计时器也生效' "$BOSS_BUFF_INV_OFF" "$BUF_BI"
     xo_obj_call_all OBJ_rb3 buff_tick
@@ -278,7 +274,6 @@ test_case1 ()
     printf '\n== F. 无敌占空比（4 秒无敌 + 6 秒可受伤）==\n'
     xo_obj_born_named OBJ_rb4 Boss >/dev/null 2>&1 || { log_test 0 1 ; return 1 ; }
     xo_obj_mixin_add OBJ_rb4 M_BuffInvuln || { log_test 0 1 ; return 1 ; }
-    xo_obj_call_all OBJ_rb4 buff_gain
 
     local -i t on=0
     for (( t=0 ; t<BOSS_BUFF_INV_OFF ; t++ )) ; do
@@ -317,7 +312,6 @@ test_case1 ()
     check '掉血到 60% 后进入 phase 1' 1 "$BUF_PH"
 
     xo_obj_mixin_add OBJ_rb5 M_BuffHeal || { log_test 0 1 ; return 1 ; }
-    xo_obj_call_all OBJ_rb5 buff_gain
     xo_obj_call_all OBJ_rb5 buff_tick
     buf_read OBJ_rb5
     check '回血封顶在本阶段上限（70% = 126）' 126 "$BUF_HP"
@@ -329,7 +323,6 @@ test_case1 ()
     _g3["{phase}$X"]=3
     unset -n _g3
     xo_obj_mixin_add OBJ_rb8 M_BuffHeal || { log_test 0 1 ; return 1 ; }
-    xo_obj_call_all OBJ_rb8 buff_gain
     xo_obj_call_all OBJ_rb8 buff_tick
     buf_read OBJ_rb8
     check 'phase 3 回血封顶在 20%（36）' 36 "$BUF_HP"
@@ -346,7 +339,6 @@ test_case1 ()
     ENEMY_BULLETS=()
     xo_obj_born_named OBJ_rb6 Boss >/dev/null 2>&1 || { log_test 0 1 ; return 1 ; }
     xo_obj_mixin_add OBJ_rb6 M_BuffMissile || { log_test 0 1 ; return 1 ; }
-    xo_obj_call_all OBJ_rb6 buff_gain
     buf_read OBJ_rb6
     check '获得后立即可发射（冷却为 0）' 0 "$BUF_MS"
     xo_obj_call_all OBJ_rb6 buff_tick
@@ -426,7 +418,6 @@ test_case1 ()
     fi
     init_game >/dev/null 2>&1 || { log_test 0 1 ; return 1 ; }
     xo_obj_born_named OBJ_rb7 Boss >/dev/null 2>&1 || { log_test 0 1 ; return 1 ; }
-    xo_obj_mixin_add OBJ_rb7 M_BuffSlow || { log_test 0 1 ; return 1 ; }
 
     BULLETS=()
     OBJ_player["{spd_pct}$X"]=100
@@ -434,7 +425,8 @@ test_case1 ()
     local -i v_normal=${BULLETS[0]:+$(field "${BULLETS[0]}" vy)}
     (( v_normal < 0 )) && v_normal=$(( -v_normal ))
 
-    xo_obj_call_all OBJ_rb7 buff_gain
+    # 能力在 add 的瞬间生效（M_BuffSlow_init 里挂到玩家身上）
+    xo_obj_mixin_add OBJ_rb7 M_BuffSlow || { log_test 0 1 ; return 1 ; }
     check '玩家子弹速度降到 50%' "$BOSS_BUFF_SLOW_PCT" "$(field OBJ_player spd_pct)"
     check '减速计时器 = 30 秒' "$BONUS_SLOW" "$(field OBJ_player slow)"
 
@@ -706,6 +698,64 @@ test_case1 ()
     done
     check '站在缝外照常受伤' 17 "${OBJ_player["{hp}$X"]}"
     WAVE_ON=0 ; WAVE_LAST_Y=-1 ; G_INV=0
+
+    # ------------------------------------------------------------------
+    # 能力生命周期钩子：add 即初始化、delete 即清理，重复获取不窜状态
+    # ------------------------------------------------------------------
+    printf '\n== 能力钩子：初始化 / 清理 ==\n'
+    if [[ -n "${XO_OBJ_POOL[OBJ_rbX]+_}" ]] ; then xo_obj_bury OBJ_rbX >/dev/null 2>&1 ; fi
+    xo_obj_born_named OBJ_rbX Boss >/dev/null 2>&1
+    OBJ_rbX["{hp}$X"]=180 ; OBJ_rbX["{maxhp}$X"]=180
+
+    # INV：注入即初始化，不再依赖调用方补 buff_gain
+    xo_obj_mixin_add OBJ_rbX M_BuffInvuln
+    check 'INV 注入后立即初始化冷却' "$BOSS_BUFF_INV_OFF" "${OBJ_rbX["{bi_cd}$X"]}"
+
+    # 人为改成脏值 → 卸载必须清掉 → 重新获取必须回到初始值（不窜属性）
+    OBJ_rbX["{bi_cd}$X"]=7
+    xo_obj_mixin_delete OBJ_rbX M_BuffInvuln
+    check 'INV 卸载后冷却清零' 0 "${OBJ_rbX["{bi_cd}$X"]}"
+    xo_obj_mixin_add OBJ_rbX M_BuffInvuln
+    check 'INV 重新获取后状态被重置' "$BOSS_BUFF_INV_OFF" "${OBJ_rbX["{bi_cd}$X"]}"
+    xo_obj_mixin_delete OBJ_rbX
+
+    # HEAL：卸载作废观察窗口（否则下次拿到会立刻回血）
+    xo_obj_mixin_add OBJ_rbX M_BuffHeal
+    check 'HEAL 注入后打开观察窗口' "$BOSS_BUFF_HEAL_WAIT" "${OBJ_rbX["{heal_cd}$X"]}"
+    xo_obj_mixin_delete OBJ_rbX M_BuffHeal
+    check 'HEAL 卸载后窗口作废' 0 "${OBJ_rbX["{heal_cd}$X"]}"
+
+    # MISSILE：卸载清发射节拍
+    xo_obj_mixin_add OBJ_rbX M_BuffMissile
+    check 'MISSILE 注入后立即可发射' 0 "${OBJ_rbX["{ms_cd}$X"]}"
+    OBJ_rbX["{ms_cd}$X"]=9
+    xo_obj_mixin_delete OBJ_rbX M_BuffMissile
+    check 'MISSILE 卸载后节拍清零' 0 "${OBJ_rbX["{ms_cd}$X"]}"
+
+    # 列表形式：一次注入两个，别名顺序即优先级
+    xo_obj_mixin_add OBJ_rbX M_BuffInvuln M_BuffMissile
+    xo_obj_mixin_list OBJ_rbX
+    check '列表形式一次注入两个能力' 'M_BuffInvuln M_BuffMissile' "$REPLY"
+
+    # 一次性能力的 _init 会自卸：add 返回后它不该还在名单里
+    xo_obj_mixin_delete OBJ_rbX
+    WAVE_ON=0
+    xo_obj_mixin_add OBJ_rbX M_BuffWave
+    xo_obj_mixin_list OBJ_rbX
+    check '一次性能力放完自卸' '' "$REPLY"
+    check '电网确实被放出' 1 "$WAVE_ON"
+    WAVE_ON=0
+
+    # 列表 + 自卸能力：后一个能力不能被过期的名单重复加入（add 每轮重读 {OBJMIX}）
+    xo_obj_mixin_add OBJ_rbX M_BuffWave M_BuffInvuln
+    xo_obj_mixin_list OBJ_rbX
+    check '同批里的一次性能力自卸不影响其它能力' 'M_BuffInvuln' "$REPLY"
+    WAVE_ON=0
+
+    # bury 时逐个 cleanup（只清能力自己的节拍，共享字段不动）
+    OBJ_rbX["{inv_cd}$X"]=99
+    xo_obj_bury OBJ_rbX >/dev/null 2>&1
+    check 'bury 已执行（对象出池）' '' "${XO_OBJ_POOL[OBJ_rbX]-}"
 
     printf '\n---- 共断言 %d 项，失败 %d 项 ----\n' "$CHECKS" "$FAILS"
     if (( FAILS == 0 )) ; then

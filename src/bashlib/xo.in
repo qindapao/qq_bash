@@ -820,8 +820,15 @@ xo_obj_bury ()
     # 2.5 动态能力的路由随对象一起销毁：否则具名句柄重建时，旧能力会串到新对象上。
     # 门控分两级：
     #   集合为空（没有任何对象带动态能力）→ 所有 bury 只做一次数组长度判断就返回；
-    #   集合非空（例如 Boss 带着能力在场上）→ 每次 bury 多一次集合查询，命中才清路由。
+    #   集合非空（例如 Boss 带着能力在场上）→ 每次 bury 多一次集合查询，命中才清。
     # 子弹永远不在集合里，所以第二级查询对它们必然落空，不会误清。
+    #
+    # 这里**不调 _cleanup**：对象变量接下来会被整个 unset，能力写在对象里的
+    # 状态随之消失；具名句柄重建是从类模板重新 born，字段回到模板初值，不会残留。
+    # 路由则是对象之外的状态（XO_OBJ_METHOD），所以必须在这里单独清。
+    # _cleanup 的适用场景只有「对象还活着、中途摘掉某个能力」（xo_obj_mixin_delete）。
+    # 将来若某个能力在对象之外持有资源（全局注册、它拥有的其它对象），届时才需要在
+    # bury 里补清理——目前没有这种能力，先不加。
     if (( ${#XO_OBJ_MIXED[@]} )) && [[ -n "${XO_OBJ_MIXED[$obj]+_}" ]] ; then
         _xo_obj_mixin_drop_table "$obj"
         unset -v 'XO_OBJ_MIXED[$obj]'
@@ -898,10 +905,27 @@ xo_call ()
 #
 #   优先级 {OBJMIX} 列表靠前的先赢（与 {MIX} 语义一致）；删除后自动回退给下一个。
 #
+#   增删   xo_obj_mixin_add obj M_A [M_B ...]     按顺序注入，幂等，可一次加一组
+#          xo_obj_mixin_delete obj [M_A ...]      不给参数 = 全部卸载
+#
+#   生命周期钩子（可选；方法名以 _ 开头 = 私有，不参与路由注入，多个能力同时实现也不会覆盖）：
+#          _init     obj    注入完成后立刻调用：初始化状态 + "获得即生效"的效果
+#          _cleanup  obj    卸载前（还在册时）调用一次：收尾
+#     完整函数名 = M_<mixin>_<方法名>，即 M_Xxx__init / M_Xxx__cleanup。
+#     _init 里可以自卸（一次性能力放完就调 xo_obj_mixin_delete 删掉自己），
+#     所以 add 的列表循环每轮都会重读 {OBJMIX}。
+#     bury 不调 _cleanup：整个对象变量会被销毁，对象内状态随之消失（详见 bury 处注释）。
+#
+#   约定（框架不强制，靠 review 与测试兜底）：
+#     - 有对象状态的能力：_init / _cleanup **成对实现**——进时建状态，出时清状态；
+#     - 无状态能力：至少实现 _init（获得即生效），或提供公共方法；
+#     - 框架只强制一条：mixin 必须至少有一个公共方法或一个 _init，否则拒绝注入
+#       （防止拼错名字的空 mixin 静默生效）。
+#
 # 边界：
 #   - 热路径继续用 xo_call（零额外开销），只有需要动态能力的调用点用 xo_obj_call
-#   - 对象 bury 不会自动清路由：用完调 xo_obj_mixin_delete；xo_obj_mixin_add 在
-#     该对象还没有任何动态 Mixin 时会先清残留路由，所以具名句柄重用不会串味
+#   - bury 只清路由与持有集合（具名句柄重用不串味），不调 _cleanup：
+#     中途换能力才需要显式 xo_obj_mixin_delete
 #   - {OBJMIX} 是纯运行时状态，但类模板必须声明空字段 '{OBJMIX} => '（值留空）：
 #     节点进了类对象，运行期直接赋值才与对象树一致（x_walk/x_dump 才看得见）
 #   - born 不注入任何能力：初始能力由调用方在 born 之后自行 add（用现成的 _born 钩子）
@@ -953,10 +977,31 @@ _xo_obj_mixin_drop_table ()
     return 0
 }
 
-# 给对象注入一个 Mixin。幂等；同名方法先注入的先赢（对应 {OBJMIX} 靠前者优先）。
+# 给对象注入一个或多个 Mixin：xo_obj_mixin_add OBJ M_A [M_B ...]
+#
+# 语义：
+#   1) 按参数顺序注入，{OBJMIX} 的顺序就是优先级：同名方法先加先赢。
+#   2) 幂等：对象已持有某个 Mixin 时跳过它、**不重复调 _init**
+#      （否则会把正在倒计时的状态重置）。
+#   3) 同一次调用里重复列同一个名字会被去重：add 是集合并集语义。
+#      这条对一次性能力尤其重要——它在 _init 里放完就自卸，若同批重复列出
+#      就会连触发两次（例如连放两条电网）。
+#   4) 每个成功注入的 Mixin 在注册完成后立刻调它的 _init（若存在）。
+#      _init 里允许自卸（放完就调 xo_obj_mixin_delete 删自己），所以循环每轮都重读
+#      {OBJMIX}：既不会把已自卸的能力拼回名单（复活），也不会丢掉同批后面要加的能力。
+#   5) 想去掉能力用 xo_obj_mixin_delete；想**再次获得**一次性能力，请在另一次 add
+#      调用里加——那时它已不在名单里，不算"已持有"。
+#
+# 一句话总结：
+#   持续性能力：add 一次与 add 多次**完全等价**（幂等，_init 只跑一次）。
+#   一次性能力：同一次调用内与"add 一次"等价（去重）；只有分开的调用会再触发一次，
+#              这是刻意的（比如下个阶段再放一条电网）。
+#
+# 契约：使用方类模板必须声明空字段 '{OBJMIX} => '，否则这里直接拒绝注入。
 xo_obj_mixin_add ()
 {
-    local obj=$1 mixin=$2
+    local obj=$1 ; shift
+    (( $# )) || { die ERR "xo: mixin add needs at least one mixin name" ; return 1 ; }
 
     [[ -n "${XO_OBJ_POOL[$obj]+_}" ]] || {
         die ERR "xo: mixin add on unknown object '${obj}'"
@@ -965,6 +1010,7 @@ xo_obj_mixin_add ()
 
     # 契约：类模板必须声明 '{OBJMIX} => '（空值）。漏声明时字段不在对象树里，
     # x_walk/x_dump 会看不见它，所以这里直接报错而不是悄悄写一个野字段。
+    # 一次调用只校验一次（列表形式也是同一个类）。
     local _cls=${XO_OBJ_POOL[$obj]}
     local -n _co="${_cls}Obj"
     if [[ -z "${_co[{OBJMIX}$X]+_}" ]] ; then
@@ -979,35 +1025,54 @@ xo_obj_mixin_add ()
 
     # 对象当前没有任何动态 Mixin：先清掉可能残留的旧路由（具名句柄重用场景）
     [[ -z "$list" ]] && _xo_obj_mixin_drop_table "$obj"
-    if [[ " $list " == *" $mixin "* ]] ; then
-        unset -n _om
-        return 0
-    fi
 
-    _xo_mixin_methods "$mixin"
-    local methods=$REPLY
-    if [[ -z "$methods" ]] ; then
-        unset -n _om
-        die ERR "xo: mixin '${mixin}' provides no methods (M_${mixin}_*)"
-        return 1
-    fi
+    local mixin methods m seen=
+    for mixin in "$@" ; do
+        # 同一次调用里重复列同一个名字没有意义（add 是集合并集语义）：一次性能力被重复
+        # 列出会连放两次（例如两条电网），属于写错。去重后 add A A 等价于 add A；
+        # 想让它再触发一次，请在另一次调用里 add（那时它已经不在名单里了）。
+        [[ " $seen " == *" $mixin "* ]] && continue
+        seen+=" $mixin"
 
-    local m
-    for m in $methods ; do
-        # 先加的先赢：已被更早的 Mixin 占用的方法名保留原样
-        [[ -n "${XO_OBJ_METHOD["$obj|$m"]+_}" ]] && continue
-        XO_OBJ_METHOD["$obj|$m"]="${mixin}_${m}"
+        # 每轮重新读名单：_init 里允许自卸（一次性能力放完就删自己），列表会变
+        list=${_om["{OBJMIX}$X"]}
+        # 幂等：已持有 → 跳过（不重复 init，避免把正在倒计时的状态重置）
+        [[ " $list " == *" $mixin "* ]] && continue
+
+        _xo_mixin_methods "$mixin"
+        methods=$REPLY
+        # 只提供钩子、没有公共方法的能力也允许：它"获得即生效"，不对外提供可调用能力。
+        # 但"既无公共方法又无 _init"的 Mixin 必然是名字写错，拒绝注入（否则会静默生效的空壳）。
+        if [[ -z "$methods" ]] && ! declare -F "${mixin}__init" >/dev/null ; then
+            unset -n _om
+            die ERR "xo: mixin '${mixin}' has neither public methods (M_${mixin}_*) nor _init"
+            return 1
+        fi
+
+        for m in $methods ; do
+            # 先加的先赢：已被更早的 Mixin 占用的方法名保留原样
+            [[ -n "${XO_OBJ_METHOD["$obj|$m"]+_}" ]] && continue
+            XO_OBJ_METHOD["$obj|$m"]="${mixin}_${m}"
+        done
+
+        # ${list:+$list } 在 list 非空时展开成 "list "，否则为空串
+        _om["{OBJMIX}$X"]="${list:+$list }$mixin"
+        list=${_om["{OBJMIX}$X"]}
+        XO_OBJ_MIXED[$obj]=1
+
+        # 注册完成后再初始化（_init 是私有方法名，只在这里调用，不参与路由注入；
+        # init 里可以安全读写自己的字段，也可以查询其它能力）
+        if declare -F "${mixin}__init" >/dev/null ; then
+            "${mixin}__init" "$obj"
+        fi
     done
-
-    # ${list:+$list } 在 list 非空时展开成 "list "，否则为空串：首次注入不会有前导空格
-    _om["{OBJMIX}$X"]="${list:+$list }$mixin"
-    XO_OBJ_MIXED[$obj]=1
     unset -n _om
     return 0
 }
 
 # 卸载对象的动态 Mixin；不给参数 = 全部卸载。
-# 删完要对「被删 Mixin 提供的方法」重新解析归属，否则当初被先加先赢跳过的方法不会回来。
+# 每个「确实持有、且要被删掉」的 Mixin 先调 _cleanup（此刻还在册，能正常读写字段），
+# 再摘名单并重解析路由：否则当初被先加先赢跳过的方法不会回来。
 xo_obj_mixin_delete ()
 {
     local obj=$1 ; shift
@@ -1022,8 +1087,18 @@ xo_obj_mixin_delete ()
     local -a drop=() keep=()
     if (( $# )) ; then drop=("$@") ; else drop=($list) ; fi
 
+    # 先清理状态（幂等：没持有过的 Mixin 不会触发 cleanup）
+    local d
+    for d in "${drop[@]}" ; do
+        [[ " $list " == *" $d "* ]] || continue
+        # 此刻还在册，钩子能正常读写字段
+        if declare -F "${d}__cleanup" >/dev/null ; then
+            "${d}__cleanup" "$obj"
+        fi
+    done
+
     # 从 {OBJMIX} 里摘掉要删的 Mixin，保留其余顺序
-    local x d hit
+    local x hit
     for x in $list ; do
         hit=0
         for d in "${drop[@]}" ; do
@@ -1098,11 +1173,11 @@ xo_obj_mixin_list ()
 #         某个 Mixin 没实现这个方法就跳过（不报错、不回落类方法）。
 #   语义：所有持有者都跑，顺序 = {OBJMIX} 顺序（所以能力的执行顺序是可预期的）。
 #   适用：多个能力要各自维护自己的状态、每个都必须被调用到。
-#         例：Boss 增益系统的两个钩子：
-#             - buff_gain：获得时初始化（INV 设冷却、MISSILE 清零、HEAL 开窗口）
-#             - buff_tick：每 tick 推进（INV 数周期、MISSILE 数发射冷却）
-#             这两个钩子每个能力都实现了，用 xo_obj_call 会只跑第一个，
+#         例：Boss 增益系统的 buff_tick 钩子（周期无敌、发射导弹、推进回血窗口），
+#             每个能力都实现了它，用 xo_obj_call 会只跑第一个，
 #             表现为"第二个能力完全没有效果"——这正是当初加这个函数的原因。
+#         获得/失去能力不靠这个函数：那两条路径由 xo_obj_mixin_add/delete
+#         直接调用各能力的 _init/_cleanup（见上文对象级 Mixin 一节）。
 #   注意：它不调用类方法。若类侧也要参与，类侧应自己调用 xo_obj_call_all。
 #
 # 共同约束：

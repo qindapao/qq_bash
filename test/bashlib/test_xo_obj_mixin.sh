@@ -16,6 +16,22 @@ M_T2_ping () { REPLY='T2' ; }
 M_T2_extra () { REPLY='T2extra' ; }
 M_T3_ping () { REPLY='T3' ; }
 
+# 生命周期钩子测试用：_init 在注入后调用、_cleanup 在卸载前调用（bury 不调，见 case12 f）。
+# 钩子方法名必须以下划线开头（完整函数名是 M_Xxx__init 这种双下划线），否则会被当成
+# 公共方法注入路由（两个能力都实现 init 时会被"先加先赢"吞掉第二个）。
+HOOK_LOG=()
+M_H1_ping () { REPLY='H1' ; }
+M_H1__init () { HOOK_LOG+=("init:${1}:H1") ; }
+M_H1__cleanup () { HOOK_LOG+=("clean:${1}:H1") ; }
+M_H2_ping () { REPLY='H2' ; }
+M_H2__init () { HOOK_LOG+=("init:${1}:H2") ; }
+M_H2__cleanup () { HOOK_LOG+=("clean:${1}:H2") ; }
+# 纯钩子型能力：没有公共方法，只有状态钩子（应当允许注入）
+M_H3__init () { HOOK_LOG+=("init:${1}:H3") ; }
+M_H3__cleanup () { HOOK_LOG+=("clean:${1}:H3") ; }
+# 一次性能力：_init 里放完就自卸（验证"同一次 add 内不复活、不重复触发"）
+M_H4__init () { HOOK_LOG+=("init:${1}:H4") ; xo_obj_mixin_delete "${1}" M_H4 ; }
+
 # 注意：下面「{OBJMIX} => 」这一行行尾有一个空格，这是本仓库模板空值的写法。
 # 对象级 Mixin 要求类模板声明该字段，运行时直接赋值才与对象树保持一致。
 TestObjStaticTemplate='
@@ -269,6 +285,93 @@ test_case11 ()
     else
         log_test 0 11 ; return 1
     fi
+}
+
+# 12) 生命周期钩子：_init 注入后自动跑、_cleanup 卸载前跑、bury 不跑；
+#     幂等 add 不重复 init；列表形式一次加多个；纯钩子型能力可注入
+test_case12 ()
+{
+    local -i bad=0
+    local joined
+
+    # a) 注入后立刻 init
+    reset_obj OBJ_h1
+    HOOK_LOG=()
+    xo_obj_mixin_add OBJ_h1 M_H1 || bad=1
+    joined="${HOOK_LOG[*]}"
+    [[ "$joined" == 'init:OBJ_h1:H1' ]] || bad=1
+
+    # b) 幂等：已持有不重复 init（否则会把正在倒计时的状态重置）
+    HOOK_LOG=()
+    xo_obj_mixin_add OBJ_h1 M_H1 || bad=1
+    (( ${#HOOK_LOG[@]} == 0 )) || bad=1
+
+    # c) 列表形式：已持有的跳过、新的 init；顺序与参数一致；先加先赢不变
+    HOOK_LOG=()
+    xo_obj_mixin_add OBJ_h1 M_H1 M_H2 || bad=1
+    joined="${HOOK_LOG[*]}"
+    [[ "$joined" == 'init:OBJ_h1:H2' ]] || bad=1
+    xo_obj_mixin_list OBJ_h1
+    [[ "$REPLY" == 'M_H1 M_H2' ]] || bad=1
+    xo_obj_call OBJ_h1 ping
+    [[ "$REPLY" == 'H1' ]] || bad=1
+
+    # d) 卸载前 cleanup，且只对"确实持有"的能力调用
+    HOOK_LOG=()
+    xo_obj_mixin_delete OBJ_h1 M_H1 || bad=1
+    joined="${HOOK_LOG[*]}"
+    [[ "$joined" == 'clean:OBJ_h1:H1' ]] || bad=1
+
+    HOOK_LOG=()
+    xo_obj_mixin_delete OBJ_h1 M_H1 || bad=1          # 已经不持有
+    (( ${#HOOK_LOG[@]} == 0 )) || bad=1
+
+    # e) 不给参数 = 全部卸载，每个仍持有的能力各 cleanup 一次
+    HOOK_LOG=()
+    xo_obj_mixin_delete OBJ_h1 || bad=1
+    joined="${HOOK_LOG[*]}"
+    [[ "$joined" == 'clean:OBJ_h1:H2' ]] || bad=1
+
+    # f) bury 不调 cleanup：整个对象变量被销毁，状态随对象消失，无需清理
+    reset_obj OBJ_h2
+    xo_obj_mixin_add OBJ_h2 M_H1 || bad=1
+    HOOK_LOG=()
+    xo_obj_bury OBJ_h2 >/dev/null 2>&1 || bad=1
+    (( ${#HOOK_LOG[@]} == 0 )) || bad=1
+
+    # g) 纯钩子型能力（无公共方法）允许注入，且 init/cleanup 都跑
+    reset_obj OBJ_h3
+    HOOK_LOG=()
+    xo_obj_mixin_add OBJ_h3 M_H3 || bad=1
+    xo_obj_mixin_delete OBJ_h3 || bad=1
+    joined="${HOOK_LOG[*]}"
+    [[ "$joined" == 'init:OBJ_h3:H3 clean:OBJ_h3:H3' ]] || bad=1
+
+    # h) 同一次调用里重复列同一个一次性能力：只触发一次（去重），且不会复活
+    reset_obj OBJ_h4
+    HOOK_LOG=()
+    xo_obj_mixin_add OBJ_h4 M_H4 M_H4 || bad=1
+    joined="${HOOK_LOG[*]}"
+    [[ "$joined" == 'init:OBJ_h4:H4' ]] || bad=1
+    xo_obj_mixin_list OBJ_h4
+    [[ -z "$REPLY" ]] || bad=1
+
+    # i) 自卸能力 + 普通能力同批：普通能力留在名单里，自卸的不会复活
+    HOOK_LOG=()
+    xo_obj_mixin_add OBJ_h4 M_H4 M_H1 || bad=1
+    joined="${HOOK_LOG[*]}"
+    [[ "$joined" == 'init:OBJ_h4:H4 init:OBJ_h4:H1' ]] || bad=1
+    xo_obj_mixin_list OBJ_h4
+    [[ "$REPLY" == 'M_H1' ]] || bad=1
+
+    # j) 另一次调用可以再次拿到一次性能力（它已不在名单里）
+    HOOK_LOG=()
+    xo_obj_mixin_add OBJ_h4 M_H4 || bad=1
+    joined="${HOOK_LOG[*]}"
+    [[ "$joined" == 'init:OBJ_h4:H4' ]] || bad=1
+
+    if (( bad )) ; then log_test 0 12 ; return 1 ; fi
+    log_test 1 12
 }
 
 eval -- "$(AS_RUN_TEST_CASES)"

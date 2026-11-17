@@ -144,6 +144,57 @@ M_Ram
 This is what lets the game add a new enemy or Boss without a giant `case`
 statement: class templates hold the data, methods hold the behaviour.
 
+### Object-level mixins
+
+Class-level `{MIX}` is fixed at `xo_init` time. An individual object can also
+gain and lose abilities at runtime through `{OBJMIX}` — that is how a Boss picks
+up two of its five random buffs and swaps them on phase changes:
+
+```bash
+xo_obj_mixin_add    OBJ_boss M_BuffInvuln M_BuffMissile   # one or many, idempotent
+xo_obj_mixin_delete OBJ_boss M_BuffInvuln                 # no args = drop them all
+xo_obj_mixin_list   OBJ_boss                              # -> "M_BuffMissile ..."
+xo_obj_call         OBJ_boss buff_tick                    # first holder wins
+xo_obj_call_all     OBJ_boss buff_tick                    # every holder runs
+```
+
+An ability can provide two optional hooks. They use a private leading underscore,
+so they are never injected as callable methods and two abilities can both
+implement them:
+
+```bash
+M_BuffMissile__init    () { local -n s=$1 ; s["{ms_cd}$X"]=0 ; }   # after add
+M_BuffMissile__cleanup () { local -n s=$1 ; s["{ms_cd}$X"]=0 ; }   # before delete
+```
+
+`_init` runs after the ability is registered, `_cleanup` before it is
+unregistered. Burying an object does not run `_cleanup`: the whole object
+variable is destroyed, so its state goes with it, and a reused handle is born
+fresh from the template. Cleanup exists for removing an ability while the object
+is still alive. Everything an ability does when it is acquired — including
+effects on the world, such as firing the Boss wave or slowing the player —
+belongs in `_init`; there is no separate "on gain" hook.
+
+Neither hook is required. The convention is: an ability that owns object state
+implements `_init` and `_cleanup` as a pair (create on the way in, clear on the
+way out); a stateless ability implements at least `_init` or provides a public
+method. The framework only rejects a mixin that has neither a public method nor
+an `_init`.
+
+`xo_obj_mixin_add` applies its arguments in order and is idempotent: an ability
+the object already holds is skipped and its `_init` is not run again, so a
+running timer is not reset. Duplicate names inside a single call are collapsed,
+because adding a one-shot ability twice in the same call must not fire it twice.
+A one-shot ability may remove itself from inside `_init`; the loop re-reads
+`{OBJMIX}` after every argument, so the removed ability is not appended back when
+the next one is added, and the remaining arguments still take effect. To trigger
+a one-shot ability again, add it in a separate call — by then it is no longer in
+the list, so it does not count as already held.
+
+In short: for a persistent ability, adding it once or many times is identical
+(idempotent, `_init` runs once). For a one-shot ability, repeats in the same call
+are also identical; only a separate call fires it again, which is intended.
+
 ### Il-2 mixin stack
 
 Il-2 uses a three-entry Mixin list:
