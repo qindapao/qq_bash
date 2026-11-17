@@ -133,6 +133,8 @@ render () {
     # 单字符对象（子弹/导弹/敌弹/掉落）数量最多，内联擦除，
     # 省掉每个对象一次函数调用 + 一次 {CLS} 读取 + case 分派。
     for b in "${BULLETS[@]}" ; do
+        # BULLETS 可能残留本 tick 已死的句柄：子弹打掉跟踪导弹时立即 bury，
+        # 而 BULLETS 在更早的 move 段就已经重建过了。其余数组都保证只含活句柄。
         [[ -n "$b" && -n "${XO_OBJ_POOL[$b]+_}" ]] || continue
         local -n _b=$b
         _ex=${_b["{prev_x}$X"]:-${_b["{x}$X"]:-0}}
@@ -143,7 +145,7 @@ render () {
         fi
     done
     for m in "${MISSILES[@]}" ; do
-        [[ -n "$m" && -n "${XO_OBJ_POOL[$m]+_}" ]] || continue
+        [[ -n "$m" ]] || continue
         local -n _m=$m
         _ex=${_m["{prev_x}$X"]:-${_m["{x}$X"]:-0}}
         _ey=${_m["{prev_y}$X"]:-${_m["{y}$X"]:-0}}
@@ -159,7 +161,7 @@ render () {
         fi
     done
     for eb in "${ENEMY_BULLETS[@]}" ; do
-        [[ -n "$eb" && -n "${XO_OBJ_POOL[$eb]+_}" ]] || continue
+        [[ -n "$eb" ]] || continue
         local -n _eb=$eb
         _ex=${_eb["{prev_x}$X"]:-${_eb["{x}$X"]:-0}}
         _ey=${_eb["{prev_y}$X"]:-${_eb["{y}$X"]:-0}}
@@ -172,13 +174,13 @@ render () {
         fi
     done
     for e in "${ENEMIES[@]}" ; do
-        [[ -n "$e" && -n "${XO_OBJ_POOL[$e]+_}" ]] || continue
+        [[ -n "$e" ]] || continue
         # 注意：不能对 Boss/EnemyB/EnemyM 跳过擦除，它们的擦除还要顺带
         # 清空整条血条行（\033[%d;2H\033[K）；跳过会留下上一帧的残影。
         _render_erase_one "$e"
     done
     for d in "${DROPS[@]}" ; do
-        [[ -n "$d" && -n "${XO_OBJ_POOL[$d]+_}" ]] || continue
+        [[ -n "$d" ]] || continue
         local -n _d=$d
         _ex=${_d["{prev_x}$X"]:-${_d["{x}$X"]:-0}}
         _ey=${_d["{prev_y}$X"]:-${_d["{y}$X"]:-0}}
@@ -191,7 +193,7 @@ render () {
         fi
     done
     for w in "${WORDS[@]}" ; do
-        [[ -n "$w" && -n "${XO_OBJ_POOL[$w]+_}" ]] || continue
+        [[ -n "$w" ]] || continue
         _render_erase_one "$w" 1
     done
 
@@ -232,6 +234,8 @@ render () {
     # 顶罩那一行），机翼又不是判定点，先画玩家会让这些对象反复盖住机体 → 闪烁。
     if (( ${#BULLETS[@]} )) ; then
         for b in "${BULLETS[@]}" ; do
+            # BULLETS 可能残留本 tick 已死的句柄：子弹打掉跟踪导弹时立即 bury，
+            # 而 BULLETS 在更早的 move 段就已经重建过了。其余数组都保证只含活句柄。
             [[ -n "$b" && -n "${XO_OBJ_POOL[$b]+_}" ]] || continue
             local -n _b=$b
             local _bx=${_b["{x}$X"]} _by=${_b["{y}$X"]} _bsym=${_b["{symbol}$X"]}
@@ -245,7 +249,7 @@ render () {
     fi
 
     for m in "${MISSILES[@]}" ; do
-        [[ -n "$m" && -n "${XO_OBJ_POOL[$m]+_}" ]] || continue
+        [[ -n "$m" ]] || continue
         local -n _m=$m
         local _mx=${_m["{x}$X"]} _my=${_m["{y}$X"]} _msym=${_m["{symbol}$X"]}
         local _ptx=${_m["{prev_x}$X"]:-} _pty=${_m["{prev_y}$X"]:-}
@@ -262,7 +266,7 @@ render () {
     done
 
     for eb in "${ENEMY_BULLETS[@]}" ; do
-        [[ -n "$eb" && -n "${XO_OBJ_POOL[$eb]+_}" ]] || continue
+        [[ -n "$eb" ]] || continue
         local -n _eb=$eb
         local _ebx=${_eb["{x}$X"]} _eby=${_eb["{y}$X"]} _ebsym=${_eb["{symbol}$X"]}
         local _ebcol=${_eb["{color}$X"]:-}
@@ -277,7 +281,7 @@ render () {
     done
 
     for e in "${ENEMIES[@]}" ; do
-        [[ -n "$e" && -n "${XO_OBJ_POOL[$e]+_}" ]] || continue
+        [[ -n "$e" ]] || continue
         local -n _e=$e
         local _cls=${_e["{CLS}$X"]}
         local _color=''
@@ -322,7 +326,7 @@ render () {
     done
 
     for d in "${DROPS[@]}" ; do
-        [[ -n "$d" && -n "${XO_OBJ_POOL[$d]+_}" ]] || continue
+        [[ -n "$d" ]] || continue
         local -n _d=$d
         local _dx=${_d["{x}$X"]} _dy=${_d["{y}$X"]} _dsym=${_d["{symbol}$X"]}
         printf -v _t '\033[%d;%dH%s%s%s' "$_dy" "$_dx" "$C_REVERSE" "$_dsym" "$C_RESET"
@@ -332,7 +336,7 @@ render () {
     done
 
     for w in "${WORDS[@]}" ; do
-        [[ -n "$w" && -n "${XO_OBJ_POOL[$w]+_}" ]] || continue
+        [[ -n "$w" ]] || continue
         local -n _w=$w
         local _wx=${_w["{x}$X"]} _wy=${_w["{y}$X"]} _wtxt=${_w["{text}$X"]}
         printf -v _t '\033[%d;%dH%s%s%s' "$_wy" "$_wx" "$C_CYAN" "$_wtxt" "$C_RESET"
