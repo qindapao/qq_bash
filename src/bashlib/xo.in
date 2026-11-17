@@ -719,6 +719,24 @@ xo_obj_born ()
                     "(pure numeric names like OBJ_11 are reserved for auto-allocation)"
             return 1
         }
+
+        # 具名句柄由用户提供，可能撞上两种已存在的东西，都必须拦：
+        #   - 变量层：declare -gA 会**静默改写**已存在的变量（连标量都会被改成
+        #     关联数组）。注意**不能**用 [[ -v "$obj" ]]——它对关联数组永远为假
+        #     （等价于查 key 0），等于没检查；这里用最准确的 declare -p。
+        #   - 池子层：同名对象可能正活着。
+        #
+        # 匿名分支两种都不会撞：句柄来自单调递增的 XO_OBJ_SEQ，既不在变量空间，
+        # 也不会在池子里，所以匿名热路径上这两条检查一步都不做。
+        declare -p "$obj" >/dev/null 2>&1 && {
+            die ERR "xo: named object '${obj}' already exists as a variable"\
+                    "(bury it or pick another name)"
+            return 1
+        }
+        [[ -n "${XO_OBJ_POOL[$obj]+_}" ]] && {
+            die ERR "xo: object handle '${obj}' already in pool"
+            return 1
+        }
     else
         cls=$1
         shift
@@ -747,31 +765,20 @@ xo_obj_born ()
     #       nameref 直绑，${#ref[@]} 取元素数，非零即「存在且非空」。
     #       同时拦住「变量不存在」和「空对象」两种情况，
     #       比 declare -p（放过空对象）更严。
-    local -n cls_obj_var="${cls}Obj"
-    ((${#cls_obj_var[@]})) || {
+    # 2. 实例 = 类对象缓存字符串
+    local -n cls_objstr="${cls}ObjStr"
+    [[ -z "$cls_objstr" ]] && {
         die ERR "xo: class '${cls}' not defined (did you forget to declare"\
                 "${cls}StaticTemplate or run xo_init?)"
-        return 1
-    }
 
-    # 2. 句柄名未被占用（变量 / 池子）
-    [[ -v "$obj" ]] && {
-        die ERR "xo: object handle '${obj}' already exists as a variable"
         return 1
     }
-    [[ -n "${XO_OBJ_POOL[$obj]+_}" ]] && {
-        die ERR "xo: object handle '${obj}' already in pool"
-        return 1
-    }
-
-    # 3. 实例 = 类对象缓存字符串
-    local -n cls_objstr="${cls}ObjStr"
     declare -gA "${obj}=($cls_objstr)"
 
-    # 4. 登记到对象池
+    # 3. 登记到对象池
     XO_OBJ_POOL[$obj]=$cls
 
-    # 5. 调 born 钩子
+    # 4. 调 born 钩子
     "${cls}_born" "$obj" "$@" || {
         unset -v "$obj"
         unset -v 'XO_OBJ_POOL[$obj]'
@@ -856,6 +863,9 @@ xo_obj_bury ()
 #   自己处在 bury 还是 fire 里：它会把子对象按 bury 处理（销毁），而父对象却
 #   进了资源市场；返聘回来的父对象字段里就挂着一把悬空的子句柄。
 #
+#   同理，**fire 只用于匿名句柄**（OBJ_数字）。具名句柄由使用方自己管生命周期，
+#   fire 之后变量还在，这个名字在 bury 之前不能再 born（会报 already exists）。
+#
 #   将来若真要回收组合对象，必须先扩展契约：<cls>_retire 传入出口模式
 #   （bury|fire），并让 <cls>_born 重建父子关系。在那之前这条约束不做例外。
 #
@@ -874,6 +884,18 @@ xo_obj_bury ()
 # 契约（和 bury 一样）：调用 fire 之前必须把句柄从调用方自己的集合里摘掉；
 # 用句柄前必须查 XO_OBJ_POOL。原因是 fire 之后变量仍然存在，过期句柄会读到
 # "默认值"而不是空——错误会从显式变成隐式。
+#
+# 其它已知边界（都是"禁止操作"，不是缺口）：
+#   - **不要手动 unset / 改写 OBJ_* 变量**。整个 OBJ_ 前缀是框架保留的；
+#     市场里的肉体如果被外部 unset，xo_obj_hire 会照常把它登记回池却发现变量
+#     不在——这是未定义行为。销毁对象只有 xo_obj_bury 一个出口。
+#   - xo_fire_clear 只丢引用、不销毁肉体（测试/换局用）；需要彻底回收请逐个 bury。
+#   - xo_call / xo_obj_call 是**裸分发**，不查池：对死句柄会得到 bash 的
+#     "command not found: _move"。热路径上加了校验就是每对象每 tick 多一次查表，
+#     所以契约是"调用方先查 XO_OBJ_POOL"。xo_obj_call_all / xo_obj_mixin_list
+#     同理：它们也只读对象的 {OBJMIX}，不替调用方兜底。
+#   - xo_obj_hire_n 中途失败会返回 1，REPLY 里是**已经返聘出来的部分**句柄。
+#   - 市场键用 '|' 分隔：类名是标识符，不含 '|'，所以不会歧义。
 # ==============================================================================
 declare -gA RES_COUNT=() RES_MARKET=() RES_LIMIT=()
 declare -gai RES_LIMIT_DEFAULT=512
@@ -1165,8 +1187,7 @@ _xo_mixin_methods ()
 _xo_obj_mixin_drop_table ()
 {
     local obj=$1 k
-    local -a keys=("${!XO_OBJ_METHOD[@]}")
-    for k in "${keys[@]}" ; do
+    for k in "${!XO_OBJ_METHOD[@]}" ; do
         [[ "$k" == "${obj}|"* ]] && unset -v 'XO_OBJ_METHOD[$k]'
     done
     return 0

@@ -267,4 +267,21 @@ test_case10 ()
     if (( ok )) ; then log_test 1 10 ; else log_test 0 10 ; fi
 }
 
+# 11) 具名重名必须被拒绝：解聘后同名再 born 不能覆盖待业肉体（曾静默覆盖）
+test_case11 ()
+{
+    reset_market
+    xo_obj_born_named OBJ_h11 HireObj 5
+    xo_obj_fire OBJ_h11
+    local -i ok=1
+    (( ${RES_COUNT[HireObj]:-0} == 1 )) || ok=0
+    if xo_obj_born_named OBJ_h11 HireObj 9 2>/dev/null ; then ok=0 ; fi
+    (( ${RES_COUNT[HireObj]:-0} == 1 )) || ok=0          # 市场没被破坏
+    [[ "${RES_MARKET["HireObj|0"]}" == 'OBJ_h11' ]] || ok=0
+    xo_obj_hire HireObj                                   # 还能正常返聘回来
+    [[ "$REPLY" == 'OBJ_h11' ]] || ok=0
+    xo_obj_bury OBJ_h11
+    if (( ok )) ; then log_test 1 11 ; else log_test 0 11 ; fi
+}
+
 eval -- "$(AS_RUN_TEST_CASES)"
