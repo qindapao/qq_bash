@@ -692,12 +692,43 @@ xo_dump_inher_chain ()
 }
 
 # new
-# 内部实现：给定句柄名和类名，创建对象（两个 born 入口共用）
-_xo_obj_born_impl ()
+# 创建对象（两个 born 入口共用同一份函数体）。
+#
+# 热路径 xo_obj_born <类> [参数...] 直接走这里、自动分配句柄；具名场景由
+# xo_obj_born_named 走内部 --name 分支。**不要**再拆出内部实现函数：born 是最热的
+# 对象操作，多一层调用就多一次固定开销（实测 ~16us/次）。
+xo_obj_born ()
 {
-    local obj=$1
-    local cls=$2
-    shift 2
+    REPLY=
+    local obj=''
+    local cls
+    if [[ "$1" == '--name' ]] ; then
+        # 内部入口：xo_obj_born --name <句柄> <类> [参数...]
+        obj=$2
+        cls=$3
+        shift 3
+
+        # 名字规则：以 OBJ_ 开头，后缀以字母开头（避开纯数字，跟自动分配隔离）
+        [[ "$obj" == OBJ_* ]] || {
+            die ERR "xo: named object '${obj}' must start with 'OBJ_'"
+            return 1
+        }
+        local suffix=${obj#OBJ_}
+        [[ -n "$suffix" && "${suffix:0:1}" == [a-zA-Z] ]] || {
+            die ERR "xo: named object suffix '${suffix}' must start with a letter"\
+                    "(pure numeric names like OBJ_11 are reserved for auto-allocation)"
+            return 1
+        }
+    else
+        cls=$1
+        shift
+
+        # 前置自增：表达式值为【新值】，永远 ≥1，(( )) 返回 0，set -e 下安全。
+        # 勿改回后置自增 ((XO_OBJ_SEQ++))：表达式值为【旧值】，初始若为 0
+        # 会返回 1，set -e 下第一次 born 就退出。
+        ((++XO_OBJ_SEQ))
+        obj="OBJ_${XO_OBJ_SEQ}"
+    fi
 
     # 1. 类必须存在（且类对象非空）
     #
@@ -748,50 +779,14 @@ _xo_obj_born_impl ()
         return 1
     }
 
-    return 0
-}
-
-# 自动分配名字：OBJ_11, OBJ_12, ...
-xo_obj_born ()
-{
-    REPLY=
-    local cls=$1
-    shift
-
-    # 前置自增：表达式值为【新值】，永远 ≥1，(( )) 返回 0，set -e 下安全。
-    # 勿改回后置自增 ((XO_OBJ_SEQ++))：表达式值为【旧值】，初始若为 0
-    # 会返回 1，set -e 下第一次 born 就退出。
-    ((++XO_OBJ_SEQ))
-    local obj="OBJ_${XO_OBJ_SEQ}"
-
-    _xo_obj_born_impl "$obj" "$cls" "$@" || return $?
     REPLY=$obj
     return 0
 }
 
-# 具名对象：用户指定 OBJ_plane, OBJ_canvas, ...
+# 具名对象：用户指定 OBJ_plane, OBJ_canvas, ...（冷路径，转给上面的 --name 分支）
 xo_obj_born_named ()
 {
-    REPLY=
-    local obj=$1
-    local cls=$2
-    shift 2
-
-    # 名字规则：以 OBJ_ 开头，后缀以字母开头（避开纯数字，跟自动分配隔离）
-    [[ "$obj" == OBJ_* ]] || {
-        die ERR "xo: named object '${obj}' must start with 'OBJ_'"
-        return 1
-    }
-    local suffix=${obj#OBJ_}
-    [[ -n "$suffix" && "${suffix:0:1}" == [a-zA-Z] ]] || {
-        die ERR "xo: named object suffix '${suffix}' must start with a letter"\
-                "(pure numeric names like OBJ_11 are reserved for auto-allocation)"
-        return 1
-    }
-
-    _xo_obj_born_impl "$obj" "$cls" "$@" || return $?
-    REPLY=$obj
-    return 0
+    xo_obj_born --name "$@"
 }
 
 xo_obj_bury ()
@@ -806,8 +801,13 @@ xo_obj_bury ()
 
     # 2. 调退役钩子（如果存在）
     # 组合对象退役等等
+    #
+    # 钩子解析：继承来的钩子是一层转发（Bullet_retire -> Entity_retire），
+    # XO_METHOD_INHERITED 里存的正是「最终实现类」（路径压缩过），直接调它，
+    # 省掉每层转发的一次函数调用。表里没有记录 = 这个类自己实现了钩子。
     local cls=${XO_OBJ_POOL[$obj]}
-    "${cls}_retire" "$obj" || {
+    local _rt=${XO_METHOD_INHERITED["${cls}_retire"]:-$cls}
+    "${_rt}_retire" "$obj" || {
         die ERR "xo: ${cls}_retire failed for ${obj}"
         return 1
     }
@@ -935,8 +935,10 @@ xo_obj_fire ()
     }
     local cls=${XO_OBJ_POOL[$obj]}
 
-    # 1. 退役钩子：和 bury 完全同一套语义（记忆与灵魂离开世界）
-    "${cls}_retire" "$obj" || {
+    # 1. 退役钩子：和 bury 完全同一套语义（记忆与灵魂离开世界）。
+    # 解析方式同 bury：直接调「最终实现类」的钩子，跳过继承转发。
+    local _rt=${XO_METHOD_INHERITED["${cls}_retire"]:-$cls}
+    "${_rt}_retire" "$obj" || {
         die ERR "xo: ${cls}_retire failed for ${obj}"
         return 1
     }

@@ -103,6 +103,12 @@ _render_erase_one () {
     esac
 }
 
+# 渲染层加载之后，Entity 系的退役钩子就是"擦掉最后画过的那一格"：
+# 这里直接把 Entity_retire 定义成擦除实现（而不是 base_types.sh 里那个带
+# declare -F 探测的版本）。好处是一次死亡少一次能力探测 + 一层转发。
+# 纯 xo 测试环境不加载本文件，仍然走 base_types.sh 里的探测版。
+Entity_retire () { _render_erase_one "$1" ; }
+
 render () {
     local b e d eb m w _t
     local _ex _ey
