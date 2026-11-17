@@ -49,6 +49,12 @@
   * main.sh:5 的 `. xo.sh >/dev/null 2>&1` 去掉静默：实测正常加载 0 输出，
     但这行会把语法错误一起吞掉。
   * 给"数组只含活句柄"补一条断言型测试（render 循环现在已经依赖它）。
+  * 给"`<Cls>ResetFields` 列全了"补一条测试（hire/fire 的唯一系统性风险）：
+    1. born 一个对象，把它的所有字段写成非默认值；
+    2. fire 它，再 hire；
+    3. 断言新对象的所有可读字段 == 刚 born 时的默认值。
+    漏一个 ResetFields 条目这条直接红。对每个登记了 ResetFields 的类跑一遍
+    （目前 Bullet/EnemyBullet/BossBullet/EnemyMissile/Missile）。
 
 [P4] 收尾 / 待观察
   * `local` / 赋值合并：**热路径已扫完**。规则见 CONSTITUTION §3。
@@ -60,6 +66,10 @@
   * born vs hire/fire 比值重测：born 变轻后小类约 1.18x；大类场景未验证。
     建议造一个 60 字段的测试类，验证"born 随字段数线性增长、hire 基本不变"。
   * 资源市场 RES_LIMIT_DEFAULT=512 是否合适（按类观察峰值再调）。
+
+[发布前必删（临时桩）]
+  * hud.sh 的 draw_hud_line1：格式串里的 "  MKT:%d" 和 `local _mkt=${#RES_MARKET[@]}`
+    两行注释。调试用的人才市场存量显示，发布前一起删掉。
 
 [已完成，别重复做]
   * 热路径移除 unset -n；掉落类型改阈值化（1.6x）

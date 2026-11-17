@@ -17,10 +17,29 @@ draw_hud_line1 () {
     local _slow=$(( ${OBJ_player["{slow}$X"]:-0} / FPS ))
     local _slowseg=''
     (( _slow > 0 )) && printf -v _slowseg '  SLOW:%d' "$_slow"
-    printf -v _s 'HP:%d/%d%s  SCORE:%d  STAGE:%d  W:%s  BOMB:%d/5  E:%d/%d  OBJ:%d' \
+    # 临时桩：人才市场存量（MKT）。RES_MARKET 的键数就是全市场对象总数。
+    # 发布前连同格式串里的 MKT 段和这一整段一起删掉（TODO.txt 有记录）。
+    local _mkt=${#RES_MARKET[@]} _mktseg='' _c _ab _n
+    for _c in "${!RES_COUNT[@]}" ; do
+        _n=${RES_COUNT[$_c]}
+        (( _n > 0 )) || continue
+        case "$_c" in
+            Bullet)       _ab=B  ;;
+            EnemyBullet)  _ab=EB ;;
+            BossBullet)   _ab=BB ;;
+            Missile)      _ab=M  ;;
+            EnemyMissile) _ab=EM ;;
+            *)            _ab=${_c:0:2} ;;
+        esac
+        _mktseg+="$_ab$_n/"
+    done
+    _mktseg=${_mktseg%/}
+    local _mktf="  MKT:${_mkt}"
+    [[ -n "$_mktseg" ]] && _mktf="  MKT:${_mkt}(${_mktseg})"
+    printf -v _s 'HP:%d/%d%s  SCORE:%d  STAGE:%d  W:%s  BOMB:%d/5  E:%d/%d  OBJ:%d%s' \
         "${OBJ_player["{hp}$X"]:-0}" "${OBJ_player["{maxhp}$X"]:-20}" "$_slowseg" \
         "${OBJ_player["{score}$X"]:-0}" "$(( G_BOSS_KILLS + 1 ))" "$weapon" "${OBJ_player["{bombs}$X"]:-0}" \
-        "${#ENEMIES[@]}" "$ENEMY_LIMIT" "${#XO_OBJ_POOL[@]}"
+        "${#ENEMIES[@]}" "$ENEMY_LIMIT" "${#XO_OBJ_POOL[@]}" "$_mktf"
     local _maxw=$(( SCREEN_W - 2 ))
     _s="${_s:0:_maxw}"
     local _t
