@@ -37,7 +37,6 @@ Drop_born () {
                 if [[ -n "$_w" && -n "${XO_OBJ_POOL[$_w]+_}" ]] ; then
                     local -n _wobj=$_w
                     self["{symbol}$X"]=${_wobj["{u}$X"]}
-                    unset -n _wobj
                 fi
             fi
             ;;

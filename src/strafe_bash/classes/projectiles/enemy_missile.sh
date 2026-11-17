@@ -55,14 +55,12 @@ EnemyMissile_move () {
     (( step < 1 )) && step=1
     if (( cd < step )) ; then
         self["{cd}$X"]=$cd
-        unset -n self
         return 0
     fi
     self["{cd}$X"]=0
 
     local -i fuel=$(( ${self["{fuel}$X"]:-0} - 1 ))
     if (( fuel <= 0 )) ; then
-        unset -n self
         return 1                     # 燃料烧完：消失
     fi
     self["{fuel}$X"]=$fuel
@@ -78,7 +76,6 @@ EnemyMissile_move () {
     # 符号固定为实心大圆点：方向看它怎么移动即可，不占用字符宽度去表达朝向
     x=$(( x + vx )) ; y=$(( y + vy ))
     self["{x}$X"]=$x ; self["{y}$X"]=$y
-    unset -n self
     if (( x < 2 || x > SCREEN_W - 2 || y < GAME_TOP || y >= SCREEN_H - 1 )) ; then
         return 1
     fi

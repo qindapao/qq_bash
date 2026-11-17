@@ -127,7 +127,6 @@ Plane_bury () {
         wpn=${self["{w$i}$X"]}
         [[ -n "$wpn" && -n "${XO_OBJ_POOL[$wpn]+_}" ]] && xo_obj_bury "$wpn"
     done
-    unset -n self
 }
 Plane_move () {
     local -n self=$1
@@ -166,7 +165,6 @@ Plane_fire () {
     local sur=${w["{ur}$X"]:-$su}
     local sl=${w["{l}$X"]:-$su}
     local sr=${w["{r}$X"]:-$su}
-    unset -n w
 
     local -i _sdelta=${self["{spd_delta}$X"]:-0}
     local -i _cddelta=${self["{cd_delta}$X"]:-0}
@@ -219,7 +217,6 @@ Plane_fire () {
         if [[ -n "$_lclr" ]] ; then
             local -n _nbref=$_nbid
             _nbref["{color}$X"]=$_lclr
-            unset -n _nbref
         fi
         BULLETS+=("$_nbid")
         return 0

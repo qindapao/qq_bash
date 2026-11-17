@@ -54,7 +54,6 @@ buf_read ()
     BUF_BI=${_l["{bi_cd}$X"]}
     BUF_PH=${_l["{phase}$X"]}
     BUF_MS=${_l["{ms_cd}$X"]}
-    unset -n _l
 }
 
 # 读任意对象的任意字段（$1=对象 $2=字段名，不带花括号）

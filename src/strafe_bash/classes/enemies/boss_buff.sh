@@ -46,7 +46,6 @@ _boss_buff_sync_str () {
         out+="${BOSS_BUFF_LABEL[$m]:-?} "
     done
     _b["{buff_str}$X"]=${out% }
-    unset -n _b
 }
 
 # 能力是否"当前值得拿"：没写 buff_ok 谓词的能力默认永远可用
@@ -62,7 +61,6 @@ _boss_buff_gain () {
     local boss=$1
     local -n _b=$boss
     local list=${_b["{OBJMIX}$X"]}
-    unset -n _b
 
     local -a cand=() held=()
     local m
@@ -93,7 +91,6 @@ _boss_buff_tick () {
     local -n _b=$boss
     local -i _ph=${_b["{phase}$X"]:-0} _last=${_b["{buff_phase}$X"]:--1}
     _b["{buff_phase}$X"]=$_ph
-    unset -n _b
 
     # 出生时 _last=-1，所以 phase 0 也算一次；加上 3 次阶段切换，一局正好 4 次
     (( _ph != _last )) && _boss_buff_gain "$boss"
@@ -112,7 +109,6 @@ M_BuffInvuln__init () {
     local -n self=$1
     # 获得时先等一个"可受伤"间隔再触发，避免和"阶段切换自带的无敌"重叠浪费
     self["{bi_cd}$X"]=$BOSS_BUFF_INV_OFF
-    unset -n self
     return 0
 }
 
@@ -122,7 +118,6 @@ M_BuffInvuln__cleanup () {
     # 否则会提前结束一段与本能力无关的无敌窗口（越权清别人的状态）。
     # 正在生效的无敌也随它自然走完（最多 BOSS_BUFF_INV_ON），本能力只是不再续期。
     self["{bi_cd}$X"]=0
-    unset -n self
     return 0
 }
 
@@ -131,7 +126,6 @@ M_BuffInvuln_buff_tick () {
     local -i cd=${self["{bi_cd}$X"]:-0}
     if (( cd > 0 )) ; then
         self["{bi_cd}$X"]=$(( cd - 1 ))
-        unset -n self
         return 0
     fi
     # 到点了：进入下一轮冷却；但如果此刻已经无敌（例如阶段切换给的窗口），
@@ -140,7 +134,6 @@ M_BuffInvuln_buff_tick () {
     if (( ${self["{inv_cd}$X"]:-0} == 0 )) ; then
         self["{inv_cd}$X"]=$BOSS_BUFF_INV_ON
     fi
-    unset -n self
     return 0
 }
 
@@ -167,7 +160,6 @@ _boss_phase_hp_cap () {
         2) cap=$(( mx * p2 / 100 )) ; lo=$(( mx * p3 / 100 )) ;;
         3) cap=$(( mx * p3 / 100 )) ; lo=0 ;;
     esac
-    unset -n _c
     REPLY=$cap
     REPLY_LO=$lo
     return 0
@@ -177,7 +169,6 @@ M_BuffHeal_buff_ok () {
     local -n self=$1
     local -i hp=${self["{hp}$X"]:-0}
     local -i mx=${self["{maxhp}$X"]:-0}
-    unset -n self
     # 只要受过伤就值得拿。不要用"当前还有没有恢复空间"来筛：阶段判定是整数截断
     # （127*100/180 = 70 就算进了 phase 1），而本阶段上限是 126，所以刚跨阶段时
     # 血量几乎总比上限高一点，按"有空间"筛就永远筛不中，回血从挂不上。
@@ -191,7 +182,6 @@ M_BuffHeal_buff_ok () {
 M_BuffHeal__init () {
     local -n self=$1
     self["{heal_cd}$X"]=$BOSS_BUFF_HEAL_WAIT
-    unset -n self
     return 0
 }
 
@@ -199,7 +189,6 @@ M_BuffHeal__cleanup () {
     local -n self=$1
     # 能力被摘掉：观察窗口作废（正在等待的回血不再发生）
     self["{heal_cd}$X"]=0
-    unset -n self
     return 0
 }
 
@@ -207,7 +196,6 @@ M_BuffHeal_buff_tick () {
     local -n self=$1
     local -i ttl=${self["{heal_cd}$X"]:-0}
     local -i hp=${self["{hp}$X"]:-0}
-    unset -n self
 
     if (( ttl <= 0 )) ; then
         # 窗口内一直没等到机会：卸载，把槽位还回去
@@ -216,9 +204,7 @@ M_BuffHeal_buff_tick () {
         return 0
     fi
 
-    local -n self2=$1
-    self2["{heal_cd}$X"]=$(( ttl - 1 ))
-    unset -n self2
+    self["{heal_cd}$X"]=$(( ttl - 1 ))
 
     _boss_phase_hp_cap "$1"
     local -i cap=$REPLY
@@ -228,10 +214,8 @@ M_BuffHeal_buff_tick () {
 
     # 本阶段的血被打掉了一半 → 补回本阶段上限（绝不越过它）
     if (( cap - hp >= need )) ; then
-        local -n self3=$1
-        self3["{hp}$X"]=$cap
-        local -i by=${self3["{y}$X"]} bx=${self3["{x}$X"]} bw=${self3["{w}$X"]:-9}
-        unset -n self3
+        self["{hp}$X"]=$cap
+        local -i by=${self["{y}$X"]} bx=${self["{x}$X"]} bw=${self["{w}$X"]:-9}
 
         local -i cx=$(( bx + bw / 2 )) cy=$(( by + 1 ))
         local -a _dxs=(-2 -1 0 1 2 1 0 -1)
@@ -255,7 +239,6 @@ M_BuffMissile__init () {
     local -n self=$1
     # 获得即发射：否则玩家要等 4 秒才看到第一次效果，容易以为能力没生效
     self["{ms_cd}$X"]=0
-    unset -n self
     return 0
 }
 
@@ -263,7 +246,6 @@ M_BuffMissile__cleanup () {
     local -n self=$1
     # 只清自己的发射节拍；已经在飞的导弹属于游戏层的子弹表，不在这里回收
     self["{ms_cd}$X"]=0
-    unset -n self
     return 0
 }
 
@@ -272,7 +254,6 @@ M_BuffMissile_buff_tick () {
     local -i cd=${self["{ms_cd}$X"]:-0}
     if (( cd > 0 )) ; then
         self["{ms_cd}$X"]=$(( cd - 1 ))
-        unset -n self
         return 0
     fi
     self["{ms_cd}$X"]=$BOSS_BUFF_MISSILE_CD
@@ -286,7 +267,6 @@ M_BuffMissile_buff_tick () {
 
     local -i sx=$(( ${self["{x}$X"]} + ${self["{w}$X"]:-9} / 2 ))
     local -i sy=$(( ${self["{y}$X"]} + ${self["{h}$X"]:-5} ))
-    unset -n self
 
     (( live >= BOSS_BUFF_MISSILE_MAX )) && return 0
     enemy_bullet_spawn EnemyMissile "$sx" "$sy" \

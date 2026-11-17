@@ -61,7 +61,6 @@ BossSpinner_born () {
     _self["{pat_step}$X"]=-1
     _self["{pat_mode}$X"]=0
     _self["{spin}$X"]=0
-    unset -n _self
 }
 
 # 旋转环：8 方向留 2 个对向缺口，每轮转 45°。
@@ -71,7 +70,6 @@ _boss_spinner_ring () {
     local -i _cy=$(( ${_bs["{y}$X"]} + ${_bs["{h}$X"]} / 2 ))
     local -i _spin=${_bs["{spin}$X"]:-0}
     if (( ${#ENEMY_BULLETS[@]} + 6 > BOSS_BULLET_LIMIT )) ; then
-        unset -n _bs
         return 0
     fi
     local -a _dx=(0 1 1 1 0 -1 -1 -1)
@@ -82,7 +80,6 @@ _boss_spinner_ring () {
         enemy_bullet_spawn BossBullet "$_cx" "$_cy" "${_dx[_i]}" "${_dy[_i]}" 'o' 3 2 "$C_CYAN"
     done
     _bs["{spin}$X"]=$(( (_spin + 1) % 8 ))
-    unset -n _bs
 }
 
 # 瞄准散弹：朝玩家所在八分方向打 3 发，左右各偏一格。
@@ -90,7 +87,6 @@ _boss_spinner_aim () {
     local -n _bs=$1
     local -i _cx=$(( ${_bs["{x}$X"]} + ${_bs["{w}$X"]} / 2 ))
     local -i _cy=$(( ${_bs["{y}$X"]} + ${_bs["{h}$X"]} / 2 ))
-    unset -n _bs
 
     [[ -n "${XO_OBJ_POOL[OBJ_player]+_}" ]] || return 0
     local -i _px=${OBJ_player["{x}$X"]} _py=${OBJ_player["{y}$X"]}
@@ -167,6 +163,5 @@ BossSpinner_move () {
             self["{pat_cd}$X"]=$_pc
         fi
     fi
-    unset -n self
     return 0
 }

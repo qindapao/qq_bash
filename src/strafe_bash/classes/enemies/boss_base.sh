@@ -90,7 +90,6 @@ _boss_set_arts () {
     _ba["{art1}$X"]=$3
     _ba["{art2}$X"]=$4
     _ba["{art3}$X"]=$5
-    unset -n _ba
 }
 
 # 按 hp 百分比刷新阶段，阶段 art 从 {art0..3} 读取。
@@ -122,7 +121,6 @@ _boss_update_phase () {
         _bs["{ttl}$X"]=0        # 阶段变化立即换一条轨迹
         _bs["{inv_cd}$X"]=$BOSS_INV_TICKS
     fi
-    unset -n _bs
 }
 
 # 公共目标点移动。
@@ -193,5 +191,4 @@ _boss_move_target () {
     else
         _bs["{cd}$X"]=$_cd
     fi
-    unset -n _bs
 }

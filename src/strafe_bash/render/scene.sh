@@ -46,7 +46,6 @@ _render_erase_one () {
 
     # 新对象首帧 prev=(0,0)，跳过擦除
     if (( px == 0 && py == 0 )) ; then
-        unset -n o
         return 0
     fi
 
@@ -59,7 +58,6 @@ _render_erase_one () {
            || [[ "${o[{prev_art}$X]}" == "${o[{art}$X]}" \
               && "${o[{prev_al}$X]}" == "${o[{al}$X]}" \
               && "${o[{prev_shield}$X]}" == "${o[{shield}$X]}" ]] ; then
-            unset -n o
             return 0
         fi
     fi
@@ -104,7 +102,6 @@ _render_erase_one () {
         fi
         ;;
     esac
-    unset -n o
 }
 
 render () {
@@ -139,7 +136,6 @@ render () {
             printf -v _t '\033[%d;%dH ' "$_ey" "$_ex"
             FRAME_BUF+="$_t"
         fi
-        unset -n _b
     done
     for m in "${MISSILES[@]}" ; do
         [[ -n "$m" && -n "${XO_OBJ_POOL[$m]+_}" ]] || continue
@@ -156,7 +152,6 @@ render () {
             printf -v _t '\033[%d;%dH ' "$_pty" "$_ptx"
             FRAME_BUF+="$_t"
         fi
-        unset -n _m
     done
     for eb in "${ENEMY_BULLETS[@]}" ; do
         [[ -n "$eb" && -n "${XO_OBJ_POOL[$eb]+_}" ]] || continue
@@ -164,14 +159,12 @@ render () {
         _ex=${_eb["{prev_x}$X"]:-${_eb["{x}$X"]:-0}}
         _ey=${_eb["{prev_y}$X"]:-${_eb["{y}$X"]:-0}}
         if (( _ex == ${_eb["{x}$X"]:-0} && _ey == ${_eb["{y}$X"]:-0} )) ; then
-            unset -n _eb
             continue
         fi
         if (( _ex || _ey )) ; then
             printf -v _t '\033[%d;%dH ' "$_ey" "$_ex"
             FRAME_BUF+="$_t"
         fi
-        unset -n _eb
     done
     for e in "${ENEMIES[@]}" ; do
         [[ -n "$e" && -n "${XO_OBJ_POOL[$e]+_}" ]] || continue
@@ -185,14 +178,12 @@ render () {
         _ex=${_d["{prev_x}$X"]:-${_d["{x}$X"]:-0}}
         _ey=${_d["{prev_y}$X"]:-${_d["{y}$X"]:-0}}
         if (( _ex == ${_d["{x}$X"]:-0} && _ey == ${_d["{y}$X"]:-0} )) ; then
-            unset -n _d
             continue
         fi
         if (( _ex || _ey )) ; then
             printf -v _t '\033[%d;%dH ' "$_ey" "$_ex"
             FRAME_BUF+="$_t"
         fi
-        unset -n _d
     done
     for w in "${WORDS[@]}" ; do
         [[ -n "$w" && -n "${XO_OBJ_POOL[$w]+_}" ]] || continue
@@ -230,7 +221,6 @@ render () {
             FRAME_BUF+="$_t"
             _b["{prev_x}$X"]=$_bx
             _b["{prev_y}$X"]=$_by
-            unset -n _b
         done
     fi
 
@@ -249,7 +239,6 @@ render () {
         FRAME_BUF+="$_t"
         _m["{prev_x}$X"]=$_mx
         _m["{prev_y}$X"]=$_my
-        unset -n _m
     done
 
     for eb in "${ENEMY_BULLETS[@]}" ; do
@@ -265,7 +254,6 @@ render () {
         FRAME_BUF+="$_t"
         _eb["{prev_x}$X"]=$_ebx
         _eb["{prev_y}$X"]=$_eby
-        unset -n _eb
     done
 
     for e in "${ENEMIES[@]}" ; do
@@ -311,7 +299,6 @@ render () {
         _e["{prev_x}$X"]=$_ax
         _e["{prev_y}$X"]=$_ay
         _e["{prev_art}$X"]=$_art
-        unset -n _e
     done
 
     for d in "${DROPS[@]}" ; do
@@ -322,7 +309,6 @@ render () {
         FRAME_BUF+="$_t"
         _d["{prev_x}$X"]=$_dx
         _d["{prev_y}$X"]=$_dy
-        unset -n _d
     done
 
     for w in "${WORDS[@]}" ; do
@@ -333,7 +319,6 @@ render () {
         FRAME_BUF+="$_t"
         _w["{prev_x}$X"]=$_wx
         _w["{prev_y}$X"]=$_wy
-        unset -n _w
     done
 
     # ===== 阶段 3：玩家最后画（层级最高）=====

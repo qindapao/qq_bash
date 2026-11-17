@@ -349,14 +349,12 @@ Base_is_a ()
     local cls
     local -n self=$obj
     cls=${self[{CLS}$X]}
-    unset -n self
 
     while [[ -n "$cls" ]] ; do
         [[ "$cls" == "$expect" ]] && return 0
         [[ "$cls" == 'Base' ]] && break
         local -n c=${cls}Obj
         cls=${c[{SUP}$X]}
-        unset -n c
     done
     return 1
 }
@@ -530,7 +528,6 @@ _xo_init_class ()
                 #@if at_k_var_substitution==0
             array_to_kv_q_str ${father}Obj ; eval "${_ret_g_A/o/${cls}Obj}"
                 #@endif
-            unset -n father_obj
 
             # 把当前类所有的叶子直接插入父类复制出来的分身
             _xo_init_class_cb_insert_cb ()
@@ -557,7 +554,6 @@ _xo_init_class ()
             # 多 Mixin 同名方法：{MIX} 列表前面的优先（后处理时 declare -F 跳过已有）
             local -n mix_self="${cls}Obj"
             local mix_list=${mix_self["{MIX}$X"]}
-            unset -n mix_self
 
             if [[ -n "$mix_list" ]] ; then
                 local mix mix_pattern mix_fn mm
@@ -650,7 +646,6 @@ _xo_init_class ()
             #@if at_k_var_substitution==0
         array_to_kv_q_str "${cls}Obj" ; eval "${_ret_g_s/o/${cls}ObjStr}"
             #@endif
-        unset -n c_obj
 
         return 0
     }
@@ -725,7 +720,6 @@ _xo_obj_born_impl ()
                 "${cls}StaticTemplate or run xo_init?)"
         return 1
     }
-    unset -n cls_obj_var
 
     # 2. 句柄名未被占用（变量 / 池子）
     [[ -v "$obj" ]] && {
@@ -740,7 +734,6 @@ _xo_obj_born_impl ()
     # 3. 实例 = 类对象缓存字符串
     local -n cls_objstr="${cls}ObjStr"
     declare -gA "${obj}=($cls_objstr)"
-    unset -n cls_objstr
 
     # 4. 登记到对象池
     XO_OBJ_POOL[$obj]=$cls
@@ -849,7 +842,6 @@ xo_class_methods ()
         die ERR "xo: class '${cls}' not defined"
         return 1
     }
-    unset -n cls_obj_var
 
     local pattern
     printf -v pattern '!%s_[!_]*' "$cls"
@@ -1014,11 +1006,9 @@ xo_obj_mixin_add ()
     local _cls=${XO_OBJ_POOL[$obj]}
     local -n _co="${_cls}Obj"
     if [[ -z "${_co[{OBJMIX}$X]+_}" ]] ; then
-        unset -n _co
         die ERR "xo: class '${_cls}' must declare '{OBJMIX} => ' to use object mixins"
         return 1
     fi
-    unset -n _co
 
     local -n _om=$obj
     local list=${_om["{OBJMIX}$X"]}
@@ -1044,7 +1034,6 @@ xo_obj_mixin_add ()
         # 只提供钩子、没有公共方法的能力也允许：它"获得即生效"，不对外提供可调用能力。
         # 但"既无公共方法又无 _init"的 Mixin 必然是名字写错，拒绝注入（否则会静默生效的空壳）。
         if [[ -z "$methods" ]] && ! declare -F "${mixin}__init" >/dev/null ; then
-            unset -n _om
             die ERR "xo: mixin '${mixin}' has neither public methods (M_${mixin}_*) nor _init"
             return 1
         fi
@@ -1066,7 +1055,6 @@ xo_obj_mixin_add ()
             "${mixin}__init" "$obj"
         fi
     done
-    unset -n _om
     return 0
 }
 
@@ -1107,7 +1095,6 @@ xo_obj_mixin_delete ()
         (( hit )) || keep+=("$x")
     done
     _om["{OBJMIX}$X"]="${keep[*]}"
-    unset -n _om
 
     # 名单被清空 → 这个对象不再持有动态能力
     (( ${#keep[@]} )) || unset -v 'XO_OBJ_MIXED[$obj]'
@@ -1145,7 +1132,6 @@ xo_obj_mixin_list ()
 {
     local -n _om=$1
     REPLY=${_om["{OBJMIX}$X"]}
-    unset -n _om
     return 0
 }
 
@@ -1203,7 +1189,6 @@ xo_obj_call_all ()
     local obj=$1 method=$2
     local -n _ao=$obj
     local list=${_ao["{OBJMIX}$X"]}
-    unset -n _ao
     local m fn
     for m in $list ; do
         fn="${m}_${method}"

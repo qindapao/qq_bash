@@ -29,7 +29,6 @@ _boss_pattern_mode () {
     local -n _bp=$1
     local -i cx=$(( ${_bp["{x}$X"]} + ${_bp["{w}$X"]} / 2 ))
     local -i cy=$(( ${_bp["{y}$X"]} + ${_bp["{h}$X"]} / 2 ))
-    unset -n _bp
     if [[ -z "${XO_OBJ_POOL[OBJ_player]+_}" ]] ; then REPLY=0 ; return 0 ; fi
     local -i dx=$(( ${OBJ_player["{x}$X"]} - cx ))
     local -i dy=$(( ${OBJ_player["{y}$X"]} - cy ))
@@ -49,7 +48,6 @@ _boss_pattern_spawn_step () {
     local -i _step=$2 _mode=$3 _speed=${4:-4}
     local -i cx=$(( ${_bp["{x}$X"]} + ${_bp["{w}$X"]} / 2 ))
     local -i cy=$(( ${_bp["{y}$X"]} + ${_bp["{h}$X"]} / 2 ))
-    unset -n _bp
     (( ${#ENEMY_BULLETS[@]} + 2 > ENEMY_BULLET_LIMIT )) && return 0
 
     local _entry=${BOSS_AIM_PATTERN_STEPS[_step]}

@@ -101,7 +101,6 @@ SkullKing_born () {
     _self["{pat_cd}$X"]=120
     _self["{pat_step}$X"]=-1
     _self["{pat_mode}$X"]=0
-    unset -n _self
 }
 
 # 8 方向 O/X：每波 8 发，连发 4 波，然后休息约 3 秒。
@@ -185,6 +184,5 @@ SkullKing_move () {
             self["{pat_cd}$X"]=$_pc
         fi
     fi
-    unset -n self
     return 0
 }

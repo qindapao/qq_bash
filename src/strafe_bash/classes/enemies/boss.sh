@@ -47,7 +47,6 @@ Boss_born () {
     BossBase_born "$1"
     local -n _b=$1
     _b["{aim_cd}$X"]=60
-    unset -n _b
 }
 Boss_move () {
     _boss_update_phase "$1"

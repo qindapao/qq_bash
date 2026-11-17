@@ -193,7 +193,6 @@ _enemy_bullet_bury () {
     local obj=$1
     local -n _k=$obj
     local -i py=${_k["{prev_y}$X"]:--1} px=${_k["{prev_x}$X"]:--1}
-    unset -n _k
     if (( py >= GAME_TOP && py < SCREEN_H - 1 && px >= 2 && px <= SCREEN_W - 2 )) ; then
         MISSILE_TRAIL_CLEAR+=("$py" "$px")
     fi
@@ -211,7 +210,6 @@ _missile_queue_trail_clear () {
     local -n _mt=$1
     local -i tx=${_mt["{prev_trail_x}$X"]:--1}
     local -i ty=${_mt["{prev_trail_y}$X"]:--1}
-    unset -n _mt
     if (( tx >= 0 && ty >= 0 )) ; then
         MISSILE_TRAIL_CLEAR+=("$ty" "$tx")
     fi
@@ -225,7 +223,6 @@ _ram_enemy () {
     local -i hp=${_re["{hp}$X"]:-1}
     local -i escore=${_re["{score}$X"]:-0}
     local -i _rinv=${_re["{inv_cd}$X"]:-0}
-    unset -n _re
     local -i rdmg
     REPLY=
     xo_call "OBJ_player" ram_damage
@@ -236,7 +233,6 @@ _ram_enemy () {
     hp=$(( hp - rdmg ))
     local -n _re2=$eid
     _re2["{hp}$X"]=$hp
-    unset -n _re2
     _hit_fx_add "$py" "$px" '*' "$C_CYAN"
     (( hp <= 0 )) || return 1
     ((G_KILLS++))
@@ -257,7 +253,6 @@ _boss_on_death () {
     local -n _b=$obj
     local -i _style=${_b["{death_style}$X"]:-0}
     local _bname=${_b["{name}$X"]:-THE BOSS}
-    unset -n _b
 
     # 击杀 Boss 也触发全清横幅；与清场条件互相独立
     _score_bonus "$BOSS_SCORE_BONUS"
@@ -300,7 +295,6 @@ _boss_on_death () {
     local -n _bd=$REPLY
     _bd["{x}$X"]=$(( ex + ew / 2 ))
     _bd["{y}$X"]=$(( ey + eh - 1 ))
-    unset -n _bd
     DROPS+=("$REPLY")
 }
 
@@ -363,7 +357,6 @@ _play_game_tick () {
     if [[ -n "$_bt" && -n "${XO_OBJ_POOL[$_bt]+_}" ]] ; then
         local -n _bo=$_bt
         _tier=${_bo["{tier}$X"]:-1}
-        unset -n _bo
     fi
     local _tk_cur="{t$_tier}$X"
     if (( _tier >= 2 && _tier <= 5 )) && (( ${OBJ_player[$_tk_cur]:-0} == 0 )) ; then
@@ -411,7 +404,6 @@ _play_game_tick () {
         by=$(( by + ${_b["{vy}$X"]} ))
         _b["{x}$X"]=$bx
         _b["{y}$X"]=$by
-        unset -n _b
         if (( by < GAME_TOP || bx < 2 || bx > SCREEN_W - 2 )) ; then
             xo_obj_bury "$b"
         else
@@ -446,14 +438,12 @@ _play_game_tick () {
                         [[ -n "$_pb" && -n "${XO_OBJ_POOL[$_pb]+_}" ]] || continue
                         local -n _pob=$_pb
                         _py=${_pob["{y}$X"]} ; _px=${_pob["{x}$X"]}
-                        unset -n _pob
                         _pbmap["$_py,$_px"]=$_pb
                     done
                     _pbmap_ready=1
                 fi
                 local -n _emb=$eb
                 local -i _emy=${_emb["{y}$X"]} _emx=${_emb["{x}$X"]}
-                unset -n _emb
                 if [[ -n "${_pbmap["$_emy,$_emx"]+_}" ]] ; then
                     local _hitb=${_pbmap["$_emy,$_emx"]}
                     # 命中火花既做反馈，也负责把这个格子擦干净（和打中敌人同一套）
@@ -484,7 +474,6 @@ _play_game_tick () {
         else
             local -n _esc=$e
             local -i _esc_y=${_esc["{y}$X"]} _esc_h=${_esc["{h}$X"]:-1}
-            unset -n _esc
             (( _esc_y + _esc_h >= SCREEN_H - 1 )) && G_LAST_ESCAPE_TICK=$G_RUN_TICKS
             xo_obj_bury "$e"
         fi
@@ -551,7 +540,6 @@ _play_game_tick () {
                     local -n _wbb=$_wb
                     local -i _wby=${_wbb["{y}$X"]}
                     local -i _wbx=${_wbb["{x}$X"]}
-                    unset -n _wbb
                     if (( _wby >= WAVE_CLEAR_LO && _wby <= WAVE_CLEAR_HI )) && ! _wave_gap_x "$_wbx" ; then
                         xo_obj_bury "$_wb"
                     else
@@ -569,7 +557,6 @@ _play_game_tick () {
                     [[ -n "$_eb" && -n "${XO_OBJ_POOL[$_eb]+_}" ]] || continue
                     local -n _ebb=$_eb
                     local -i _eby=${_ebb["{y}$X"]}
-                    unset -n _ebb
                     if (( _eby >= WAVE_CLEAR_LO && _eby <= WAVE_CLEAR_HI )) ; then
                         _enemy_bullet_bury "$_eb"
                     else
@@ -601,7 +588,6 @@ _play_game_tick () {
         _eart[_ne]=${_e["{art}$X"]}
         _ecls[_ne]=${_e["{CLS}$X"]}
         _einv[_ne]=${_e["{inv_cd}$X"]:-0}
-        unset -n _e
         ((_ne++))
     done
 
@@ -625,7 +611,6 @@ _play_game_tick () {
         local -n _b=$b
         local bx=${_b["{x}$X"]} by=${_b["{y}$X"]}
         local bdmg=${_b["{damage}$X"]}
-        unset -n _b
 
         for _j in ${_row_e[$by]:-} ; do
             (( _edead[_j] )) && continue
@@ -652,7 +637,6 @@ _play_game_tick () {
                 else
                     local -n _e=${_eid[_j]}
                     _e["{hp}$X"]=$_newhp
-                    unset -n _e
                 fi
                 break
             fi
@@ -666,7 +650,6 @@ _play_game_tick () {
         local -n _m=$m
         local mx=${_m["{x}$X"]} my=${_m["{y}$X"]}
         local mdmg=${_m["{damage}$X"]}
-        unset -n _m
 
         for _j in ${_row_e[$my]:-} ; do
             (( _edead[_j] )) && continue
@@ -693,7 +676,6 @@ _play_game_tick () {
                 else
                     local -n _e=${_eid[_j]}
                     _e["{hp}$X"]=$_newhp
-                    unset -n _e
                 fi
                 break
             fi
@@ -727,7 +709,6 @@ _play_game_tick () {
             else
                 local -n _we=${_eid[_wj]}
                 _we["{hp}$X"]=${_ehp[_wj]}
-                unset -n _we
             fi
         done
     fi
@@ -804,10 +785,8 @@ _play_game_tick () {
                 _hit_fx_add "$_eby" "$_ebx" '*' "$C_RED"
             fi
             (( ! _sh )) && player_dmg=$(( player_dmg + ${_eb["{damage}$X"]} ))
-            unset -n _eb
             _enemy_bullet_bury "$eb"
         else
-            unset -n _eb
             survive_eb+=("$eb")
         fi
     done
@@ -890,7 +869,6 @@ _play_game_tick () {
         if (( ${_d["{x}$X"]} >= _px1 && ${_d["{x}$X"]} <= _px2 && \
               ${_d["{y}$X"]} >= _py1 && ${_d["{y}$X"]} <= _py2 )) ; then
             local dtype=${_d["{dtype}$X"]}
-            unset -n _d
             xo_obj_bury "$d"
             case "$dtype" in
                 2|3|4|5)
@@ -943,7 +921,6 @@ _play_game_tick () {
                     ;;
             esac
         else
-            unset -n _d
             survive_d2+=("$d")
         fi
     done
@@ -955,7 +932,6 @@ _play_game_tick () {
         [[ -n "$w" && -n "${XO_OBJ_POOL[$w]+_}" ]] || continue
         local -n _w=$w
         local _wx=${_w["{x}$X"]} _wy=${_w["{y}$X"]} _wlen=${_w["{len}$X"]}
-        unset -n _w
         if (( _wy >= _py1 && _wy <= _py2 && \
               _wx + _wlen - 1 >= _px1 && _wx <= _px2 )) ; then
             local _wscore=$(( _wlen * 10 * _score_pct / 100 ))
@@ -985,7 +961,6 @@ _play_game_tick () {
             local _c=${_e["{CLS}$X"]}
             [[ "$_c" == "EnemyB" ]] && ((alive_B++))
             Base_is_a "$e" BossBase && ((alive_Boss++))
-            unset -n _e
         done
 
         local spawn_cls=''
@@ -1237,7 +1212,6 @@ play_game () {
                 local _ex=${_e["{x}$X"]} _ey=${_e["{y}$X"]}
                 local _ew=${_e["{w}$X"]} _eh=${_e["{h}$X"]}
                 local _eart=${_e["{art}$X"]}
-                unset -n _e
                 if (( new_hp <= 0 )) ; then
                     bomb_score=$(( bomb_score + escore * _bomb_pct / 100 ))
                     ((G_KILLS++))

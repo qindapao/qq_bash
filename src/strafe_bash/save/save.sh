@@ -109,7 +109,6 @@ load_game () {
 
     local -n _pc=${_plane_cls}Obj
     local -i _pmax=${_pc["{maxhp}$X"]:-20}
-    unset -n _pc
 
     local -i _boss_kills=0
     if [[ -n "${SAVE[boss_kills]:-}" ]] ; then

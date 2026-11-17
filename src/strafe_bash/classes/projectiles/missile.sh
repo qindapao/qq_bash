@@ -59,7 +59,6 @@ Missile_move () {
         [[ -n "$_e" && -n "${XO_OBJ_POOL[$_e]+_}" ]] || continue
         local -n _me=$_e
         _ex=${_me["{x}$X"]} ; _ey=${_me["{y}$X"]}
-        unset -n _me
         _dx=$(( _ex - x )) ; _dy=$(( _ey - y ))
         (( _dx < 0 )) && _dx=$(( -_dx ))
         (( _dy < 0 )) && _dy=$(( -_dy ))

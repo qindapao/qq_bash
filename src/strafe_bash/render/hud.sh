@@ -11,7 +11,6 @@ draw_hud_line1 () {
     if [[ -n "$bt" && -n "${XO_OBJ_POOL[$bt]+_}" ]] ; then
         local -n _bt=$bt
         weapon=${_bt["{u}$X"]}
-        unset -n _bt
     fi
     local _s
     # 被 Boss 减速时在主状态行上直接标出来（玩家最常看的一行），比藏在 BONUS 行尾显眼
@@ -40,7 +39,6 @@ draw_hud_line2 () {
             local -n _wobj=$_w
             local _wu=${_wobj["{u}$X"]} _wd=${_wobj["{damage}$X"]}
             _s+=" ${_wu}:${_wd}"
-            unset -n _wobj
         done
     fi
     _s+='  DROP H:+3 b:BOMB m:MISSILE L:LANE S:SHIELD W:NET'
@@ -63,7 +61,6 @@ draw_bonus_hud () {
         if [[ -n "$_w" && -n "${XO_OBJ_POOL[$_w]+_}" ]] ; then
             local -n _wobj=$_w
             _wu=${_wobj["{u}$X"]}
-            unset -n _wobj
         fi
         _tv=$(( ${OBJ_player["{t$_i}$X"]:-0} / FPS ))
         printf -v _part '  %s:%3d' "$_wu" "$_tv"

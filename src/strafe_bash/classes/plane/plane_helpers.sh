@@ -26,7 +26,6 @@ _plane_clear () {
     local _atop=${_pl_self["{y}$X"]}
     (( ${_pl_self["{shield}$X"]:-0} )) && _atop=$(( _atop - 1 ))
     _art_clear_at "$_atop" $(( ${_pl_self["{x}$X"]} - ${_pl_self["{al}$X"]} )) "${_pl_self["{art}$X"]}"
-    unset -n _pl_self
 }
 
 _plane_set_shield () {
@@ -49,5 +48,4 @@ _plane_set_shield () {
         self["{shield}$X"]=0
         self["{st}$X"]=0
     fi
-    unset -n self
 }
