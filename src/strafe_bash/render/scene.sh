@@ -133,9 +133,7 @@ render () {
     # 单字符对象（子弹/导弹/敌弹/掉落）数量最多，内联擦除，
     # 省掉每个对象一次函数调用 + 一次 {CLS} 读取 + case 分派。
     for b in "${BULLETS[@]}" ; do
-        # BULLETS 可能残留本 tick 已死的句柄：子弹打掉跟踪导弹时立即 bury，
-        # 而 BULLETS 在更早的 move 段就已经重建过了。其余数组都保证只含活句柄。
-        [[ -n "$b" && -n "${XO_OBJ_POOL[$b]+_}" ]] || continue
+        [[ -n "$b" ]] || continue
         local -n _b=$b
         _ex=${_b["{prev_x}$X"]:-${_b["{x}$X"]:-0}}
         _ey=${_b["{prev_y}$X"]:-${_b["{y}$X"]:-0}}
@@ -234,9 +232,7 @@ render () {
     # 顶罩那一行），机翼又不是判定点，先画玩家会让这些对象反复盖住机体 → 闪烁。
     if (( ${#BULLETS[@]} )) ; then
         for b in "${BULLETS[@]}" ; do
-            # BULLETS 可能残留本 tick 已死的句柄：子弹打掉跟踪导弹时立即 bury，
-            # 而 BULLETS 在更早的 move 段就已经重建过了。其余数组都保证只含活句柄。
-            [[ -n "$b" && -n "${XO_OBJ_POOL[$b]+_}" ]] || continue
+            [[ -n "$b" ]] || continue
             local -n _b=$b
             local _bx=${_b["{x}$X"]} _by=${_b["{y}$X"]} _bsym=${_b["{symbol}$X"]}
             # {color} 为空就用玩家的统一弹色；激光按威力写了自己的颜色

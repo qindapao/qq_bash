@@ -411,6 +411,9 @@ _clear_banner_ready () {
 # ============================================================================
 _play_game_tick () {
     local b e d eb m w
+    # 本 tick 的"已死标记"：所有死亡都只标记，统一在第 9 段清理时 bury/fire。
+    # 这样从第 5 段（对象移动，会重建各数组）到第 9 段之间，数组里不会出现死句柄。
+    local -A killed_b=() killed_m=()
     ((G_RUN_TICKS++))
     [[ -n "${XO_OBJ_POOL[OBJ_player]+_}" ]] && xo_call "OBJ_player" blink_tick
     if [[ -n "${XO_OBJ_POOL[OBJ_player]+_}" ]] && declare -F "${XO_OBJ_POOL[OBJ_player]}_ram_tick" >/dev/null 2>&1 ; then
@@ -538,10 +541,10 @@ _play_game_tick () {
                     # 命中火花既做反馈，也负责把这个格子擦干净（和打中敌人同一套）
                     _hit_fx_add "$_emy" "$_emx" '*' "$C_YELLOW"
                     _enemy_bullet_bury "$eb"
-                    # 这里保持 bury：我方子弹仍留在 BULLETS 里（要等下面的清理段才重建），
-                    # 如果解聘，下一 tick 它可能被重新返聘，而这条旧句柄还在数组里
-                    # → 同一对象被当两颗子弹处理。这条路径很少，不值得为它加一次摘除。
-                    [[ -n "${XO_OBJ_POOL[$_hitb]+_}" ]] && xo_obj_bury "$_hitb"
+                    # 我方子弹只做"死亡标记"，不在这里 bury：BULLETS 早在第 5 段
+                    # 开头就重建过了，立刻 bury 会在数组里留下一个死句柄（第 7 段
+                    # 用 killed_b 跳过它，第 9 段统一清理并把它从数组里摘掉）。
+                    killed_b[$_hitb]=1
                     unset "_pbmap[$_emy,$_emx]"
                     continue
                 fi
@@ -709,12 +712,11 @@ _play_game_tick () {
     done
 
     # ---- 7. 子弹 vs 敌人 ----
-    local -A killed_b=() killed_m=()
+    # killed_b / killed_m 已在函数开头声明（第 5 段就会往里写标记）
     local -i score_gain=0
 
     for b in "${BULLETS[@]}" ; do
         [[ -n "${killed_b[$b]+_}" ]] && continue
-        [[ -n "$b" && -n "${XO_OBJ_POOL[$b]+_}" ]] || continue
         local -n _b=$b
         local bx=${_b["{x}$X"]} by=${_b["{y}$X"]}
         local -i bdmg=${_b["{damage}$X"]}
