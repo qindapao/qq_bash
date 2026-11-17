@@ -41,7 +41,7 @@ reset_obj ()
 {
     local obj=$1
     if [[ -n "${XO_OBJ_POOL[$obj]+_}" ]] ; then
-        xo_obj_kill "$obj" >/dev/null 2>&1
+        xo_obj_bury "$obj" >/dev/null 2>&1
     fi
     xo_obj_born_named "$obj" TestObj >/dev/null 2>&1
 }
@@ -144,12 +144,12 @@ test_case5 ()
     fi
 }
 
-# 6) 具名句柄重用：kill 后重新 born（表项残留），再注入别的 Mixin 时不得串味
+# 6) 具名句柄重用：bury 后重新 born（表项残留），再注入别的 Mixin 时不得串味
 test_case6 ()
 {
     reset_obj OBJ_m6
     xo_obj_mixin_add OBJ_m6 M_T1 || { log_test 0 6 ; return 1 ; }
-    xo_obj_kill OBJ_m6 >/dev/null 2>&1 || { log_test 0 6 ; return 1 ; }
+    xo_obj_bury OBJ_m6 >/dev/null 2>&1 || { log_test 0 6 ; return 1 ; }
 
     xo_obj_born_named OBJ_m6 TestObj >/dev/null 2>&1 || { log_test 0 6 ; return 1 ; }
     xo_obj_mixin_add OBJ_m6 M_T2 || { log_test 0 6 ; return 1 ; }
@@ -169,7 +169,7 @@ test_case6 ()
 test_case7 ()
 {
     if [[ -n "${XO_OBJ_POOL[OBJ_nf]+_}" ]] ; then
-        xo_obj_kill OBJ_nf >/dev/null 2>&1
+        xo_obj_bury OBJ_nf >/dev/null 2>&1
     fi
     xo_obj_born_named OBJ_nf TestNoField >/dev/null 2>&1 || { log_test 0 7 ; return 1 ; }
 

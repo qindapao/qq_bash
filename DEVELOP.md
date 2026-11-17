@@ -79,10 +79,26 @@ Key ideas:
 - **Mixins** — `{MIX}` lists method-only mixins; class methods win, then mixins,
   then inherited methods. The Il-2 list below is the worked example.
 - **Named objects** — `xo_obj_born_named OBJ_plane Plane` for stable handles.
-- **Object pool** — `XO_OBJ_POOL[OBJ_7]` stores the class; `xo_obj_kill` frees it.
+- **Object pool** — `XO_OBJ_POOL[OBJ_7]` stores the class; `xo_obj_bury` frees it.
 - **Dispatch** — `xo_call "$obj" move`; specialise with `Enemy_move`,
   `Boss_move`, etc.
 - **Type checks** — `Base_is_a "$obj" BossBase`.
+
+### Object lifecycle: born and bury
+
+```bash
+xo_obj_born Enemy                # template fields copied in, then Enemy_born runs
+xo_obj_born_named OBJ_boss Boss  # same, with a stable handle
+xo_obj_bury "$obj"               # <CLS>_bury runs, then the pool entry is removed
+```
+
+- `xo_obj_born*` copies the class template's fields, registers the object in
+  `XO_OBJ_POOL`, then calls `<CLS>_born` (default no-op).
+- `xo_obj_bury` calls `<CLS>_bury` before freeing anything, so an owner buries
+  what it owns (`Plane_bury` buries its weapon objects). Every class inherits
+  `Base_bury`; a missing `<CLS>_bury` is an error.
+- Burying also drops the object's `{OBJMIX}` routing, so a reused named handle
+  cannot inherit the previous object's abilities.
 
 The game's class tree:
 

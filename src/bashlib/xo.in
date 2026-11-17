@@ -321,14 +321,16 @@ Base_print () { x_dump "$1" '' 4 2 ; }
 
 Base_born ()
 {
-    # 默认构造后钩子，子类可覆盖
+    # 默认构造后钩子，子类可覆盖：模板字段已写入、对象已进池之后调用
     # $1=对象句柄，$2..=用户构造参数
     :
 }
 
-Base_kill ()
+Base_bury ()
 {
-    # 默认析构钩子，子类可覆盖
+    # 默认安葬钩子（对应 born），子类可覆盖：对象出池、资源释放之前调用。
+    # 拥有其它对象的类要在这里把它们一并 bury（例：Plane_bury 埋葬自己的武器对象）。
+    # 框架要求每个类都有 <CLS>_bury（继承 Base_bury 即可），缺失会被当成错误。
     # $1=对象句柄
     :
 }
@@ -797,7 +799,7 @@ xo_obj_born_named ()
     return 0
 }
 
-xo_obj_kill ()
+xo_obj_bury ()
 {
     local obj=$1
 
@@ -807,18 +809,18 @@ xo_obj_kill ()
         return 1
     }
 
-    # 2. 调 kill 钩子（如果存在）
-    # 组合对象 kill 等等
+    # 2. 调 bury 钩子（如果存在）
+    # 组合对象 bury 等等
     local cls=${XO_OBJ_POOL[$obj]}
-    "${cls}_kill" "$obj" || {
-        die ERR "xo: ${cls}_kill failed for ${obj}"
+    "${cls}_bury" "$obj" || {
+        die ERR "xo: ${cls}_bury failed for ${obj}"
         return 1
     }
 
     # 2.5 动态能力的路由随对象一起销毁：否则具名句柄重建时，旧能力会串到新对象上。
     # 门控分两级：
-    #   集合为空（没有任何对象带动态能力）→ 所有 kill 只做一次数组长度判断就返回；
-    #   集合非空（例如 Boss 带着能力在场上）→ 每次 kill 多一次集合查询，命中才清路由。
+    #   集合为空（没有任何对象带动态能力）→ 所有 bury 只做一次数组长度判断就返回；
+    #   集合非空（例如 Boss 带着能力在场上）→ 每次 bury 多一次集合查询，命中才清路由。
     # 子弹永远不在集合里，所以第二级查询对它们必然落空，不会误清。
     if (( ${#XO_OBJ_MIXED[@]} )) && [[ -n "${XO_OBJ_MIXED[$obj]+_}" ]] ; then
         _xo_obj_mixin_drop_table "$obj"
@@ -898,7 +900,7 @@ xo_call ()
 #
 # 边界：
 #   - 热路径继续用 xo_call（零额外开销），只有需要动态能力的调用点用 xo_obj_call
-#   - 对象 kill 不会自动清路由：用完调 xo_obj_mixin_delete；xo_obj_mixin_add 在
+#   - 对象 bury 不会自动清路由：用完调 xo_obj_mixin_delete；xo_obj_mixin_add 在
 #     该对象还没有任何动态 Mixin 时会先清残留路由，所以具名句柄重用不会串味
 #   - {OBJMIX} 是纯运行时状态，但类模板必须声明空字段 '{OBJMIX} => '（值留空）：
 #     节点进了类对象，运行期直接赋值才与对象树一致（x_walk/x_dump 才看得见）
@@ -909,7 +911,7 @@ xo_call ()
 declare -gA XO_MIXIN_METHODS=()
 # 分派表："OBJ_x|method" => "M_Mixin_method"
 declare -gA XO_OBJ_METHOD=()
-# 当前持有动态能力的对象集合；xo_obj_kill 靠它做「是否需要清理路由」的廉价门控
+# 当前持有动态能力的对象集合；xo_obj_bury 靠它做「是否需要清理路由」的廉价门控
 declare -gA XO_OBJ_MIXED=()
 
 # 取一个 Mixin 的公共方法列表（去掉 Mixin_ 前缀），结果放 REPLY。

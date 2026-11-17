@@ -34,7 +34,7 @@ init_game () {
     local _wi _wn
     for _wi in 1 2 3 4 5 ; do
         _wn="OBJ_wpn$_wi"
-        [[ -n "${XO_OBJ_POOL[$_wn]+_}" ]] && xo_obj_kill "$_wn"
+        [[ -n "${XO_OBJ_POOL[$_wn]+_}" ]] && xo_obj_bury "$_wn"
     done
 
     # 默认子弹（tier 0，独立于 1..5 号库，不参与随机）
@@ -59,12 +59,12 @@ init_game () {
         OBJ_player["{w$_tier}$X"]=$REPLY
     done
     local b e d eb m w
-    for b in "${BULLETS[@]}" ; do [[ -n "${XO_OBJ_POOL[$b]+_}" ]] && xo_obj_kill "$b" ; done
-    for e in "${ENEMIES[@]}" ; do [[ -n "${XO_OBJ_POOL[$e]+_}" ]] && xo_obj_kill "$e" ; done
-    for d in "${DROPS[@]}" ; do [[ -n "${XO_OBJ_POOL[$d]+_}" ]] && xo_obj_kill "$d" ; done
-    for eb in "${ENEMY_BULLETS[@]}" ; do [[ -n "${XO_OBJ_POOL[$eb]+_}" ]] && xo_obj_kill "$eb" ; done
-    for m in "${MISSILES[@]}" ; do [[ -n "${XO_OBJ_POOL[$m]+_}" ]] && xo_obj_kill "$m" ; done
-    for w in "${WORDS[@]}" ; do [[ -n "${XO_OBJ_POOL[$w]+_}" ]] && xo_obj_kill "$w" ; done
+    for b in "${BULLETS[@]}" ; do [[ -n "${XO_OBJ_POOL[$b]+_}" ]] && xo_obj_bury "$b" ; done
+    for e in "${ENEMIES[@]}" ; do [[ -n "${XO_OBJ_POOL[$e]+_}" ]] && xo_obj_bury "$e" ; done
+    for d in "${DROPS[@]}" ; do [[ -n "${XO_OBJ_POOL[$d]+_}" ]] && xo_obj_bury "$d" ; done
+    for eb in "${ENEMY_BULLETS[@]}" ; do [[ -n "${XO_OBJ_POOL[$eb]+_}" ]] && xo_obj_bury "$eb" ; done
+    for m in "${MISSILES[@]}" ; do [[ -n "${XO_OBJ_POOL[$m]+_}" ]] && xo_obj_bury "$m" ; done
+    for w in "${WORDS[@]}" ; do [[ -n "${XO_OBJ_POOL[$w]+_}" ]] && xo_obj_bury "$w" ; done
     BULLETS=() ENEMIES=() DROPS=() ENEMY_BULLETS=() MISSILES=() MISSILE_TRAIL_CLEAR=()
     BOMB_FX_POS=() HIT_FX=() BOSS_DEATH_POS=() CLEAR_BATCH=() WORDS=()
     BOSS_DEATH_TICK=0

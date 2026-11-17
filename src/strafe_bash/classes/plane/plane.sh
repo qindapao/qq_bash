@@ -119,13 +119,13 @@ Plane_use_skill () {
     # 预留接口：具体机型以后覆盖这个方法。
     :
 }
-Plane_kill () {
-    Entity_kill "$1"
+Plane_bury () {
+    Entity_bury "$1"
     local -n self=$1
     local i wpn
     for i in 1 2 3 4 5 ; do
         wpn=${self["{w$i}$X"]}
-        [[ -n "$wpn" && -n "${XO_OBJ_POOL[$wpn]+_}" ]] && xo_obj_kill "$wpn"
+        [[ -n "$wpn" && -n "${XO_OBJ_POOL[$wpn]+_}" ]] && xo_obj_bury "$wpn"
     done
     unset -n self
 }

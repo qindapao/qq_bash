@@ -139,14 +139,14 @@ load_game () {
 
     # 读档从新一波开始；机型不同就替换玩家对象。
     if [[ -z "${XO_OBJ_POOL[OBJ_player]+_}" || "${XO_OBJ_POOL[OBJ_player]}" != "$_plane_cls" ]] ; then
-        [[ -n "${XO_OBJ_POOL[OBJ_player]+_}" ]] && xo_obj_kill OBJ_player
+        [[ -n "${XO_OBJ_POOL[OBJ_player]+_}" ]] && xo_obj_bury OBJ_player
         xo_obj_born_named OBJ_player "$_plane_cls" || return 1
     fi
     init_game || return 1
     G_BOSS_KILLS=$_boss_kills
     for i in 1 2 3 4 5 ; do
         _cls=${SAVE[w${i}_cls]}
-        [[ -n "${XO_OBJ_POOL[OBJ_wpn$i]+_}" ]] && xo_obj_kill "OBJ_wpn$i"
+        [[ -n "${XO_OBJ_POOL[OBJ_wpn$i]+_}" ]] && xo_obj_bury "OBJ_wpn$i"
         xo_obj_born_named "OBJ_wpn$i" "$_cls" || return 1
         OBJ_player["{w$i}$X"]=$REPLY
     done

@@ -399,9 +399,9 @@ test_case1 ()
         rc=$?
     done
     check '燃料烧完后自毁（返回非 0）' 1 "$rc"
-    # 死亡统一走 play_game 的 _enemy_bullet_kill：它必须在 kill 前登记擦除格
+    # 死亡统一走 play_game 的 _enemy_bullet_bury：它必须在 bury 前登记擦除格
     MISSILE_TRAIL_CLEAR=()
-    _enemy_bullet_kill "$m0"
+    _enemy_bullet_bury "$m0"
     check '死亡出口登记了擦除格（避免残影）' 1 \
         "$(( ${#MISSILE_TRAIL_CLEAR[@]} >= 2 ? 1 : 0 ))"
 

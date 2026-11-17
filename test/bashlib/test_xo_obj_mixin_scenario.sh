@@ -13,7 +13,7 @@
 #   5. 重新注入会排到名单末尾，因此不恢复原先的优先级
 #   6. 私有方法（M_Xxx__foo）不会被注入
 #   7. 类模板未声明 {OBJMIX} 时 add 被拒绝（契约守卫）
-#   8. 具名句柄 kill 后重建，残留路由被清理
+#   8. 具名句柄 bury 后重建，残留路由被清理
 #   9. 删不存在的 Mixin、全卸载、多对象并存
 #  10. 混入方法集合在首次使用时固定（与 xo_init 类级注入的时机一致）
 
@@ -175,10 +175,10 @@ test_case1 ()
     expect_fail 'Entity 未声明 {OBJMIX}，add 被拒绝' xo_obj_mixin_add OBJ_e M_Fire
     check '被拒绝后不产生路由' '' "$(r xo_obj_call OBJ_e tick)"
 
-    printf '\n== 阶段 11：kill 后同名句柄重建，残留路由被清理 ==\n'
-    xo_obj_kill OBJ_b1 >/dev/null 2>&1 || { log_test 0 1 ; return 1 ; }
-    check 'kill 后不再算「持有动态能力」' '' "${XO_OBJ_MIXED[OBJ_b1]-}"
-    check 'kill 后该对象的路由全部消失' '' \
+    printf '\n== 阶段 11：bury 后同名句柄重建，残留路由被清理 ==\n'
+    xo_obj_bury OBJ_b1 >/dev/null 2>&1 || { log_test 0 1 ; return 1 ; }
+    check 'bury 后不再算「持有动态能力」' '' "${XO_OBJ_MIXED[OBJ_b1]-}"
+    check 'bury 后该对象的路由全部消失' '' \
         "$(for k in "${!XO_OBJ_METHOD[@]}" ; do [[ "$k" == 'OBJ_b1|'* ]] && printf '%s ' "$k" ; done)"
     xo_obj_born_named OBJ_b1 Boss >/dev/null 2>&1 || { log_test 0 1 ; return 1 ; }
     check '重建后名单为空' '' "$(r xo_obj_mixin_list OBJ_b1)"
@@ -191,7 +191,7 @@ test_case1 ()
     # M_Wind 的方法在阶段 3 首次 add 时已扫描并缓存；此后新增的方法不会被注入。
     # 与 xo_init 时类级注入的时机一致：所有 Mixin 方法都应在 xo_init 之前定义。
     M_Wind_late () { REPLY='late' ; }
-    if [[ -n "${XO_OBJ_POOL[OBJ_b3]+_}" ]] ; then xo_obj_kill OBJ_b3 >/dev/null 2>&1 ; fi
+    if [[ -n "${XO_OBJ_POOL[OBJ_b3]+_}" ]] ; then xo_obj_bury OBJ_b3 >/dev/null 2>&1 ; fi
     xo_obj_born_named OBJ_b3 Boss >/dev/null 2>&1 || { log_test 0 1 ; return 1 ; }
     xo_obj_mixin_add OBJ_b3 M_Wind
     check 'M_Wind 原有方法可用' 'wind' "$(r xo_obj_call OBJ_b3 tick)"

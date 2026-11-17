@@ -44,7 +44,7 @@ EnemyMissile_born () {
     self["{cd}$X"]=0
 }
 
-# 死亡清理统一由 play_game 的 _enemy_bullet_kill 负责（它会在 kill 前登记擦除格），
+# 死亡清理统一由 play_game 的 _enemy_bullet_bury 负责（它会在 bury 前登记擦除格），
 # 所以这里只负责返回 1 表示"我该消失了"。
 
 # 贪心追踪玩家：每 step 个 tick 走一格，燃料每走一格 -1，烧完返回 1（自毁）。

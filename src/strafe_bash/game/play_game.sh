@@ -185,11 +185,11 @@ _wave_gap_x () {
 }
 
 # ============================================================================
-# _enemy_bullet_kill — 敌方子弹 / 导弹的唯一死亡出口
+# _enemy_bullet_bury — 敌方子弹 / 导弹的唯一死亡出口
 # 死之前先把「最后画过的那一格」交给擦除队列：炸弹清屏、撞玩家、燃料耗尽都会让它们
-# 在画面中间消失，对象一旦被 kill，渲染阶段就再也找不到它，不登记就会留下一个残格。
+# 在画面中间消失，对象一旦被 bury，渲染阶段就再也找不到它，不登记就会留下一个残格。
 # ============================================================================
-_enemy_bullet_kill () {
+_enemy_bullet_bury () {
     local obj=$1
     local -n _k=$obj
     local -i py=${_k["{prev_y}$X"]:--1} px=${_k["{prev_x}$X"]:--1}
@@ -197,7 +197,7 @@ _enemy_bullet_kill () {
     if (( py >= GAME_TOP && py < SCREEN_H - 1 && px >= 2 && px <= SCREEN_W - 2 )) ; then
         MISSILE_TRAIL_CLEAR+=("$py" "$px")
     fi
-    xo_obj_kill "$obj"
+    xo_obj_bury "$obj"
 }
 
 _score_bonus () {
@@ -245,7 +245,7 @@ _ram_enemy () {
         ((G_BOSS_KILLS++))
         _boss_on_death "$eid" "$ex" "$ey" "$ew" "$eh" "$eart"
     fi
-    xo_obj_kill "$eid"
+    xo_obj_bury "$eid"
     return 0
 }
 
@@ -357,7 +357,7 @@ _play_game_tick () {
 
     # ---- 0.5 武器过期检测 ----
     # 当前武器是一个独立的 BulletType 子类对象；过期后只切回默认武器，
-    # 不再像旧实现那样每 tick 动态 kill/born 一个 BulletType。
+    # 不再像旧实现那样每 tick 动态 bury/born 一个 BulletType。
     local _bt=${OBJ_player["{bullet}$X"]}
     local _tier=1
     if [[ -n "$_bt" && -n "${XO_OBJ_POOL[$_bt]+_}" ]] ; then
@@ -413,7 +413,7 @@ _play_game_tick () {
         _b["{y}$X"]=$by
         unset -n _b
         if (( by < GAME_TOP || bx < 2 || bx > SCREEN_W - 2 )) ; then
-            xo_obj_kill "$b"
+            xo_obj_bury "$b"
         else
             alive_b+=("$b")
         fi
@@ -424,7 +424,7 @@ _play_game_tick () {
     for m in "${MISSILES[@]}" ; do
         [[ -n "$m" && -n "${XO_OBJ_POOL[$m]+_}" ]] || continue
         xo_call "$m" move
-        if (( $? == 0 )) ; then alive_m+=("$m") ; else _missile_queue_trail_clear "$m" ; xo_obj_kill "$m" ; fi
+        if (( $? == 0 )) ; then alive_m+=("$m") ; else _missile_queue_trail_clear "$m" ; xo_obj_bury "$m" ; fi
     done
     MISSILES=("${alive_m[@]}")
 
@@ -458,15 +458,15 @@ _play_game_tick () {
                     local _hitb=${_pbmap["$_emy,$_emx"]}
                     # 命中火花既做反馈，也负责把这个格子擦干净（和打中敌人同一套）
                     _hit_fx_add "$_emy" "$_emx" '*' "$C_YELLOW"
-                    _enemy_bullet_kill "$eb"
-                    [[ -n "${XO_OBJ_POOL[$_hitb]+_}" ]] && xo_obj_kill "$_hitb"
+                    _enemy_bullet_bury "$eb"
+                    [[ -n "${XO_OBJ_POOL[$_hitb]+_}" ]] && xo_obj_bury "$_hitb"
                     unset "_pbmap[$_emy,$_emx]"
                     continue
                 fi
             fi
             alive_eb+=("$eb")
         else
-            _enemy_bullet_kill "$eb"
+            _enemy_bullet_bury "$eb"
         fi
     done
     ENEMY_BULLETS=("${alive_eb[@]}")
@@ -486,7 +486,7 @@ _play_game_tick () {
             local -i _esc_y=${_esc["{y}$X"]} _esc_h=${_esc["{h}$X"]:-1}
             unset -n _esc
             (( _esc_y + _esc_h >= SCREEN_H - 1 )) && G_LAST_ESCAPE_TICK=$G_RUN_TICKS
-            xo_obj_kill "$e"
+            xo_obj_bury "$e"
         fi
     done
     ENEMIES=("${alive_e[@]}")
@@ -495,7 +495,7 @@ _play_game_tick () {
     for d in "${DROPS[@]}" ; do
         [[ -n "$d" && -n "${XO_OBJ_POOL[$d]+_}" ]] || continue
         xo_call "$d" move
-        if (( $? == 0 )) ; then alive_d+=("$d") ; else xo_obj_kill "$d" ; fi
+        if (( $? == 0 )) ; then alive_d+=("$d") ; else xo_obj_bury "$d" ; fi
     done
     DROPS=("${alive_d[@]}")
 
@@ -503,7 +503,7 @@ _play_game_tick () {
     for w in "${WORDS[@]}" ; do
         [[ -n "$w" && -n "${XO_OBJ_POOL[$w]+_}" ]] || continue
         xo_call "$w" move
-        if (( $? == 0 )) ; then alive_w+=("$w") ; else xo_obj_kill "$w" ; fi
+        if (( $? == 0 )) ; then alive_w+=("$w") ; else xo_obj_bury "$w" ; fi
     done
     WORDS=("${alive_w[@]}")
 
@@ -553,7 +553,7 @@ _play_game_tick () {
                     local -i _wbx=${_wbb["{x}$X"]}
                     unset -n _wbb
                     if (( _wby >= WAVE_CLEAR_LO && _wby <= WAVE_CLEAR_HI )) && ! _wave_gap_x "$_wbx" ; then
-                        xo_obj_kill "$_wb"
+                        xo_obj_bury "$_wb"
                     else
                         _wb_keep+=("$_wb")
                     fi
@@ -571,7 +571,7 @@ _play_game_tick () {
                     local -i _eby=${_ebb["{y}$X"]}
                     unset -n _ebb
                     if (( _eby >= WAVE_CLEAR_LO && _eby <= WAVE_CLEAR_HI )) ; then
-                        _enemy_bullet_kill "$_eb"
+                        _enemy_bullet_bury "$_eb"
                     else
                         _eb_keep+=("$_eb")
                     fi
@@ -738,7 +738,7 @@ _play_game_tick () {
         for b in "${BULLETS[@]}" ; do
             if [[ -n "${killed_b[$b]+_}" ]] ; then
                 [[ -n "$b" && -n "${XO_OBJ_POOL[$b]+_}" ]] || continue
-                xo_obj_kill "$b"
+                xo_obj_bury "$b"
             else
                 nb+=("$b")
             fi
@@ -752,7 +752,7 @@ _play_game_tick () {
             if [[ -n "${killed_m[$m]+_}" ]] ; then
                 [[ -n "$m" && -n "${XO_OBJ_POOL[$m]+_}" ]] || continue
                 _missile_queue_trail_clear "$m"
-                xo_obj_kill "$m"
+                xo_obj_bury "$m"
             else
                 nm+=("$m")
             fi
@@ -760,13 +760,13 @@ _play_game_tick () {
         MISSILES=("${nm[@]}")
     fi
 
-    # 敌人延迟到所有碰撞结束后统一 kill：快照数组在子弹/导弹/玩家
+    # 敌人延迟到所有碰撞结束后统一 bury：快照数组在子弹/导弹/玩家
     # 三个阶段之间保持有效，_edead 就是「本 tick 已死」标记。
     if (( _ndead )) ; then
         local -a ne=()
         for (( _j=0 ; _j<_ne ; _j++ )) ; do
             if (( _edead[_j] )) ; then
-                xo_obj_kill "${_eid[_j]}"
+                xo_obj_bury "${_eid[_j]}"
             else
                 ne+=("${_eid[_j]}")
             fi
@@ -805,7 +805,7 @@ _play_game_tick () {
             fi
             (( ! _sh )) && player_dmg=$(( player_dmg + ${_eb["{damage}$X"]} ))
             unset -n _eb
-            _enemy_bullet_kill "$eb"
+            _enemy_bullet_bury "$eb"
         else
             unset -n _eb
             survive_eb+=("$eb")
@@ -891,7 +891,7 @@ _play_game_tick () {
               ${_d["{y}$X"]} >= _py1 && ${_d["{y}$X"]} <= _py2 )) ; then
             local dtype=${_d["{dtype}$X"]}
             unset -n _d
-            xo_obj_kill "$d"
+            xo_obj_bury "$d"
             case "$dtype" in
                 2|3|4|5)
                     # 切换到本局该档位的武器对象；武器对象常驻，不销毁。
@@ -960,7 +960,7 @@ _play_game_tick () {
               _wx + _wlen - 1 >= _px1 && _wx <= _px2 )) ; then
             local _wscore=$(( _wlen * 10 * _score_pct / 100 ))
             OBJ_player["{score}$X"]=$(( ${OBJ_player["{score}$X"]} + _wscore ))
-            xo_obj_kill "$w"
+            xo_obj_bury "$w"
         else
             survive_w+=("$w")
         fi
@@ -1215,7 +1215,7 @@ play_game () {
             local _ceb
             for _ceb in "${ENEMY_BULLETS[@]}" ; do
                 [[ -n "$_ceb" && -n "${XO_OBJ_POOL[$_ceb]+_}" ]] || continue
-                _enemy_bullet_kill "$_ceb"
+                _enemy_bullet_bury "$_ceb"
             done
             ENEMY_BULLETS=()
 
@@ -1245,7 +1245,7 @@ play_game () {
                         ((G_BOSS_KILLS++))
                         _boss_on_death "$e" "$_ex" "$_ey" "$_ew" "$_eh" "$_eart"
                     fi
-                    xo_obj_kill "$e"
+                    xo_obj_bury "$e"
                 else
                     bomb_alive+=("$e")
                 fi
