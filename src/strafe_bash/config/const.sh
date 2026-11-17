@@ -8,6 +8,8 @@ SCREEN_H=$(tput lines 2>/dev/null) ; [[ -z "$SCREEN_H" ]] && SCREEN_H=24
 (( SCREEN_H > 60 )) && SCREEN_H=60
 
 STRAFE_SAVE_FILE="${STRAFE_SAVE_FILE:-./.strafe_save}"
+# 游戏版本：定义在 config/version.sh（cli.sh 也要用，它在 const.sh 之前加载）
+. "$STRAFE_PROJ_DIR/config/version.sh"
 GAME_TOP=5
 FPS=30
 TICK_US=$(( 1000000 / FPS ))

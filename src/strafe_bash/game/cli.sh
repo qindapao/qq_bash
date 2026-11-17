@@ -7,8 +7,10 @@ _STRAFE_CLI_SH=1
 
 # 帮助内容 = 开始页的全部信息（操作/掉落/武器/作者）+ 参数说明。
 cli_help () {
+    # cli.sh 先于 main.sh 加载，此时 const.sh 还没跑：单独取版本号文件
+    . "$STRAFE_PROJ_DIR/config/version.sh"
+    printf 'STRAFE_BASH %s — a pure Bash terminal bullet-hell\n' "$STRAFE_VERSION"
     cat <<'EOF'
-STRAFE_BASH — a pure Bash terminal bullet-hell
 
 Usage:
   strafe_bash.sh                  play

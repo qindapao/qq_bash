@@ -38,7 +38,7 @@ save_game () {
     local _pcls=${XO_OBJ_POOL[OBJ_player]}
     [[ "$_pcls" == "Plane" ]] && _pcls=PlaneBee
     local -A SAVE=(
-        [version]=7
+        [version]=$STRAFE_VERSION
         [plane_cls]=$_pcls
         [score]=${OBJ_player["{score}$X"]:-0}
         [hp]=${OBJ_player["{hp}$X"]:-0}
@@ -63,7 +63,7 @@ save_game () {
     local -a _keys=(version plane_cls score hp bombs boss_kills t2 t3 t4 t5 mt lanes lanes_side lt shield st bullet_slot w1_cls w2_cls w3_cls w4_cls w5_cls)
     local _k
     {
-        printf '# strafe save v7\n'
+        printf '# strafe save %s\n' "$STRAFE_VERSION"
         for _k in "${_keys[@]}" ; do
             printf '%s=%s\n' "$_k" "${SAVE[$_k]}"
         done
@@ -88,24 +88,20 @@ load_game () {
         SAVE[$_k]=$_v
     done < "$STRAFE_SAVE_FILE"
 
+    # 存档版本就是游戏版本（v1.x.y）。这是第一版格式，不兼容更早的数字格式号；
+    # 同一大版本内（v1.*）允许互相读取。
     local _ver=${SAVE[version]:-}
-    [[ "$_ver" == "5" || "$_ver" == "6" || "$_ver" == "7" ]] || return 1
+    [[ "$_ver" =~ ^v1\.[0-9]+\.[0-9]+$ ]] || return 1
 
-    local _plane_cls
-    if [[ "$_ver" == "5" ]] ; then
-        # v5 存档没有机型字段，按默认 Bee 读
-        _plane_cls=PlaneBee
-    else
-        _plane_cls=${SAVE[plane_cls]:-}
-        [[ "$_plane_cls" == "Plane" ]] && _plane_cls=PlaneBee
-        [[ "$_plane_cls" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]] || return 1
-        declare -p "${_plane_cls}Obj" >/dev/null 2>&1 || return 1
-        local _valid=0 _c
-        for _c in "${PLANE_CLASSES[@]}" ; do
-            [[ "$_plane_cls" == "$_c" ]] && _valid=1
-        done
-        (( _valid )) || return 1
-    fi
+    local _plane_cls=${SAVE[plane_cls]:-}
+    [[ "$_plane_cls" == "Plane" ]] && _plane_cls=PlaneBee
+    [[ "$_plane_cls" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]] || return 1
+    declare -p "${_plane_cls}Obj" >/dev/null 2>&1 || return 1
+    local _valid=0 _c
+    for _c in "${PLANE_CLASSES[@]}" ; do
+        [[ "$_plane_cls" == "$_c" ]] && _valid=1
+    done
+    (( _valid )) || return 1
 
     local -n _pc=${_plane_cls}Obj
     local -i _pmax=${_pc["{maxhp}$X"]:-20}

@@ -49,7 +49,7 @@ _boss_buff_sync_str () {
 
 # 能力是否"当前值得拿"：没写 buff_ok 谓词的能力默认永远可用
 _boss_buff_ok () {
-    local fn="${mixin}_buff_ok"
+    local fn="$2_buff_ok"
     declare -F "$fn" >/dev/null || return 0
     "$fn" "$1"
 }

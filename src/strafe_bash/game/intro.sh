@@ -114,6 +114,8 @@ _intro_draw () {
     _intro_text 19 4 "$C_CYAN" 'https://github.com/qindapao/qq_bash'
     _intro_text 20 4 "$C_YELLOW" 'qindapao  ·  northisland2017@gmail.com'
     _intro_text 21 4 "$C_CYAN" 'https://github.com/qindapao  ·  qindapao.com'
+    # 版本号右下角（内容区 2..SCREEN_W-1，右对齐留一格）
+    _intro_text 22 $(( SCREEN_W - ${#STRAFE_VERSION} - 1 )) "$C_BLUE" "$STRAFE_VERSION"
 
     if (( has_save )) ; then
         _intro_center 23 "$C_GREEN" '1-4 SELECT   ENTER START   L LOAD   Q QUIT'
