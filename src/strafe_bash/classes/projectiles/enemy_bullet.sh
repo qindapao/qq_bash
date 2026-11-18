@@ -34,11 +34,17 @@ readonly EnemyBulletStaticTemplate='
         {cd} => 0
         # 颜色覆盖：空 = 用敌方子弹默认色
         {color} => 
+        # 帧缓冲用的成品串（颜色+字符+复位），出生时拼一次，move 直接复用
+        {glyph} => 
     '
 EnemyBullet_born () {
     local -n self=$1
     self["{x}$X"]=$2 self["{y}$X"]=$3 self["{symbol}$X"]=$4 \
          self["{damage}$X"]=$5 self["{cd}$X"]=0
+    # 帧缓冲：出生即占一格。颜色+字符只在这里拼一次，move 直接复用 {glyph}
+    self["{glyph}$X"]="${self["{color}$X"]}${self["{symbol}$X"]}$C_RESET"
+    local -i _fi=$(( ($3 - 1) * FB_W + ($2 - 1) ))
+    FB_CELL[_fi]=${self["{glyph}$X"]} FB_OWNER[_fi]=$1 FB_DIRTY+=("$_fi")
 }
 
 # 易变字段（复用前要恢复）：位置句柄由渲染每帧写入，不清会让返聘的第一帧擦错格子。
@@ -48,7 +54,18 @@ EnemyBullet_move () {
     local -n self=$1
     local cd=$(( ${self["{cd}$X"]} + 1 ))
     (( cd < 4 )) && { self["{cd}$X"]=$cd ; return 0 ; }
-    self["{cd}$X"]=0 self["{y}$X"]=$(( ${self["{y}$X"]} + 1 ))
-    (( ${self["{y}$X"]} >= SCREEN_H - 1 )) && return 1
+    local -i _oy=${self["{y}$X"]} _x=${self["{x}$X"]} _fi
+    self["{cd}$X"]=0 self["{y}$X"]=$(( _oy + 1 ))
+    local -i _ny=${self["{y}$X"]}
+    # 帧缓冲：清旧格；新格在场内才写（写完这步对象可能出界死亡）
+    _fi=$(( (_oy - 1) * FB_W + (_x - 1) ))
+    if [[ "${FB_OWNER[_fi]}" == "$1" ]] ; then
+        FB_CELL[_fi]='' ; FB_OWNER[_fi]='' ; FB_DIRTY+=("$_fi")
+    fi
+    if (( _ny < SCREEN_H - 1 && _x >= 2 && _x <= SCREEN_W - 2 )) ; then
+        _fi=$(( (_ny - 1) * FB_W + (_x - 1) ))
+        FB_CELL[_fi]=${self["{glyph}$X"]} ; FB_OWNER[_fi]=$1 ; FB_DIRTY+=("$_fi")
+    fi
+    (( _ny >= SCREEN_H - 1 )) && return 1
     return 0
 }

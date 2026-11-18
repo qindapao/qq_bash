@@ -390,11 +390,15 @@ test_case1 ()
         rc=$?
     done
     check '燃料烧完后自毁（返回非 0）' 1 "$rc"
-    # 死亡统一走 play_game 的 _enemy_bullet_bury：它必须在 bury 前登记擦除格
+    # 死亡统一走 play_game 的 _enemy_bullet_bury：它必须在解聘前把当前格从帧缓冲擦掉
     MISSILE_TRAIL_CLEAR=()
+    local -n _mm=$m0
+    local -i _mx=${_mm["{x}$X"]} _my=${_mm["{y}$X"]}
+    FB_DIRTY=()
     _enemy_bullet_bury "$m0"
-    check '死亡出口登记了擦除格（避免残影）' 1 \
-        "$(( ${#MISSILE_TRAIL_CLEAR[@]} >= 2 ? 1 : 0 ))"
+    local -i _mi=$(( (_my - 1) * FB_W + (_mx - 1) )) _ok=0
+    if (( ${#FB_DIRTY[@]} >= 1 )) && [[ -z "${FB_CELL[_mi]}" ]] ; then _ok=1 ; fi
+    check '死亡出口擦掉了当前格（避免残影）' 1 "$_ok"
 
     # 我方子弹一碰即毁：跑一次真实 tick，子弹从下方移到导弹同格
     ENEMY_BULLETS=() ; BULLETS=() ; ENEMIES=()

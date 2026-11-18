@@ -9,26 +9,21 @@
 原则：只能变好不能变差；每步都量；验收用帧哈希或屏幕比对器。
 ===============================================================================
 
-[P0] 帧缓冲（render 16ms → 目标 ~2ms）—— 最大的一块，建议整块时间做
-  现状：111 发敌弹即使静止，每帧也要"擦一次 + 画一次"（约 222 次写入），
-        而真正变化的格子只有 ~30 个 → 约 85% 是重复劳动。
-  设计：
-    CELL[(y-1)*W+x] = "颜色+字符"   屏幕真值
-    DIRTY[]         = 本帧变过的格  只 emit 这些
-    关键：写格子必须在 <cls>_move 内部（self 已绑、x/y 刚算出来）。
-          在 tick 的 move 循环里写不行——为拿坐标要再绑一次 nameref，
-          省下的正好被吃掉（已实测推演）。
-  前置（已完成）：数组只含活句柄（子弹打导弹改为"先标记后清理"）。
-  步骤：
-    1. CELL/DIRTY/emit 核心 + 屏幕比对器
-       （bash 把一帧的 escape 流跑成网格，比较新旧渲染器最终画面；
-         输出顺序会变，md5 帧哈希不再适用）
-    2. 迁移 EnemyBullet（111 发，最大头）
-    3. 迁移其余单格对象：Bullet/BossBullet/EnemyMissile/Missile/Drop/Word
-    4. 迁移敌人多行 art（_scene_art_lines / _scene_clear_art_at）
-    5. HUD / 电网 / 特效 / 玩家
-  风险：层叠顺序（现在 art 画在子弹之后、盖住它们）；一次性绘制（横幅/清屏）。
-  验收：屏幕比对器逐格一致 + 每步量 render 耗时。
+[P0] 帧缓冲（已完成第一/二步，render 18ms → 6ms）
+  已完成：
+    * `render/fb.sh` 核心（CELL/DIRTY/OWNER + emit），载入即初始化；
+    * `test/strafe_bash/test_fb.sh` 30 条断言，含屏幕比对器（解析 H/J/K，跳过 SGR）；
+    * 敌弹三类（EnemyBullet/BossBullet/EnemyMissile）迁移：born/move 写格，
+      死亡出口按 OWNER 清格；render 删掉敌弹两个 pass，fb_emit 放在
+      "导弹之后、敌人 art 之前"（层叠顺序与旧一致）。
+  实测（110 发敌弹）：render −65%，tick +4~5ms（写格子），总帧 −10~21%。
+  已知边界：Boss 换形态时阶段 2 清旧 art 会擦掉停在旧 art 区的敌弹，
+    该格最多 3 tick 后自动补回（新实现里已用 OWNER 保护"同格别的弹"，只剩这一种）。
+  剩余步骤：
+    1. 迁移其余单格对象：Bullet / Missile / Drop / Word
+    2. 迁移敌人多行 art（_scene_art_lines / _scene_clear_art_at）
+    3. HUD / 电网 / 特效 / 玩家
+  注意：tick 因为写格变贵了，P1（伤害判定并入移动）现在是更值钱的一块。
 
 [P1] tick 伤害判定并入移动循环（~5ms，中等风险）
   现状：敌弹每 tick 遍历两遍——段 5 移动（~80µs/发）、段 9 伤害判定（~75µs/发）。

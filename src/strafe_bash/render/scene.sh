@@ -151,17 +151,6 @@ render () {
             FRAME_BUF+="$ESC[${_pty};${_ptx}H "
         fi
     done
-    for eb in "${ENEMY_BULLETS[@]}" ; do
-        local -n _eb=$eb
-        _ex=${_eb["{prev_x}$X"]:-${_eb["{x}$X"]:-0}} \
-        _ey=${_eb["{prev_y}$X"]:-${_eb["{y}$X"]:-0}}
-        if (( _ex == ${_eb["{x}$X"]:-0} && _ey == ${_eb["{y}$X"]:-0} )) ; then
-            continue
-        fi
-        if (( _ex || _ey )) ; then
-            FRAME_BUF+="$ESC[${_ey};${_ex}H "
-        fi
-    done
     for e in "${ENEMIES[@]}" ; do
         # 注意：不能对 Boss/EnemyB/EnemyM 跳过擦除，它们的擦除还要顺带
         # 清空整条血条行（\033[%d;2H\033[K）；跳过会留下上一帧的残影。
@@ -238,16 +227,12 @@ render () {
         _m["{prev_x}$X"]=$_mx _m["{prev_y}$X"]=$_my
     done
 
-    for eb in "${ENEMY_BULLETS[@]}" ; do
-        local -n _eb=$eb
-        local _ebx=${_eb["{x}$X"]} _eby=${_eb["{y}$X"]} _ebsym=${_eb["{symbol}$X"]} _ebcol=${_eb["{color}$X"]:-}
-        if [[ -n "$_ebcol" ]] ; then
-            FRAME_BUF+="$ESC[${_eby};${_ebx}H$_ebcol$_ebsym$C_RESET"
-        else
-            FRAME_BUF+="$ESC[${_eby};${_ebx}H$_ebsym"
-        fi
-        _eb["{prev_x}$X"]=$_ebx _eb["{prev_y}$X"]=$_eby
-    done
+    # ===== 帧缓冲：输出本帧变过的格子（敌方子弹 / 导弹）=====
+    # 位置必须和旧顺序一致：我方子弹 → 导弹 → 敌弹 → 敌人 art。
+    # 放在这里（导弹之后、art 之前），后画的 art 仍然覆盖敌弹，和我们迁移前一致。
+    # 已知边界：Boss 换形态时阶段 2 会清一次旧 art（_scene_clear_art_at），
+    # 如果敌弹正好停在旧 art 区域，那一格会被擦掉，等它下次移动（≤3 tick）自动补回。
+    fb_emit
 
     for e in "${ENEMIES[@]}" ; do
         local -n _e=$e

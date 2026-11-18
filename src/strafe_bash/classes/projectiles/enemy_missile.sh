@@ -30,6 +30,8 @@ readonly EnemyMissileStaticTemplate='
         {step} => 2
         # 颜色覆盖：出生时写入加粗亮红
         {color} => 
+        # 帧缓冲用的成品串（颜色+字符+复位）
+        {glyph} => 
     '
 EnemyMissile_born () {
     local -n self=$1
@@ -41,6 +43,11 @@ EnemyMissile_born () {
     self["{symbol}$X"]=$BOSS_BUFF_MISSILE_SYM \
     self["{color}$X"]="${C_BOLD}${C_RED}" \
     self["{cd}$X"]=0
+    # 帧缓冲：出生即占一格
+    self["{glyph}$X"]="${self["{color}$X"]}${self["{symbol}$X"]}$C_RESET"
+    local -i _fi=$(( ($3 - 1) * FB_W + ($2 - 1) ))
+    FB_CELL[_fi]=${self["{glyph}$X"]} ; FB_OWNER[_fi]=$1
+    FB_DIRTY+=("$_fi")
 }
 
 # 易变字段（复用前要恢复）：只有渲染写入的位置句柄；其余字段每次 _born 都重设。
@@ -76,7 +83,17 @@ EnemyMissile_move () {
     fi
     # 符号固定为实心大圆点：方向看它怎么移动即可，不占用字符宽度去表达朝向
     x=$(( x + vx )) y=$(( y + vy ))
+    # 帧缓冲：清旧格；新格在场内才写
+    local -i _fi
+    _fi=$(( (${self["{y}$X"]} - 1) * FB_W + (${self["{x}$X"]} - 1) ))
+    if [[ "${FB_OWNER[_fi]}" == "$1" ]] ; then
+        FB_CELL[_fi]='' ; FB_OWNER[_fi]='' ; FB_DIRTY+=("$_fi")
+    fi
     self["{x}$X"]=$x self["{y}$X"]=$y
+    if (( x >= 2 && x <= SCREEN_W - 2 && y >= GAME_TOP && y <= SCREEN_H - 2 )) ; then
+        _fi=$(( (y - 1) * FB_W + (x - 1) ))
+        FB_CELL[_fi]=${self["{glyph}$X"]} FB_OWNER[_fi]=$1 FB_DIRTY+=("$_fi")
+    fi
     if (( x < 2 || x > SCREEN_W - 2 || y < GAME_TOP || y >= SCREEN_H - 1 )) ; then
         return 1
     fi

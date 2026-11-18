@@ -218,6 +218,18 @@ _enemy_bullet_bury () {
     if (( py >= GAME_TOP && py < SCREEN_H - 1 && px >= 2 && px <= SCREEN_W - 2 )) ; then
         MISSILE_TRAIL_CLEAR+=("$py" "$px")
     fi
+    # 帧缓冲：擦掉它当前占的格子（对象马上解聘，渲染阶段再也找不到它）
+    local -i _cy=${_k["{y}$X"]} _cx=${_k["{x}$X"]} _fi
+    # 只清可玩区：子弹可能在 x=99/100 才判死，那里是边框，不能擦
+    if (( _cx >= 2 && _cx <= SCREEN_W - 2 && _cy >= GAME_TOP && _cy <= SCREEN_H - 2 )) ; then
+        _fi=$(( (_cy - 1) * FB_W + (_cx - 1) ))
+        # 只有自己是这格的最后写入者才清：同格可能已被别的子弹重新占用
+        if [[ "${FB_OWNER[_fi]}" == "$obj" ]] ; then
+            FB_CELL[_fi]=''
+            FB_OWNER[_fi]=''
+            FB_DIRTY+=("$_fi")
+        fi
+    fi
     # 解聘而不是销毁：弹体回到资源市场，下一发直接复用（省掉类模板反序列化）
     xo_obj_fire "$obj"
 }

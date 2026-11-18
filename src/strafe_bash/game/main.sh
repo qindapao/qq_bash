@@ -7,6 +7,7 @@ _STRAFE_MAIN_SH=1
 . "$STRAFE_PROJ_DIR/config/const.sh"
 . "$STRAFE_PROJ_DIR/config/globals.sh"
 . "$STRAFE_PROJ_DIR/render/ansi.sh"
+. "$STRAFE_PROJ_DIR/render/fb.sh"
 . "$STRAFE_PROJ_DIR/classes/plane/plane.sh"
 . "$STRAFE_PROJ_DIR/save/save.sh"
 . "$STRAFE_PROJ_DIR/game/init_game.sh"
