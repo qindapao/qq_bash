@@ -2,6 +2,7 @@
 [[ -n "${_STRAFE_MAIN_SH:-}" ]] && return 0
 _STRAFE_MAIN_SH=1
 
+# 静默加载：xo.in 会 source grammar.sh 并打印 bash 特性开关表，那些输出不能进画面
 . "$STRAFE_LIB_HOME/xo.sh" >/dev/null 2>&1
 
 . "$STRAFE_PROJ_DIR/config/const.sh"

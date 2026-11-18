@@ -64,4 +64,18 @@ process_file() {
 clear_build_dir
 process_file
 
+# 语法检查：生成的文件语法错时立刻报错并指出文件。
+# 直接跑游戏时，这类错误常常只表现为“某个函数 command not found”，很难查。
+_check_syntax ()
+{
+    local f rc=0
+    for f in "${FILES_TO_BE_PROCESSED[@]}" ; do
+        f=${f%".in"}.sh
+        bash -n "$f" || { echo "SYNTAX ERROR: $f" >&2 ; rc=1 ; }
+    done
+    return "$rc"
+}
+
+_check_syntax
+
 

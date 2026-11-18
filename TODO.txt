@@ -89,19 +89,15 @@
   验收：四个场景逐格一致 + tick 基准不低于当前 17–18ms + 桶索引与 EB_ALIVE 一致
   （加一条断言：任一时刻所有桶的并集 == 存活且本 tick 会动的槽集合）。
 
-[P3] 工程可靠性（今天踩过的坑，每项 ~5 分钟）
-  * build.sh 末尾对所有生成的 .sh 跑 bash -n，失败即退出。
-    （今天 xo.in 少了一个 "; do"，build 仍然"成功"，游戏里只表现为
-      "xo_obj_call_all: command not found"，排查花了不少时间）
-  * main.sh:5 的 `. xo.sh >/dev/null 2>&1` 去掉静默：实测正常加载 0 输出，
-    但这行会把语法错误一起吞掉。
-  * 给"数组只含活句柄"补一条断言型测试（render 循环现在已经依赖它）。
-  * 给"`<Cls>ResetFields` 列全了"补一条测试（hire/fire 的唯一系统性风险）：
-    1. born 一个对象，把它的所有字段写成非默认值；
-    2. fire 它，再 hire；
-    3. 断言新对象的所有可读字段 == 刚 born 时的默认值。
-    漏一个 ResetFields 条目这条直接红。对每个登记了 ResetFields 的类跑一遍
-    （目前 Bullet/EnemyBullet/BossBullet/EnemyMissile/Missile）。
+[P3] 工程可靠性（今天踩过的坑）
+  * build.sh 末尾对所有生成的 .sh 跑 bash -n，失败即退出。—— **已完成**
+    （故意造语法错验证过：会打印 `SYNTAX ERROR: <file>`；今天 xo.in 少 "; do"
+      却"构建成功"的坑就此堵上）
+  * main.sh 的 `. xo.sh >/dev/null 2>&1` 去掉静默。—— **已完成**
+  * 给"`<Cls>ResetFields` 列全了"补测试。—— **已完成**：`test/strafe_bash/test_reset_fields.sh`
+    做法：born → 记下所有用户字段（只取 `{...}`，跳过 x-tree 内部节点）→ 全部写哨兵
+    → fire → hire → 逐字段比对基准。漏登记一个字段直接红。
+    当前覆盖 Bullet / Missile；以后新增登记了 ResetFields 的类，加一行 `test_class`。
 
 [P4] 收尾 / 待观察
   * `local` / 赋值合并：**已扫完**（scene.sh、play_game.sh、classes 全量）。
