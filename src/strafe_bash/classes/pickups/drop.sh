@@ -50,7 +50,7 @@ Drop_born () {
     # 帧缓冲（顶层）：出生即占一格
     self["{glyph}$X"]="$C_REVERSE${self["{symbol}$X"]}$C_RESET"
     local -i _fi=$(( (${self["{y}$X"]} - 1) * FB_W + (${self["{x}$X"]} - 1) ))
-    FB_CELL[_fi]=${self["{glyph}$X"]} FB_OWNER[_fi]=$1 FB_TOP+=("$_fi")
+    FB_DROP[_fi]=${self["{glyph}$X"]} FB_DOWNER[_fi]=$1 FB_TOP+=("$_fi")
 }
 Drop_move () {
     local -n self=$1
@@ -62,12 +62,12 @@ Drop_move () {
     local -i _ny=${self["{y}$X"]}
     # 帧缓冲（顶层）：清旧格 + 写新格
     _fi=$(( (_oy - 1) * FB_W + (_x - 1) ))
-    if [[ "${FB_OWNER[_fi]}" == "$1" ]] ; then
-        FB_CELL[_fi]='' FB_OWNER[_fi]='' FB_TOP+=("$_fi")
+    if [[ "${FB_DOWNER[_fi]}" == "$1" ]] ; then
+        FB_DROP[_fi]='' FB_DOWNER[_fi]='' FB_TOP+=("$_fi")
     fi
     if (( _ny < SCREEN_H - 1 )) ; then
         _fi=$(( (_ny - 1) * FB_W + (_x - 1) ))
-        FB_CELL[_fi]=${self["{glyph}$X"]} FB_OWNER[_fi]=$1 FB_TOP+=("$_fi")
+        FB_DROP[_fi]=${self["{glyph}$X"]} FB_DOWNER[_fi]=$1 FB_TOP+=("$_fi")
     fi
     (( _ny >= SCREEN_H - 1 )) && return 1
     return 0

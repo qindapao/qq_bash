@@ -217,6 +217,10 @@ Plane_fire () {
         if [[ -n "$_lclr" ]] ; then
             local -n _nbref=$_nbid
             _nbref["{color}$X"]=$_lclr
+            # 出生时拼的 glyph 用的是默认色，这里换成激光色并把出生格重写一遍
+            _nbref["{glyph}$X"]="$_lclr${_nbref["{symbol}$X"]}$C_RESET"
+            local -i _lfi=$(( (_fy - 1) * FB_W + (_fx - 1) ))
+            FB_CELL[_lfi]=${_nbref["{glyph}$X"]} FB_OWNER[_lfi]=$_nbid FB_DIRTY+=("$_lfi")
         fi
         BULLETS+=("$_nbid")
         return 0

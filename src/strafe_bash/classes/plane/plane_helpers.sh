@@ -15,7 +15,15 @@ _art_clear_at () {
         else
             rest=''
         fi
-        printf '%s' "$ESC[$((ay + r));${ax}H${SPACE_PROTOTYPE_STRING:0:${#line}}"
+        # 夹到可玩区：贴左/贴右时不能擦到边框
+        local -i _cx=$ax _cw=${#line}
+        if (( _cx < 2 )) ; then
+            _cw=$(( _cw - (2 - _cx) )) _cx=2
+        fi
+        (( _cx + _cw > SCREEN_W - 1 )) && _cw=$(( SCREEN_W - 1 - _cx ))
+        if (( _cw > 0 )) ; then
+            printf '%s' "$ESC[$((ay + r));${_cx}H${SPACE_PROTOTYPE_STRING:0:_cw}"
+        fi
         ((r++))
     done
 }

@@ -26,11 +26,22 @@ _scene_art_lines () {
 _scene_clear_art_at () {
     local ay=$1 ax=$2 art=$3
     _scene_art_lines "$art"
-    local -i r=0 n=${_SCENE_ART_CACHE["$art|__n"]:-0}
+    local -i r=0 n=${_SCENE_ART_CACHE["$art|__n"]:-0} \
+             _cy _cx _cw
     local line _buf='' _t
     while (( r < n )) ; do
         line=${_SCENE_ART_CACHE["$art|$r"]}
-        _buf+="$ESC[$((ay + r));${ax}H${SPACE_PROTOTYPE_STRING:0:${#line}}"
+        _cy=$(( ay + r )) _cx=$ax _cw=${#line}
+        # 夹到可玩区：art 贴边时不能擦到边框（每行两次比较）
+        if (( _cx < 2 )) ; then
+            _cw=$(( _cw - (2 - _cx) )) _cx=2
+        fi
+        (( _cx + _cw > SCREEN_W - 1 )) && _cw=$(( SCREEN_W - 1 - _cx ))
+        if (( _cw > 0 )) ; then
+            _buf+="$ESC[${_cy};${_cx}H${SPACE_PROTOTYPE_STRING:0:_cw}"
+            # art 擦掉的格子里可能有掉落物/子弹：重新标脏，下一次 emit 补画回来
+            _fb_touch_row "$_cy" "$_cx" $(( _cx + _cw - 1 ))
+        fi
         ((r++))
     done
     FRAME_BUF+="$_buf"
@@ -49,6 +60,9 @@ _render_erase_one () {
         _fi=$(( (_fy - 1) * FB_W + (_fx - 1) ))
         if [[ "${FB_OWNER[_fi]}" == "$1" ]] ; then
             FB_CELL[_fi]='' FB_OWNER[_fi]='' FB_DIRTY+=("$_fi")
+        fi
+        if [[ "${FB_DOWNER[_fi]}" == "$1" ]] ; then
+            FB_DROP[_fi]='' FB_DOWNER[_fi]='' FB_DIRTY+=("$_fi")
         fi
     done
 
@@ -102,8 +116,9 @@ _render_erase_one () {
            || [[ "$_bcls" == "EnemyM" ]] ; then
             local _bh=${o["{h}$X"]:-1}
             if (( py + _bh < SCREEN_H )) ; then
-                printf -v _t '\033[%d;2H\033[K\033[%d;%dH%s' $((py + _bh)) $((py + _bh)) "$SCREEN_W" "$FRAME_V"
-                FRAME_BUF+="$_t"
+                # 整行擦除（\033[K）会抹掉这一行上的帧缓冲对象，擦完把它们的格子标脏补回
+                FRAME_BUF+="$ESC[$((py + _bh));2H$ESC[K$ESC[$((py + _bh));${SCREEN_W}H$FRAME_V"
+                _fb_touch_row $((py + _bh)) 2 $(( SCREEN_W - 2 ))
             fi
         fi
         ;;
@@ -183,13 +198,14 @@ render () {
             local -i _ly=${WV_LAST_Y[_ws]:--1}
             if (( _ly >= 0 && _ly != WV_Y[_ws] )) ; then
                 FRAME_BUF+="$ESC[${_ly};3H$_WSP"
+                # 整行擦过：这一行里帧缓冲对象（掉落/敌弹）的格子要补回来
+                _fb_touch_row "$_ly" 3 $(( SCREEN_W - 2 ))
             fi
             WV_LAST_Y[_ws]=-1
         done
         for (( _ws=0 ; _ws<WAVE_SLOTS ; _ws++ )) ; do
             (( WV_ON[_ws] )) || continue
-            FRAME_BUF+="$ESC[${WV_Y[_ws]};3H${WV_CLR[_ws]}${WV_LINE[_ws]}$C_RESET"
-            WV_LAST_Y[_ws]=${WV_Y[_ws]}
+            WV_LAST_Y[_ws]=-1
         done
     else
         # 波已全部结束：把每条波最后画过的行擦掉，否则会留在画面上
@@ -197,6 +213,7 @@ render () {
             local -i _ly=${WV_LAST_Y[_ws]:--1}
             (( _ly >= 0 )) || continue
             FRAME_BUF+="$ESC[${_ly};3H$_WSP"
+            _fb_touch_row "$_ly" 3 $(( SCREEN_W - 2 ))
             WV_LAST_Y[_ws]=-1
         done
     fi
@@ -209,7 +226,8 @@ render () {
         local -n _m=$m
         local _mx=${_m["{x}$X"]} _my=${_m["{y}$X"]} _msym=${_m["{symbol}$X"]} \
               _ptx=${_m["{prev_x}$X"]:-} _pty=${_m["{prev_y}$X"]:-}
-        if [[ -n "$_ptx" && -n "$_pty" ]] && (( _ptx != _mx || _pty != _my )) ; then
+        if [[ -n "$_ptx" && -n "$_pty" ]] && (( _ptx >= 2 && _pty >= 2 )) \
+           && (( _ptx != _mx || _pty != _my )) ; then
             FRAME_BUF+="$ESC[${_pty};${_ptx}H$C_PLAYER_BULLET.$C_RESET"
             _m["{prev_trail_x}$X"]=$_ptx \
             _m["{prev_trail_y}$X"]=$_pty
@@ -243,11 +261,10 @@ render () {
         local _ay=${_e["{y}$X"]} _ax=${_e["{x}$X"]} _h=${_e["{h}$X"]} \
               _hp2=${_e["{hp}$X"]} _maxhp=${_e["{maxhp}$X"]} _art=${_e["{art}$X"]}
         _scene_art_lines "$_art"
-        local -i _r=0 _rn=${_SCENE_ART_CACHE["$_art|__n"]:-0}
+        local -i _r=0 _rn=${_SCENE_ART_CACHE["$_art|__n"]:-0} _cy _cx _cw
         while (( _r < _rn )) ; do
             local _line=${_SCENE_ART_CACHE["$_art|$_r"]}
-            printf -v _t '\033[%d;%dH%s%s%s' $((_ay + _r)) "$_ax" "$_color" "$_line" "$C_RESET"
-            FRAME_BUF+="$_t"
+            FRAME_BUF+="$ESC[$((_ay + _r));${_ax}H$_color$_line$C_RESET"
             ((_r++))
         done
         if [[ "$_cls" == "Boss" ]] || [[ "$_cls" == "BossSpinner" ]] \
@@ -302,8 +319,13 @@ render () {
     local -i _pr=0 _pn=${_SCENE_ART_CACHE["$_part|__n"]:-0}
     while (( _pr < _pn )) ; do
         local _pline=${_SCENE_ART_CACHE["$_part|$_pr"]} _out='' _cur_clr='' _c _i _want
+        local -i _start=-1 _col
         for (( _i=0 ; _i<${#_pline} ; _i++ )) ; do
             _c=${_pline:_i:1}
+            # 夹到可玩区：飞机贴边时不能盖住边框
+            _col=$(( _pax + _i ))
+            (( _col < 2 || _col > SCREEN_W - 1 )) && continue
+            (( _start < 0 )) && _start=$_col
             if [[ "$_c" == " " ]] ; then
                 _out+=' '
                 continue
@@ -327,8 +349,8 @@ render () {
             _out+="$_c"
         done
         _out+="$C_RESET"
-        printf -v _t '\033[%d;%dH%s' $((_pay + _pr)) "$_pax" "$_out"
-        (( _blink_visible )) && FRAME_BUF+="$_t"
+        (( _start < 0 )) && { ((_pr++)) ; continue ; }
+        (( _blink_visible )) && FRAME_BUF+="$ESC[$((_pay + _pr));${_start}H$_out"
         ((_pr++))
     done
     OBJ_player["{prev_x}$X"]=$_px \
@@ -336,4 +358,22 @@ render () {
     OBJ_player["{prev_art}$X"]=$_part \
     OBJ_player["{prev_al}$X"]=$_al \
     OBJ_player["{prev_shield}$X"]=$_sh
+
+    # ===== 电网最后画：它是覆盖层，玩家要能看清缺口在哪 =====
+    # 擦除在阶段 1 已经做完了，这里只负责把当前行盖上去。
+    if (( WAVE_ON )) ; then
+        local -i _ws
+        for (( _ws=0 ; _ws<WAVE_SLOTS ; _ws++ )) ; do
+            (( WV_ON[_ws] )) || continue
+            FRAME_BUF+="$ESC[${WV_Y[_ws]};3H${WV_CLR[_ws]}${WV_LINE[_ws]}$C_RESET"
+            WV_LAST_Y[_ws]=${WV_Y[_ws]}
+        done
+    fi
+
+    # ===== 整圈边框每 10 帧补一次：上边框/左边框偶发损坏的兜底 =====
+    RENDER_FRM=$(( RENDER_FRM + 1 ))
+    if (( RENDER_FRM >= 10 )) ; then
+        RENDER_FRM=0
+        FRAME_BUF+=$FRAME_TL_STR
+    fi
 }

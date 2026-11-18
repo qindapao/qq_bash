@@ -2,6 +2,9 @@
 [[ -n "${_STRAFE_CONST_SH:-}" ]] && return 0
 _STRAFE_CONST_SH=1
 
+# 项目级 ESC 常量：所有转义序列都用它拼，禁止写 \033 字面量
+readonly ESC=$'\033'
+
 SCREEN_W=$(tput cols 2>/dev/null)  ; [[ -z "$SCREEN_W" ]] && SCREEN_W=80
 (( SCREEN_W > 160 )) && SCREEN_W=160
 SCREEN_H=$(tput lines 2>/dev/null) ; [[ -z "$SCREEN_H" ]] && SCREEN_H=24

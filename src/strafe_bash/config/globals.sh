@@ -79,6 +79,9 @@ declare -gi G_PLAYER_DMG_PENDING=0
 # （清整行会擦掉第 5 行的掉落物/敌弹，而帧缓冲并不知道格子被擦了 → 闪烁）
 declare -gi MSG_LEN=0
 
+# render 帧计数：每 10 帧补画一次整圈边框（竖列偶发损坏的兜底）
+declare -gi RENDER_FRM=0
+
 # 初始把每槽的"上一帧行"标成 -1，其余数值元素默认 0
 globals_init_WV () {
     local -i _wv_i

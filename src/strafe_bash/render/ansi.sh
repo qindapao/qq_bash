@@ -2,7 +2,8 @@
 [[ -n "${_STRAFE_ANSI_SH:-}" ]] && return 0
 _STRAFE_ANSI_SH=1
 
-ESC=$'\033'
+# ESC 常量在 config/const.sh（项目级）；这里确保它已加载
+. "$STRAFE_PROJ_DIR/config/const.sh"
 cursor_hide  () { printf '%s[?25l' "$ESC" ; }
 cursor_show  () { printf '%s[?25h' "$ESC" ; }
 screen_clear () { printf '%s[2J%s[H' "$ESC" "$ESC" ; }

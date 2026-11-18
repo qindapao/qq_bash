@@ -9,8 +9,8 @@ render_bomb_fx () {
     local i
     local _t
     for (( i=0; i<${#BOMB_FX_POS[@]}; i+=2 )) ; do
-        printf -v _t '\033[%d;%dH ' "${BOMB_FX_POS[i]}" "${BOMB_FX_POS[i+1]}"
-        FRAME_BUF+="$_t"
+        FRAME_BUF+="$ESC[${BOMB_FX_POS[i]};${BOMB_FX_POS[i+1]}H "
+        _fb_touch_cell "${BOMB_FX_POS[i]}" "${BOMB_FX_POS[i+1]}"
     done
     BOMB_FX_POS=()
 
@@ -42,8 +42,8 @@ render_hit_fx_clear_expired () {
         if (( _ttl > 0 )) ; then
             _keep+=("$_y" "$_x" "$_ch" "$_clr" "$_ttl")
         else
-            printf -v _t '\033[%d;%dH ' "$_y" "$_x"
-            FRAME_BUF+="$_t"
+            FRAME_BUF+="$ESC[${_y};${_x}H "
+            _fb_touch_cell "$_y" "$_x"
         fi
     done
     HIT_FX=("${_keep[@]}")
@@ -76,8 +76,8 @@ render_boss_death () {
     if (( BOSS_DEATH_STYLE == 1 )) ; then
         # 擦掉上一波
         for (( i=0; i<${#BOSS_DEATH_POS[@]}; i+=2 )) ; do
-            printf -v _t '\033[%d;%dH ' "${BOSS_DEATH_POS[i]}" "${BOSS_DEATH_POS[i+1]}"
-            FRAME_BUF+="$_t"
+            FRAME_BUF+="$ESC[${BOSS_DEATH_POS[i]};${BOSS_DEATH_POS[i+1]}H "
+            _fb_touch_cell "${BOSS_DEATH_POS[i]}" "${BOSS_DEATH_POS[i+1]}"
         done
         BOSS_DEATH_POS=()
 

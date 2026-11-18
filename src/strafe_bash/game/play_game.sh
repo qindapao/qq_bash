@@ -252,20 +252,6 @@ _eb_hit_apply () {
     return 0
 }
 
-# ============================================================================
-# _fb_touch_row5 — 消息行（第 5 行）显示/清除后，把被它盖住的帧缓冲格子重新标脏
-# 消息行不是帧缓冲画的，它写空格时会擦掉第 5 行的掉落物/敌弹；
-# 把非空格子重新排进顶层脏表，下一帧就会补画回来。
-# ============================================================================
-_fb_touch_row5 () {
-    local -i _x _idx
-    for (( _x=2 ; _x<=1+$1 ; _x++ )) ; do
-        _idx=$(( 4 * FB_W + (_x - 1) ))
-        [[ -n "${FB_CELL[_idx]}" ]] && FB_TOP+=("$_idx")
-    done
-    return 0
-}
-
 _score_bonus () {
     [[ -n "${XO_OBJ_POOL[OBJ_player]+_}" ]] || return 0
     OBJ_player["{score}$X"]=$(( ${OBJ_player["{score}$X"]:-0} + $1 ))
@@ -372,8 +358,8 @@ _boss_on_death () {
     # 如果上一个 Boss 的死亡特效还没放完，先擦掉残留火花
     local _i _t
     for (( _i=0; _i<${#BOSS_DEATH_POS[@]}; _i+=2 )) ; do
-        printf -v _t '\033[%d;%dH ' "${BOSS_DEATH_POS[_i]}" "${BOSS_DEATH_POS[_i+1]}"
-        FRAME_BUF+="$_t"
+        FRAME_BUF+="$ESC[${BOSS_DEATH_POS[_i]};${BOSS_DEATH_POS[_i+1]}H "
+        _fb_touch_cell "${BOSS_DEATH_POS[_i]}" "${BOSS_DEATH_POS[_i+1]}"
     done
     BOSS_DEATH_POS=() \
     BOSS_DEATH_STYLE=$_style \
@@ -1356,7 +1342,7 @@ play_game () {
                 if (( msg_tick == 0 )) ; then
                     FRAME_BUF+="$ESC[5;2H${SPACE_PROTOTYPE_STRING:0:MSG_LEN}$ESC[5;${SCREEN_W}H$FRAME_V"
                     # 消息占过的格子可能盖住了帧缓冲里的对象：重新标脏，下一帧补回来
-                    _fb_touch_row5 "$MSG_LEN"
+                    _fb_touch_row 5 2 $(( MSG_LEN + 1 ))
                     MSG_LEN=0
                     paused_drawn=0
                 fi
@@ -1413,7 +1399,7 @@ play_game () {
                 if (( msg_tick == 0 )) ; then
                     FRAME_BUF+="$ESC[5;2H${SPACE_PROTOTYPE_STRING:0:MSG_LEN}$ESC[5;${SCREEN_W}H$FRAME_V"
                     # 消息占过的格子可能盖住了帧缓冲里的对象：重新标脏，下一帧补回来
-                    _fb_touch_row5 "$MSG_LEN"
+                    _fb_touch_row 5 2 $(( MSG_LEN + 1 ))
                     MSG_LEN=0
                 fi
             fi
@@ -1424,8 +1410,8 @@ play_game () {
             elif (( ${#BOMB_FX_POS[@]} > 0 )) ; then
                 local _bi _t
                 for (( _bi=0; _bi<${#BOMB_FX_POS[@]}; _bi+=2 )) ; do
-                    printf -v _t '\033[%d;%dH ' "${BOMB_FX_POS[_bi]}" "${BOMB_FX_POS[_bi+1]}"
-                    FRAME_BUF+="$_t"
+                    FRAME_BUF+="$ESC[${BOMB_FX_POS[_bi]};${BOMB_FX_POS[_bi+1]}H "
+                    _fb_touch_cell "${BOMB_FX_POS[_bi]}" "${BOMB_FX_POS[_bi+1]}"
                 done
                 BOMB_FX_POS=()
             fi
