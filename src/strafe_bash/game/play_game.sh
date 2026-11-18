@@ -151,7 +151,8 @@ _wave_start () {
         WV_CLR[slot]=$C_GREEN
     fi
 
-    # 整行字符只在这里拼一次，之后每帧直接复用
+    # 整行字符只在这里拼一次，之后每帧直接复用。
+    # 长度 SCREEN_W-4 + 从第 3 列开始 = 左右各留 1 格空，与边框对称。
     local -i _n=$(( SCREEN_W - 4 ))
     local _line=${SPACE_PROTOTYPE_STRING:0:_n}
     local _line=${_line// /$WAVE_SYMBOL}
@@ -194,8 +195,9 @@ _wave_start () {
 }
 
 # 某个屏幕列是否落在第 $1 条波的逃生缝里（$2=屏幕列）
+# 波从第 3 列开始（左右各留 1 格空，与边框对称），所以列 3 对应行内偏移 0。
 _wave_gap_x () {
-    local -i slot=$1 idx=$(( $2 - 2 ))
+    local -i slot=$1 idx=$(( $2 - 3 ))
     (( idx >= WV_GAP1[slot] && idx < WV_GAP1[slot] + WAVE_GAP_W )) && return 0
     (( idx >= WV_GAP2[slot] && idx < WV_GAP2[slot] + WAVE_GAP_W )) && return 0
     return 1

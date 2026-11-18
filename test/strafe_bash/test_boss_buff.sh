@@ -681,7 +681,7 @@ test_case1 ()
         gap_ok=0
     fi
     check '随机生成了两个不重叠的洞' 1 "$gap_ok"
-    check '洞中心是安全格' 0 "$( _wave_gap_x "$s" $(( WV_GAP1[s] + 1 + 2 )) ; echo $? )"
+    check '洞中心是安全格' 0 "$( _wave_gap_x "$s" $(( WV_GAP1[s] + 1 + 3 )) ; echo $? )"
 
     # 下面两条测"缝内安全 / 缝外受伤"，把缝固定成已知位置，避免随机位置让断言不稳
     OBJ_player["{hp}$X"]=20
@@ -691,7 +691,7 @@ test_case1 ()
     _wave_start 0 "$BOSS_WAVE_DAMAGE"
     s=$REPLY
     WV_GAP1[s]=0 ; WV_GAP2[s]=40
-    OBJ_player["{x}$X"]=3            # 第 3 列 = 缝 1 的中心
+    OBJ_player["{x}$X"]=4            # 第 4 列 = 缝 1 的中心（波从第 3 列起算）
     local -i guard6=0
     while (( WV_ON[s] && guard6 < 200 )) ; do
         ((guard6++))

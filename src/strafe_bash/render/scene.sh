@@ -107,7 +107,8 @@ Entity_retire () { _render_erase_one "$1" ; }
 render () {
     local b e d eb m w _t _WSP _ex _ey
     # 擦行用的行尾填充串只与屏幕宽度有关：每帧算一次，别在逐对象循环里 printf %*s
-    _WSP=${SPACE_PROTOTYPE_STRING:0:SCREEN_W-3}
+    # 电网从第 3 列开始画、宽度 SCREEN_W-4，所以擦除也用它（左右各留 1 格，对称）
+    _WSP=${SPACE_PROTOTYPE_STRING:0:SCREEN_W-4}
     local -i _qi _ptx _pty
 
     # 已死亡导弹（玩家 / 敌方跟踪弹）的最后一格，由 tick 侧排队，这里统一擦除。
@@ -190,13 +191,13 @@ render () {
             (( WV_ON[_ws] )) || continue
             local -i _ly=${WV_LAST_Y[_ws]:--1}
             if (( _ly >= 0 && _ly != WV_Y[_ws] )) ; then
-                FRAME_BUF+="$ESC[${_ly};2H$_WSP"
+                FRAME_BUF+="$ESC[${_ly};3H$_WSP"
             fi
             WV_LAST_Y[_ws]=-1
         done
         for (( _ws=0 ; _ws<WAVE_SLOTS ; _ws++ )) ; do
             (( WV_ON[_ws] )) || continue
-            FRAME_BUF+="$ESC[${WV_Y[_ws]};2H${WV_CLR[_ws]}${WV_LINE[_ws]}$C_RESET"
+            FRAME_BUF+="$ESC[${WV_Y[_ws]};3H${WV_CLR[_ws]}${WV_LINE[_ws]}$C_RESET"
             WV_LAST_Y[_ws]=${WV_Y[_ws]}
         done
     else
@@ -204,7 +205,7 @@ render () {
         for (( _ws=0 ; _ws<WAVE_SLOTS ; _ws++ )) ; do
             local -i _ly=${WV_LAST_Y[_ws]:--1}
             (( _ly >= 0 )) || continue
-            FRAME_BUF+="$ESC[${_ly};2H$_WSP"
+            FRAME_BUF+="$ESC[${_ly};3H$_WSP"
             WV_LAST_Y[_ws]=-1
         done
     fi
