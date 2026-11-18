@@ -121,7 +121,7 @@ render () {
 
     # 闪烁隐藏的帧机体不会被重绘，那几帧必须照常擦除，所以先取可见性
     local _blink_visible=1
-    xo_call "OBJ_player" blink_visible || _blink_visible=0
+    "${XO_OBJ_POOL[OBJ_player]}_blink_visible" "OBJ_player" || _blink_visible=0
 
     # ===== 阶段 1：擦除所有活对象的 prev =====
     # 玩家静止且形态未变时可跳过擦除（本帧重绘会覆盖同样格子），省一半写入

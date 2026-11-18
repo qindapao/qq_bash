@@ -82,7 +82,7 @@ _mouse_move_to () {
     local -i tx=$1 ty=$2
     [[ -n "${XO_OBJ_POOL[OBJ_player]+_}" ]] || return 0
     local -i cx=${OBJ_player["{x}$X"]} cy=${OBJ_player["{y}$X"]}
-    xo_call "OBJ_player" move "$((tx - cx))" "$((ty - cy))"
+    "${XO_OBJ_POOL[OBJ_player]}_move" "OBJ_player" "$((tx - cx))" "$((ty - cy))"
     need_render=1
 }
 _mouse_bomb () {
@@ -303,7 +303,7 @@ _ram_enemy () {
     local -n _re=$eid
     local -i hp=${_re["{hp}$X"]:-1} escore=${_re["{score}$X"]:-0} _rinv=${_re["{inv_cd}$X"]:-0} rdmg
     REPLY=
-    xo_call "OBJ_player" ram_damage
+    "${XO_OBJ_POOL[OBJ_player]}_ram_damage" "OBJ_player"
     rdmg=${REPLY:-5}
     REPLY=
     (( rdmg > 0 )) || rdmg=5
@@ -407,9 +407,10 @@ _play_game_tick () {
     # 这样从第 5 段（对象移动，会重建各数组）到第 9 段之间，数组里不会出现死句柄。
     local -A killed_b=() killed_m=()
     ((G_RUN_TICKS++))
-    [[ -n "${XO_OBJ_POOL[OBJ_player]+_}" ]] && xo_call "OBJ_player" blink_tick
+    [[ -n "${XO_OBJ_POOL[OBJ_player]+_}" ]] && \
+        "${XO_OBJ_POOL[OBJ_player]}_blink_tick" "OBJ_player"
     if [[ -n "${XO_OBJ_POOL[OBJ_player]+_}" ]] && declare -F "${XO_OBJ_POOL[OBJ_player]}_ram_tick" >/dev/null 2>&1 ; then
-        xo_call "OBJ_player" ram_tick
+        "${XO_OBJ_POOL[OBJ_player]}_ram_tick" "OBJ_player"
     fi
     (( G_RUN_TICKS % 30 == 0 )) && _mouse_assert
 
@@ -447,12 +448,13 @@ _play_game_tick () {
     (( G_INV > 0 )) && ((G_INV--))
 
     # ---- 2. 玩家移动 ----
-    (( G_DX || G_DY )) && xo_call "OBJ_player" move "$G_DX" "$G_DY"
+    (( G_DX || G_DY )) && \
+        "${XO_OBJ_POOL[OBJ_player]}_move" "OBJ_player" "$G_DX" "$G_DY"
 
     # ---- 3. 玩家开火 ----
     # 射速由当前武器类的 {cd} 决定，Plane_fire 内部会设置 G_FIRE_CD
     if (( G_FIRE_CD == 0 )) ; then
-        xo_call "OBJ_player" fire
+        "${XO_OBJ_POOL[OBJ_player]}_fire" "OBJ_player"
     fi
 
     # ---- 4. 玩家导弹发射 ----
@@ -900,7 +902,7 @@ _play_game_tick () {
             (( _edead[_j] )) && continue
             (( px >= _ex[_j] && px < _ex[_j] + _ew[_j] &&
                py >= _ey[_j] && py < _ey[_j] + _eh[_j] )) || continue
-            if xo_call "OBJ_player" ram_ready ; then
+            if "${XO_OBJ_POOL[OBJ_player]}_ram_ready" "OBJ_player" ; then
                 _ram_enemy "${_eid[_j]}" "${_ex[_j]}" "${_ey[_j]}" "${_ew[_j]}" "${_eh[_j]}" "${_eart[_j]}" && \
                     _ram_killed["${_eid[_j]}"]=1
             fi
@@ -924,7 +926,7 @@ _play_game_tick () {
 
     if (( player_dmg > 0 && G_INV == 0 )) ; then
         OBJ_player["{hp}$X"]=$(( ${OBJ_player["{hp}$X"]} - player_dmg ))
-        xo_call "OBJ_player" blink_start
+        "${XO_OBJ_POOL[OBJ_player]}_blink_start" "OBJ_player"
         G_INV=${OBJ_player["{blink}$X"]:-90}
         if (( G_WAVE_DMG_PENDING > 0 && BOSS_WAVE_STRIP_SHIELD )) ; then
             _plane_set_shield "OBJ_player" 0
