@@ -21,11 +21,17 @@ readonly BulletStaticTemplate='
         {vy} => -1
         # 颜色覆盖：空 = 用玩家子弹默认色；激光按威力写入颜色
         {color} => 
+        # 帧缓冲用的成品串（颜色+字符+复位），出生时拼一次
+        {glyph} => 
     '
 Bullet_born () {
     local -n self=$1
     self["{x}$X"]=$2 self["{y}$X"]=$3 self["{symbol}$X"]=$4 \
     self["{damage}$X"]=$5 self["{vx}$X"]=${6:-0} self["{vy}$X"]=${7:--1}
+    # 帧缓冲：出生即占一格（颜色空时用玩家统一弹色，和旧渲染一致）
+    self["{glyph}$X"]="${self["{color}$X"]:-$C_PLAYER_BULLET}${self["{symbol}$X"]}$C_RESET"
+    local -i _fi=$(( ($3 - 1) * FB_W + ($2 - 1) ))
+    FB_CELL[_fi]=${self["{glyph}$X"]} FB_OWNER[_fi]=$1 FB_DIRTY+=("$_fi")
 }
 
 # 可回收类的易变字段：fire 时只把这几个恢复成模板默认值（其余字段每次 _born 都重设）。

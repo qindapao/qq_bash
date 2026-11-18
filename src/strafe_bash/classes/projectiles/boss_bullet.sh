@@ -41,12 +41,24 @@ BossBullet_born () {
 readonly BossBulletResetFields='prev_x prev_y'
 BossBullet_move () {
     local -n self=$1
+    # 命中判定：玩家/护盾几何由 tick 每 tick 预算好（_HL_*），
+    # 先比 y 能排除绝大多数子弹；命中才走 _eb_hit_apply（那一步才去绑定/读字段）。
+    local -i _hty=${self["{y}$X"]}
+    if (( _HL_ON )) ; then
+        if (( _HL_SH ? (_hty >= _HL_Y1 && _hty <= _HL_Y2) : (_hty == _HL_Y) )) ; then
+            local -i _htx=${self["{x}$X"]}
+            if (( _HL_SH ? (_htx >= _HL_X1 && _htx <= _HL_X2) : (_htx == _HL_X) )) ; then
+                _eb_hit_apply "$1"
+                return 2
+            fi
+        fi
+    fi
     local -i cd=$(( ${self["{cd}$X"]:-0} + 1 )) _step=${self["{step}$X"]:-2}
     (( _step < 1 )) && _step=1
     (( cd < _step )) && { self["{cd}$X"]=$cd ; return 0 ; }
     self["{cd}$X"]=0
 
-    local -i _ox=${self["{x}$X"]} _oy=${self["{y}$X"]}
+    local -i _ox=${self["{x}$X"]} _oy=$_hty
     local -i x=$(( _ox + ${self["{vx}$X"]:-0} )) \
              y=$(( _oy + ${self["{vy}$X"]:-0} ))
     self["{x}$X"]=$x self["{y}$X"]=$y
@@ -54,11 +66,11 @@ BossBullet_move () {
     local -i _fi
     _fi=$(( (_oy - 1) * FB_W + (_ox - 1) ))
     if [[ "${FB_OWNER[_fi]}" == "$1" ]] ; then
-        FB_CELL[_fi]='' ; FB_OWNER[_fi]='' ; FB_DIRTY+=("$_fi")
+        FB_CELL[_fi]='' FB_OWNER[_fi]='' FB_DIRTY+=("$_fi")
     fi
     if (( x >= 2 && x <= SCREEN_W - 2 && y >= GAME_TOP && y <= SCREEN_H - 2 )) ; then
         _fi=$(( (y - 1) * FB_W + (x - 1) ))
-        FB_CELL[_fi]=${self["{glyph}$X"]} ; FB_OWNER[_fi]=$1 ; FB_DIRTY+=("$_fi")
+        FB_CELL[_fi]=${self["{glyph}$X"]} FB_OWNER[_fi]=$1 FB_DIRTY+=("$_fi")
     fi
     (( x < 2 || x > SCREEN_W - 2 || y < GAME_TOP || y >= SCREEN_H - 1 )) && return 1
     return 0

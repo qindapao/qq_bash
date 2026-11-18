@@ -21,7 +21,8 @@ _STRAFE_FB_SH=1
 . "$STRAFE_PROJ_DIR/render/ansi.sh"
 
 declare -ga FB_CELL=()      # 屏幕真值，索引 = (y-1)*FB_W + (x-1)
-declare -ga FB_DIRTY=()     # 本帧写过的格索引（可能有重复，后写的生效）
+declare -ga FB_DIRTY=()     # 本帧写过的格（art 之前输出：子弹/导弹/敌弹）
+declare -ga FB_TOP=()       # 顶层格（art 之后输出：掉落物等，旧顺序里画在 art 之上）
 declare -ga FB_OWNER=()     # 每格最后写入者的句柄（0/空 = 无主），清格前要先核对
 declare -gi FB_W=0 FB_H=0 FB_N=0
 
@@ -30,9 +31,10 @@ fb_init () {
     FB_W=${1:-$SCREEN_W} FB_H=${2:-$SCREEN_H} FB_N=$(( FB_W * FB_H )) \
     FB_CELL=() \
     FB_DIRTY=() \
+    FB_TOP=() \
     FB_OWNER=()
     local -i i
-    for (( i=0 ; i<FB_N ; i++ )) ; do FB_CELL[i]='' ; FB_OWNER[i]='' ; done
+    for (( i=0 ; i<FB_N ; i++ )) ; do FB_CELL[i]='' FB_OWNER[i]='' ; done
     return 0
 }
 
@@ -52,11 +54,12 @@ fb_clear () {
     fb_put "$1" "$2" ''
 }
 
-# 把脏格输出到 FRAME_BUF，然后清空脏表
-fb_emit () {
+# 内部：把某个脏表输出到 FRAME_BUF，然后清空它（每帧只调一两次，绑定无所谓）
+_fb_emit_list () {
+    local -n _dl=$1
     local -i idx y x
     local cell _buf=''
-    for idx in "${FB_DIRTY[@]}" ; do
+    for idx in "${_dl[@]}" ; do
         cell=${FB_CELL[idx]} y=$(( idx / FB_W + 1 )) x=$(( idx % FB_W + 1 ))
         if [[ -n "$cell" ]] ; then
             _buf+="$ESC[$y;${x}H$cell"
@@ -64,9 +67,15 @@ fb_emit () {
             _buf+="$ESC[$y;${x}H "
         fi
     done
-    FRAME_BUF+=$_buf FB_DIRTY=()
+    FRAME_BUF+=$_buf _dl=()
     return 0
 }
+
+# art 之前输出（子弹 / 导弹 / 敌弹）
+fb_emit () { _fb_emit_list FB_DIRTY ; }
+
+# art 之后输出（掉落物等：旧渲染顺序里它们画在敌人 art 之上）
+fb_emit_top () { _fb_emit_list FB_TOP ; }
 
 # 取一格的当前内容（测试/调试用）
 fb_get () {

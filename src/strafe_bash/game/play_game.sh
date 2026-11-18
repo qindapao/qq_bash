@@ -234,6 +234,38 @@ _enemy_bullet_bury () {
     xo_obj_fire "$obj"
 }
 
+# ============================================================================
+# _eb_hit_apply — 敌弹命中玩家后的结算（只命中时才走这里，所以绑一次没关系）
+# 判定本身在敌弹的 _move 里用 _HL_* 做快路径比较，这里只管效果。
+# ============================================================================
+_eb_hit_apply () {
+    local obj=$1
+    local -n _h=$obj
+    local -i hx=${_h["{x}$X"]} hy=${_h["{y}$X"]} hd=${_h["{damage}$X"]:-1}
+    if (( _HL_SH )) ; then
+        # 护盾吸收：不扣血，只给绿色火花
+        _hit_fx_add "$hy" "$hx" '*' "$C_GREEN"
+    else
+        _hit_fx_add "$hy" "$hx" '*' "$C_RED"
+        G_PLAYER_DMG_PENDING=$(( G_PLAYER_DMG_PENDING + hd ))
+    fi
+    return 0
+}
+
+# ============================================================================
+# _fb_touch_row5 — 消息行（第 5 行）显示/清除后，把被它盖住的帧缓冲格子重新标脏
+# 消息行不是帧缓冲画的，它写空格时会擦掉第 5 行的掉落物/敌弹；
+# 把非空格子重新排进顶层脏表，下一帧就会补画回来。
+# ============================================================================
+_fb_touch_row5 () {
+    local -i _x _idx
+    for (( _x=2 ; _x<=1+$1 ; _x++ )) ; do
+        _idx=$(( 4 * FB_W + (_x - 1) ))
+        [[ -n "${FB_CELL[_idx]}" ]] && FB_TOP+=("$_idx")
+    done
+    return 0
+}
+
 _score_bonus () {
     [[ -n "${XO_OBJ_POOL[OBJ_player]+_}" ]] || return 0
     OBJ_player["{score}$X"]=$(( ${OBJ_player["{score}$X"]:-0} + $1 ))
@@ -475,19 +507,41 @@ _play_game_tick () {
         MISSILES+=("$REPLY")
         G_MISSILE_CD=10
     fi
+    # 玩家命中几何：每 tick 算一次，敌弹的 _move 里直接比较，不再逐弹读 OBJ_player。
+    # 段 2 已经移完玩家，这里的位置就是本 tick 的最终位置。
+    G_PLAYER_DMG_PENDING=0
+    _HL_ON=0
+    if [[ -n "${XO_OBJ_POOL[OBJ_player]+_}" ]] ; then
+        _HL_ON=1 _HL_X=${OBJ_player["{x}$X"]} _HL_Y=${OBJ_player["{y}$X"]}
+        _HL_SH=$(( ${OBJ_player["{shield}$X"]:-0} ))
+        local -i _hlw=${OBJ_player["{shield_w}$X"]:-9} \
+                 _hlh=${OBJ_player["{shield_h}$X"]:-3} \
+                 _hlt=${OBJ_player["{shield_top}$X"]:--1}
+        _HL_X1=$(( _HL_X - _hlw / 2 )) _HL_X2=$(( _HL_X + _hlw / 2 )) \
+        _HL_Y1=$(( _HL_Y + _hlt ))     _HL_Y2=$(( _HL_Y1 + _hlh - 1 ))
+    fi
+
     # ---- 5. 所有对象 move ----
     # 玩家子弹只有 Bullet 一类；这里内联移动，省掉每颗一次 xo_call。
     local -a alive_b=()
     for b in "${BULLETS[@]}" ; do
         local -n _b=$b
         local -i bx=${_b["{x}$X"]} by=${_b["{y}$X"]}
+        local -i _obx=$bx _oby=$by _fi
         bx=$(( bx + ${_b["{vx}$X"]} )) \
         by=$(( by + ${_b["{vy}$X"]} ))
         _b["{x}$X"]=$bx _b["{y}$X"]=$by
+        # 帧缓冲：清旧格（只清自己拥有的格）
+        _fi=$(( (_oby - 1) * FB_W + (_obx - 1) ))
+        if [[ "${FB_OWNER[_fi]}" == "$b" ]] ; then
+            FB_CELL[_fi]='' FB_OWNER[_fi]='' FB_DIRTY+=("$_fi")
+        fi
         if (( by < GAME_TOP || bx < 2 || bx > SCREEN_W - 2 )) ; then
             # 飞出屏幕：解聘，肉体回资源市场（BULLETS 在循环后重建，句柄随后摘除）
             xo_obj_fire "$b"
         else
+            _fi=$(( (by - 1) * FB_W + (bx - 1) ))
+            FB_CELL[_fi]=${_b["{glyph}$X"]} FB_OWNER[_fi]=$b FB_DIRTY+=("$_fi")
             alive_b+=("$b")
         fi
     done
@@ -860,37 +914,10 @@ _play_game_tick () {
     fi
 
     # ---- 9. 玩家受伤 ----
+    # 敌弹命中已经在段 5 的 _move 里判完（火花 + 伤害累计到 G_PLAYER_DMG_PENDING），
+    # 这里不再逐弹遍历第二遍：那是全场最贵的重复遍历。
     local px=${OBJ_player["{x}$X"]} py=${OBJ_player["{y}$X"]}
-    local -i player_dmg=0
-
-    local _sh=$(( ${OBJ_player["{shield}$X"]:-0} ))
-    local -i _shw=${OBJ_player["{shield_w}$X"]:-9} _shh=${OBJ_player["{shield_h}$X"]:-3} _sht=${OBJ_player["{shield_top}$X"]:--1}
-    local _sx1=$(( px - _shw / 2 )) _sx2=$(( px + _shw / 2 )) _sy1=$(( py + _sht ))
-    local _sy2=$(( _sy1 + _shh - 1 ))
-
-    local -a survive_eb=()
-    for eb in "${ENEMY_BULLETS[@]}" ; do
-        local -n _eb=$eb
-        local _ebx=${_eb["{x}$X"]} _eby=${_eb["{y}$X"]}
-        local -i _hit=0
-        if (( _sh )) ; then
-            (( _ebx >= _sx1 && _ebx <= _sx2 && _eby >= _sy1 && _eby <= _sy2 )) && _hit=1
-        else
-            (( _ebx == px && _eby == py )) && _hit=1
-        fi
-        if (( _hit )) ; then
-            if (( _sh )) ; then
-                _hit_fx_add "$_eby" "$_ebx" '*' "$C_GREEN"
-            else
-                _hit_fx_add "$_eby" "$_ebx" '*' "$C_RED"
-            fi
-            (( ! _sh )) && player_dmg=$(( player_dmg + ${_eb["{damage}$X"]} ))
-            _enemy_bullet_bury "$eb"
-        else
-            survive_eb+=("$eb")
-        fi
-    done
-    ENEMY_BULLETS=("${survive_eb[@]}")
+    local -i player_dmg=$G_PLAYER_DMG_PENDING
 
     for (( _j=0 ; _j<_ne ; _j++ )) ; do
         (( _edead[_j] )) && continue
@@ -1322,14 +1349,15 @@ play_game () {
             if (( msg_tick > 0 )) ; then
                 local _s="$msg" _maxw=$(( SCREEN_W - 2 ))
                 _s="${_s:0:_maxw}"
-                local _t
-                printf -v _t '\033[5;2H\033[K%s\033[5;%dH%s' "$_s" "$SCREEN_W" "$FRAME_V"
-                FRAME_BUF+="$_t"
+                # 只清上一帧消息占的宽度（原来用 \033[K 清整行，会擦掉第 5 行的对象）
+                FRAME_BUF+="$ESC[5;2H${SPACE_PROTOTYPE_STRING:0:MSG_LEN}$_s$ESC[5;${SCREEN_W}H$FRAME_V"
+                MSG_LEN=${#_s}
                 ((msg_tick--))
                 if (( msg_tick == 0 )) ; then
-                    local _t2
-                    printf -v _t2 '\033[5;2H\033[K\033[5;%dH%s' "$SCREEN_W" "$FRAME_V"
-                    FRAME_BUF+="$_t2"
+                    FRAME_BUF+="$ESC[5;2H${SPACE_PROTOTYPE_STRING:0:MSG_LEN}$ESC[5;${SCREEN_W}H$FRAME_V"
+                    # 消息占过的格子可能盖住了帧缓冲里的对象：重新标脏，下一帧补回来
+                    _fb_touch_row5 "$MSG_LEN"
+                    MSG_LEN=0
                     paused_drawn=0
                 fi
             fi
@@ -1378,14 +1406,15 @@ play_game () {
             if (( msg_tick > 0 )) ; then
                 local _s="$msg" _maxw=$(( SCREEN_W - 2 ))
                 _s="${_s:0:_maxw}"
-                local _t
-                printf -v _t '\033[5;2H\033[K%s\033[5;%dH%s' "$_s" "$SCREEN_W" "$FRAME_V"
-                FRAME_BUF+="$_t"
+                # 只清上一帧消息占的宽度（原来用 \033[K 清整行，会擦掉第 5 行的对象）
+                FRAME_BUF+="$ESC[5;2H${SPACE_PROTOTYPE_STRING:0:MSG_LEN}$_s$ESC[5;${SCREEN_W}H$FRAME_V"
+                MSG_LEN=${#_s}
                 ((msg_tick--))
                 if (( msg_tick == 0 )) ; then
-                    local _t2
-                    printf -v _t2 '\033[5;2H\033[K\033[5;%dH%s' "$SCREEN_W" "$FRAME_V"
-                    FRAME_BUF+="$_t2"
+                    FRAME_BUF+="$ESC[5;2H${SPACE_PROTOTYPE_STRING:0:MSG_LEN}$ESC[5;${SCREEN_W}H$FRAME_V"
+                    # 消息占过的格子可能盖住了帧缓冲里的对象：重新标脏，下一帧补回来
+                    _fb_touch_row5 "$MSG_LEN"
+                    MSG_LEN=0
                 fi
             fi
 

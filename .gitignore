@@ -1,12 +1,12 @@
 **/*.swp
 **/*.temp
 
-? .bench/
-? ./src/bashlib/array.sh
-? ./src/bashlib/float.sh
-? ./src/bashlib/str.sh
-? ./src/bashlib/var.sh
-? ./src/bashlib/x.sh
-? ./src/bashlib/xo.sh
-? ./test/bashlib/test_x.sh
+.bench/
+src/bashlib/array.sh
+src/bashlib/float.sh
+src/bashlib/str.sh
+src/bashlib/var.sh
+src/bashlib/x.sh
+src/bashlib/xo.sh
+test/bashlib/test_x.sh
 

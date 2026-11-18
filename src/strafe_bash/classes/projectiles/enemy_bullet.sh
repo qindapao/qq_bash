@@ -52,19 +52,31 @@ EnemyBullet_born () {
 readonly EnemyBulletResetFields='prev_x prev_y'
 EnemyBullet_move () {
     local -n self=$1
+    # 命中判定：玩家/护盾几何由 tick 每 tick 预算好（_HL_*），
+    # 先比 y 能排除绝大多数子弹；命中才走 _eb_hit_apply（那一步才去绑定/读字段）。
+    local -i _hty=${self["{y}$X"]}
+    if (( _HL_ON )) ; then
+        if (( _HL_SH ? (_hty >= _HL_Y1 && _hty <= _HL_Y2) : (_hty == _HL_Y) )) ; then
+            local -i _htx=${self["{x}$X"]}
+            if (( _HL_SH ? (_htx >= _HL_X1 && _htx <= _HL_X2) : (_htx == _HL_X) )) ; then
+                _eb_hit_apply "$1"
+                return 2
+            fi
+        fi
+    fi
     local cd=$(( ${self["{cd}$X"]} + 1 ))
     (( cd < 4 )) && { self["{cd}$X"]=$cd ; return 0 ; }
-    local -i _oy=${self["{y}$X"]} _x=${self["{x}$X"]} _fi
+    local -i _oy=$_hty _x=${self["{x}$X"]} _fi
     self["{cd}$X"]=0 self["{y}$X"]=$(( _oy + 1 ))
     local -i _ny=${self["{y}$X"]}
     # 帧缓冲：清旧格；新格在场内才写（写完这步对象可能出界死亡）
     _fi=$(( (_oy - 1) * FB_W + (_x - 1) ))
     if [[ "${FB_OWNER[_fi]}" == "$1" ]] ; then
-        FB_CELL[_fi]='' ; FB_OWNER[_fi]='' ; FB_DIRTY+=("$_fi")
+        FB_CELL[_fi]='' FB_OWNER[_fi]='' FB_DIRTY+=("$_fi")
     fi
     if (( _ny < SCREEN_H - 1 && _x >= 2 && _x <= SCREEN_W - 2 )) ; then
         _fi=$(( (_ny - 1) * FB_W + (_x - 1) ))
-        FB_CELL[_fi]=${self["{glyph}$X"]} ; FB_OWNER[_fi]=$1 ; FB_DIRTY+=("$_fi")
+        FB_CELL[_fi]=${self["{glyph}$X"]} FB_OWNER[_fi]=$1 FB_DIRTY+=("$_fi")
     fi
     (( _ny >= SCREEN_H - 1 )) && return 1
     return 0

@@ -66,6 +66,19 @@ declare -gA WAVE_HIT_ENEMY=()
 # 本 tick 电网对玩家造成的伤害累计（伤害结算时并入 player_dmg）
 declare -gi G_WAVE_DMG_PENDING=0
 
+# 玩家命中几何：tick 每帧算一次，敌弹的 _move 里直接拿来判命中
+# （避免逐弹去读 OBJ_player 的关联数组，那才是热路径上真正贵的部分）
+declare -gi _HL_ON=0        # 1 = 玩家在场，可以判命中
+declare -gi _HL_X=0 _HL_Y=0 # 玩家中心格
+declare -gi _HL_SH=0        # 1 = 有护盾（判定用矩形）
+declare -gi _HL_X1=0 _HL_X2=0 _HL_Y1=0 _HL_Y2=0
+# 本 tick 敌弹命中玩家累计的伤害（结算时并入 player_dmg）
+declare -gi G_PLAYER_DMG_PENDING=0
+
+# 上一帧消息行（第 5 行）占的宽度：只清这么宽，不再用 \033[K 清整行
+# （清整行会擦掉第 5 行的掉落物/敌弹，而帧缓冲并不知道格子被擦了 → 闪烁）
+declare -gi MSG_LEN=0
+
 # 初始把每槽的"上一帧行"标成 -1，其余数值元素默认 0
 globals_init_WV () {
     local -i _wv_i

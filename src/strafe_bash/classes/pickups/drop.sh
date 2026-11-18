@@ -21,6 +21,8 @@ readonly DropStaticTemplate='
         {dtype} => 1
         # 下落节拍计时器
         {cd} => 0
+        # 帧缓冲用的成品串（反色+字符+复位）
+        {glyph} => 
     '
 Drop_born () {
     local -n self=$1
@@ -45,13 +47,28 @@ Drop_born () {
     self["{x}$X"]=$(( (RANDOM % (SCREEN_W - 4)) + 2 )) \
         self["{y}$X"]=$GAME_TOP \
         self["{cd}$X"]=0
+    # 帧缓冲（顶层）：出生即占一格
+    self["{glyph}$X"]="$C_REVERSE${self["{symbol}$X"]}$C_RESET"
+    local -i _fi=$(( (${self["{y}$X"]} - 1) * FB_W + (${self["{x}$X"]} - 1) ))
+    FB_CELL[_fi]=${self["{glyph}$X"]} FB_OWNER[_fi]=$1 FB_TOP+=("$_fi")
 }
 Drop_move () {
     local -n self=$1
     local cd=$(( ${self["{cd}$X"]} + 1 ))
     (( cd < 6 )) && { self["{cd}$X"]=$cd ; return 0 ; }
+    local -i _oy=${self["{y}$X"]} _x=${self["{x}$X"]} _fi
     self["{cd}$X"]=0 \
-        self["{y}$X"]=$(( ${self["{y}$X"]} + 1 ))
-    (( ${self["{y}$X"]} >= SCREEN_H - 1 )) && return 1
+    self["{y}$X"]=$(( _oy + 1 ))
+    local -i _ny=${self["{y}$X"]}
+    # 帧缓冲（顶层）：清旧格 + 写新格
+    _fi=$(( (_oy - 1) * FB_W + (_x - 1) ))
+    if [[ "${FB_OWNER[_fi]}" == "$1" ]] ; then
+        FB_CELL[_fi]='' FB_OWNER[_fi]='' FB_TOP+=("$_fi")
+    fi
+    if (( _ny < SCREEN_H - 1 )) ; then
+        _fi=$(( (_ny - 1) * FB_W + (_x - 1) ))
+        FB_CELL[_fi]=${self["{glyph}$X"]} FB_OWNER[_fi]=$1 FB_TOP+=("$_fi")
+    fi
+    (( _ny >= SCREEN_H - 1 )) && return 1
     return 0
 }

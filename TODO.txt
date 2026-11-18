@@ -11,26 +11,36 @@
 
 [P0] 帧缓冲（已完成第一/二步，render 18ms → 6ms）
   已完成：
-    * `render/fb.sh` 核心（CELL/DIRTY/OWNER + emit），载入即初始化；
+    * `render/fb.sh` 核心（CELL/DIRTY/TOP/OWNER + emit），载入即初始化；
     * `test/strafe_bash/test_fb.sh` 30 条断言，含屏幕比对器（解析 H/J/K，跳过 SGR）；
     * 敌弹三类（EnemyBullet/BossBullet/EnemyMissile）迁移：born/move 写格，
       死亡出口按 OWNER 清格；render 删掉敌弹两个 pass，fb_emit 放在
       "导弹之后、敌人 art 之前"（层叠顺序与旧一致）。
+    * 我方子弹（Bullet）迁移：tick 内联移动时清/写格；死亡出口 `_render_erase_one`
+      按 OWNER 清格。80 发时 render 10.3–12.6ms → 1.8–3.0ms（−80%）。
+    * 掉落物（Drop）迁移：走新增的 `FB_TOP`（art 之后、飘字之前输出），
+      保持旧的层叠顺序。
   实测（110 发敌弹）：render −65%，tick +4~5ms（写格子），总帧 −10~21%。
   已知边界：Boss 换形态时阶段 2 清旧 art 会擦掉停在旧 art 区的敌弹，
     该格最多 3 tick 后自动补回（新实现里已用 OWNER 保护"同格别的弹"，只剩这一种）。
+  不打算迁移（实测不划算）：
+    * Word：飘字是"一次 printf 画整串"，迁成逐格要 len 次写，反而更慢；
+    * Missile：同屏 ≤2，带尾迹（多一格），迁移净收益 ~0.3ms，复杂度不值。
+    * 敌人多行 art：真正贵的是"每帧擦一遍"（20 敌人时 11.6ms），
+      已用"静止敌人跳过擦除"解决（17.3→10.3ms）；再迁到背景层只能省
+      剩下的 art 重画 2.4ms，需要背景层+归属+合成输出，约 1 小时换 2.4ms，暂不做。
   剩余步骤：
-    1. 迁移其余单格对象：Bullet / Missile / Drop / Word
-    2. 迁移敌人多行 art（_scene_art_lines / _scene_clear_art_at）
-    3. HUD / 电网 / 特效 / 玩家
+    * 敌人多行 art（_scene_art_lines / _scene_clear_art_at）
+    * HUD / 电网 / 特效 / 玩家
   注意：tick 因为写格变贵了，P1（伤害判定并入移动）现在是更值钱的一块。
 
-[P1] tick 伤害判定并入移动循环（~5ms，中等风险）
-  现状：敌弹每 tick 遍历两遍——段 5 移动（~80µs/发）、段 9 伤害判定（~75µs/发）。
-  做法：合并成一遍，省一次 nameref 绑定 + 2 次坐标读。
-  风险：伤害必须在"所有子弹移动完之后"结算（护盾/无敌帧的时序）；
-        循环里 _enemy_bullet_bury 会改数组。
-  验收：帧哈希一致 + 定向用例（同 tick 多发命中 / 护盾 / 无敌帧 / 贴脸）。
+[P1] tick 伤害判定并入移动循环（已完成，实测 tick −2.2ms）
+  做法：玩家/护盾几何每 tick 算一次放进 `_HL_*` 全局，敌弹三类 `_move` 开头
+  先比 y（绝大多数子弹一次比较就排除），命中才调 `_eb_hit_apply`（火花 + 伤害
+  累计到 `G_PLAYER_DMG_PENDING`）；段 9 不再逐弹遍历，只取累计值。
+  实测（110 发）：tick 27.9→25.9ms（−8%），render 基本不变。
+  验收：4 个场景帧哈希一致；6 条定向用例（普通命中/无敌帧/护盾/打偏/Boss 弹/
+  导弹）全部符合预期；boss 127/127、fb 30/30、words 通过。
 
 [P2] tick 段 5 再细分（先量再做）
   17.2ms 里"逐弹 move"和"Boss 开火 spawn"各占多少还没分开。

@@ -40,6 +40,17 @@ _render_erase_one () {
     local -i skip_static=${2:-0}
     local -n o=$1
     local px=${o["{prev_x}$X"]:-${o["{x}$X"]:-0}} py=${o["{prev_y}$X"]:-${o["{y}$X"]:-0}}
+    # 帧缓冲：把属于它的格子清掉（用 owner 判定；未迁移的对象没有 owner，天然 no-op）
+    local -i _fx _fy _fi
+    for _fy in "$py" "${o["{y}$X"]:-0}" ; do
+        (( _fy >= 2 && _fy <= SCREEN_H - 2 )) || continue
+        _fx=${o["{x}$X"]:-0}
+        (( _fx >= 2 && _fx <= SCREEN_W - 2 )) || continue
+        _fi=$(( (_fy - 1) * FB_W + (_fx - 1) ))
+        if [[ "${FB_OWNER[_fi]}" == "$1" ]] ; then
+            FB_CELL[_fi]='' FB_OWNER[_fi]='' FB_DIRTY+=("$_fi")
+        fi
+    done
 
     # 新对象首帧 prev=(0,0)，跳过擦除
     if (( px == 0 && py == 0 )) ; then
@@ -128,16 +139,9 @@ render () {
     # 玩家静止且形态未变时可跳过擦除（本帧重绘会覆盖同样格子），省一半写入
     [[ -n "${XO_OBJ_POOL[OBJ_player]+_}" ]] && \
         _render_erase_one "OBJ_player" "$_blink_visible"
-    # 单字符对象（子弹/导弹/敌弹/掉落）数量最多，内联擦除，
+    # 单字符对象（导弹/敌弹/掉落）数量较多，内联擦除，
     # 省掉每个对象一次函数调用 + 一次 {CLS} 读取 + case 分派。
-    for b in "${BULLETS[@]}" ; do
-        local -n _b=$b
-        _ex=${_b["{prev_x}$X"]:-${_b["{x}$X"]:-0}} \
-        _ey=${_b["{prev_y}$X"]:-${_b["{y}$X"]:-0}}
-        if (( _ex || _ey )) ; then
-            FRAME_BUF+="$ESC[${_ey};${_ex}H "
-        fi
-    done
+    # 我方子弹已迁移到帧缓冲：擦除/绘制都在 tick 和 fb_emit 里，这里不再遍历。
     for m in "${MISSILES[@]}" ; do
         local -n _m=$m
         _ex=${_m["{prev_x}$X"]:-${_m["{x}$X"]:-0}} \
@@ -152,21 +156,18 @@ render () {
         fi
     done
     for e in "${ENEMIES[@]}" ; do
-        # 注意：不能对 Boss/EnemyB/EnemyM 跳过擦除，它们的擦除还要顺带
-        # 清空整条血条行（\033[%d;2H\033[K）；跳过会留下上一帧的残影。
-        _render_erase_one "$e"
-    done
-    for d in "${DROPS[@]}" ; do
-        local -n _d=$d
-        _ex=${_d["{prev_x}$X"]:-${_d["{x}$X"]:-0}} \
-        _ey=${_d["{prev_y}$X"]:-${_d["{y}$X"]:-0}}
-        if (( _ex == ${_d["{x}$X"]:-0} && _ey == ${_d["{y}$X"]:-0} )) ; then
+        local -n _ep=$e
+        local -i _epx=${_ep["{x}$X"]} _epy=${_ep["{y}$X"]} \
+                 _epvx=${_ep["{prev_x}$X"]:-0} _epvy=${_ep["{prev_y}$X"]:-0}
+        local _epart=${_ep["{art}$X"]} _epart0=${_ep["{prev_art}$X"]-}
+        # 位置和 art 都没变：这一帧不用擦——阶段 2 会把同一批格子原样重画一遍。
+        # 擦除只在"敌人移动/换 art"时才有意义，静态敌人每帧擦一遍纯属浪费。
+        if (( _epx == _epvx && _epy == _epvy )) && [[ "$_epart" == "$_epart0" ]] ; then
             continue
         fi
-        if (( _ex || _ey )) ; then
-            FRAME_BUF+="$ESC[${_ey};${_ex}H "
-        fi
+        _render_erase_one "$e"
     done
+    # 掉落物已迁移到帧缓冲（顶层 emit），这里不再擦除。
     for w in "${WORDS[@]}" ; do
         _render_erase_one "$w" 1
     done
@@ -203,17 +204,7 @@ render () {
     # ===== 阶段 2：绘制所有活对象的 cur =====
     # 玩家放在阶段 2 最后画（见函数末尾）。子弹出生点就在机体上方（护盾时正是
     # 顶罩那一行），机翼又不是判定点，先画玩家会让这些对象反复盖住机体 → 闪烁。
-    if (( ${#BULLETS[@]} )) ; then
-        for b in "${BULLETS[@]}" ; do
-            local -n _b=$b
-            local _bx=${_b["{x}$X"]} _by=${_b["{y}$X"]} _bsym=${_b["{symbol}$X"]}
-            # {color} 为空就用玩家的统一弹色；激光按威力写了自己的颜色
-            local _bclr=${_b["{color}$X"]:-$C_PLAYER_BULLET}
-            FRAME_BUF+="$ESC[${_by};${_bx}H$_bclr$_bsym$C_RESET"
-            _b["{prev_x}$X"]=$_bx _b["{prev_y}$X"]=$_by
-        done
-    fi
-
+    # 我方子弹已迁移到帧缓冲：tick 里写格子，fb_emit 统一输出。
     for m in "${MISSILES[@]}" ; do
         local -n _m=$m
         local _mx=${_m["{x}$X"]} _my=${_m["{y}$X"]} _msym=${_m["{symbol}$X"]} \
@@ -276,12 +267,9 @@ render () {
         _e["{prev_art}$X"]=$_art
     done
 
-    for d in "${DROPS[@]}" ; do
-        local -n _d=$d
-        local _dx=${_d["{x}$X"]} _dy=${_d["{y}$X"]} _dsym=${_d["{symbol}$X"]}
-        FRAME_BUF+="$ESC[${_dy};${_dx}H$C_REVERSE$_dsym$C_RESET"
-        _d["{prev_x}$X"]=$_dx _d["{prev_y}$X"]=$_dy
-    done
+    # ===== 帧缓冲（顶层）：掉落物在敌人 art 之后、飘字之前输出 =====
+    # 旧渲染顺序如此：掉落物画在 art 之上、飘字之下，迁移后必须保持。
+    fb_emit_top
 
     for w in "${WORDS[@]}" ; do
         local -n _w=$w
