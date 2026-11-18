@@ -72,8 +72,7 @@ draw_hud_line2 () {
 
 draw_bonus_hud () {
     [[ -n "${XO_OBJ_POOL[OBJ_player]+_}" ]] || return 0
-    local _s='BONUS'
-    local _i _w _wu _tv _part
+    local _s='BONUS' _i _w _wu _tv _part
     # 4 种武器按 tier 2..5 动态取实际字符和倒计时，
     # 不能像旧版那样写死 * @ $ |，否则武器和数字会错位。
     for _i in 2 3 4 5 ; do
@@ -87,10 +86,10 @@ draw_bonus_hud () {
         printf -v _part '  %s:%3d' "$_wu" "$_tv"
         _s+=$_part
     done
-    local mt=$(( ${OBJ_player["{mt}$X"]:-0} / FPS ))
-    local lt=$(( ${OBJ_player["{lt}$X"]:-0} / FPS ))
-    local st=$(( ${OBJ_player["{st}$X"]:-0} / FPS ))
-    local lcount=$(( ${OBJ_player["{lanes}$X"]:-0} + 1 ))
+    local mt=$(( ${OBJ_player["{mt}$X"]:-0} / FPS )) \
+          lt=$(( ${OBJ_player["{lt}$X"]:-0} / FPS )) \
+          st=$(( ${OBJ_player["{st}$X"]:-0} / FPS )) \
+          lcount=$(( ${OBJ_player["{lanes}$X"]:-0} + 1 ))
     printf -v _part '  m:%3d  L:%3d(%d)  S:%3d' "$mt" "$lt" "$lcount" "$st"
     _s+=$_part
     # 被 Boss 减速时给个倒计时提示（简单动画：数字每秒跳动）

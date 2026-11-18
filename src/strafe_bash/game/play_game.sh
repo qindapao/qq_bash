@@ -133,29 +133,22 @@ _wave_start () {
     done
     (( slot >= 0 )) || return 1
 
-    WV_ON[slot]=1
-    WV_OWNER[slot]=$owner
-    WV_DMG[slot]=$dmg
-    WV_CD[slot]=0
-    WV_HIT[slot]=0
-    WV_CLEAR_LO[slot]=0
-    WV_CLEAR_HI[slot]=0
+    WV_ON[slot]=1 WV_OWNER[slot]=$owner WV_DMG[slot]=$dmg \
+    WV_CD[slot]=0 WV_HIT[slot]=0 WV_CLEAR_LO[slot]=0 WV_CLEAR_HI[slot]=0 \
     WAVE_ON=1
     if (( owner == 0 )) ; then
-        WV_DIR[slot]=1
-        WV_Y[slot]=$(( GAME_TOP - 1 ))
+        WV_DIR[slot]=1 \
+        WV_Y[slot]=$(( GAME_TOP - 1 )) \
         WV_CLR[slot]=$C_RED
     else
-        WV_DIR[slot]=-1
-        WV_Y[slot]=$(( SCREEN_H - 1 ))
-        WV_CLR[slot]=$C_GREEN
+        WV_DIR[slot]=-1 WV_Y[slot]=$(( SCREEN_H - 1 )) WV_CLR[slot]=$C_GREEN
     fi
 
     # 整行字符只在这里拼一次，之后每帧直接复用。
     # 长度 SCREEN_W-4 + 从第 3 列开始 = 左右各留 1 格空，与边框对称。
     local -i _n=$(( SCREEN_W - 4 ))
     local _line=${SPACE_PROTOTYPE_STRING:0:_n}
-    local _line=${_line// /$WAVE_SYMBOL}
+    _line=${_line// /$WAVE_SYMBOL}
 
     # Boss 的波随机挖两个逃生缝（同一条波内固定，玩家能提前看到并跑过去）。
     # 我方波不留缝：它是来救场的，留洞反而放过敌人子弹。
@@ -165,8 +158,7 @@ _wave_start () {
         local -i _room=$(( _n - WAVE_GAP_W ))
         (( _room < 0 )) && _room=0
         local -i _try _g1 _g2
-        _g1=$(( RANDOM % (_room + 1) ))
-        _g2=$(( RANDOM % (_room + 1) ))
+        _g1=$(( RANDOM % (_room + 1) )) _g2=$(( RANDOM % (_room + 1) ))
         for (( _try=0 ; _try<20 ; _try++ )) ; do
             # 两洞之间至少隔 1 格，避免连成一个大洞
             if (( _g2 + WAVE_GAP_W < _g1 || _g2 > _g1 + WAVE_GAP_W )) ; then
@@ -174,8 +166,7 @@ _wave_start () {
             fi
             _g2=$(( RANDOM % (_room + 1) ))
         done
-        WV_GAP1[slot]=$_g1
-        WV_GAP2[slot]=$_g2
+        WV_GAP1[slot]=$_g1 WV_GAP2[slot]=$_g2
         for _g1 in "${WV_GAP1[slot]}" "${WV_GAP2[slot]}" ; do
             (( _g1 < 0 || _g1 > _room )) && continue
             _line="${_line:0:_g1}   ${_line:_g1+WAVE_GAP_W}"
@@ -210,8 +201,7 @@ _wave_clear_all () {
     for (( i=0 ; i<WAVE_SLOTS ; i++ )) ; do
         WV_ON[i]=0
     done
-    WAVE_ON=0
-    G_WAVE_DMG_PENDING=0
+    WAVE_ON=0 G_WAVE_DMG_PENDING=0
     WAVE_HIT_ENEMY=()
     return 0
 }
@@ -341,11 +331,11 @@ _boss_on_death () {
         printf -v _t '\033[%d;%dH ' "${BOSS_DEATH_POS[_i]}" "${BOSS_DEATH_POS[_i+1]}"
         FRAME_BUF+="$_t"
     done
-    BOSS_DEATH_POS=()
-    BOSS_DEATH_STYLE=$_style
-    BOSS_DEATH_CX=$(( ex + ew / 2 ))
-    BOSS_DEATH_CY=$(( ey + eh / 2 ))
-    BOSS_DEATH_WAVE=0
+    BOSS_DEATH_POS=() \
+    BOSS_DEATH_STYLE=$_style \
+    BOSS_DEATH_CX=$(( ex + ew / 2 )) \
+    BOSS_DEATH_CY=$(( ey + eh / 2 )) \
+    BOSS_DEATH_WAVE=0 \
     BOSS_DEATH_TICK=30
 
     # style 0：老 Boss，按 art 的非空格子放随机火花
@@ -371,7 +361,7 @@ _boss_on_death () {
     xo_obj_born Drop "$_bdc"
     local -n _bd=$REPLY
     _bd["{x}$X"]=$(( ex + ew / 2 )) \
-        _bd["{y}$X"]=$(( ey + eh - 1 ))
+    _bd["{y}$X"]=$(( ey + eh - 1 ))
     DROPS+=("$REPLY")
 }
 
@@ -479,7 +469,7 @@ _play_game_tick () {
     for b in "${BULLETS[@]}" ; do
         local -n _b=$b
         local -i bx=${_b["{x}$X"]} by=${_b["{y}$X"]}
-        bx=$(( bx + ${_b["{vx}$X"]} ))
+        bx=$(( bx + ${_b["{vx}$X"]} )) \
         by=$(( by + ${_b["{vy}$X"]} ))
         _b["{x}$X"]=$bx _b["{y}$X"]=$by
         if (( by < GAME_TOP || bx < 2 || bx > SCREEN_W - 2 )) ; then
@@ -495,7 +485,12 @@ _play_game_tick () {
     for m in "${MISSILES[@]}" ; do
         # 逐对象循环统一内联分发（同敌弹循环）：类名仍从池子取，多态不变
         "${XO_OBJ_POOL[$m]}_move" "$m"
-        if (( $? == 0 )) ; then alive_m+=("$m") ; else _missile_queue_trail_clear "$m" ; xo_obj_fire "$m" ; fi
+        if (( $? == 0 )) ; then
+            alive_m+=("$m")
+        else
+            _missile_queue_trail_clear "$m"
+            xo_obj_fire "$m"
+        fi
     done
     MISSILES=("${alive_m[@]}")
 
@@ -544,7 +539,7 @@ _play_game_tick () {
     done
     ENEMY_BULLETS=("${alive_eb[@]}")
 
-    local -a alive_e=()
+    local -a alive_d=() alive_w=() alive_e=()
     for e in "${ENEMIES[@]}" ; do
         # 逐对象循环统一内联分发（同敌弹循环）：类名仍从池子取，多态不变
         "${XO_OBJ_POOL[$e]}_move" "$e"
@@ -563,14 +558,12 @@ _play_game_tick () {
     done
     ENEMIES=("${alive_e[@]}")
 
-    local -a alive_d=()
     for d in "${DROPS[@]}" ; do
         "${XO_OBJ_POOL[$d]}_move" "$d"
         if (( $? == 0 )) ; then alive_d+=("$d") ; else xo_obj_bury "$d" ; fi
     done
     DROPS=("${alive_d[@]}")
 
-    local -a alive_w=()
     for w in "${WORDS[@]}" ; do
         "${XO_OBJ_POOL[$w]}_move" "$w"
         if (( $? == 0 )) ; then alive_w+=("$w") ; else xo_obj_bury "$w" ; fi
@@ -670,15 +663,15 @@ _play_game_tick () {
     for e in "${ENEMIES[@]}" ; do
         [[ -n "$e" && -n "${XO_OBJ_POOL[$e]+_}" ]] || continue
         local -n _e=$e
-        _eid[_ne]=$e
-        _ex[_ne]=${_e["{x}$X"]}
-        _ey[_ne]=${_e["{y}$X"]}
-        _ew[_ne]=${_e["{w}$X"]}
-        _eh[_ne]=${_e["{h}$X"]}
-        _ehp[_ne]=${_e["{hp}$X"]}
-        _escore[_ne]=${_e["{score}$X"]}
-        _eart[_ne]=${_e["{art}$X"]}
-        _ecls[_ne]=${_e["{CLS}$X"]}
+        _eid[_ne]=$e \
+        _ex[_ne]=${_e["{x}$X"]} \
+        _ey[_ne]=${_e["{y}$X"]} \
+        _ew[_ne]=${_e["{w}$X"]} \
+        _eh[_ne]=${_e["{h}$X"]} \
+        _ehp[_ne]=${_e["{hp}$X"]} \
+        _escore[_ne]=${_e["{score}$X"]} \
+        _eart[_ne]=${_e["{art}$X"]} \
+        _ecls[_ne]=${_e["{CLS}$X"]} \
         _einv[_ne]=${_e["{inv_cd}$X"]:-0}
         ((_ne++))
     done
@@ -722,7 +715,12 @@ _play_game_tick () {
                     score_gain=$(( score_gain + _escore[_j] * _score_pct / 100 ))
                     if Base_is_a "${_eid[_j]}" BossBase ; then
                         ((G_BOSS_KILLS++))
-                        _boss_on_death "${_eid[_j]}" "${_ex[_j]}" "${_ey[_j]}" "${_ew[_j]}" "${_eh[_j]}" "${_eart[_j]}"
+                        _boss_on_death  "${_eid[_j]}" \
+                                        "${_ex[_j]}" \
+                                        "${_ey[_j]}" \
+                                        "${_ew[_j]}" \
+                                        "${_eh[_j]}" \
+                                        "${_eart[_j]}"
                     fi
                 else
                     local -n _e=${_eid[_j]}
@@ -967,8 +965,11 @@ _play_game_tick () {
                     # dtype 现在直接对应 tier（2..5），t2..t5 一一对应。
                     local _wnew=${OBJ_player["{w$dtype}$X"]}
                     if [[ -n "$_wnew" && -n "${XO_OBJ_POOL[$_wnew]+_}" ]] ; then
-                        OBJ_player["{t2}$X"]=0 ; OBJ_player["{t3}$X"]=0 ; OBJ_player["{t4}$X"]=0 ; OBJ_player["{t5}$X"]=0 \
-                            OBJ_player["{bullet}$X"]=$_wnew
+                        OBJ_player["{t2}$X"]=0 \
+                        OBJ_player["{t3}$X"]=0 \
+                        OBJ_player["{t4}$X"]=0 \
+                        OBJ_player["{t5}$X"]=0 \
+                        OBJ_player["{bullet}$X"]=$_wnew
                         case "$dtype" in
                             2) OBJ_player["{t2}$X"]=$BONUS_T2 ;;
                             3) OBJ_player["{t3}$X"]=$BONUS_T3 ;;
@@ -979,7 +980,8 @@ _play_game_tick () {
                     ;;
                 H)
                     OBJ_player["{hp}$X"]=$(( ${OBJ_player["{hp}$X"]} + 3 ))
-                    (( ${OBJ_player["{hp}$X"]} > ${OBJ_player["{maxhp}$X"]:-20} )) && OBJ_player["{hp}$X"]=${OBJ_player["{maxhp}$X"]:-20}
+                    (( ${OBJ_player["{hp}$X"]} > ${OBJ_player["{maxhp}$X"]:-20} )) &&
+                        OBJ_player["{hp}$X"]=${OBJ_player["{maxhp}$X"]:-20}
                     ;;
                 b)
                     if (( ${OBJ_player["{bombs}$X"]:-0} >= 5 )) ; then
@@ -996,11 +998,17 @@ _play_game_tick () {
                 L)
                     local _cur_lanes=${OBJ_player["{lanes}$X"]:-0}
                     case "$_cur_lanes" in
-                        0) OBJ_player["{lanes}$X"]=1 ; OBJ_player["{lanes_side}$X"]=$(( RANDOM % 2 )) ; OBJ_player["{lt}$X"]=$BONUS_LT ;;
-                        1) OBJ_player["{lanes}$X"]=2 ; OBJ_player["{lt}$X"]=$BONUS_LT ;;
-                        2) OBJ_player["{lanes}$X"]=3 ; OBJ_player["{lanes_side}$X"]=$(( RANDOM % 2 )) ; OBJ_player["{lt}$X"]=$BONUS_LT ;;
-                        3) OBJ_player["{lanes}$X"]=4 ; OBJ_player["{lt}$X"]=$BONUS_LT ;;
-                        *) OBJ_player["{lt}$X"]=$BONUS_LT ;;
+                        0)  OBJ_player["{lanes}$X"]=1 \
+                            OBJ_player["{lanes_side}$X"]=$(( RANDOM % 2 )) \
+                            OBJ_player["{lt}$X"]=$BONUS_LT ;;
+                        1)  OBJ_player["{lanes}$X"]=2 \
+                            OBJ_player["{lt}$X"]=$BONUS_LT ;;
+                        2)  OBJ_player["{lanes}$X"]=3 \
+                            OBJ_player["{lanes_side}$X"]=$(( RANDOM % 2 )) \
+                            OBJ_player["{lt}$X"]=$BONUS_LT ;;
+                        3)  OBJ_player["{lanes}$X"]=4 \
+                            OBJ_player["{lt}$X"]=$BONUS_LT ;;
+                        *)  OBJ_player["{lt}$X"]=$BONUS_LT ;;
                     esac
                     ;;
                 S)
@@ -1070,15 +1078,24 @@ _play_game_tick () {
             elif (( _r < 650 )) ; then spawn_cls=EnemyQ
             elif (( _r < 880 )) ; then spawn_cls=EnemyM
             elif (( _r < 980 )) ; then spawn_cls=EnemyB
-            else                       _boss_random_class ; spawn_cls=$REPLY
+            else _boss_random_class ; spawn_cls=$REPLY
             fi
         fi
 
         if [[ -n "$spawn_cls" ]] ; then
-            if [[ "$spawn_cls" == "Boss" || "$spawn_cls" == "BossSpinner" || "$spawn_cls" == "SkullKing" ]] ; then G_BOSS_DRY=0
-            else ((G_BOSS_DRY++)) ; fi
+            if [[   "$spawn_cls" == "Boss" ||
+                    "$spawn_cls" == "BossSpinner" ||
+                    "$spawn_cls" == "SkullKing" ]] ; then
+                G_BOSS_DRY=0
+            else
+                ((G_BOSS_DRY++))
+            fi
             if [[ "$spawn_cls" == "EnemyB" ]] ; then G_B_DRY=0
-            elif [[ "$spawn_cls" != "Boss" && "$spawn_cls" != "BossSpinner" && "$spawn_cls" != "SkullKing" ]] ; then ((G_B_DRY++)) ; fi
+            elif [[ "$spawn_cls" != "Boss" &&
+                    "$spawn_cls" != "BossSpinner" &&
+                    "$spawn_cls" != "SkullKing" ]] ; then
+                ((G_B_DRY++))
+            fi
 
             xo_obj_born "$spawn_cls"
             ENEMIES+=("$REPLY")
@@ -1088,7 +1105,9 @@ _play_game_tick () {
     # ---- 13. 刷掉落物 ----
     (( G_DROP_TICK++ % 100 == 0 )) && (( RANDOM % 100 < 60 )) && \
         (( ${#DROPS[@]} < DROP_LIMIT )) && {
-        local _lanes_now=${OBJ_player["{lanes}$X"]:-0} _drop_type='' _r=$(( RANDOM % 100 ))
+        local _lanes_now=${OBJ_player["{lanes}$X"]:-0} \
+              _drop_type='' \
+              _r=$(( RANDOM % 100 ))
         _drop_pick_type "$_lanes_now" "$_r"
         _drop_type=$REPLY
         xo_obj_born Drop "$_drop_type"
@@ -1252,7 +1271,9 @@ play_game () {
                 fi
                 local new_hp=$(( ${_e["{hp}$X"]} - _bomb_dmg ))
                 _e["{hp}$X"]=$new_hp
-                local escore=${_e["{score}$X"]} _ex=${_e["{x}$X"]} _ey=${_e["{y}$X"]} _ew=${_e["{w}$X"]} _eh=${_e["{h}$X"]} _eart=${_e["{art}$X"]}
+                local escore=${_e["{score}$X"]} _ex=${_e["{x}$X"]} \
+                      _ey=${_e["{y}$X"]} _ew=${_e["{w}$X"]} _eh=${_e["{h}$X"]} \
+                      _eart=${_e["{art}$X"]}
                 if (( new_hp <= 0 )) ; then
                     bomb_score=$(( bomb_score + escore * _bomb_pct / 100 ))
                     ((G_KILLS++))
@@ -1278,7 +1299,8 @@ play_game () {
         # ---- 暂停 ----
         if (( paused )) ; then
             if (( !paused_drawn )) ; then
-                local _s='PAUSED  (p=resume  q=quit  s=save  l=load)' _maxw=$(( SCREEN_W - 2 ))
+                local _s='PAUSED  (p=resume  q=quit  s=save  l=load)' \
+                      _maxw=$(( SCREEN_W - 2 ))
                 _s="${_s:0:_maxw}"
                 local _t
                 printf -v _t '\033[5;2H\033[K%s\033[5;%dH%s' "$_s" "$SCREEN_W" "$FRAME_V"

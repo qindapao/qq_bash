@@ -22,8 +22,8 @@ M_Ram_ram_tick () {
 
 M_Ram_ram_ready () {
     local -n self=$1
-    local -i b=${self["{blink}$X"]:-0}
-    local -i cd=${self["{ram_cd}$X"]:-0}
+    local -i b=${self["{blink}$X"]:-0} \
+             cd=${self["{ram_cd}$X"]:-0}
     (( b > 0 && cd <= 0 )) || return 1
     self["{ram_cd}$X"]=10
     return 0

@@ -25,8 +25,7 @@ _clear_banner_start () {
 }
 
 _clear_banner_clear () {
-    local -i y=$1 w=$2 rows=$3
-    local -i r
+    local -i y=$1 w=$2 rows=$3 r
     for (( r=0 ; r<rows ; r++ )) ; do
         FRAME_BUF+="$ESC[$((y + r));${4}H${SPACE_PROTOTYPE_STRING:0:w}"
     done
@@ -35,11 +34,9 @@ _clear_banner_clear () {
 render_clear_banner () {
     (( CLEAR_BANNER_TICK > 0 )) || return 0
 
-    local -i rows=8
-    local -i box_w=$(( CLEAR_BANNER_W + 4 ))
+    local -i rows=8 box_w=$(( CLEAR_BANNER_W + 4 ))
     (( box_w > SCREEN_W - 2 )) && box_w=$(( SCREEN_W - 2 ))
-    local -i x=$(( (SCREEN_W - box_w) / 2 + 1 ))
-    local -i y=7
+    local -i x=$(( (SCREEN_W - box_w) / 2 + 1 )) y=7
     (( y + rows > SCREEN_H )) && y=$(( SCREEN_H - rows ))
 
     # 先擦掉上一帧的横幅区域
@@ -51,9 +48,7 @@ render_clear_banner () {
         return 0
     fi
 
-    local _t _line _dash _part
-    local _border=$C_CYAN
-    local _art=$C_YELLOW
+    local _t _line _dash _part _border=$C_CYAN _art=$C_YELLOW
     (( (CLEAR_BANNER_FRAME / 4) % 2 )) && _art=$C_MAGENTA
     local -i reveal=$(( CLEAR_BANNER_FRAME * 7 ))
     (( reveal > CLEAR_BANNER_W )) && reveal=$CLEAR_BANNER_W
@@ -63,9 +58,9 @@ render_clear_banner () {
     printf -v _t '\033[%d;%dH%s+%s+%s' "$y" "$x" "$_border" "$_dash" "$C_RESET"
     FRAME_BUF+="$_t"
 
-    local -i r=0
-    local -i art_y=$(( y + 1 ))
-    local -i art_x=$(( x + 1 + (box_w - 2 - CLEAR_BANNER_W) / 2 ))
+    local -i r=0 \
+             art_y=$(( y + 1 )) \
+             art_x=$(( x + 1 + (box_w - 2 - CLEAR_BANNER_W) / 2 ))
     local -i left_pad=$(( art_x - x - 1 ))
     local -i right_pad=$(( box_w - 2 - left_pad - CLEAR_BANNER_W ))
     local _artfield

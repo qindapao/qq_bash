@@ -65,7 +65,8 @@ _render_erase_one () {
         FRAME_BUF+="$ESC[${py};${px}H "
         ;;
     Plane|PlaneBee|PlaneHornet|PlaneEagle|PlaneIl2)
-        local psh=${o["{prev_shield}$X"]:-0} pal=${o["{prev_al}$X"]:-${o["{al}$X"]:-1}} \
+        local psh=${o["{prev_shield}$X"]:-0} \
+              pal=${o["{prev_al}$X"]:-${o["{al}$X"]:-1}} \
               part=${o["{prev_art}$X"]:-${o["{art}$X"]}} pay=$py
         (( psh )) && pay=$(( py + ${o["{shield_top}$X"]:--1} ))
         _scene_clear_art_at "$pay" $(( px - pal )) "$part"
@@ -131,7 +132,7 @@ render () {
     # 省掉每个对象一次函数调用 + 一次 {CLS} 读取 + case 分派。
     for b in "${BULLETS[@]}" ; do
         local -n _b=$b
-        _ex=${_b["{prev_x}$X"]:-${_b["{x}$X"]:-0}}
+        _ex=${_b["{prev_x}$X"]:-${_b["{x}$X"]:-0}} \
         _ey=${_b["{prev_y}$X"]:-${_b["{y}$X"]:-0}}
         if (( _ex || _ey )) ; then
             FRAME_BUF+="$ESC[${_ey};${_ex}H "
@@ -139,12 +140,12 @@ render () {
     done
     for m in "${MISSILES[@]}" ; do
         local -n _m=$m
-        _ex=${_m["{prev_x}$X"]:-${_m["{x}$X"]:-0}}
+        _ex=${_m["{prev_x}$X"]:-${_m["{x}$X"]:-0}} \
         _ey=${_m["{prev_y}$X"]:-${_m["{y}$X"]:-0}}
         if (( _ex || _ey )) ; then
             FRAME_BUF+="$ESC[${_ey};${_ex}H "
         fi
-        _ptx=${_m["{prev_trail_x}$X"]:--1}
+        _ptx=${_m["{prev_trail_x}$X"]:--1} \
         _pty=${_m["{prev_trail_y}$X"]:--1}
         if (( _ptx >= 0 && _pty >= 0 )) ; then
             FRAME_BUF+="$ESC[${_pty};${_ptx}H "
@@ -152,7 +153,7 @@ render () {
     done
     for eb in "${ENEMY_BULLETS[@]}" ; do
         local -n _eb=$eb
-        _ex=${_eb["{prev_x}$X"]:-${_eb["{x}$X"]:-0}}
+        _ex=${_eb["{prev_x}$X"]:-${_eb["{x}$X"]:-0}} \
         _ey=${_eb["{prev_y}$X"]:-${_eb["{y}$X"]:-0}}
         if (( _ex == ${_eb["{x}$X"]:-0} && _ey == ${_eb["{y}$X"]:-0} )) ; then
             continue
@@ -168,7 +169,7 @@ render () {
     done
     for d in "${DROPS[@]}" ; do
         local -n _d=$d
-        _ex=${_d["{prev_x}$X"]:-${_d["{x}$X"]:-0}}
+        _ex=${_d["{prev_x}$X"]:-${_d["{x}$X"]:-0}} \
         _ey=${_d["{prev_y}$X"]:-${_d["{y}$X"]:-0}}
         if (( _ex == ${_d["{x}$X"]:-0} && _ey == ${_d["{y}$X"]:-0} )) ; then
             continue
@@ -231,7 +232,7 @@ render () {
         if [[ -n "$_ptx" && -n "$_pty" ]] && (( _ptx != _mx || _pty != _my )) ; then
             FRAME_BUF+="$ESC[${_pty};${_ptx}H$C_PLAYER_BULLET.$C_RESET"
             _m["{prev_trail_x}$X"]=$_ptx \
-                _m["{prev_trail_y}$X"]=$_pty
+            _m["{prev_trail_y}$X"]=$_pty
         fi
         FRAME_BUF+="$ESC[${_my};${_mx}H$C_PLAYER_BULLET$_msym$C_RESET"
         _m["{prev_x}$X"]=$_mx _m["{prev_y}$X"]=$_my
@@ -286,8 +287,8 @@ render () {
             fi
         fi
         _e["{prev_x}$X"]=$_ax \
-            _e["{prev_y}$X"]=$_ay \
-            _e["{prev_art}$X"]=$_art
+        _e["{prev_y}$X"]=$_ay \
+        _e["{prev_art}$X"]=$_art
     done
 
     for d in "${DROPS[@]}" ; do
@@ -358,8 +359,8 @@ render () {
         ((_pr++))
     done
     OBJ_player["{prev_x}$X"]=$_px \
-        OBJ_player["{prev_y}$X"]=$_py \
-        OBJ_player["{prev_art}$X"]=$_part \
-        OBJ_player["{prev_al}$X"]=$_al \
-        OBJ_player["{prev_shield}$X"]=$_sh
+    OBJ_player["{prev_y}$X"]=$_py \
+    OBJ_player["{prev_art}$X"]=$_part \
+    OBJ_player["{prev_al}$X"]=$_al \
+    OBJ_player["{prev_shield}$X"]=$_sh
 }

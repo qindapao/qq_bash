@@ -28,12 +28,12 @@ Word_born () {
     local _w
     str_display_width "$2" _w
     self["{len}$X"]=$_w \
-        self["{y}$X"]=$GAME_TOP
+    self["{y}$X"]=$GAME_TOP
     local _maxx=$(( SCREEN_W - 3 - _w ))
     (( _maxx < 2 )) && _maxx=2
     self["{x}$X"]=$(( RANDOM % (_maxx - 2 + 1) + 2 )) \
-        self["{vx}$X"]=0 \
-        self["{cd}$X"]=0
+    self["{vx}$X"]=0 \
+    self["{cd}$X"]=0
 }
 Word_move () {
     local -n self=$1
@@ -50,7 +50,7 @@ Word_move () {
     local _maxx=$(( SCREEN_W - 3 - _len ))
     (( nx > _maxx )) && { nx=$_maxx ; self["{vx}$X"]=0 ; }
     self["{x}$X"]=$nx \
-        self["{y}$X"]=$(( _y + 1 ))
+    self["{y}$X"]=$(( _y + 1 ))
     (( ${self["{y}$X"]} >= SCREEN_H - 1 )) && return 1
     return 0
 }

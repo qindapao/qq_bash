@@ -56,24 +56,24 @@ BossSpinner_born () {
     BossBase_born "$1"
     local -n _self=$1
     _self["{ring_cd}$X"]=18 \
-        _self["{aim_cd}$X"]=36 \
-        _self["{pat_cd}$X"]=90 \
-        _self["{pat_step}$X"]=-1 \
-        _self["{pat_mode}$X"]=0 \
-        _self["{spin}$X"]=0
+    _self["{aim_cd}$X"]=36 \
+    _self["{pat_cd}$X"]=90 \
+    _self["{pat_step}$X"]=-1 \
+    _self["{pat_mode}$X"]=0 \
+    _self["{spin}$X"]=0
 }
 
 # 旋转环：8 方向留 2 个对向缺口，每轮转 45°。
 _boss_spinner_ring () {
     local -n _bs=$1
-    local -i _cx=$(( ${_bs["{x}$X"]} + ${_bs["{w}$X"]} / 2 ))
-    local -i _cy=$(( ${_bs["{y}$X"]} + ${_bs["{h}$X"]} / 2 ))
-    local -i _spin=${_bs["{spin}$X"]:-0}
+    local -i _cx=$(( ${_bs["{x}$X"]} + ${_bs["{w}$X"]} / 2 )) \
+             _cy=$(( ${_bs["{y}$X"]} + ${_bs["{h}$X"]} / 2 )) \
+             _spin=${_bs["{spin}$X"]:-0}
     if (( ${#ENEMY_BULLETS[@]} + 6 > BOSS_BULLET_LIMIT )) ; then
         return 0
     fi
-    local -a _dx=(0 1 1 1 0 -1 -1 -1)
-    local -a _dy=(-1 -1 0 1 1 1 0 -1)
+    local -a _dx=(0 1 1 1 0 -1 -1 -1) \
+             _dy=(-1 -1 0 1 1 1 0 -1)
     local -i _i _s1=$_spin _s2=$(( (_spin + 4) % 8 ))
     for ((_i=0; _i<8; _i++)) ; do
         (( _i == _s1 || _i == _s2 )) && continue
@@ -85,13 +85,12 @@ _boss_spinner_ring () {
 # 瞄准散弹：朝玩家所在八分方向打 3 发，左右各偏一格。
 _boss_spinner_aim () {
     local -n _bs=$1
-    local -i _cx=$(( ${_bs["{x}$X"]} + ${_bs["{w}$X"]} / 2 ))
-    local -i _cy=$(( ${_bs["{y}$X"]} + ${_bs["{h}$X"]} / 2 ))
+    local -i _cx=$(( ${_bs["{x}$X"]} + ${_bs["{w}$X"]} / 2 )) \
+             _cy=$(( ${_bs["{y}$X"]} + ${_bs["{h}$X"]} / 2 ))
 
     [[ -n "${XO_OBJ_POOL[OBJ_player]+_}" ]] || return 0
     local -i _px=${OBJ_player["{x}$X"]} _py=${OBJ_player["{y}$X"]}
-    local -i _dx=$(( _px - _cx )) _dy=$(( _py - _cy ))
-    local -i _bi
+    local -i _dx=$(( _px - _cx )) _dy=$(( _py - _cy )) _bi
     if (( _dx == 0 && _dy == 0 )) ; then
         _bi=4
     elif (( _dy < 0 )) ; then
@@ -147,7 +146,7 @@ BossSpinner_move () {
         ((_ps++))
         if (( _ps >= ${#BOSS_AIM_PATTERN_STEPS[@]} )) ; then
             self["{pat_step}$X"]=-1 \
-                self["{pat_cd}$X"]=180
+            self["{pat_cd}$X"]=180
         else
             self["{pat_step}$X"]=$_ps
         fi
@@ -158,7 +157,7 @@ BossSpinner_move () {
             self["{pat_mode}$X"]=$REPLY
             _boss_pattern_spawn_step "$1" 0 "$REPLY" 4
             self["{pat_step}$X"]=1 \
-                self["{pat_cd}$X"]=180
+            self["{pat_cd}$X"]=180
         else
             self["{pat_cd}$X"]=$_pc
         fi

@@ -103,17 +103,17 @@ Plane_born () {
         *)           _base=$PLANE_ART_BASE   ; _shield=$PLANE_ART_SHIELD       ;;
     esac
     self["{base_art}$X"]=$_base \
-        self["{shield_art}$X"]=$_shield \
-        self["{art}$X"]=$_base \
-        self["{x}$X"]=$(( SCREEN_W / 2 )) \
-        self["{y}$X"]=$(( SCREEN_H - 2 )) \
-        self["{al}$X"]=${self["{base_al}$X"]:-1} \
-        self["{shield}$X"]=0 \
-        self["{st}$X"]=0 \
-        self["{prev_art}$X"]=$_base \
-        self["{prev_al}$X"]=${self["{base_al}$X"]:-1} \
-        self["{prev_shield}$X"]=0 \
-        self["{hp}$X"]=${self["{maxhp}$X"]:-20}
+    self["{shield_art}$X"]=$_shield \
+    self["{art}$X"]=$_base \
+    self["{x}$X"]=$(( SCREEN_W / 2 )) \
+    self["{y}$X"]=$(( SCREEN_H - 2 )) \
+    self["{al}$X"]=${self["{base_al}$X"]:-1} \
+    self["{shield}$X"]=0 \
+    self["{st}$X"]=0 \
+    self["{prev_art}$X"]=$_base \
+    self["{prev_al}$X"]=${self["{base_al}$X"]:-1} \
+    self["{prev_shield}$X"]=0 \
+    self["{hp}$X"]=${self["{maxhp}$X"]:-20}
 }
 Plane_use_skill () {
     # 预留接口：具体机型以后覆盖这个方法。
@@ -144,7 +144,7 @@ Plane_move () {
     (( y < _miny )) && y=$_miny
     (( y > SCREEN_H - 2 )) && y=$(( SCREEN_H - 2 ))
     self["{x}$X"]=$x \
-        self["{y}$X"]=$y
+    self["{y}$X"]=$y
 }
 Plane_fire () {
     local -n self=$1
@@ -156,19 +156,19 @@ Plane_fire () {
 
     # 当前武器的 8 方向字符 / 伤害 / 射速 / 弹速
     local -n w=$wpn
-    local dmg=${w["{damage}$X"]:-1}
-    local cd=${w["{cd}$X"]:-6}
-    local spd=${w["{spd}$X"]:-1}
-    local _laser=${w["{laser}$X"]:-0}
+    local dmg=${w["{damage}$X"]:-1} \
+          cd=${w["{cd}$X"]:-6} \
+          spd=${w["{spd}$X"]:-1} \
+          _laser=${w["{laser}$X"]:-0}
     local su=${w["{u}$X"]:-.}
-    local sul=${w["{ul}$X"]:-$su}
-    local sur=${w["{ur}$X"]:-$su}
-    local sl=${w["{l}$X"]:-$su}
-    local sr=${w["{r}$X"]:-$su}
+    local sul=${w["{ul}$X"]:-$su} \
+          sur=${w["{ur}$X"]:-$su} \
+          sl=${w["{l}$X"]:-$su} \
+          sr=${w["{r}$X"]:-$su}
 
-    local -i _sdelta=${self["{spd_delta}$X"]:-0}
-    local -i _cddelta=${self["{cd_delta}$X"]:-0}
-    local -i _lex=${self["{laser_exempt}$X"]:-0}
+    local -i _sdelta=${self["{spd_delta}$X"]:-0} \
+             _cddelta=${self["{cd_delta}$X"]:-0} \
+             _lex=${self["{laser_exempt}$X"]:-0}
     (( _laser && _lex )) && _sdelta=0
 
     # 敌方减速：既降弹速（命中延迟），也压射速 —— 只降弹速的话 DPS 一点不变，
@@ -192,10 +192,10 @@ Plane_fire () {
         return 0
     fi
 
-    local _fx=${self["{x}$X"]}
-    local _fy=$(( ${self["{y}$X"]} - 1 ))
-    local _lanes=${self["{lanes}$X"]:-0}
-    local _side=${self["{lanes_side}$X"]:-0}
+    local _fx=${self["{x}$X"]} \
+          _fy=$(( ${self["{y}$X"]} - 1 )) \
+          _lanes=${self["{lanes}$X"]:-0} \
+          _side=${self["{lanes_side}$X"]:-0}
     local -i _up=$(( -spd )) _left=$(( -spd )) _right=$spd
 
     # 量子能量武器只有一道：不按 lanes 分裂成多颗子弹，而是把 lanes+1 作为威力（1..5）。

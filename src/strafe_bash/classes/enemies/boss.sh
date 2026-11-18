@@ -57,8 +57,8 @@ Boss_move () {
     (( _phase == 2 )) && _step=3
     (( _phase == 3 )) && _step=2
 
-    local -i _ymin=$GAME_TOP
-    local -i _ymax=$(( SCREEN_H - 4 - ${self["{h}$X"]} ))
+    local -i _ymin=$GAME_TOP \
+             _ymax=$(( SCREEN_H - 4 - ${self["{h}$X"]} ))
     local -i _yhi=$_ymax
     case "$_phase" in
         0) _yhi=$(( _ymin + 6 )) ;;
@@ -67,17 +67,17 @@ Boss_move () {
     _boss_move_target "$1" "$_step" "$_yhi" 7 8 9
 
     # Boss 永不主动离场，只会被打死。
-    local _by=$(( ${self["{y}$X"]} + ${self["{h}$X"]} ))
-    local _bx=${self["{x}$X"]}
+    local _by=$(( ${self["{y}$X"]} + ${self["{h}$X"]} )) \
+          _bx=${self["{x}$X"]}
 
     # 周期性瞄准散弹：3 发朝玩家方向，补足固定弹幕的威胁。
     local -i _ac=$(( ${self["{aim_cd}$X"]:-0} - 1 ))
     if (( _ac <= 0 )) ; then
         self["{aim_cd}$X"]=90
         if [[ -n "${XO_OBJ_POOL[OBJ_player]+_}" ]] && (( ${#ENEMY_BULLETS[@]} + 3 <= ENEMY_BULLET_LIMIT )) ; then
-            local -i _cx=$(( _bx + ${self["{w}$X"]} / 2 ))
-            local -i _cy=$(( ${self["{y}$X"]} + ${self["{h}$X"]} / 2 ))
-            local -i _px=${OBJ_player["{x}$X"]} _py=${OBJ_player["{y}$X"]}
+            local -i _cx=$(( _bx + ${self["{w}$X"]} / 2 )) \
+                     _cy=$(( ${self["{y}$X"]} + ${self["{h}$X"]} / 2 )) \
+                     _px=${OBJ_player["{x}$X"]} _py=${OBJ_player["{y}$X"]}
             local -i _dx=$(( _px - _cx )) _dy=$(( _py - _cy )) _bi
             if (( _dx == 0 && _dy == 0 )) ; then _bi=4
             elif (( _dy < 0 )) ; then
@@ -87,8 +87,8 @@ Boss_move () {
             else
                 if (( _dx < 0 )) ; then _bi=6 ; else _bi=2 ; fi
             fi
-            local -a _dxs=(0 1 1 1 0 -1 -1 -1)
-            local -a _dys=(-1 -1 0 1 1 1 0 -1)
+            local -a _dxs=(0 1 1 1 0 -1 -1 -1) \
+                     _dys=(-1 -1 0 1 1 1 0 -1)
             local -i _o _i
             for _o in -1 0 1 ; do
                 _i=$(( (_bi + _o + 8) % 8 ))

@@ -34,13 +34,13 @@ readonly EnemyMissileStaticTemplate='
 EnemyMissile_born () {
     local -n self=$1
     self["{x}$X"]=$2 self["{y}$X"]=$3 \
-         self["{fuel}$X"]=${4:-$BOSS_BUFF_MISSILE_FUEL} \
-             self["{step}$X"]=${5:-$BOSS_BUFF_MISSILE_STEP} \
-             self["{damage}$X"]=1
+    self["{fuel}$X"]=${4:-$BOSS_BUFF_MISSILE_FUEL} \
+    self["{step}$X"]=${5:-$BOSS_BUFF_MISSILE_STEP} \
+    self["{damage}$X"]=1
     # 实心大圆点（单宽）+ 加粗亮红：在弹幕里最容易分辨；颜色是直接拼进渲染的前缀
     self["{symbol}$X"]=$BOSS_BUFF_MISSILE_SYM \
-        self["{color}$X"]="${C_BOLD}${C_RED}" \
-        self["{cd}$X"]=0
+    self["{color}$X"]="${C_BOLD}${C_RED}" \
+    self["{cd}$X"]=0
 }
 
 # 易变字段（复用前要恢复）：只有渲染写入的位置句柄；其余字段每次 _born 都重设。
@@ -75,7 +75,7 @@ EnemyMissile_move () {
         vy=1
     fi
     # 符号固定为实心大圆点：方向看它怎么移动即可，不占用字符宽度去表达朝向
-    x=$(( x + vx )) ; y=$(( y + vy ))
+    x=$(( x + vx )) y=$(( y + vy ))
     self["{x}$X"]=$x self["{y}$X"]=$y
     if (( x < 2 || x > SCREEN_W - 2 || y < GAME_TOP || y >= SCREEN_H - 1 )) ; then
         return 1

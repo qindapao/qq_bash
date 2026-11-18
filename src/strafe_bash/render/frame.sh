@@ -4,8 +4,8 @@ _STRAFE_FRAME_SH=1
 . "${BASH_SOURCE[0]%/*}/../config/const.sh"
 
 draw_frame () {
-    local _w=$SCREEN_W _h=$SCREEN_H
-    local _i _hline=''
+    local _w=$SCREEN_W _h=$SCREEN_H _hline=''
+    local -i _i
     for (( _i=0 ; _i<_w-2 ; _i++ )) ; do _hline+="$FRAME_H" ; done
     local _out='' _t
     printf -v _t '\033[1;1H%s%s%s' "$FRAME_TL" "$_hline" "$FRAME_TR"

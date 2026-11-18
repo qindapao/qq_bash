@@ -30,8 +30,8 @@ EnemyB_move () {
     local cd=$(( ${self["{cd}$X"]} + 1 ))
     (( cd < 14 )) && { self["{cd}$X"]=$cd ; return 0 ; }
     self["{cd}$X"]=0
-    local _ax=${self["{x}$X"]} _w=${self["{w}$X"]} _h=${self["{h}$X"]}
-    local vx=${self["{vx}$X"]}
+    local _ax=${self["{x}$X"]} _w=${self["{w}$X"]} _h=${self["{h}$X"]} \
+          vx=${self["{vx}$X"]}
     (( RANDOM % 4 == 0 )) && vx=$(( (RANDOM % 3) - 1 ))
     self["{vx}$X"]=$vx
     local x=$(( _ax + vx ))

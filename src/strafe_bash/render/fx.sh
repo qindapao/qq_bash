@@ -19,9 +19,9 @@ render_bomb_fx () {
     local _n=$(( 15 + RANDOM % 10 ))
     local _i2 _cx _cy _ch _ci
     for (( _i2=0; _i2<_n; _i2++ )) ; do
-        _cx=$(( RANDOM % (SCREEN_W - 2) + 2 ))
-        _cy=$(( RANDOM % (SCREEN_H - GAME_TOP) + GAME_TOP ))
-        _ch=${_chars:RANDOM % ${#_chars}:1}
+        _cx=$(( RANDOM % (SCREEN_W - 2) + 2 )) \
+        _cy=$(( RANDOM % (SCREEN_H - GAME_TOP) + GAME_TOP )) \
+        _ch=${_chars:RANDOM % ${#_chars}:1} \
         _ci=$(( RANDOM % 5 ))
         printf -v _t '\033[%d;%dH%s%s%s' "$_cy" "$_cx" "${_colors[_ci]}" "$_ch" "$C_RESET"
         FRAME_BUF+="$_t"
@@ -34,10 +34,10 @@ render_hit_fx_clear_expired () {
     local -a _keep=()
     local i _y _x _ch _clr _ttl _t
     for (( i=0; i<${#HIT_FX[@]}; i+=5 )) ; do
-        _y=${HIT_FX[i]}
-        _x=${HIT_FX[i+1]}
-        _ch=${HIT_FX[i+2]}
-        _clr=${HIT_FX[i+3]}
+        _y=${HIT_FX[i]} \
+        _x=${HIT_FX[i+1]} \
+        _ch=${HIT_FX[i+2]} \
+        _clr=${HIT_FX[i+3]} \
         _ttl=${HIT_FX[i+4]}
         if (( _ttl > 0 )) ; then
             _keep+=("$_y" "$_x" "$_ch" "$_clr" "$_ttl")
@@ -54,10 +54,10 @@ render_hit_fx () {
     local -a _keep=()
     local i _y _x _ch _clr _ttl _t
     for (( i=0; i<${#HIT_FX[@]}; i+=5 )) ; do
-        _y=${HIT_FX[i]}
-        _x=${HIT_FX[i+1]}
-        _ch=${HIT_FX[i+2]}
-        _clr=${HIT_FX[i+3]}
+        _y=${HIT_FX[i]} \
+        _x=${HIT_FX[i+1]} \
+        _ch=${HIT_FX[i+2]} \
+        _clr=${HIT_FX[i+3]} \
         _ttl=${HIT_FX[i+4]}
         (( _ttl > 0 )) || continue
         printf -v _t '\033[%d;%dH%s%s%s%s' \
@@ -81,11 +81,9 @@ render_boss_death () {
         done
         BOSS_DEATH_POS=()
 
-        local -i _r=$(( 1 + BOSS_DEATH_WAVE / 6 ))
-        local -a _dx=(0 1 1 1 0 -1 -1 -1)
-        local -a _dy=(-1 -1 0 1 1 1 0 -1)
-        local -i _cx=$BOSS_DEATH_CX _cy=$BOSS_DEATH_CY
-        local -i _px _py _ci
+        local -i _r=$(( 1 + BOSS_DEATH_WAVE / 6 )) _px _py _ci \
+                 _cx=$BOSS_DEATH_CX _cy=$BOSS_DEATH_CY
+        local -a _dx=(0 1 1 1 0 -1 -1 -1) _dy=(-1 -1 0 1 1 1 0 -1)
         local _ch
         for (( i=0; i<8; i++ )) ; do
             _px=$(( _cx + _dx[i] * _r ))
@@ -112,11 +110,12 @@ render_boss_death () {
     fi
 
     _n=${#BOSS_DEATH_POS[@]}
+    local _cy _cx _ch _ci
     for (( i=0; i<_n; i+=2 )) ; do
-        local _cy=${BOSS_DEATH_POS[i]}
-        local _cx=${BOSS_DEATH_POS[i+1]}
-        local _ch=${_chars:RANDOM % ${#_chars}:1}
-        local _ci=$(( RANDOM % 4 ))
+        _cy=${BOSS_DEATH_POS[i]} \
+        _cx=${BOSS_DEATH_POS[i+1]} \
+        _ch=${_chars:RANDOM % ${#_chars}:1} \
+        _ci=$(( RANDOM % 4 ))
         printf -v _t '\033[%d;%dH%s%s%s' "$_cy" "$_cx" "${_colors[_ci]}" "$_ch" "$C_RESET"
         FRAME_BUF+="$_t"
     done

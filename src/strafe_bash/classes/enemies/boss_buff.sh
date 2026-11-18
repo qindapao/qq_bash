@@ -146,11 +146,11 @@ M_BuffInvuln_buff_tick () {
 _boss_phase_hp_cap () {
     local -n _c=$1
     # 注意：不要写成 local a=1 b=$a —— bash 会先把所有赋值展开再逐个赋值，b 拿到的是旧值。
-    local -i mx=${_c["{maxhp}$X"]:-1}
-    local -i ph=${_c["{phase}$X"]:-0}
-    local -i p1=${_c["{pcut1}$X"]:-70}
-    local -i p2=${_c["{pcut2}$X"]:-50}
-    local -i p3=${_c["{pcut3}$X"]:-20}
+    local -i mx=${_c["{maxhp}$X"]:-1} \
+             ph=${_c["{phase}$X"]:-0} \
+             p1=${_c["{pcut1}$X"]:-70} \
+             p2=${_c["{pcut2}$X"]:-50} \
+             p3=${_c["{pcut3}$X"]:-20}
     (( mx > 0 )) || mx=1
     local -i cap=$mx lo=$(( mx * p1 / 100 ))
     case $ph in
@@ -158,15 +158,13 @@ _boss_phase_hp_cap () {
         2) cap=$(( mx * p2 / 100 )) ; lo=$(( mx * p3 / 100 )) ;;
         3) cap=$(( mx * p3 / 100 )) ; lo=0 ;;
     esac
-    REPLY=$cap
-    REPLY_LO=$lo
+    REPLY=$cap REPLY_LO=$lo
     return 0
 }
 
 M_BuffHeal_buff_ok () {
     local -n self=$1
-    local -i hp=${self["{hp}$X"]:-0}
-    local -i mx=${self["{maxhp}$X"]:-0}
+    local -i hp=${self["{hp}$X"]:-0} mx=${self["{maxhp}$X"]:-0}
     # 只要受过伤就值得拿。不要用"当前还有没有恢复空间"来筛：阶段判定是整数截断
     # （127*100/180 = 70 就算进了 phase 1），而本阶段上限是 126，所以刚跨阶段时
     # 血量几乎总比上限高一点，按"有空间"筛就永远筛不中，回血从挂不上。
@@ -192,8 +190,7 @@ M_BuffHeal__cleanup () {
 
 M_BuffHeal_buff_tick () {
     local -n self=$1
-    local -i ttl=${self["{heal_cd}$X"]:-0}
-    local -i hp=${self["{hp}$X"]:-0}
+    local -i ttl=${self["{heal_cd}$X"]:-0} hp=${self["{hp}$X"]:-0}
 
     if (( ttl <= 0 )) ; then
         # 窗口内一直没等到机会：卸载，把槽位还回去
@@ -205,8 +202,7 @@ M_BuffHeal_buff_tick () {
     self["{heal_cd}$X"]=$(( ttl - 1 ))
 
     _boss_phase_hp_cap "$1"
-    local -i cap=$REPLY
-    local -i lo=$REPLY_LO
+    local -i cap=$REPLY lo=$REPLY_LO
     local -i need=$(( (cap - lo) / 2 ))
     (( need < 4 )) && need=4
 
@@ -215,10 +211,8 @@ M_BuffHeal_buff_tick () {
         self["{hp}$X"]=$cap
         local -i by=${self["{y}$X"]} bx=${self["{x}$X"]} bw=${self["{w}$X"]:-9}
 
-        local -i cx=$(( bx + bw / 2 )) cy=$(( by + 1 ))
-        local -a _dxs=(-2 -1 0 1 2 1 0 -1)
-        local -a _dys=(-1 -1 -1 -1 0 1 1 1)
-        local -i i ttl2
+        local -i cx=$(( bx + bw / 2 )) cy=$(( by + 1 )) i ttl2
+        local -a _dxs=(-2 -1 0 1 2 1 0 -1) _dys=(-1 -1 -1 -1 0 1 1 1)
         for (( i=0 ; i<8 ; i++ )) ; do
             ttl2=$(( 8 + (i % 3) * 6 ))
             _hit_fx_add "$(( cy + _dys[i] ))" "$(( cx + _dxs[i] ))" '+' "$C_GREEN" "$ttl2"
@@ -282,11 +276,11 @@ M_BuffMissile_buff_tick () {
 # ---------------------------------------------------------------------------
 M_BuffWave__init () {
     local -n self=$1
-    local -i gap_s=$(( BOSS_WAVE_GAP_MIN + RANDOM % (BOSS_WAVE_GAP_MAX - BOSS_WAVE_GAP_MIN + 1) ))
-    local -i n=$(( BOSS_WAVE_BURST_MIN + RANDOM % (BOSS_WAVE_BURST_MAX - BOSS_WAVE_BURST_MIN + 1) ))
+    local -i gap_s=$(( BOSS_WAVE_GAP_MIN + RANDOM % (BOSS_WAVE_GAP_MAX - BOSS_WAVE_GAP_MIN + 1) )) \
+             n=$(( BOSS_WAVE_BURST_MIN + RANDOM % (BOSS_WAVE_BURST_MAX - BOSS_WAVE_BURST_MIN + 1) ))
     self["{wv_gap}$X"]=$(( gap_s * FPS )) \
-        self["{wv_cd}$X"]=$(( gap_s * FPS )) \
-        self["{wv_left}$X"]=$(( n - 1 ))      # 第一根立刻放，所以剩下 n-1 根
+    self["{wv_cd}$X"]=$(( gap_s * FPS )) \
+    self["{wv_left}$X"]=$(( n - 1 ))      # 第一根立刻放，所以剩下 n-1 根
     _wave_start 0 "$BOSS_WAVE_DAMAGE"
     return 0
 }
@@ -313,7 +307,7 @@ M_BuffWave_buff_tick () {
         return 0
     fi
     self["{wv_left}$X"]=$left \
-        self["{wv_cd}$X"]=${self["{wv_gap}$X"]}
+    self["{wv_cd}$X"]=${self["{wv_gap}$X"]}
     return 0
 }
 
@@ -321,7 +315,7 @@ M_BuffWave__cleanup () {
     local -n self=$1
     # 只清自己的连发状态；已经放出去的波属于场景系统，让它自然扫完
     self["{wv_left}$X"]=0 \
-        self["{wv_cd}$X"]=0
+    self["{wv_cd}$X"]=0
     return 0
 }
 
@@ -334,6 +328,6 @@ M_BuffWave__cleanup () {
 M_BuffSlow__init () {
     [[ -n "${XO_OBJ_POOL[OBJ_player]+_}" ]] || return 0
     OBJ_player["{spd_pct}$X"]=$BOSS_BUFF_SLOW_PCT \
-        OBJ_player["{slow}$X"]=$BONUS_SLOW
+    OBJ_player["{slow}$X"]=$BONUS_SLOW
     return 0
 }

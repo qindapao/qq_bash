@@ -97,10 +97,10 @@ SkullKing_born () {
     BossBase_born "$1"
     local -n _self=$1
     _self["{shot_cd}$X"]=$SKULL_KING_FIRST_SHOT \
-        _self["{ring_left}$X"]=$SKULL_KING_BURST_RINGS \
-        _self["{pat_cd}$X"]=120 \
-        _self["{pat_step}$X"]=-1 \
-        _self["{pat_mode}$X"]=0
+    _self["{ring_left}$X"]=$SKULL_KING_BURST_RINGS \
+    _self["{pat_cd}$X"]=120 \
+    _self["{pat_step}$X"]=-1 \
+    _self["{pat_mode}$X"]=0
 }
 
 # 8 方向 O/X：每波 8 发，连发 4 波，然后休息约 3 秒。
@@ -117,8 +117,7 @@ SkullKing_move () {
         local -i sc=$(( ${self["{shot_cd}$X"]:-0} - 1 ))
         if (( sc <= 0 )) ; then
             local -i x=${self["{x}$X"]} y=${self["{y}$X"]}
-            local -i cx=$(( x + w / 2 )) cy=$(( y + h / 2 ))
-            local -i _i
+            local -i cx=$(( x + w / 2 )) cy=$(( y + h / 2 )) _i
             local _sym
 
             # 向下的一整排：X O X O X O X O
@@ -137,8 +136,7 @@ SkullKing_move () {
             done
 
             # 其余 7 个方向，不含向下（向下已由上面的长排负责）
-            local -a _dx=(1 1 1 0 -1 -1 -1)
-            local -a _dy=(1 0 -1 -1 -1 0 1)
+            local -a _dx=(1 1 1 0 -1 -1 -1) _dy=(1 0 -1 -1 -1 0 1)
             for (( _i=0; _i<SKULL_KING_RADIAL_BULLETS; _i++ )) ; do
                 if (( _i % 2 == 0 )) ; then
                     _sym='O'
@@ -152,10 +150,10 @@ SkullKing_move () {
             local -i rl=$(( ${self["{ring_left}$X"]:-1} - 1 ))
             if (( rl > 0 )) ; then
                 self["{shot_cd}$X"]=$SKULL_KING_RING_GAP \
-                    self["{ring_left}$X"]=$rl
+                self["{ring_left}$X"]=$rl
             else
                 self["{shot_cd}$X"]=$SKULL_KING_REST \
-                    self["{ring_left}$X"]=$SKULL_KING_BURST_RINGS
+                self["{ring_left}$X"]=$SKULL_KING_BURST_RINGS
             fi
         else
             self["{shot_cd}$X"]=$sc
@@ -168,7 +166,7 @@ SkullKing_move () {
         ((_ps++))
         if (( _ps >= ${#BOSS_AIM_PATTERN_STEPS[@]} )) ; then
             self["{pat_step}$X"]=-1 \
-                self["{pat_cd}$X"]=240
+            self["{pat_cd}$X"]=240
         else
             self["{pat_step}$X"]=$_ps
         fi
@@ -179,7 +177,7 @@ SkullKing_move () {
             self["{pat_mode}$X"]=$REPLY
             _boss_pattern_spawn_step "$1" 0 "$REPLY" 4
             self["{pat_step}$X"]=1 \
-                self["{pat_cd}$X"]=240
+            self["{pat_cd}$X"]=240
         else
             self["{pat_cd}$X"]=$_pc
         fi
