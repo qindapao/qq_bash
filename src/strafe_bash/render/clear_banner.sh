@@ -27,10 +27,8 @@ _clear_banner_start () {
 _clear_banner_clear () {
     local -i y=$1 w=$2 rows=$3
     local -i r
-    local _t
     for (( r=0 ; r<rows ; r++ )) ; do
-        printf -v _t '\033[%d;%dH%*s' "$((y + r))" "$4" "$w" ''
-        FRAME_BUF+="$_t"
+        FRAME_BUF+="$ESC[$((y + r));${4}H${SPACE_PROTOTYPE_STRING:0:w}"
     done
 }
 
@@ -60,7 +58,7 @@ render_clear_banner () {
     local -i reveal=$(( CLEAR_BANNER_FRAME * 7 ))
     (( reveal > CLEAR_BANNER_W )) && reveal=$CLEAR_BANNER_W
 
-    printf -v _dash '%*s' $(( box_w - 2 )) ''
+    local _dash=${SPACE_PROTOTYPE_STRING:0:box_w-2}
     _dash=${_dash// /-}
     printf -v _t '\033[%d;%dH%s+%s+%s' "$y" "$x" "$_border" "$_dash" "$C_RESET"
     FRAME_BUF+="$_t"
@@ -73,11 +71,11 @@ render_clear_banner () {
     local _artfield
     for _line in "${CLEAR_BANNER_LINES[@]}" ; do
         _part=${_line:0:reveal}
-        printf -v _artfield '%-*s' "$CLEAR_BANNER_W" "$_part"
-        printf -v _t '\033[%d;%dH%s|%*s%s%s%s%*s%s|%s' \
+        _artfield=$_part${SPACE_PROTOTYPE_STRING:0:CLEAR_BANNER_W-${#_part}}
+        printf -v _t '\033[%d;%dH%s|%s%s%s%s%s%s|%s' \
             "$((art_y + r))" "$x" "$_border" \
-            "$left_pad" '' "$_art" "$_artfield" "$C_RESET" \
-            "$right_pad" '' "$_border" "$C_RESET"
+            "${SPACE_PROTOTYPE_STRING:0:left_pad}" "$_art" "$_artfield" "$C_RESET" \
+            "${SPACE_PROTOTYPE_STRING:0:right_pad}" "$_border" "$C_RESET"
         FRAME_BUF+="$_t"
         ((r++))
     done

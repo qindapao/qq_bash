@@ -15,7 +15,7 @@ _art_clear_at () {
         else
             rest=''
         fi
-        printf '\033[%d;%dH%*s' $((ay + r)) "$ax" "${#line}" ''
+        printf '%s' "$ESC[$((ay + r));${ax}H${SPACE_PROTOTYPE_STRING:0:${#line}}"
         ((r++))
     done
 }

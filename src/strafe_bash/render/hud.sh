@@ -43,7 +43,8 @@ draw_hud_line1 () {
     local _maxw=$(( SCREEN_W - 2 ))
     _s="${_s:0:_maxw}"
     local _t
-    printf -v _t '\033[2;2H%*s\033[2;2H%s\033[2;%dH%s' "$_maxw" '' "$_s" "$SCREEN_W" "$FRAME_V"
+    printf -v _t '\033[2;2H%s\033[2;2H%s\033[2;%dH%s' \
+        "${SPACE_PROTOTYPE_STRING:0:_maxw}" "$_s" "$SCREEN_W" "$FRAME_V"
     FRAME_BUF+="$_t"
 }
 
@@ -64,7 +65,8 @@ draw_hud_line2 () {
     local _maxw=$(( SCREEN_W - 2 ))
     _s="${_s:0:_maxw}"
     local _t
-    printf -v _t '\033[3;2H%*s\033[3;2H%s\033[3;%dH%s' "$_maxw" '' "$_s" "$SCREEN_W" "$FRAME_V"
+    printf -v _t '\033[3;2H%s\033[3;2H%s\033[3;%dH%s' \
+        "${SPACE_PROTOTYPE_STRING:0:_maxw}" "$_s" "$SCREEN_W" "$FRAME_V"
     FRAME_BUF+="$_t"
 }
 
@@ -100,6 +102,7 @@ draw_bonus_hud () {
     local _maxw=$(( SCREEN_W - 2 ))
     _s="${_s:0:_maxw}"
     local _t
-    printf -v _t '\033[4;2H%*s\033[4;2H%s\033[4;%dH%s' "$_maxw" '' "$_s" "$SCREEN_W" "$FRAME_V"
+    printf -v _t '\033[4;2H%s\033[4;2H%s\033[4;%dH%s' \
+        "${SPACE_PROTOTYPE_STRING:0:_maxw}" "$_s" "$SCREEN_W" "$FRAME_V"
     FRAME_BUF+="$_t"
 }

@@ -61,6 +61,10 @@
     连续字段写回（如 `_e["{prev_x}"]=.. _e["{prev_y}"]=.. _e["{prev_art}"]=..`）
     现在都合成一条。剩 2 处不能合：`local -i` 与普通 `local` 属性不同、
     `local eff=$len` 有依赖。
+  * 原型切片法（`SPACE_PROTOTYPE_STRING` + `${proto:0:n}`）已全仓替换完：
+    电网行、`_WSP`、HUD 三行、`_scene_clear_art_at`、Word 擦除、横幅（含
+    `%-*s` 左对齐填充）、`plane_helpers` 的 art 擦除。全仓已无 `%*s`
+    （只剩 `const.sh` 里构建原型串那一处）。
   * scene.sh 还剩 8 处 printf -v：全在低频路径或需要 %*s 填充（帧缓冲后会消失）。
   * born vs hire/fire 比值重测：born 变轻后小类约 1.18x；大类场景未验证。
     建议造一个 60 字段的测试类，验证"born 随字段数线性增长、hire 基本不变"。

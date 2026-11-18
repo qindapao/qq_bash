@@ -153,9 +153,8 @@ _wave_start () {
 
     # 整行字符只在这里拼一次，之后每帧直接复用
     local -i _n=$(( SCREEN_W - 4 ))
-    local _line
-    printf -v _line '%*s' "$_n" ''
-    _line=${_line// /$WAVE_SYMBOL}
+    local _line=${SPACE_PROTOTYPE_STRING:0:_n}
+    local _line=${_line// /$WAVE_SYMBOL}
 
     # Boss 的波随机挖两个逃生缝（同一条波内固定，玩家能提前看到并跑过去）。
     # 我方波不留缝：它是来救场的，留洞反而放过敌人子弹。

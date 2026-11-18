@@ -30,8 +30,7 @@ _scene_clear_art_at () {
     local line _buf='' _t
     while (( r < n )) ; do
         line=${_SCENE_ART_CACHE["$art|$r"]}
-        printf -v _t '\033[%d;%dH%*s' $((ay + r)) "$ax" "${#line}" ''
-        _buf+=$_t
+        _buf+="$ESC[$((ay + r));${ax}H${SPACE_PROTOTYPE_STRING:0:${#line}}"
         ((r++))
     done
     FRAME_BUF+="$_buf"
@@ -77,8 +76,7 @@ _render_erase_one () {
         (( px + eff > SCREEN_W - 1 )) && eff=$(( SCREEN_W - 1 - px ))
         (( eff < 0 )) && eff=0
         if (( eff > 0 )) ; then
-            printf -v _t '\033[%d;%dH%*s' "$py" "$px" "$eff" ''
-            FRAME_BUF+="$_t"
+            FRAME_BUF+="$ESC[${py};${px}H${SPACE_PROTOTYPE_STRING:0:eff}"
         fi
         ;;
     EnemyV|EnemyQ|EnemyM|EnemyB|Boss|BossSpinner|SkullKing)
@@ -109,7 +107,7 @@ Entity_retire () { _render_erase_one "$1" ; }
 render () {
     local b e d eb m w _t _WSP _ex _ey
     # 擦行用的行尾填充串只与屏幕宽度有关：每帧算一次，别在逐对象循环里 printf %*s
-    printf -v _WSP '%*s' "$(( SCREEN_W - 3 ))" ''
+    _WSP=${SPACE_PROTOTYPE_STRING:0:SCREEN_W-3}
     local -i _qi _ptx _pty
 
     # 已死亡导弹（玩家 / 敌方跟踪弹）的最后一格，由 tick 侧排队，这里统一擦除。
