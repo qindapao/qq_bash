@@ -5,7 +5,7 @@ _STRAFE_ENEMY_BASE_SH=1
 . "$STRAFE_PROJ_DIR/config/const.sh"
 . "$STRAFE_PROJ_DIR/config/globals.sh"
 . "$STRAFE_PROJ_DIR/classes/base_types.sh"
-. "$STRAFE_PROJ_DIR/classes/projectiles/enemy_bullet.sh"
+. "$STRAFE_PROJ_DIR/classes/projectiles/soa_bullets.sh"
 
 readonly EnemyStaticTemplate='
     EnemyObj ->

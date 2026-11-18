@@ -7,8 +7,7 @@ _STRAFE_BOSS_SH=1
 . "$STRAFE_PROJ_DIR/config/const.sh"
 . "$STRAFE_PROJ_DIR/config/color.sh"
 . "$STRAFE_PROJ_DIR/config/globals.sh"
-. "$STRAFE_PROJ_DIR/classes/projectiles/enemy_bullet.sh"
-. "$STRAFE_PROJ_DIR/classes/projectiles/boss_bullet.sh"
+. "$STRAFE_PROJ_DIR/classes/projectiles/soa_bullets.sh"
 
 # 标准 Boss 的四段 art。放在类文件里，Boss_move 只认字段，不再写死变量名。
 readonly BOSS_ART_100=$'    _____    \n   /     \\   \n  /  O O  \\  \n  \\_|_|_|_/  \n   \\_____/   '
@@ -57,14 +56,19 @@ Boss_move () {
     (( _phase == 2 )) && _step=3
     (( _phase == 3 )) && _step=2
 
+    # 活动范围：大部分时间待在上半屏（玩家好打），但保留俯冲：
+    # 每次选目标点时按阶段给 8%–18% 的机会把目标压到底部。
     local -i _ymin=$GAME_TOP \
              _ymax=$(( SCREEN_H - 4 - ${self["{h}$X"]} ))
-    local -i _yhi=$_ymax
+    local -i _mid=$(( _ymin + (_ymax - _ymin) / 2 )) \
+             _yhi=$_mid _dive=8
     case "$_phase" in
-        0) _yhi=$(( _ymin + 6 )) ;;
-        1) _yhi=$(( _ymin + (_ymax - _ymin) * 3 / 4 )) ;;
+        0) _yhi=$(( _ymin + 4 )) _dive=6 ;;
+        1) _yhi=$_mid _dive=10 ;;
+        2) _yhi=$_mid _dive=14 ;;
+        3) _yhi=$_mid _dive=18 ;;
     esac
-    _boss_move_target "$1" "$_step" "$_yhi" 7 8 9
+    _boss_move_target "$1" "$_step" "$_yhi" 7 8 9 4 0 "$_dive"
 
     # Boss 永不主动离场，只会被打死。
     local _by=$(( ${self["{y}$X"]} + ${self["{h}$X"]} )) \
@@ -74,7 +78,7 @@ Boss_move () {
     local -i _ac=$(( ${self["{aim_cd}$X"]:-0} - 1 ))
     if (( _ac <= 0 )) ; then
         self["{aim_cd}$X"]=90
-        if [[ -n "${XO_OBJ_POOL[OBJ_player]+_}" ]] && (( ${#ENEMY_BULLETS[@]} + 3 <= ENEMY_BULLET_LIMIT )) ; then
+        if [[ -n "${XO_OBJ_POOL[OBJ_player]+_}" ]] && (( EB_LIVE + 3 <= ENEMY_BULLET_LIMIT )) ; then
             local -i _cx=$(( _bx + ${self["{w}$X"]} / 2 )) \
                      _cy=$(( ${self["{y}$X"]} + ${self["{h}$X"]} / 2 )) \
                      _px=${OBJ_player["{x}$X"]} _py=${OBJ_player["{y}$X"]}

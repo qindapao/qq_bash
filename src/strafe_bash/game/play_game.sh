@@ -15,10 +15,8 @@ _STRAFE_PLAY_GAME_SH=1
 . "$STRAFE_PROJ_DIR/classes/base_types.sh"
 . "$STRAFE_PROJ_DIR/classes/projectiles/bullet.sh"
 . "$STRAFE_PROJ_DIR/classes/projectiles/missile.sh"
-. "$STRAFE_PROJ_DIR/classes/projectiles/enemy_bullet.sh"
-. "$STRAFE_PROJ_DIR/classes/projectiles/enemy_missile.sh"
+. "$STRAFE_PROJ_DIR/classes/projectiles/soa_bullets.sh"
 . "$STRAFE_PROJ_DIR/classes/enemies/boss_base.sh"
-. "$STRAFE_PROJ_DIR/classes/projectiles/boss_bullet.sh"
 . "$STRAFE_PROJ_DIR/classes/enemies/boss.sh"
 . "$STRAFE_PROJ_DIR/classes/enemies/boss_spinner.sh"
 . "$STRAFE_PROJ_DIR/classes/enemies/skull_king.sh"
@@ -203,52 +201,6 @@ _wave_clear_all () {
     done
     WAVE_ON=0 G_WAVE_DMG_PENDING=0
     WAVE_HIT_ENEMY=()
-    return 0
-}
-
-# ============================================================================
-# _enemy_bullet_bury — 敌方子弹 / 导弹的唯一死亡出口
-# 死之前先把「最后画过的那一格」交给擦除队列：炸弹清屏、撞玩家、燃料耗尽都会让它们
-# 在画面中间消失，对象一旦被 bury，渲染阶段就再也找不到它，不登记就会留下一个残格。
-# ============================================================================
-_enemy_bullet_bury () {
-    local obj=$1
-    local -n _k=$obj
-    local -i py=${_k["{prev_y}$X"]:--1} px=${_k["{prev_x}$X"]:--1}
-    if (( py >= GAME_TOP && py < SCREEN_H - 1 && px >= 2 && px <= SCREEN_W - 2 )) ; then
-        MISSILE_TRAIL_CLEAR+=("$py" "$px")
-    fi
-    # 帧缓冲：擦掉它当前占的格子（对象马上解聘，渲染阶段再也找不到它）
-    local -i _cy=${_k["{y}$X"]} _cx=${_k["{x}$X"]} _fi
-    # 只清可玩区：子弹可能在 x=99/100 才判死，那里是边框，不能擦
-    if (( _cx >= 2 && _cx <= SCREEN_W - 2 && _cy >= GAME_TOP && _cy <= SCREEN_H - 2 )) ; then
-        _fi=$(( (_cy - 1) * FB_W + (_cx - 1) ))
-        # 只有自己是这格的最后写入者才清：同格可能已被别的子弹重新占用
-        if [[ "${FB_OWNER[_fi]}" == "$obj" ]] ; then
-            FB_CELL[_fi]=''
-            FB_OWNER[_fi]=''
-            FB_DIRTY+=("$_fi")
-        fi
-    fi
-    # 解聘而不是销毁：弹体回到资源市场，下一发直接复用（省掉类模板反序列化）
-    xo_obj_fire "$obj"
-}
-
-# ============================================================================
-# _eb_hit_apply — 敌弹命中玩家后的结算（只命中时才走这里，所以绑一次没关系）
-# 判定本身在敌弹的 _move 里用 _HL_* 做快路径比较，这里只管效果。
-# ============================================================================
-_eb_hit_apply () {
-    local obj=$1
-    local -n _h=$obj
-    local -i hx=${_h["{x}$X"]} hy=${_h["{y}$X"]} hd=${_h["{damage}$X"]:-1}
-    if (( _HL_SH )) ; then
-        # 护盾吸收：不扣血，只给绿色火花
-        _hit_fx_add "$hy" "$hx" '*' "$C_GREEN"
-    else
-        _hit_fx_add "$hy" "$hx" '*' "$C_RED"
-        G_PLAYER_DMG_PENDING=$(( G_PLAYER_DMG_PENDING + hd ))
-    fi
     return 0
 }
 
@@ -550,46 +502,128 @@ _play_game_tick () {
     local -A _pbmap=()
     local -i _pbmap_ready=0
 
-    local -a alive_eb=()
-    for eb in "${ENEMY_BULLETS[@]}" ; do
-        # 内联分发：与 xo_call "$eb" move 逐字等价（多态性不丢：类名仍从池子取），
-        # 只省掉 xo_call 那层包装帧。这一循环是全场最热的调用点之一（一屏上百发）。
-        "${XO_OBJ_POOL[$eb]}_move" "$eb"
-        if (( $? == 0 )) ; then
-            # 跟踪导弹可以被我方子弹打掉，一碰即毁；普通敌弹不参与，保持原来的手感。
-            if [[ "${XO_OBJ_POOL[$eb]}" == "EnemyMissile" ]] ; then
-                if (( ! _pbmap_ready )) ; then
-                    _pbmap=()
-                    local _pb _py _px
-                    for _pb in "${BULLETS[@]}" ; do
-                        [[ -n "$_pb" && -n "${XO_OBJ_POOL[$_pb]+_}" ]] || continue
-                        local -n _pob=$_pb
-                        _py=${_pob["{y}$X"]} ; _px=${_pob["{x}$X"]}
-                        _pbmap["$_py,$_px"]=$_pb
-                    done
-                    _pbmap_ready=1
-                fi
-                local -n _emb=$eb
-                local -i _emy=${_emb["{y}$X"]} _emx=${_emb["{x}$X"]}
-                if [[ -n "${_pbmap["$_emy,$_emx"]+_}" ]] ; then
-                    local _hitb=${_pbmap["$_emy,$_emx"]}
-                    # 命中火花既做反馈，也负责把这个格子擦干净（和打中敌人同一套）
-                    _hit_fx_add "$_emy" "$_emx" '*' "$C_YELLOW"
-                    _enemy_bullet_bury "$eb"
-                    # 我方子弹只做"死亡标记"，不在这里 bury：BULLETS 早在第 5 段
-                    # 开头就重建过了，立刻 bury 会在数组里留下一个死句柄（第 7 段
-                    # 用 killed_b 跳过它，第 9 段统一清理并把它从数组里摘掉）。
-                    killed_b[$_hitb]=1
-                    unset "_pbmap[$_emy,$_emx]"
-                    continue
-                fi
+    # 单格弹丸（SoA）：一遍循环完成 移动 + 命中 + 追踪导弹被我方子弹打掉。
+    # 没有对象/绑定/方法调用，每发只花数组读写。
+    local -i _ei _ex _ey _enx _eny _efi _of _nf _etype _ecd _estep _efuel _eticket _own_old
+    for (( _ei=0 ; _ei<EB_N ; _ei++ )) ; do
+        (( EB_ALIVE[_ei] )) || continue
+        _ex=${EB_X[_ei]} _ey=${EB_Y[_ei]}
+        # 命中玩家（玩家/护盾几何每 tick 预算在 _HL_*）
+        if (( _HL_ON )) \
+           && (( _HL_SH ? (_ey >= _HL_Y1 && _ey <= _HL_Y2) : (_ey == _HL_Y) )) \
+           && (( _HL_SH ? (_ex >= _HL_X1 && _ex <= _HL_X2) : (_ex == _HL_X) )) ; then
+            if (( _HL_SH )) ; then
+                _hit_fx_add "$_ey" "$_ex" '*' "$C_GREEN"
+            else
+                _hit_fx_add "$_ey" "$_ex" '*' "$C_RED"
+                G_PLAYER_DMG_PENDING=$(( G_PLAYER_DMG_PENDING + EB_DMG[_ei] ))
             fi
-            alive_eb+=("$eb")
+            eb_kill "$_ei"
+            continue
+        fi
+        _etype=${EB_TYPE[_ei]}
+        # 追踪导弹：本 tick 不管动没动，都要检查是否被我方子弹打掉
+        if (( _etype == 2 )) ; then
+            if (( ! _pbmap_ready )) ; then
+                _pbmap=()
+                local _pb _py _px
+                for _pb in "${BULLETS[@]}" ; do
+                    [[ -n "$_pb" && -n "${XO_OBJ_POOL[$_pb]+_}" ]] || continue
+                    local -n _pob=$_pb
+                    _py=${_pob["{y}$X"]} ; _px=${_pob["{x}$X"]}
+                    _pbmap["$_py,$_px"]=$_pb
+                done
+                _pbmap_ready=1
+            fi
+            if [[ -n "${_pbmap["$_ey,$_ex"]+_}" ]] ; then
+                local _hitb=${_pbmap["$_ey,$_ex"]}
+                _hit_fx_add "$_ey" "$_ex" '*' "$C_YELLOW"
+                eb_kill "$_ei"
+                killed_b[$_hitb]=1
+                unset "_pbmap[$_ey,$_ex]"
+                continue
+            fi
+        fi
+        case "$_etype" in
+        0)
+            _ecd=$(( ${EB_CD[_ei]} + 1 ))
+            if (( _ecd < 4 )) ; then EB_CD[_ei]=$_ecd ; continue ; fi
+            EB_CD[_ei]=0
+            _enx=$_ex _eny=$(( _ey + 1 ))
+            ;;
+        1)
+            _estep=${EB_STEP[_ei]}
+            (( _estep < 1 )) && _estep=1
+            _ecd=$(( ${EB_CD[_ei]} + 1 ))
+            if (( _ecd < _estep )) ; then EB_CD[_ei]=$_ecd ; continue ; fi
+            EB_CD[_ei]=0
+            _enx=$(( _ex + ${EB_VX[_ei]} )) _eny=$(( _ey + ${EB_VY[_ei]} ))
+            ;;
+        2)
+            _estep=${EB_STEP[_ei]}
+            (( _estep < 1 )) && _estep=1
+            _ecd=$(( ${EB_CD[_ei]} + 1 ))
+            if (( _ecd < _estep )) ; then EB_CD[_ei]=$_ecd ; continue ; fi
+            EB_CD[_ei]=0
+            _efuel=$(( ${EB_FUEL[_ei]} - 1 ))
+            if (( _efuel <= 0 )) ; then eb_kill "$_ei" ; continue ; fi
+            EB_FUEL[_ei]=$_efuel
+            _enx=$_ex _eny=$_ey
+            if (( _HL_ON )) ; then
+                if (( _HL_X < _ex )) ; then _enx=$(( _ex - 1 ))
+                elif (( _HL_X > _ex )) ; then _enx=$(( _ex + 1 )) ; fi
+                if (( _HL_Y < _ey )) ; then _eny=$(( _ey - 1 ))
+                elif (( _HL_Y > _ey )) ; then _eny=$(( _ey + 1 )) ; fi
+            else
+                _eny=$(( _ey + 1 ))
+            fi
+            ;;
+        esac
+        # 帧缓冲：清旧格（整数 ticket 比较，快过字符串）；移动成功时旧/新格共用一次 append
+        _of=$(( (_ey - 1) * FB_W + (_ex - 1) ))
+        _eticket=$(( _ei + 1 ))
+        _own_old=0
+        (( FB_OWNER[_of] == _eticket )) && _own_old=1
+        # 出界：死亡（新格不写）
+        if (( _enx < 2 || _enx > SCREEN_W - 2 || _eny < GAME_TOP || _eny >= SCREEN_H - 1 )) ; then
+            if (( _own_old )) ; then
+                FB_CELL[_of]='' FB_OWNER[_of]=0 FB_DIRTY+=("$_of")
+            fi
+            eb_kill "$_ei"
+            continue
+        fi
+        EB_X[_ei]=$_enx EB_Y[_ei]=$_eny
+        _nf=$(( (_eny - 1) * FB_W + (_enx - 1) ))
+        if (( _own_old )) ; then
+            FB_CELL[_of]='' FB_OWNER[_of]=0 FB_CELL[_nf]=${EB_GLYPH[_ei]} \
+            FB_OWNER[_nf]=$_eticket FB_DIRTY+=("$_of" "$_nf")
         else
-            _enemy_bullet_bury "$eb"
+            FB_CELL[_nf]=${EB_GLYPH[_ei]} FB_OWNER[_nf]=$_eticket FB_DIRTY+=("$_nf")
+        fi
+        # 追踪导弹可以被我方子弹打掉，一碰即毁；普通敌弹不参与
+        if (( _etype == 2 )) ; then
+            if (( ! _pbmap_ready )) ; then
+                _pbmap=()
+                local _pb _py _px
+                for _pb in "${BULLETS[@]}" ; do
+                    [[ -n "$_pb" && -n "${XO_OBJ_POOL[$_pb]+_}" ]] || continue
+                    local -n _pob=$_pb
+                    _py=${_pob["{y}$X"]} ; _px=${_pob["{x}$X"]}
+                    _pbmap["$_py,$_px"]=$_pb
+                done
+                _pbmap_ready=1
+            fi
+            if [[ -n "${_pbmap["$_eny,$_enx"]+_}" ]] ; then
+                local _hitb=${_pbmap["$_eny,$_enx"]}
+                _hit_fx_add "$_eny" "$_enx" '*' "$C_YELLOW"
+                eb_kill "$_ei"
+                # 我方子弹只做死亡标记：BULLETS 已经重建过，第 9 段统一清理
+                killed_b[$_hitb]=1
+                unset "_pbmap[$_eny,$_enx]"
+                continue
+            fi
         fi
     done
-    ENEMY_BULLETS=("${alive_eb[@]}")
 
     local -a alive_d=() alive_w=() alive_e=()
     for e in "${ENEMIES[@]}" ; do
@@ -686,21 +720,15 @@ _play_game_tick () {
                     BULLETS=("${_wb_keep[@]}")
                 fi
             else
-                # 我方的波：清敌方子弹 / 跟踪导弹
-                if (( ${#ENEMY_BULLETS[@]} )) ; then
-                    local -a _eb_keep=()
-                    local _eb
-                    for _eb in "${ENEMY_BULLETS[@]}" ; do
-                        [[ -n "$_eb" && -n "${XO_OBJ_POOL[$_eb]+_}" ]] || continue
-                        local -n _ebb=$_eb
-                        local -i _eby=${_ebb["{y}$X"]}
-                        if (( _eby >= WV_CLEAR_LO[_ws2] && _eby <= WV_CLEAR_HI[_ws2] )) ; then
-                            _enemy_bullet_bury "$_eb"
-                        else
-                            _eb_keep+=("$_eb")
+                # 我方的波：清敌方子弹 / 跟踪导弹（SoA 槽位）
+                if (( EB_LIVE )) ; then
+                    local -i _wi2
+                    for (( _wi2=0 ; _wi2<EB_N ; _wi2++ )) ; do
+                        (( EB_ALIVE[_wi2] )) || continue
+                        if (( EB_Y[_wi2] >= WV_CLEAR_LO[_ws2] && EB_Y[_wi2] <= WV_CLEAR_HI[_ws2] )) ; then
+                            eb_kill "$_wi2"
                         fi
                     done
-                    ENEMY_BULLETS=("${_eb_keep[@]}")
                 fi
             fi
         done
@@ -1277,12 +1305,11 @@ play_game () {
             else
                 OBJ_player["{bombs}$X"]=$(( ${OBJ_player["{bombs}$X"]:-0} - 1 ))
             fi
-            local _ceb
-            for _ceb in "${ENEMY_BULLETS[@]}" ; do
-                [[ -n "$_ceb" && -n "${XO_OBJ_POOL[$_ceb]+_}" ]] || continue
-                _enemy_bullet_bury "$_ceb"
+            local -i _ceb
+            for (( _ceb=0 ; _ceb<EB_N ; _ceb++ )) ; do
+                (( EB_ALIVE[_ceb] )) || continue
+                eb_kill "$_ceb"
             done
-            ENEMY_BULLETS=()
 
             local -a bomb_alive=()
             local -i bomb_score=0 _bomb_n=${#ENEMIES[@]} _bomb_pct=100

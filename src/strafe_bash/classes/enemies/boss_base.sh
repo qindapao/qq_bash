@@ -126,9 +126,11 @@ _boss_update_phase () {
 # $5=ttl 基数 $6=ttl 随机范围
 # $7=y 底部留白（默认 4，旋刃可传 3 换更大活动范围）
 # $8=边缘巡逻模式（默认 0；旋刃传 1，目标点打屏幕边缘）
+# $9=俯冲概率（默认 0）：每次选目标点时，有这个百分比的机会把目标压到最下面，
+#    用来在"大部分时间待在上半屏"之外保留"突然冲下来打你"的压迫感
 _boss_move_target () {
     local -i _step=$2 _yhi=$3 _jitter=$4 _ttl_base=$5 _ttl_span=$6 \
-             _ymargin=${7:-4} _wide=${8:-0}
+             _ymargin=${7:-4} _wide=${8:-0} _dive=${9:-0}
     local -n _bs=$1
 
     local -i _w=${_bs["{w}$X"]:-1} _h=${_bs["{h}$X"]:-1}
@@ -154,19 +156,31 @@ _boss_move_target () {
 
         if (( ttl <= 0 || (x == tx && y == ty) )) || (( RANDOM % 100 < _jitter )) ; then
             if (( _wide )) ; then
-                # 旋刃：主要打左右对面边缘，偶尔打上下边缘。
-                # 目标在屏幕边缘，避免只在中间小范围打圈。
+                # 旋刃/骷髅王：主要打左右对面边缘，偶尔打上下边缘。
+                # 纵向默认压在上半屏，按 _dive 概率偶尔俯冲到底部。
                 local -i _xmid=$(( (_xmin + _xmax) / 2 ))
                 if (( RANDOM % 5 == 0 )) ; then
                     if (( RANDOM % 2 )) ; then ty=$_ymin ; else ty=$_yhi ; fi
                     tx=$(( RANDOM % (_xmax - _xmin + 1) + _xmin ))
                 else
                     if (( x < _xmid )) ; then tx=$_xmax ; else tx=$_xmin ; fi
-                    ty=$(( RANDOM % (_yhi - _ymin + 1) + _ymin ))
+                    if (( _dive > 0 && RANDOM % 100 < _dive )) ; then
+                        # 俯冲：目标压到底部 3 行内，保证真的冲下来
+                        ty=$(( _ymax - RANDOM % 3 ))
+                        (( ty < _yhi )) && ty=$_yhi
+                    else
+                        ty=$(( RANDOM % (_yhi - _ymin + 1) + _ymin ))
+                    fi
                 fi
             else
                 tx=$(( RANDOM % (_xmax - _xmin + 1) + _xmin ))
-                ty=$(( RANDOM % (_yhi - _ymin + 1) + _ymin ))
+                if (( _dive > 0 && RANDOM % 100 < _dive )) ; then
+                    # 俯冲：目标压到底部 3 行内，保证真的冲下来
+                    ty=$(( _ymax - RANDOM % 3 ))
+                    (( ty < _yhi )) && ty=$_yhi
+                else
+                    ty=$(( RANDOM % (_yhi - _ymin + 1) + _ymin ))
+                fi
             fi
             ttl=$(( _ttl_base + RANDOM % _ttl_span ))
         else

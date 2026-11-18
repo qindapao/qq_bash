@@ -62,10 +62,10 @@ init_game () {
     for b in "${BULLETS[@]}" ; do [[ -n "${XO_OBJ_POOL[$b]+_}" ]] && xo_obj_bury "$b" ; done
     for e in "${ENEMIES[@]}" ; do [[ -n "${XO_OBJ_POOL[$e]+_}" ]] && xo_obj_bury "$e" ; done
     for d in "${DROPS[@]}" ; do [[ -n "${XO_OBJ_POOL[$d]+_}" ]] && xo_obj_bury "$d" ; done
-    for eb in "${ENEMY_BULLETS[@]}" ; do [[ -n "${XO_OBJ_POOL[$eb]+_}" ]] && xo_obj_bury "$eb" ; done
     for m in "${MISSILES[@]}" ; do [[ -n "${XO_OBJ_POOL[$m]+_}" ]] && xo_obj_bury "$m" ; done
     for w in "${WORDS[@]}" ; do [[ -n "${XO_OBJ_POOL[$w]+_}" ]] && xo_obj_bury "$w" ; done
-    BULLETS=() ENEMIES=() DROPS=() ENEMY_BULLETS=() MISSILES=() MISSILE_TRAIL_CLEAR=()
+    BULLETS=() ENEMIES=() DROPS=() MISSILES=() MISSILE_TRAIL_CLEAR=()
+    eb_reset
     BOMB_FX_POS=() HIT_FX=() BOSS_DEATH_POS=() CLEAR_BATCH=() WORDS=()
     BOSS_DEATH_TICK=0
     BOSS_DEATH_STYLE=0
@@ -102,8 +102,7 @@ init_game () {
     # 同步 prev = cur（避免首帧擦 (0,0)）
     local _sync_obj
     for _sync_obj in "OBJ_player" "${BULLETS[@]}" "${MISSILES[@]}" \
-                     "${ENEMY_BULLETS[@]}" "${ENEMIES[@]}" \
-                     "${DROPS[@]}" "${WORDS[@]}" ; do
+                     "${ENEMIES[@]}" "${DROPS[@]}" "${WORDS[@]}" ; do
         [[ -n "$_sync_obj" && -n "${XO_OBJ_POOL[$_sync_obj]+_}" ]] || continue
         local -n _so=$_sync_obj
         if [[ -n "${_so[{x}$X]+_}" ]] ; then

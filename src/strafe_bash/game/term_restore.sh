@@ -30,4 +30,16 @@ term_restore () {
     printf '%s' "$C_RESET"
     # 退出备用屏幕会把玩家进入前的画面原样还回来，所以这里绝不能清屏
     alt_screen_leave
+    _term_playback_error_log
+}
+
+# 退出备用屏幕之后，把本次运行的错误日志回放到正常屏幕上：
+# 备用屏幕一退出，游戏内的报错文本就全丢了，这里补上最后 20 行。
+_term_playback_error_log () {
+    local _log=${STRAFE_ERRLOG:-}
+    [[ -n "$_log" && -s "$_log" ]] || return 0
+    printf '\n%s----- strafe_bash error log (%s) -----%s\n' "$C_RED" "$_log" "$C_RESET"
+    tail -n 20 "$_log"
+    printf '%s-------------------------------------%s\n' "$C_RED" "$C_RESET"
+    return 0
 }

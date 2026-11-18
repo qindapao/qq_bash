@@ -5,7 +5,7 @@ _STRAFE_BOSS_PATTERN_SH=1
 . "$STRAFE_PROJ_DIR/config/const.sh"
 . "$STRAFE_PROJ_DIR/config/color.sh"
 . "$STRAFE_PROJ_DIR/config/globals.sh"
-. "$STRAFE_PROJ_DIR/classes/projectiles/enemy_bullet.sh"
+. "$STRAFE_PROJ_DIR/classes/projectiles/soa_bullets.sh"
 
 # 每项：dx|dy|vx|vy|symbol
 # 方向不是固定的：前段向中心收，中段垂直，后段向外翻。
@@ -48,7 +48,7 @@ _boss_pattern_spawn_step () {
     local -i _step=$2 _mode=$3 _speed=${4:-4} \
              cx=$(( ${_bp["{x}$X"]} + ${_bp["{w}$X"]} / 2 )) \
              cy=$(( ${_bp["{y}$X"]} + ${_bp["{h}$X"]} / 2 ))
-    (( ${#ENEMY_BULLETS[@]} + 2 > ENEMY_BULLET_LIMIT )) && return 0
+    (( EB_LIVE + 2 > ENEMY_BULLET_LIMIT )) && return 0
 
     local _entry=${BOSS_AIM_PATTERN_STEPS[_step]}
     local _dx _dy _vx _vy _sym

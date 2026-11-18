@@ -511,6 +511,83 @@ Player-facing summary of the same build: take one hit to enter the 4-second
 angry state, then fly into enemies. The invulnerability window matches the
 blink duration.
 
+## Single-cell projectiles: struct-of-arrays
+
+Enemy bullets, boss bullets and homing missiles deliberately **do not** use the
+`xo` object system. They have no mixins, no inheritance and no lifecycle hooks:
+they are a few numbers with a glyph. Through `xo` each of them cost a method
+call, a nameref bind and several hash reads per tick (~155µs); as parallel
+arrays indexed by slot they cost ~30µs.
+
+`classes/projectiles/soa_bullets.sh` owns the whole model:
+
+| array       | meaning                                                        |
+|-------------|----------------------------------------------------------------|
+| `EB_ALIVE`  | 1 = slot in use                                                |
+| `EB_TYPE`   | 0 = straight down (4 ticks/row), 1 = vector + step, 2 = homing |
+| `EB_X/EB_Y` | position (1-based, same as the screen)                          |
+| `EB_VX/VY`  | per-move delta (types 1 and 2)                                 |
+| `EB_STEP`   | move every N ticks                                             |
+| `EB_CD`     | current tick inside that period                                |
+| `EB_DMG`    | damage when it reaches the player                              |
+| `EB_FUEL`   | homing missiles only: moves left before it self-destructs      |
+| `EB_GLYPH`  | ready-to-emit bytes (colour + symbol + reset)                  |
+| `EB_FREE`   | stack of dead slots                                             |
+| `EB_N`      | highest slot ever used (loop bound)                            |
+| `EB_LIVE`   | live count (used by the spawn limits)                          |
+
+Slots are never compacted, so a slot number is stable for the life of one
+bullet and can be used as its framebuffer owner (stored as `slot + 1`, so 0
+means "empty"):
+
+```text
+   eb_add                      eb_kill
+     |                            |
+     v                            v
+  +-----------------+       +-----------+
+  | EB_FREE (stack) | <-----+ slot i    |
+  +-----------------+       +-----------+
+     |  pop one, or EB_N++ when empty
+     v
+  slot i: ALIVE=1, X/Y/VX/VY/STEP/CD/DMG/FUEL/GLYPH filled, one cell written
+```
+
+One tick pass does everything for a bullet — move, hit test, framebuffer:
+
+```text
+  for i in 0 .. EB_N-1:
+      if not EB_ALIVE[i]: continue
+      hit player?  (_HL_* already computed for this tick)
+          yes -> spark, damage (unless shielded), eb_kill(i), next
+      move by type:
+          type 0  cd++;  only when cd == 4: y += 1
+          type 1  cd++;  only when cd == step: x += vx, y += vy
+          type 2  cd++;  only when cd == step: fuel--, step toward the player
+                                  fuel == 0 -> eb_kill(i), next
+      out of the play area? -> eb_kill(i), next
+      clear the old cell, write the glyph into the new one (one dirty append)
+      type 2: a player bullet on the same cell -> spark, eb_kill(i), mark that
+              bullet as killed (it is buried by the normal cleanup pass)
+```
+
+Spawn entry point is unchanged, so every boss pattern and test keeps working:
+
+```bash
+enemy_bullet_spawn EnemyBullet  x y sym damage
+enemy_bullet_spawn BossBullet   x y vx vy sym damage step [colour]
+enemy_bullet_spawn EnemyMissile x y [fuel] [step]
+```
+
+What still belongs to the object system: anything with art, HP, mixins or a
+state machine — enemies, bosses, drops, words, and future giant multi-cell
+projectiles (they are entities, not data; they can carry their own art and
+hitbox size). The rule of thumb: *single cell and no behaviour -> SoA; art or
+behaviour -> object.*
+
+Measured at 110 bullets: tick 26.9ms -> 17.2ms. The three former classes
+(`enemy_bullet.sh`, `boss_bullet.sh`, `enemy_missile.sh`) are gone; the boss
+test reads slots through `eb_field`.
+
 ## The `x` tree
 
 `x` is an in-memory tree with JSON semantics, implemented in pure Bash. It

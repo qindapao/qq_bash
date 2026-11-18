@@ -370,10 +370,5 @@ render () {
         done
     fi
 
-    # ===== 整圈边框每 10 帧补一次：上边框/左边框偶发损坏的兜底 =====
-    RENDER_FRM=$(( RENDER_FRM + 1 ))
-    if (( RENDER_FRM >= 10 )) ; then
-        RENDER_FRM=0
-        FRAME_BUF+=$FRAME_TL_STR
-    fi
 }
+

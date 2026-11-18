@@ -334,86 +334,82 @@ test_case1 ()
     check '回血后阶段不回退' 1 "$BUF_PH"
     check '阶段无敌窗口未被重复触发' 9 "$BUF_INV"
 
-    printf '\n== H. 敌跟踪导弹 ==\n'
-    ENEMY_BULLETS=()
+    printf '\n== H. 敌跟踪导弹（SoA 槽位）==\n'
+    eb_reset
     xo_obj_born_named OBJ_rb6 Boss >/dev/null 2>&1 || { log_test 0 1 ; return 1 ; }
     xo_obj_mixin_add OBJ_rb6 M_BuffMissile || { log_test 0 1 ; return 1 ; }
     buf_read OBJ_rb6
     check '获得后立即可发射（冷却为 0）' 0 "$BUF_MS"
     xo_obj_call_all OBJ_rb6 buff_tick
-    check '获得后下一 tick 立刻发射 1 枚' 1 "${#ENEMY_BULLETS[@]}"
+    check '获得后下一 tick 立刻发射 1 枚' 1 "$EB_LIVE"
     xo_obj_call_all OBJ_rb6 buff_tick
     buf_read OBJ_rb6
     check '发射后进入下一轮冷却' "$(( BOSS_BUFF_MISSILE_CD - 1 ))" "$BUF_MS"
 
-    local m0=${ENEMY_BULLETS[0]}
-    check '导弹伤害为 1' 1 "$(field "$m0" damage)"
-    check '导弹用加粗亮红（敌方配色）' "${C_BOLD}${C_RED}" "$(field "$m0" color)"
-    check '导弹用单宽实心大圆点' "$BOSS_BUFF_MISSILE_SYM" "$(field "$m0" symbol)"
-    check '导弹初始燃料' "$BOSS_BUFF_MISSILE_FUEL" "$(field "$m0" fuel)"
-    check '导弹比玩家慢（每 step tick 走 1 格）' "$BOSS_BUFF_MISSILE_STEP" "$(field "$m0" step)"
+    local -i m0=-1 _si
+    for (( _si=0 ; _si<EB_N ; _si++ )) ; do
+        (( EB_ALIVE[_si] )) && { m0=$_si ; break ; }
+    done
+    eb_field "$m0" damage ; check '导弹伤害为 1' 1 "$REPLY"
+    local -i _cok=0 _sok=0
+    [[ "${EB_GLYPH[m0]}" == *"${C_BOLD}${C_RED}"* ]] && _cok=1
+    [[ "${EB_GLYPH[m0]}" == *"$BOSS_BUFF_MISSILE_SYM"* ]] && _sok=1
+    check '导弹用加粗亮红（敌方配色）' 1 "$_cok"
+    check '导弹用单宽实心大圆点' 1 "$_sok"
+    eb_field "$m0" fuel ; check '导弹初始燃料' "$BOSS_BUFF_MISSILE_FUEL" "$REPLY"
+    eb_field "$m0" step ; check '导弹比玩家慢（每 step tick 走 1 格）' "$BOSS_BUFF_MISSILE_STEP" "$REPLY"
 
-    # 渲染：位置 + 敌方配色 + 符号
-    local -n _mv=$m0
-    local mx=${_mv["{x}$X"]} my=${_mv["{y}$X"]} msym=${_mv["{symbol}$X"]}
-    local mcol=${_mv["{color}$X"]}
-    unset -n _mv
+    # 渲染：位置 + 配色 + 符号
+    local -i mx=${EB_X[m0]} my=${EB_Y[m0]}
     FRAME_BUF=''
     render
-    local needle=''
-    printf -v needle '\033[%d;%dH%s%s' "$my" "$mx" "$mcol" "$msym"
-    local seen=0
-    [[ "$FRAME_BUF" == *"$needle"* ]] && seen=1
-    check '导弹真的被画到屏幕上' 1 "$seen"
+    local needle=""$ESC"[$my;${mx}H${EB_GLYPH[m0]}" _seen=0
+    [[ "$FRAME_BUF" == *"$needle"* ]] && _seen=1
+    check '导弹真的被画到屏幕上' 1 "$_seen"
 
-    # 先验证一次正常移动：走满一个 step 应当朝玩家方向前进 1 格
-    local -n _mv0=$m0
-    local -i y_before=${_mv0["{y}$X"]}
-    unset -n _mv0
-    local -i k
+    # 移动：走满一个 step 朝玩家方向前进 1 格（玩家在导弹下方）
+    OBJ_player["{x}$X"]=$mx
+    OBJ_player["{y}$X"]=$(( my + 8 ))
+    G_INV=900
+    local -i k y_before=$my
     for (( k=0 ; k<BOSS_BUFF_MISSILE_STEP ; k++ )) ; do
-        xo_call "$m0" move >/dev/null 2>&1
+        ENEMIES=() ; BULLETS=() ; DROPS=() ; WORDS=()
+        _play_game_tick >/dev/null 2>&1
     done
-    local -n _mv1=$m0
-    local -i y_after=${_mv1["{y}$X"]}
-    unset -n _mv1
     check '走满一个 step 后向玩家方向前进 1 格' 1 \
-        "$(( y_after == y_before + 1 ? 1 : 0 ))"
+        "$(( EB_Y[m0] == y_before + 1 ? 1 : 0 ))"
 
-    # 燃料烧完自毁：燃料压到 1，再走满一个 step 就应当自毁（不写死 tick 数，跟着常量变）
-    local -n _m=$m0
-    _m["{fuel}$X"]=1
-    unset -n _m
-    local -i rc=0
+    # 燃料烧完自毁
+    EB_FUEL[m0]=1
     for (( k=0 ; k<BOSS_BUFF_MISSILE_STEP ; k++ )) ; do
-        xo_call "$m0" move >/dev/null 2>&1
-        rc=$?
+        ENEMIES=() ; BULLETS=() ; DROPS=() ; WORDS=()
+        _play_game_tick >/dev/null 2>&1
     done
-    check '燃料烧完后自毁（返回非 0）' 1 "$rc"
-    # 死亡统一走 play_game 的 _enemy_bullet_bury：它必须在解聘前把当前格从帧缓冲擦掉
-    MISSILE_TRAIL_CLEAR=()
-    local -n _mm=$m0
-    local -i _mx=${_mm["{x}$X"]} _my=${_mm["{y}$X"]}
+    check '燃料烧完后自毁' 0 "${EB_ALIVE[m0]}"
+
+    # 死亡出口：槽位死亡时必须把格子从帧缓冲擦掉
+    eb_reset
+    enemy_bullet_spawn EnemyMissile 40 10 "$BOSS_BUFF_MISSILE_FUEL" 99 >/dev/null 2>&1
+    m0=0
     FB_DIRTY=()
-    _enemy_bullet_bury "$m0"
-    local -i _mi=$(( (_my - 1) * FB_W + (_mx - 1) )) _ok=0
+    eb_kill "$m0"
+    local -i _mi=$(( (10 - 1) * FB_W + (40 - 1) )) _ok=0
     if (( ${#FB_DIRTY[@]} >= 1 )) && [[ -z "${FB_CELL[_mi]}" ]] ; then _ok=1 ; fi
     check '死亡出口擦掉了当前格（避免残影）' 1 "$_ok"
 
-    # 我方子弹一碰即毁：跑一次真实 tick，子弹从下方移到导弹同格
-    ENEMY_BULLETS=() ; BULLETS=() ; ENEMIES=()
-    xo_obj_born EnemyMissile 40 10 "$BOSS_BUFF_MISSILE_FUEL" 99 >/dev/null 2>&1
-    local mkill=$REPLY
+    # 我方子弹一碰即毁：跑一次真实 tick
+    eb_reset ; BULLETS=() ; ENEMIES=()
+    enemy_bullet_spawn EnemyMissile 40 10 "$BOSS_BUFF_MISSILE_FUEL" 99 >/dev/null 2>&1
+    m0=0
     xo_obj_born Bullet 40 12 '|' 1 0 -2 >/dev/null 2>&1
     local bhit=$REPLY
-    ENEMY_BULLETS=("$mkill") ; BULLETS=("$bhit")
+    BULLETS=("$bhit")
     _play_game_tick >/dev/null 2>&1
-    local -i m_gone=1 b_gone=1
-    [[ -n "${XO_OBJ_POOL[$mkill]+_}" ]] && m_gone=0
+    local -i m_gone=${EB_ALIVE[m0]:-1} b_gone=1
     [[ -n "${XO_OBJ_POOL[$bhit]+_}" ]] && b_gone=0
-    check '我方子弹能把跟踪导弹打掉' 1 "$m_gone"
+    check '我方子弹能把跟踪导弹打掉' 0 "$m_gone"
     check '打掉时那颗子弹也一起消失' 1 "$b_gone"
-    ENEMY_BULLETS=() ; BULLETS=()
+    eb_reset ; BULLETS=()
 
     printf '\n== I. 30 秒减速 ==\n'
     if [[ -z "${XO_OBJ_POOL[OBJ_player]+_}" ]] ; then
@@ -513,7 +509,7 @@ test_case1 ()
 
     # K2 每 WAVE_STEP_TICKS 走一行（慢速扫描）
     local -i y0=${WV_Y[$s]} i
-    ENEMIES=() ; ENEMY_BULLETS=() ; DROPS=() ; WORDS=()
+    ENEMIES=() ; eb_reset ; DROPS=() ; WORDS=()
     for (( i=0 ; i<WAVE_STEP_TICKS ; i++ )) ; do _play_game_tick >/dev/null 2>&1 ; done
     check '走满一个 step 前进 1 行' "$(( y0 - 1 ))" "${WV_Y[$s]}"
 
@@ -531,7 +527,7 @@ test_case1 ()
     local -i guard=0 hp_after=0
     while (( WV_ON[s] && guard < 200 )) ; do
         ((guard++))
-        ENEMIES=() ; ENEMY_BULLETS=() ; DROPS=() ; WORDS=()
+        ENEMIES=() ; eb_reset ; DROPS=() ; WORDS=()
         _play_game_tick >/dev/null 2>&1
     done
     hp_after=${OBJ_player["{hp}$X"]}
@@ -548,13 +544,13 @@ test_case1 ()
     guard=0
     while (( WV_ON[s] && guard < 200 )) ; do
         ((guard++))
-        ENEMIES=() ; ENEMY_BULLETS=() ; DROPS=() ; WORDS=()
+        ENEMIES=() ; eb_reset ; DROPS=() ; WORDS=()
         _play_game_tick >/dev/null 2>&1
     done
     check '每条波对玩家只结算一次' 17 "${OBJ_player["{hp}$X"]}"
 
     # K4 我方波：对同一个敌人只结算 30 点，且只结算一次
-    ENEMIES=() ; ENEMY_BULLETS=() ; DROPS=() ; WORDS=() ; BULLETS=()
+    ENEMIES=() ; eb_reset ; DROPS=() ; WORDS=() ; BULLETS=()
     xo_obj_born_named OBJ_wv EnemyQ >/dev/null 2>&1 || { log_test 0 1 ; return 1 ; }
     local -n _we=OBJ_wv
     _we["{x}$X"]=$(( ${OBJ_player["{x}$X"]} + 10 ))
@@ -572,7 +568,7 @@ test_case1 ()
         ((guard++))
         # 只保留被测敌人，避免它被自动射击/其他怪干扰
         ENEMIES=(OBJ_wv)
-        ENEMY_BULLETS=() ; DROPS=() ; WORDS=() ; BULLETS=()
+        eb_reset ; DROPS=() ; WORDS=() ; BULLETS=()
         _play_game_tick >/dev/null 2>&1
     done
     local -n _wv=OBJ_wv
@@ -581,7 +577,7 @@ test_case1 ()
     check '我方波：对敌人结算 30 点' 30 "$wv_hp"
 
     for (( i=0 ; i<20 ; i++ )) ; do
-        ENEMIES=(OBJ_wv) ; ENEMY_BULLETS=() ; DROPS=() ; WORDS=() ; BULLETS=()
+        ENEMIES=(OBJ_wv) ; eb_reset ; DROPS=() ; WORDS=() ; BULLETS=()
         _play_game_tick >/dev/null 2>&1
     done
     local -n _wv2=OBJ_wv
@@ -600,7 +596,7 @@ test_case1 ()
     _wd["{y}$X"]=${OBJ_player["{y}$X"]}
     unset -n _wd
     DROPS=("$wdrop")
-    ENEMIES=() ; ENEMY_BULLETS=() ; BULLETS=() ; WORDS=()
+    ENEMIES=() ; eb_reset ; BULLETS=() ; WORDS=()
     _play_game_tick >/dev/null 2>&1
     check '捡到 W 立刻发射我方波' 1 "$WAVE_ON"
     local -i ally_slot=0 i2
@@ -614,10 +610,9 @@ test_case1 ()
     #     我方波：清敌方子弹；Boss 波：清我方子弹
     #     注意 tick 顺序：对象先 move，电网后推进。EnemyBullet 每 4 tick 才动一格，
     #     所以把敌弹放在"移动后仍在 20 行"的位置（cd=0 时本 tick 不动）。
-    ENEMIES=() ; ENEMY_BULLETS=() ; BULLETS=() ; DROPS=() ; WORDS=()
-    xo_obj_born EnemyBullet 30 20 >/dev/null 2>&1
-    local ebul=$REPLY
-    ENEMY_BULLETS=("$ebul")
+    ENEMIES=() ; eb_reset ; BULLETS=() ; DROPS=() ; WORDS=()
+    enemy_bullet_spawn EnemyBullet 30 20 'x' 1 >/dev/null 2>&1
+    local -i ebul=0
     _wave_clear_all
     _wave_start 1 "$PLAYER_WAVE_DAMAGE"
     s=$REPLY
@@ -625,9 +620,9 @@ test_case1 ()
     WV_CD[s]=$(( WAVE_STEP_TICKS - 1 ))
     G_INV=900
     _play_game_tick >/dev/null 2>&1
-    check '我方电网清掉扫到的敌方子弹' '' "${XO_OBJ_POOL[$ebul]+_}"
+    check '我方电网清掉扫到的敌方子弹' 0 "${EB_ALIVE[$ebul]}"
 
-    ENEMIES=() ; ENEMY_BULLETS=() ; BULLETS=() ; DROPS=() ; WORDS=()
+    ENEMIES=() ; eb_reset ; BULLETS=() ; DROPS=() ; WORDS=()
     xo_obj_born Bullet 30 21 '|' 1 0 -1 >/dev/null 2>&1
     local pbul=$REPLY
     BULLETS=("$pbul")
@@ -641,10 +636,9 @@ test_case1 ()
     check 'Boss 电网清掉扫到的我方子弹' '' "${XO_OBJ_POOL[$pbul]+}"
 
     # 波在同一行停留的那几个 tick 里也要清扫（否则会因 3:4 的节奏错拍漏掉子弹）
-    ENEMIES=() ; ENEMY_BULLETS=() ; BULLETS=() ; DROPS=() ; WORDS=()
-    xo_obj_born EnemyBullet 30 15 >/dev/null 2>&1
-    local ebul2=$REPLY
-    ENEMY_BULLETS=("$ebul2")
+    ENEMIES=() ; eb_reset ; BULLETS=() ; DROPS=() ; WORDS=()
+    enemy_bullet_spawn EnemyBullet 30 15 'x' 1 >/dev/null 2>&1
+    local -i ebul2=0
     _wave_clear_all
     _wave_start 1 "$PLAYER_WAVE_DAMAGE"
     s=$REPLY
@@ -652,16 +646,13 @@ test_case1 ()
     WV_CD[s]=0                    # 本 tick 不前进，只停留清扫
     G_INV=900
     _play_game_tick >/dev/null 2>&1
-    check '波停留期间也会清扫子弹' '' "${XO_OBJ_POOL[$ebul2]+}"
+    check '波停留期间也会清扫子弹' 0 "${EB_ALIVE[$ebul2]}"
 
     # 擦肩而过：波 9→8、敌弹 8→9 在同一 tick 内交换行，从未同格，也必须清掉
-    ENEMIES=() ; ENEMY_BULLETS=() ; BULLETS=() ; DROPS=() ; WORDS=()
-    xo_obj_born EnemyBullet 30 8 >/dev/null 2>&1
-    local ebul3=$REPLY
-    local -n _eb3=$ebul3
-    _eb3["{cd}$X"]=3             # 本 tick 会移动一格：8 -> 9
-    unset -n _eb3
-    ENEMY_BULLETS=("$ebul3")
+    ENEMIES=() ; eb_reset ; BULLETS=() ; DROPS=() ; WORDS=()
+    enemy_bullet_spawn EnemyBullet 30 8 'x' 1 >/dev/null 2>&1
+    local -i ebul3=0
+    EB_CD[ebul3]=3               # 本 tick 会移动一格：8 -> 9
     _wave_clear_all
     _wave_start 1 "$PLAYER_WAVE_DAMAGE"
     s=$REPLY
@@ -669,7 +660,7 @@ test_case1 ()
     WV_CD[s]=$(( WAVE_STEP_TICKS - 1 ))
     G_INV=900
     _play_game_tick >/dev/null 2>&1
-    check '与波擦肩而过的敌弹也会被清掉' '' "${XO_OBJ_POOL[$ebul3]+}"
+    check '与波擦肩而过的敌弹也会被清掉' 0 "${EB_ALIVE[$ebul3]}"
     _wave_clear_all ; G_INV=0
 
     # K6 逃生缝：Boss 波随机挖两个 3 格宽的洞，站在洞里不挨打
@@ -699,7 +690,7 @@ test_case1 ()
     local -i guard6=0
     while (( WV_ON[s] && guard6 < 200 )) ; do
         ((guard6++))
-        ENEMIES=() ; ENEMY_BULLETS=() ; DROPS=() ; WORDS=()
+        ENEMIES=() ; eb_reset ; DROPS=() ; WORDS=()
         _play_game_tick >/dev/null 2>&1
     done
     check '站在逃生缝里不受伤' 20 "${OBJ_player["{hp}$X"]}"
@@ -715,7 +706,7 @@ test_case1 ()
     WV_GAP1[s]=0 ; WV_GAP2[s]=40
     while (( WV_ON[s] && guard6 < 200 )) ; do
         ((guard6++))
-        ENEMIES=() ; ENEMY_BULLETS=() ; DROPS=() ; WORDS=()
+        ENEMIES=() ; eb_reset ; DROPS=() ; WORDS=()
         _play_game_tick >/dev/null 2>&1
     done
     check '站在缝外照常受伤' 17 "${OBJ_player["{hp}$X"]}"

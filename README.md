@@ -37,8 +37,9 @@ Requires Bash 5+, a UTF-8 locale, and a 256-color terminal.
 A small but complete terminal shooter. Auto-fire is always on; the fun is in
 positioning, weapon timing, and surviving the Bosses.
 
-- **5 weapon tiers** — `|` Quantum Energy Weapon, `#` star, `@` at, `$` dollar; each tier's
-  actual class is randomized per run from its own library.
+- **5 weapon tiers** — tier 1 is the default `.` shot; tiers 2–5 are the
+  Quantum Energy Weapon `|`, star `#`, at `@` and dollar `$`; each tier's actual
+  class is randomized per run from its own library.
 - **4 selectable planes** — balanced Bee, armored Hornet, fast Eagle-1, and the
   heavy Il-2; each has its own HP, score multiplier, bullet speed, and shield art.
 - **Three Bosses** — the classic `Boss` (HP 180), the spinning `BossSpinner`
@@ -47,11 +48,17 @@ positioning, weapon timing, and surviving the Bosses.
   2.7-second rest. Its spawn chance is about two-thirds that of each other
   Boss. At most one Boss on screen.
 - **Boss invulnerability windows** — after each damage-phase transition, a Boss
-  is invulnerable for 5 seconds and is tinted cyan.
-- **Readable fire** — player bullets use a muted slate-blue palette tone;
-  enemy bullets use warm or bright accent colors, so the two never blend.
-- **Drops and words** — `H` heal, `b` bomb, `m` missile, `L` lane, `S` shield;
-  touching a falling word collects it for score. `m` now launches a missile
+  is invulnerable for 3 seconds and is tinted cyan.
+- **Boss abilities** — every phase transition also grants a Boss a temporary
+  ability: invulnerability, self-heal, homing missiles, a scanning red wave, or
+  a player slow. The active one is shown as a short label on the Boss HP row.
+- **Readable fire** — non-laser player bullets use a muted slate-blue palette
+  tone while lasers shift colour with their power level; enemy bullets use warm
+  or bright accent colors, so the two never blend.
+- **Drops and words** — `H` heal, `b` bomb, `m` missile, `L` lane, `S` shield,
+  `W` net (summons a green scanning wave that sweeps upward, clears enemy
+  bullets and missiles on its row and damages enemies); touching a falling word
+  collects it for score. `m` now launches a missile
   that automatically homes in on the nearest enemy. At five bombs, picking up
   another `b` immediately detonates the pickup without spending stock.
 - **Hit sparks** — short-lived `*` marks show bullet impacts, shield absorbs,
@@ -125,6 +132,9 @@ not cover it.
   works there.
 - The game runs on the alternate screen and restores your previous terminal
   content when it exits.
+- Runtime errors go to `$STRAFE_ERRLOG` (default `/tmp/strafe_bash.err`); on
+  exit the last lines are printed on the normal screen, so a crash is readable
+  after the alternate screen is gone.
 
 Protocols, synchronized output and the alternate-screen rationale are in
 [DEVELOP.md](DEVELOP.md#terminal-and-input-notes).

@@ -38,7 +38,8 @@ Controls:
   mouse                  move the plane; firing stays automatic
 
 Drops:
-  H +3 HP    b bomb    m homing missile    L lane    S shield
+  H +3 HP    b bomb    m homing missile    L lane    S shield    W net
+  W scans upward: clears enemy bullets/missiles on its row, damages enemies
   touching a falling word collects it for score
 
 Weapons:

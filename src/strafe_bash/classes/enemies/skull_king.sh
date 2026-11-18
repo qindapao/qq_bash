@@ -8,7 +8,7 @@ _STRAFE_SKULL_KING_SH=1
 . "$STRAFE_PROJ_DIR/config/globals.sh"
 . "$STRAFE_PROJ_DIR/classes/base_types.sh"
 . "$STRAFE_PROJ_DIR/classes/enemies/boss_base.sh"
-. "$STRAFE_PROJ_DIR/classes/projectiles/boss_bullet.sh"
+. "$STRAFE_PROJ_DIR/classes/projectiles/soa_bullets.sh"
 . "$STRAFE_PROJ_DIR/classes/enemies/boss_pattern.sh"
 
 IFS= read -r -d '' SKULL_ART_0 <<'EOF' || true
@@ -110,10 +110,13 @@ SkullKing_move () {
     local -i w=${self["{w}$X"]} h=${self["{h}$X"]}
 
     # 参考旋刃：更频繁地改目标点，并主动打屏幕左右边缘；
-    # 但仍限制在上半区域，避免把玩家压死。
-    _boss_move_target "$1" 4 "$(( SCREEN_H - 3 - h ))" 2 60 20 3 1
+    # 纵向目标压在上半屏（好打），留 15% 的机会俯冲到底部。
+    local -i _ymin=$GAME_TOP \
+             _ymax=$(( SCREEN_H - 3 - h )) \
+             _yhi=$(( _ymin + (_ymax - _ymin) / 2 ))
+    _boss_move_target "$1" 4 "$_yhi" 2 60 20 3 1 15
 
-    if (( ${#ENEMY_BULLETS[@]} + SKULL_KING_WAVE_BULLETS <= ENEMY_BULLET_LIMIT )) ; then
+    if (( EB_LIVE + SKULL_KING_WAVE_BULLETS <= ENEMY_BULLET_LIMIT )) ; then
         local -i sc=$(( ${self["{shot_cd}$X"]:-0} - 1 ))
         if (( sc <= 0 )) ; then
             local -i x=${self["{x}$X"]} y=${self["{y}$X"]}

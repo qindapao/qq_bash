@@ -33,6 +33,12 @@ main () {
     # 关窗口（HUP）也要还原，否则终端会被留在备用屏幕里
     trap 'term_restore ; exit 129' HUP
 
+    # 错误日志：备用屏幕退出后原画面就没了，stderr 全量落盘，
+    # 退出时由 term_restore 在正常屏幕上回放最后几行。
+    STRAFE_ERRLOG="${STRAFE_ERRLOG:-${TMPDIR:-/tmp}/strafe_bash.err}"
+    : > "$STRAFE_ERRLOG" 2>/dev/null
+    exec 2>>"$STRAFE_ERRLOG"
+
     xo_init || fatal 'xo_init failed'
 
     # 上一次异常退出可能把鼠标上报留在打开状态，进场前先归零一次。

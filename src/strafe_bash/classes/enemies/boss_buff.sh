@@ -251,10 +251,9 @@ M_BuffMissile_buff_tick () {
     self["{ms_cd}$X"]=$BOSS_BUFF_MISSILE_CD
 
     # 场上数量上限：只在真要发射时数一次，不在每 tick 数
-    local -i live=0
-    local eb
-    for eb in "${ENEMY_BULLETS[@]}" ; do
-        [[ -n "${XO_OBJ_POOL[$eb]+_}" && "${XO_OBJ_POOL[$eb]}" == EnemyMissile ]] && (( live++ ))
+    local -i live=0 _mi
+    for (( _mi=0 ; _mi<EB_N ; _mi++ )) ; do
+        (( EB_ALIVE[_mi] && EB_TYPE[_mi] == 2 )) && (( live++ ))
     done
 
     local -i sx=$(( ${self["{x}$X"]} + ${self["{w}$X"]:-9} / 2 ))

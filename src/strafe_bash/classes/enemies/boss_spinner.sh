@@ -7,8 +7,7 @@ _STRAFE_BOSS_SPINNER_SH=1
 . "$STRAFE_PROJ_DIR/config/const.sh"
 . "$STRAFE_PROJ_DIR/config/color.sh"
 . "$STRAFE_PROJ_DIR/config/globals.sh"
-. "$STRAFE_PROJ_DIR/classes/projectiles/enemy_bullet.sh"
-. "$STRAFE_PROJ_DIR/classes/projectiles/boss_bullet.sh"
+. "$STRAFE_PROJ_DIR/classes/projectiles/soa_bullets.sh"
 . "$STRAFE_PROJ_DIR/classes/enemies/boss_pattern.sh"
 
 # 旋刃四阶段 art（来自任务二设计稿）。
@@ -69,7 +68,7 @@ _boss_spinner_ring () {
     local -i _cx=$(( ${_bs["{x}$X"]} + ${_bs["{w}$X"]} / 2 )) \
              _cy=$(( ${_bs["{y}$X"]} + ${_bs["{h}$X"]} / 2 )) \
              _spin=${_bs["{spin}$X"]:-0}
-    if (( ${#ENEMY_BULLETS[@]} + 6 > BOSS_BULLET_LIMIT )) ; then
+    if (( EB_LIVE + 6 > BOSS_BULLET_LIMIT )) ; then
         return 0
     fi
     local -a _dx=(0 1 1 1 0 -1 -1 -1) \
@@ -100,7 +99,7 @@ _boss_spinner_aim () {
     else
         if (( _dx < 0 )) ; then _bi=6 ; else _bi=2 ; fi
     fi
-    if (( ${#ENEMY_BULLETS[@]} + 3 > BOSS_BULLET_LIMIT )) ; then
+    if (( EB_LIVE + 3 > BOSS_BULLET_LIMIT )) ; then
         return 0
     fi
     local -a _dxs=(0 1 1 1 0 -1 -1 -1)
@@ -116,10 +115,12 @@ BossSpinner_move () {
     _boss_update_phase "$1"
     local -n self=$1
 
-    # 3 tick 一格、1% 中途变向、目标打屏幕左右边缘：
-    # 速度比之前慢，但每次目标更远，活动范围覆盖整块场地。
-    local -i _yhi=$(( SCREEN_H - 3 - ${self["{h}$X"]} ))
-    _boss_move_target "$1" 3 "$_yhi" 1 80 21 3 1
+    # 3 tick 一格、1% 中途变向、左右边缘巡逻；
+    # 纵向目标压在上半屏（好打），留 12% 的俯冲机会冲到底部。
+    local -i _ymin=$GAME_TOP \
+             _ymax=$(( SCREEN_H - 3 - ${self["{h}$X"]} )) \
+             _yhi=$(( _ymin + (_ymax - _ymin) / 2 ))
+    _boss_move_target "$1" 3 "$_yhi" 1 80 21 3 1 12
 
     local -i _phase=${self["{phase}$X"]}
     local -i _ring_every=26 _aim_every=40
