@@ -15,9 +15,11 @@ INTRO_ACTION=''
 INTRO_PLANE=1
 INTRO_PLANE_CLS=PlaneBee
 
+# 开场页所有绘制都进 FRAME_BUF，最后由 frame_flush 一次性同步输出。
+# 不要在这里直接 printf：逐条直写会让画面一块一块地出现（选飞机时就是一次白闪）。
 _intro_text () {
     local row=$1 col=$2 color=$3 text=$4
-    printf '%s[%d;%dH%s%s%s' "$ESC" "$row" "$col" "$color" "$text" "$C_RESET"
+    FRAME_BUF+="$ESC[${row};${col}H${color}${text}$C_RESET"
 }
 
 _intro_art () {
@@ -26,7 +28,7 @@ _intro_art () {
     while [[ -n "$rest" ]] ; do
         line=${rest%%$'\n'*}
         if [[ "$rest" == *$'\n'* ]] ; then rest=${rest#*$'\n'} ; else rest='' ; fi
-        printf '%s[%d;%dH%s%s%s%s' "$ESC" "$((y + r))" "$x" "$color" "$C_BOLD" "$line" "$C_RESET"
+        FRAME_BUF+="$ESC[$((y + r));${x}H${color}${C_BOLD}${line}$C_RESET"
         ((r++))
     done
 }
@@ -56,21 +58,29 @@ _intro_plane_card () {
 
     if (( selected )) ; then
         _intro_text 5 "$x" "$C_REVERSE" "$_iname"
-        _intro_text 10 "$center" "$C_GREEN" '^'
     else
         _intro_text 5 "$x" "$C_CYAN" "$_iname"
     fi
     _intro_art "$ax" 6 "$C_BLUE" "$_iart"
     _intro_text 8 "$x" "$C_YELLOW" "$_istat"
     _intro_text 9 "$x" "$C_RESET" "$_idesc"
+    # 未选中的卡片也要写第 10 行：原地重绘时把上一张卡片留下的 '^' 擦掉
+    if (( selected )) ; then
+        _intro_text 10 "$center" "$C_GREEN" '^'
+    else
+        _intro_text 10 "$center" "$C_RESET" ' '
+    fi
 }
 
 _intro_draw () {
     local has_save=$1 selected=$2
-    screen_clear
     FRAME_BUF=""
+    # 只在进入开场页的第一次绘制时清屏：之后原地重绘，避免每按一次键闪一下
+    if (( _INTRO_CLEARED == 0 )) ; then
+        FRAME_BUF+="$ESC[2J$ESC[H"
+        _INTRO_CLEARED=1
+    fi
     draw_frame
-    frame_flush
 
     local _title='STRAFE_BASH'
     local -a _tc=("$C_CYAN" "$C_BLUE" "$C_CYAN" "$C_MAGENTA" "$C_PURPLE" "$C_MAGENTA" "$C_YELLOW" "$C_RED" "$C_ORANGE" "$C_YELLOW" "$C_CYAN")
@@ -78,7 +88,7 @@ _intro_draw () {
     local -i _tx=$(( (SCREEN_W - _tw) / 2 + 1 ))
     local -i i
     for ((i=0; i<${#_title}; i++)) ; do
-        printf '%s[2;%dH%s%s%s' "$ESC" "$((_tx + i * 2))" "${_tc[i]}" "${_title:i:1}" "$C_RESET"
+        FRAME_BUF+="$ESC[2;$((_tx + i * 2))H${_tc[i]}${_title:i:1}$C_RESET"
     done
     _intro_center 3 "$C_YELLOW" 'A pure Bash terminal bullet-hell'
 
@@ -122,6 +132,7 @@ _intro_draw () {
     else
         _intro_center 23 "$C_GREEN" '1-4 SELECT   ENTER START   Q QUIT'
     fi
+    frame_flush
 }
 
 intro_screen () {
@@ -129,6 +140,7 @@ intro_screen () {
     [[ -f "$STRAFE_SAVE_FILE" ]] && _has_save=1
     INTRO_PLANE=1
     INTRO_PLANE_CLS=PlaneBee
+    _INTRO_CLEARED=0
 
     local key
     while : ; do
