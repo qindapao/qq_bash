@@ -1,5 +1,7 @@
 **/*.swp
 **/*.temp
+.strafe_save
+test_report_*.txt
 
 .bench/
 src/bashlib/array.sh
