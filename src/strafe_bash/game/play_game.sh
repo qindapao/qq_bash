@@ -505,22 +505,39 @@ _play_game_tick () {
     # 单格弹丸（SoA）：一遍循环完成 移动 + 命中 + 追踪导弹被我方子弹打掉。
     # 没有对象/绑定/方法调用，每发只花数组读写。
     local -i _ei _ex _ey _enx _eny _efi _of _nf _etype _ecd _estep _efuel _eticket _own_old
+
+    # ---- 5.0 敌弹命中玩家：用帧缓冲反查命中框里的格子 ----
+    # FB_OWNER 里敌弹存的是整数 ticket（槽位+1），玩家子弹存的是对象句柄（OBJ_*）。
+    # 所以"这一格的 owner 是整数"就等于"这一格上有一发敌弹"，不必逐弹比较坐标。
+    if (( _HL_ON )) ; then
+        local -i _hy _hx _hi _ho _hslot _hy1 _hy2 _hx1 _hx2
+        if (( _HL_SH )) ; then
+            _hy1=$_HL_Y1 _hy2=$_HL_Y2 _hx1=$_HL_X1 _hx2=$_HL_X2
+        else
+            _hy1=$_HL_Y _hy2=$_HL_Y _hx1=$_HL_X _hx2=$_HL_X
+        fi
+        for (( _hy=_hy1 ; _hy<=_hy2 ; _hy++ )) ; do
+            for (( _hx=_hx1 ; _hx<=_hx2 ; _hx++ )) ; do
+                _hi=$(( (_hy - 1) * FB_W + (_hx - 1) ))
+                _ho=${FB_OWNER[_hi]:-0}
+                [[ "$_ho" == [0-9]* ]] || continue
+                (( _ho > 0 )) || continue
+                _hslot=$(( _ho - 1 ))
+                (( EB_ALIVE[_hslot] )) || continue
+                if (( _HL_SH )) ; then
+                    _hit_fx_add "$_hy" "$_hx" '*' "$C_GREEN"
+                else
+                    _hit_fx_add "$_hy" "$_hx" '*' "$C_RED"
+                    G_PLAYER_DMG_PENDING=$(( G_PLAYER_DMG_PENDING + EB_DMG[_hslot] ))
+                fi
+                eb_kill "$_hslot"
+            done
+        done
+    fi
+
     for (( _ei=0 ; _ei<EB_N ; _ei++ )) ; do
         (( EB_ALIVE[_ei] )) || continue
         _ex=${EB_X[_ei]} _ey=${EB_Y[_ei]}
-        # 命中玩家（玩家/护盾几何每 tick 预算在 _HL_*）
-        if (( _HL_ON )) \
-           && (( _HL_SH ? (_ey >= _HL_Y1 && _ey <= _HL_Y2) : (_ey == _HL_Y) )) \
-           && (( _HL_SH ? (_ex >= _HL_X1 && _ex <= _HL_X2) : (_ex == _HL_X) )) ; then
-            if (( _HL_SH )) ; then
-                _hit_fx_add "$_ey" "$_ex" '*' "$C_GREEN"
-            else
-                _hit_fx_add "$_ey" "$_ex" '*' "$C_RED"
-                G_PLAYER_DMG_PENDING=$(( G_PLAYER_DMG_PENDING + EB_DMG[_ei] ))
-            fi
-            eb_kill "$_ei"
-            continue
-        fi
         _etype=${EB_TYPE[_ei]}
         # 追踪导弹：本 tick 不管动没动，都要检查是否被我方子弹打掉
         if (( _etype == 2 )) ; then
@@ -546,7 +563,7 @@ _play_game_tick () {
         fi
         case "$_etype" in
         0)
-            _ecd=$(( ${EB_CD[_ei]} + 1 ))
+            _ecd=$(( EB_CD[_ei] + 1 ))
             if (( _ecd < 4 )) ; then EB_CD[_ei]=$_ecd ; continue ; fi
             EB_CD[_ei]=0
             _enx=$_ex _eny=$(( _ey + 1 ))
@@ -554,18 +571,18 @@ _play_game_tick () {
         1)
             _estep=${EB_STEP[_ei]}
             (( _estep < 1 )) && _estep=1
-            _ecd=$(( ${EB_CD[_ei]} + 1 ))
+            _ecd=$(( EB_CD[_ei] + 1 ))
             if (( _ecd < _estep )) ; then EB_CD[_ei]=$_ecd ; continue ; fi
             EB_CD[_ei]=0
-            _enx=$(( _ex + ${EB_VX[_ei]} )) _eny=$(( _ey + ${EB_VY[_ei]} ))
+            _enx=$(( _ex + EB_VX[_ei] )) _eny=$(( _ey + EB_VY[_ei] ))
             ;;
         2)
             _estep=${EB_STEP[_ei]}
             (( _estep < 1 )) && _estep=1
-            _ecd=$(( ${EB_CD[_ei]} + 1 ))
+            _ecd=$(( EB_CD[_ei] + 1 ))
             if (( _ecd < _estep )) ; then EB_CD[_ei]=$_ecd ; continue ; fi
             EB_CD[_ei]=0
-            _efuel=$(( ${EB_FUEL[_ei]} - 1 ))
+            _efuel=$(( EB_FUEL[_ei] - 1 ))
             if (( _efuel <= 0 )) ; then eb_kill "$_ei" ; continue ; fi
             EB_FUEL[_ei]=$_efuel
             _enx=$_ex _eny=$_ey
