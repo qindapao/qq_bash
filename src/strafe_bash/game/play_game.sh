@@ -112,6 +112,35 @@ _mouse_apply () {
 }
 
 # ============================================================================
+# _eb_step_straight — 直下敌弹（type 0）移动一格
+# 只给"相位桶"循环调用：清旧格、写新格、出界即杀。
+# ============================================================================
+_eb_step_straight () {
+    local -i _ei=$1
+    local -i _ex=${EB_X[_ei]} _ey=${EB_Y[_ei]}
+    local -i _enx=$_ex _eny=$(( _ey + 1 ))
+    local -i _of=$(( (_ey - 1) * FB_W + (_ex - 1) )) \
+             _eticket=$(( _ei + 1 )) _own_old=0
+    (( FB_OWNER[_of] == _eticket )) && _own_old=1
+    if (( _enx < 2 || _enx > SCREEN_W - 2 || _eny < GAME_TOP || _eny >= SCREEN_H - 1 )) ; then
+        if (( _own_old )) ; then
+            FB_CELL[_of]='' FB_OWNER[_of]=0 FB_DIRTY+=("$_of")
+        fi
+        eb_kill "$_ei"
+        return 0
+    fi
+    EB_X[_ei]=$_enx EB_Y[_ei]=$_eny
+    local -i _nf=$(( (_eny - 1) * FB_W + (_enx - 1) ))
+    if (( _own_old )) ; then
+        FB_CELL[_of]='' FB_OWNER[_of]=0 FB_CELL[_nf]=${EB_GLYPH[_ei]} \
+        FB_OWNER[_nf]=$_eticket FB_DIRTY+=("$_of" "$_nf")
+    else
+        FB_CELL[_nf]=${EB_GLYPH[_ei]} FB_OWNER[_nf]=$_eticket FB_DIRTY+=("$_nf")
+    fi
+    return 0
+}
+
+# ============================================================================
 # _hit_fx_add — 命中火花（短命，不创建 xo 对象）
 # ttl 可选：普通命中用默认 3 tick，回血那种需要看得见的动画会传更大值
 # ============================================================================
@@ -540,8 +569,34 @@ _play_game_tick () {
         done
     fi
 
-    for (( _ei=0 ; _ei<EB_N ; _ei++ )) ; do
+    # ---- 直下敌弹（type 0）：按出生相位分 4 桶，本 tick 只处理该动的那一桶 ----
+    # 相位 = 出生时的 G_RUN_TICKS & 3：每 4 tick 动一格，所以 T 出生的弹在
+    # T+4、T+8… 动，相位不变。处理时用 EB_SEEN 防"槽位复用后同桶出现两次"，
+    # 并把死槽/改过类型的槽顺手压掉，桶长度不会无限增长。
+    local -i _bk=$(( G_RUN_TICKS & 3 )) _bi _bn _bslot
+    local -n _bq="EB_BK$_bk"
+    local -a _bkeep=()
+    _bn=${#_bq[@]}
+    for (( _bi=0 ; _bi<_bn ; _bi++ )) ; do
+        _bslot=${_bq[_bi]}
+        (( EB_ALIVE[_bslot] )) || continue
+        (( EB_SEEN[_bslot] == G_RUN_TICKS )) && continue
+        (( EB_TYPE[_bslot] == 0 && EB_PHASE[_bslot] == _bk )) || continue
+        EB_SEEN[_bslot]=$G_RUN_TICKS
+        _eb_step_straight "$_bslot"
+        (( EB_ALIVE[_bslot] )) && _bkeep+=("$_bslot")
+    done
+    _bq=("${_bkeep[@]}")
+
+    # ---- 矢量/追踪弹（type 1/2）：数量少，仍按各自的 EB_CD 逐发推进 ----
+    local -a _vkeep=()
+    local -i _vi _vn=${#EB_VAR[@]}
+    for (( _vi=0 ; _vi<_vn ; _vi++ )) ; do
+        _ei=${EB_VAR[_vi]}
         (( EB_ALIVE[_ei] )) || continue
+        (( EB_TYPE[_ei] )) || continue
+        (( EB_SEEN[_ei] == G_RUN_TICKS )) && continue
+        EB_SEEN[_ei]=$G_RUN_TICKS
         _ex=${EB_X[_ei]} _ey=${EB_Y[_ei]}
         _etype=${EB_TYPE[_ei]}
         # 追踪导弹：本 tick 不管动没动，都要检查是否被我方子弹打掉
@@ -567,17 +622,11 @@ _play_game_tick () {
             fi
         fi
         case "$_etype" in
-        0)
-            _ecd=$(( EB_CD[_ei] + 1 ))
-            if (( _ecd < 4 )) ; then EB_CD[_ei]=$_ecd ; continue ; fi
-            EB_CD[_ei]=0
-            _enx=$_ex _eny=$(( _ey + 1 ))
-            ;;
         1)
             _estep=${EB_STEP[_ei]}
             (( _estep < 1 )) && _estep=1
             _ecd=$(( EB_CD[_ei] + 1 ))
-            if (( _ecd < _estep )) ; then EB_CD[_ei]=$_ecd ; continue ; fi
+            if (( _ecd < _estep )) ; then EB_CD[_ei]=$_ecd ; _vkeep+=("$_ei") ; continue ; fi
             EB_CD[_ei]=0
             _enx=$(( _ex + EB_VX[_ei] )) _eny=$(( _ey + EB_VY[_ei] ))
             ;;
@@ -585,7 +634,7 @@ _play_game_tick () {
             _estep=${EB_STEP[_ei]}
             (( _estep < 1 )) && _estep=1
             _ecd=$(( EB_CD[_ei] + 1 ))
-            if (( _ecd < _estep )) ; then EB_CD[_ei]=$_ecd ; continue ; fi
+            if (( _ecd < _estep )) ; then EB_CD[_ei]=$_ecd ; _vkeep+=("$_ei") ; continue ; fi
             EB_CD[_ei]=0
             _efuel=$(( EB_FUEL[_ei] - 1 ))
             if (( _efuel <= 0 )) ; then eb_kill "$_ei" ; continue ; fi
@@ -645,7 +694,9 @@ _play_game_tick () {
                 continue
             fi
         fi
+        _vkeep+=("$_ei")
     done
+    EB_VAR=("${_vkeep[@]}")
 
     local -a alive_d=() alive_w=() alive_e=()
     for e in "${ENEMIES[@]}" ; do

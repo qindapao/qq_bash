@@ -652,7 +652,7 @@ test_case1 ()
     ENEMIES=() ; eb_reset ; BULLETS=() ; DROPS=() ; WORDS=()
     enemy_bullet_spawn EnemyBullet 30 8 'x' 1 >/dev/null 2>&1
     local -i ebul3=0
-    EB_CD[ebul3]=3               # 本 tick 会移动一格：8 -> 9
+    eb_force_move_now "$ebul3"    # 本 tick 会移动一格：8 -> 9
     _wave_clear_all
     _wave_start 1 "$PLAYER_WAVE_DAMAGE"
     s=$REPLY

@@ -22,10 +22,16 @@ declare -ga  EB_GLYPH=() EB_TAG=()
 declare -gai EB_N=0 EB_LIVE=0
 declare -gai EB_FREE=()
 
+# 类型 0 的"相位桶"：出生时 G_RUN_TICKS & 3 决定它每 4 tick 里哪一 tick 移动，
+# 桶里只放槽号；同 tick 的处理由 play_game 负责。类型 1/2 进 EB_VAR 小表。
+declare -gai EB_PHASE=() EB_SEEN=()
+declare -ga  EB_BK0=() EB_BK1=() EB_BK2=() EB_BK3=() EB_VAR=()
+
 # 新局/读档：全部清空
 eb_reset () {
     EB_ALIVE=() EB_TYPE=() EB_X=() EB_Y=() EB_VX=() EB_VY=() \
-    EB_STEP=() EB_CD=() EB_DMG=() EB_FUEL=() EB_GLYPH=() EB_TAG=() EB_FREE=()
+    EB_STEP=() EB_CD=() EB_DMG=() EB_FUEL=() EB_GLYPH=() EB_TAG=() EB_FREE=() \
+    EB_PHASE=() EB_SEEN=() EB_BK0=() EB_BK1=() EB_BK2=() EB_BK3=() EB_VAR=()
     EB_N=0 EB_LIVE=0
     return 0
 }
@@ -44,7 +50,15 @@ eb_add () {
     fi
     EB_ALIVE[i]=1 EB_TYPE[i]=$1 EB_X[i]=$2 EB_Y[i]=$3 EB_VX[i]=$4 EB_VY[i]=$5 \
     EB_STEP[i]=$6 EB_CD[i]=$7 EB_DMG[i]=$8 EB_GLYPH[i]=$9 EB_FUEL[i]=${10:-0} \
-    EB_TAG[i]="E$i"
+    EB_TAG[i]="E$i" EB_SEEN[i]=-1
+    if (( $1 == 0 )) ; then
+        local -i _ph=$(( G_RUN_TICKS & 3 ))
+        EB_PHASE[i]=$_ph
+        local -n _bkt="EB_BK$_ph"
+        _bkt+=("$i")
+    else
+        EB_VAR+=("$i")
+    fi
     (( EB_LIVE++ ))
     local -i _fi=$(( ($3 - 1) * FB_W + ($2 - 1) ))
     # owner 存 1-based 槽位号（整数比较比字符串快）；空 owner=0 不会与任何槽冲突
@@ -103,4 +117,18 @@ eb_field () {
     alive) REPLY=${EB_ALIVE[$1]} ;;
     *) REPLY='' ;;
     esac
+}
+
+# 测试/工具用：让一发直下弹（type 0）在下一个 tick 移动。
+# 正常节奏由出生相位决定；这个入口只给"必须在本 tick 看到它动"的用例使用。
+# 注意相位取 G_RUN_TICKS+1：本函数在 tick 之间调用，下一个 tick 的桶号才是它。
+eb_force_move_now () {
+    local -i i=$1
+    (( EB_ALIVE[i] )) || return 1
+    (( EB_TYPE[i] == 0 )) || return 1
+    local -i _ph=$(( (G_RUN_TICKS + 1) & 3 ))
+    EB_PHASE[i]=$_ph
+    local -n _bkt="EB_BK$_ph"
+    _bkt+=("$i")
+    return 0
 }
