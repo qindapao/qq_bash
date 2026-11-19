@@ -4,36 +4,40 @@ _STRAFE_BULLETTYPE_SH=1
 . "$STRAFE_LIB_HOME/xo.sh"
 
 # 当前继承树，一旦改变继承层级需要更新这个注释
+# 所有类都是 Base 的后代：Base 及其子类默认扁平（FLT=1），BaseX 是唯一的树类（FLT=0）。
 # CLASS_INHER_TREE(1) -> 
 #     {Base}
-#         {BulletType} => null\u001c
+#         {BaseX} => null\u001c
+#         {BulletType}
+#             {BulletTypeAt} => null\u001c
 #             {BulletTypeDefault} => null\u001c
+#             {BulletTypeDollar} => null\u001c
 #             {BulletTypeLaser} => null\u001c
 #             {BulletTypeStar} => null\u001c
-#             {BulletTypeAt} => null\u001c
-#             {BulletTypeDollar} => null\u001c
 #         {Entity}
-#             {BossBase} => null\u001c
+#             {BossBase}
 #                 {Boss} => null\u001c
 #                 {BossSpinner} => null\u001c
 #                 {SkullKing} => null\u001c
-#             {Missile} => null\u001c
 #             {Bullet} => null\u001c
-#             {EnemyBullet} => null\u001c
-#                 {BossBullet} => null\u001c
+#             {Drop} => null\u001c
 #             {Enemy}
-#                 {EnemyQ} => null\u001c
-#                 {EnemyV} => null\u001c
 #                 {EnemyB} => null\u001c
 #                 {EnemyM} => null\u001c
-#             {Drop} => null\u001c
+#                 {EnemyQ} => null\u001c
+#                 {EnemyV} => null\u001c
+#             {Missile} => null\u001c
 #             {Plane}
 #                 {PlaneBee} => null\u001c
-#                 {PlaneHornet} => null\u001c
 #                 {PlaneEagle} => null\u001c
+#                 {PlaneHornet} => null\u001c
 #                 {PlaneIl2} => null\u001c
 #             {Word} => null\u001c
-#     max_index => 31
+#     max_index => 29
+#
+# Mixin（只列名字，细节看各自文件）：
+#   类级 {MIX}：     M_Blink  M_LongBlink  M_Ram
+#   对象级 {OBJMIX}：M_BuffHeal  M_BuffInvuln  M_BuffMissile  M_BuffSlow  M_BuffWave
 
 # Entity 抽象基类：所有游戏实体的公共属性
 readonly EntityStaticTemplate='
