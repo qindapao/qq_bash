@@ -96,18 +96,18 @@ SkullKing_born () {
     _boss_set_arts "$1" "$SKULL_ART_0" "$SKULL_ART_1" "$SKULL_ART_2" "$SKULL_ART_3"
     BossBase_born "$1"
     local -n _self=$1
-    _self["{shot_cd}$X"]=$SKULL_KING_FIRST_SHOT \
-    _self["{ring_left}$X"]=$SKULL_KING_BURST_RINGS \
-    _self["{pat_cd}$X"]=120 \
-    _self["{pat_step}$X"]=-1 \
-    _self["{pat_mode}$X"]=0
+    _self[shot_cd]=$SKULL_KING_FIRST_SHOT \
+    _self[ring_left]=$SKULL_KING_BURST_RINGS \
+    _self[pat_cd]=120 \
+    _self[pat_step]=-1 \
+    _self[pat_mode]=0
 }
 
 # 8 方向 O/X：每波 8 发，连发 4 波，然后休息约 3 秒。
 SkullKing_move () {
     _boss_update_phase "$1"
     local -n self=$1
-    local -i w=${self["{w}$X"]} h=${self["{h}$X"]}
+    local -i w=${self[w]} h=${self[h]}
 
     # 参考旋刃：更频繁地改目标点，并主动打屏幕左右边缘；
     # 纵向目标压在上半屏（好打），留 15% 的机会俯冲到底部。
@@ -117,9 +117,9 @@ SkullKing_move () {
     _boss_move_target "$1" 4 "$_yhi" 2 60 20 3 1 15
 
     if (( EB_LIVE + SKULL_KING_WAVE_BULLETS <= ENEMY_BULLET_LIMIT )) ; then
-        local -i sc=$(( ${self["{shot_cd}$X"]:-0} - 1 ))
+        local -i sc=$(( ${self[shot_cd]:-0} - 1 ))
         if (( sc <= 0 )) ; then
-            local -i x=${self["{x}$X"]} y=${self["{y}$X"]}
+            local -i x=${self[x]} y=${self[y]}
             local -i cx=$(( x + w / 2 )) cy=$(( y + h / 2 )) _i
             local _sym
 
@@ -150,39 +150,39 @@ SkullKing_move () {
                 fi
             done
 
-            local -i rl=$(( ${self["{ring_left}$X"]:-1} - 1 ))
+            local -i rl=$(( ${self[ring_left]:-1} - 1 ))
             if (( rl > 0 )) ; then
-                self["{shot_cd}$X"]=$SKULL_KING_RING_GAP \
-                self["{ring_left}$X"]=$rl
+                self[shot_cd]=$SKULL_KING_RING_GAP \
+                self[ring_left]=$rl
             else
-                self["{shot_cd}$X"]=$SKULL_KING_REST \
-                self["{ring_left}$X"]=$SKULL_KING_BURST_RINGS
+                self[shot_cd]=$SKULL_KING_REST \
+                self[ring_left]=$SKULL_KING_BURST_RINGS
             fi
         else
-            self["{shot_cd}$X"]=$sc
+            self[shot_cd]=$sc
         fi
     fi
 
-    local -i _ps=${self["{pat_step}$X"]:--1}
+    local -i _ps=${self[pat_step]:--1}
     if (( _ps >= 0 )) ; then
-        _boss_pattern_spawn_step "$1" "$_ps" "${self["{pat_mode}$X"]:-0}" 4
+        _boss_pattern_spawn_step "$1" "$_ps" "${self[pat_mode]:-0}" 4
         ((_ps++))
         if (( _ps >= ${#BOSS_AIM_PATTERN_STEPS[@]} )) ; then
-            self["{pat_step}$X"]=-1 \
-            self["{pat_cd}$X"]=240
+            self[pat_step]=-1 \
+            self[pat_cd]=240
         else
-            self["{pat_step}$X"]=$_ps
+            self[pat_step]=$_ps
         fi
     else
-        local -i _pc=$(( ${self["{pat_cd}$X"]:-0} - 1 ))
+        local -i _pc=$(( ${self[pat_cd]:-0} - 1 ))
         if (( _pc <= 0 )) ; then
             _boss_pattern_mode "$1"
-            self["{pat_mode}$X"]=$REPLY
+            self[pat_mode]=$REPLY
             _boss_pattern_spawn_step "$1" 0 "$REPLY" 4
-            self["{pat_step}$X"]=1 \
-            self["{pat_cd}$X"]=240
+            self[pat_step]=1 \
+            self[pat_cd]=240
         else
-            self["{pat_cd}$X"]=$_pc
+            self[pat_cd]=$_pc
         fi
     fi
     return 0

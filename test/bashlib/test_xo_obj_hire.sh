@@ -32,8 +32,8 @@ RETIRE_LOG=()
 HireObj_retire () { RETIRE_LOG+=("$1") ; }
 HireObj_born () {
     local -n _s=$1
-    _s["{a}$X"]=$2
-    _s["{b}$X"]=${3:-7}
+    _s[a]=$2
+    _s[b]=${3:-7}
 }
 
 # 没声明 ResetFields 的类：走全字段重置的安全路径
@@ -45,7 +45,7 @@ PlainObjStaticTemplate='
         {OBJMIX} => 
         {v} => 5
 '
-PlainObj_born () { local -n _s=$1 ; _s["{v}$X"]=${2:-5} ; }
+PlainObj_born () { local -n _s=$1 ; _s[v]=${2:-5} ; }
 
 # ResetFields 写了不存在的字段：预处理阶段必须报错
 BadObjStaticTemplate='
@@ -105,7 +105,7 @@ test_case2 ()
     reset_market
     xo_obj_hire HireObj 1 ; local h=$REPLY
     local -n o=$h
-    o["{hits}$X"]=9 ; o["{a}$X"]=42
+    o[hits]=9 ; o[a]=42
     unset -n o
 
     xo_obj_fire "$h" || { log_test 0 2 ; return 1 ; }
@@ -117,9 +117,9 @@ test_case2 ()
     declare -p "$h" >/dev/null 2>&1 || ok=0          # 变量还在（肉体保留）
 
     local -n o2=$h
-    [[ "${o2["{hits}$X"]}" == 0 ]] || ok=0           # 易变字段回默认
-    [[ "${o2["{a}$X"]}" == 0 ]] || ok=0
-    [[ "${o2["{b}$X"]}" == 7 ]] || ok=0              # 非易变字段保持出生值
+    [[ "${o2[hits]}" == 0 ]] || ok=0           # 易变字段回默认
+    [[ "${o2[a]}" == 0 ]] || ok=0
+    [[ "${o2[b]}" == 7 ]] || ok=0              # 非易变字段保持出生值
     unset -n o2
 
     if (( ok )) ; then log_test 1 2 ; else log_test 0 2 ; fi
@@ -137,9 +137,9 @@ test_case3 ()
     (( ${#RETIRE_LOG[@]} == 1 )) || ok=0             # hire 不调 retire
 
     local -n o=$h
-    [[ "${o["{a}$X"]}" == 5 ]] || ok=0               # born 钩子按参数重设
-    [[ "${o["{b}$X"]}" == 6 ]] || ok=0
-    [[ "${o["{hits}$X"]}" == 0 ]] || ok=0
+    [[ "${o[a]}" == 5 ]] || ok=0               # born 钩子按参数重设
+    [[ "${o[b]}" == 6 ]] || ok=0
+    [[ "${o[hits]}" == 0 ]] || ok=0
     unset -n o
 
     if (( ok )) ; then log_test 1 3 ; else log_test 0 3 ; fi
@@ -217,7 +217,7 @@ test_case7 ()
     xo_obj_fire "$h" || { log_test 0 7 ; return 1 ; }
     local -i ok=1
     local -n o=$h
-    [[ "${o["{v}$X"]}" == 5 ]] || ok=0        # 回到模板默认值
+    [[ "${o[v]}" == 5 ]] || ok=0        # 回到模板默认值
     unset -n o
     if (( ok )) ; then log_test 1 7 ; else log_test 0 7 ; fi
 }
@@ -255,14 +255,14 @@ test_case10 ()
 {
     reset_market
     xo_obj_hire HireObj 3 ; local h=$REPLY
-    local -n o=$h ; o["{a}$X"]=99 ; unset -n o
+    local -n o=$h ; o[a]=99 ; unset -n o
     xo_obj_fire "$h" || { log_test 0 10 ; return 1 ; }
 
     local -i ok=1
     declare -p "$h" >/dev/null 2>&1 || ok=0     # 变量仍在
     local -n o2=$h
-    [[ "${o2["{a}$X"]}" == 0 ]] || ok=0         # 不是空，是模板默认值
-    [[ -n "${o2["{a}$X"]}" ]] || ok=0
+    [[ "${o2[a]}" == 0 ]] || ok=0         # 不是空，是模板默认值
+    [[ -n "${o2[a]}" ]] || ok=0
     unset -n o2
     if (( ok )) ; then log_test 1 10 ; else log_test 0 10 ; fi
 }

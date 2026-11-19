@@ -70,40 +70,40 @@ readonly BossBaseStaticTemplate='
     '
 BossBase_born () {
     local -n self=$1
-    local -i _w=${self["{w}$X"]:-13}
+    local -i _w=${self[w]:-13}
     local -i _bx=$(( (SCREEN_W - _w) / 2 ))
-    self["{x}$X"]=$_bx self["{y}$X"]=$GAME_TOP self["{cd}$X"]=0 \
-    self["{phase}$X"]=0 self["{art}$X"]=${self["{art0}$X"]} \
-    self["{tx}$X"]=$_bx self["{ty}$X"]=$GAME_TOP self["{ttl}$X"]=0 \
-    self["{inv_cd}$X"]=0
+    self[x]=$_bx self[y]=$GAME_TOP self[cd]=0 \
+    self[phase]=0 self[art]=${self[art0]} \
+    self[tx]=$_bx self[ty]=$GAME_TOP self[ttl]=0 \
+    self[inv_cd]=0
     # 动态增益：-1 表示还没发过，所以第一次 tick 会把 phase 0 也算作一次发放
-    self["{buff_phase}$X"]=-1 self["{buff_str}$X"]='' \
-    self["{bi_cd}$X"]=$BOSS_BUFF_INV_GAP
+    self[buff_phase]=-1 self[buff_str]='' \
+    self[bi_cd]=$BOSS_BUFF_INV_GAP
 }
 
 # 具体 Boss 在 born 时把四段 art 写进自己的类字段。
 _boss_set_arts () {
     local -n _ba=$1
-    _ba["{art0}$X"]=$2 \
-    _ba["{art1}$X"]=$3 \
-    _ba["{art2}$X"]=$4 \
-    _ba["{art3}$X"]=$5
+    _ba[art0]=$2 \
+    _ba[art1]=$3 \
+    _ba[art2]=$4 \
+    _ba[art3]=$5
 }
 
 # 按 hp 百分比刷新阶段，阶段 art 从 {art0..3} 读取。
 # 具体 Boss 只改 {pcut1..3} 即可，不再在 move 里写死 art 变量。
 _boss_update_phase () {
     local -n _bs=$1
-    local -i _hp=${_bs["{hp}$X"]:-0} \
-             _maxhp=${_bs["{maxhp}$X"]:-0}
+    local -i _hp=${_bs[hp]:-0} \
+             _maxhp=${_bs[maxhp]:-0}
     (( _maxhp > 0 )) || _maxhp=1
     local -i _pct=$(( _hp * 100 / _maxhp )) \
-             _p1=${_bs["{pcut1}$X"]:-70} \
-             _p2=${_bs["{pcut2}$X"]:-50} \
-             _p3=${_bs["{pcut3}$X"]:-20} \
-             _ic=${_bs["{inv_cd}$X"]:-0}
+             _p1=${_bs[pcut1]:-70} \
+             _p2=${_bs[pcut2]:-50} \
+             _p3=${_bs[pcut3]:-20} \
+             _ic=${_bs[inv_cd]:-0}
     if (( _ic > 0 )) ; then
-        _bs["{inv_cd}$X"]=$(( _ic - 1 ))
+        _bs[inv_cd]=$(( _ic - 1 ))
     fi
     local -i _newphase
     if (( _pct > _p1 )) ; then _newphase=0
@@ -113,11 +113,11 @@ _boss_update_phase () {
     fi
     # 阶段只前进、不后退：阶段代表「伤害进度」，回血不能把 Boss 打回上一个形态。
     # 否则 art 会倒退，且阶段切换的无敌窗口与动态增益发放都会被重复触发。
-    if (( _newphase > ${_bs["{phase}$X"]:-0} )) ; then
-        _bs["{phase}$X"]=$_newphase \
-        _bs["{art}$X"]=${_bs["{art$_newphase}$X"]} \
-        _bs["{ttl}$X"]=0 \
-        _bs["{inv_cd}$X"]=$BOSS_INV_TICKS
+    if (( _newphase > ${_bs[phase]:-0} )) ; then
+        _bs[phase]=$_newphase \
+        _bs[art]=${_bs["art$_newphase"]} \
+        _bs[ttl]=0 \
+        _bs[inv_cd]=$BOSS_INV_TICKS
     fi
 }
 
@@ -133,7 +133,7 @@ _boss_move_target () {
              _ymargin=${7:-4} _wide=${8:-0} _dive=${9:-0}
     local -n _bs=$1
 
-    local -i _w=${_bs["{w}$X"]:-1} _h=${_bs["{h}$X"]:-1}
+    local -i _w=${_bs[w]:-1} _h=${_bs[h]:-1}
     local -i _xmin=2 _xmax=$(( SCREEN_W - 2 - _w ))
     # y 上限留出 HP 条那一行，避免 Boss 的 [K 清行擦掉玩家
     local -i _ymin=$GAME_TOP _ymax=$(( SCREEN_H - _ymargin - _h ))
@@ -142,12 +142,12 @@ _boss_move_target () {
     (( _yhi > _ymax )) && _yhi=$_ymax
     (( _yhi < _ymin )) && _yhi=$_ymin
 
-    local -i _cd=$(( ${_bs["{cd}$X"]:-0} + 1 ))
+    local -i _cd=$(( ${_bs[cd]:-0} + 1 ))
     if (( _cd >= _step )) ; then
-        _bs["{cd}$X"]=0
+        _bs[cd]=0
 
-        local -i x=${_bs["{x}$X"]:-0} y=${_bs["{y}$X"]:-0}
-        local -i tx=${_bs["{tx}$X"]:-0} ty=${_bs["{ty}$X"]:-0} ttl=${_bs["{ttl}$X"]:-0}
+        local -i x=${_bs[x]:-0} y=${_bs[y]:-0}
+        local -i tx=${_bs[tx]:-0} ty=${_bs[ty]:-0} ttl=${_bs[ttl]:-0}
 
         (( x < _xmin )) && x=$_xmin
         (( x > _xmax )) && x=$_xmax
@@ -197,9 +197,9 @@ _boss_move_target () {
         (( y < _ymin )) && y=$_ymin
         (( y > _ymax )) && y=$_ymax
 
-        _bs["{x}$X"]=$x ; _bs["{y}$X"]=$y \
-        _bs["{tx}$X"]=$tx ; _bs["{ty}$X"]=$ty ; _bs["{ttl}$X"]=$ttl
+        _bs[x]=$x ; _bs[y]=$y \
+        _bs[tx]=$tx ; _bs[ty]=$ty ; _bs[ttl]=$ttl
     else
-        _bs["{cd}$X"]=$_cd
+        _bs[cd]=$_cd
     fi
 }

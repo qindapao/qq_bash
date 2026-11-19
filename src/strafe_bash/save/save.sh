@@ -22,7 +22,7 @@ save_game () {
     local -i i _slot=1
     local _h
     for i in 1 2 3 4 5 ; do
-        _h=${OBJ_player["{w$i}$X"]}
+        _h=${OBJ_player["w$i"]}
         if [[ -n "$_h" && -n "${XO_OBJ_POOL[$_h]+_}" ]] ; then
             _wcls[$i]=${XO_OBJ_POOL[$_h]}
         elif (( i == 1 )) ; then
@@ -32,7 +32,7 @@ save_game () {
         fi
     done
     for i in 1 2 3 4 5 ; do
-        [[ "${OBJ_player["{bullet}$X"]}" == "${OBJ_player["{w$i}$X"]}" ]] && _slot=$i
+        [[ "${OBJ_player[bullet]}" == "${OBJ_player["w$i"]}" ]] && _slot=$i
     done
 
     local _pcls=${XO_OBJ_POOL[OBJ_player]}
@@ -40,20 +40,20 @@ save_game () {
     local -A SAVE=(
         [version]=$STRAFE_VERSION
         [plane_cls]=$_pcls
-        [score]=${OBJ_player["{score}$X"]:-0}
-        [hp]=${OBJ_player["{hp}$X"]:-0}
-        [bombs]=${OBJ_player["{bombs}$X"]:-0}
+        [score]=${OBJ_player[score]:-0}
+        [hp]=${OBJ_player[hp]:-0}
+        [bombs]=${OBJ_player[bombs]:-0}
         [boss_kills]=${G_BOSS_KILLS:-0}
-        [t2]=${OBJ_player["{t2}$X"]:-0}
-        [t3]=${OBJ_player["{t3}$X"]:-0}
-        [t4]=${OBJ_player["{t4}$X"]:-0}
-        [t5]=${OBJ_player["{t5}$X"]:-0}
-        [mt]=${OBJ_player["{mt}$X"]:-0}
-        [lanes]=${OBJ_player["{lanes}$X"]:-0}
-        [lanes_side]=${OBJ_player["{lanes_side}$X"]:-0}
-        [lt]=${OBJ_player["{lt}$X"]:-0}
-        [shield]=${OBJ_player["{shield}$X"]:-0}
-        [st]=${OBJ_player["{st}$X"]:-0}
+        [t2]=${OBJ_player[t2]:-0}
+        [t3]=${OBJ_player[t3]:-0}
+        [t4]=${OBJ_player[t4]:-0}
+        [t5]=${OBJ_player[t5]:-0}
+        [mt]=${OBJ_player[mt]:-0}
+        [lanes]=${OBJ_player[lanes]:-0}
+        [lanes_side]=${OBJ_player[lanes_side]:-0}
+        [lt]=${OBJ_player[lt]:-0}
+        [shield]=${OBJ_player[shield]:-0}
+        [st]=${OBJ_player[st]:-0}
         [bullet_slot]=$_slot
     )
     for i in 1 2 3 4 5 ; do
@@ -104,7 +104,7 @@ load_game () {
     (( _valid )) || return 1
 
     local -n _pc=${_plane_cls}Obj
-    local -i _pmax=${_pc["{maxhp}$X"]:-20}
+    local -i _pmax=${_pc[maxhp]:-20}
 
     local -i _boss_kills=0
     if [[ -n "${SAVE[boss_kills]:-}" ]] ; then
@@ -143,34 +143,34 @@ load_game () {
         _cls=${SAVE[w${i}_cls]}
         [[ -n "${XO_OBJ_POOL[OBJ_wpn$i]+_}" ]] && xo_obj_bury "OBJ_wpn$i"
         xo_obj_born_named "OBJ_wpn$i" "$_cls" || return 1
-        OBJ_player["{w$i}$X"]=$REPLY
+        OBJ_player["w$i"]=$REPLY
     done
 
-    OBJ_player["{score}$X"]=${SAVE[score]}
-    OBJ_player["{hp}$X"]=${SAVE[hp]}
-    OBJ_player["{bombs}$X"]=${SAVE[bombs]}
-    OBJ_player["{t2}$X"]=${SAVE[t2]}
-    OBJ_player["{t3}$X"]=${SAVE[t3]}
-    OBJ_player["{t4}$X"]=${SAVE[t4]}
-    OBJ_player["{t5}$X"]=${SAVE[t5]}
-    OBJ_player["{mt}$X"]=${SAVE[mt]}
-    OBJ_player["{lanes}$X"]=${SAVE[lanes]}
-    OBJ_player["{lanes_side}$X"]=${SAVE[lanes_side]}
-    OBJ_player["{lt}$X"]=${SAVE[lt]}
-    OBJ_player["{shield}$X"]=${SAVE[shield]}
-    OBJ_player["{st}$X"]=${SAVE[st]}
+    OBJ_player[score]=${SAVE[score]}
+    OBJ_player[hp]=${SAVE[hp]}
+    OBJ_player[bombs]=${SAVE[bombs]}
+    OBJ_player[t2]=${SAVE[t2]}
+    OBJ_player[t3]=${SAVE[t3]}
+    OBJ_player[t4]=${SAVE[t4]}
+    OBJ_player[t5]=${SAVE[t5]}
+    OBJ_player[mt]=${SAVE[mt]}
+    OBJ_player[lanes]=${SAVE[lanes]}
+    OBJ_player[lanes_side]=${SAVE[lanes_side]}
+    OBJ_player[lt]=${SAVE[lt]}
+    OBJ_player[shield]=${SAVE[shield]}
+    OBJ_player[st]=${SAVE[st]}
     local _wk="{w${_slot}}$X"
     local _bh=${OBJ_player[$_wk]}
-    OBJ_player["{bullet}$X"]=$_bh
+    OBJ_player[bullet]=$_bh
     # 护盾不是只靠 {shield}/{st}：还要恢复护盾 art、4 格宽度和 prev_shield。
     if (( ${SAVE[shield]} )) ; then
         _plane_set_shield "OBJ_player" 1
-        OBJ_player["{st}$X"]=${SAVE[st]}
+        OBJ_player[st]=${SAVE[st]}
     else
         _plane_set_shield "OBJ_player" 0
-        OBJ_player["{st}$X"]=${SAVE[st]}
+        OBJ_player[st]=${SAVE[st]}
     fi
-    OBJ_player["{shield}$X"]=${SAVE[shield]}
-    OBJ_player["{prev_shield}$X"]=${SAVE[shield]}
+    OBJ_player[shield]=${SAVE[shield]}
+    OBJ_player[prev_shield]=${SAVE[shield]}
     return 0
 }

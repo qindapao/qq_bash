@@ -45,13 +45,13 @@ Boss_born () {
     _boss_set_arts "$1" "$BOSS_ART_100" "$BOSS_ART_70" "$BOSS_ART_50" "$BOSS_ART_20"
     BossBase_born "$1"
     local -n _b=$1
-    _b["{aim_cd}$X"]=60
+    _b[aim_cd]=60
 }
 Boss_move () {
     _boss_update_phase "$1"
     local -n self=$1
 
-    local -i _phase=${self["{phase}$X"]}
+    local -i _phase=${self[phase]}
     local -i _step=4
     (( _phase == 2 )) && _step=3
     (( _phase == 3 )) && _step=2
@@ -59,7 +59,7 @@ Boss_move () {
     # 活动范围：大部分时间待在上半屏（玩家好打），但保留俯冲：
     # 每次选目标点时按阶段给 8%–18% 的机会把目标压到底部。
     local -i _ymin=$GAME_TOP \
-             _ymax=$(( SCREEN_H - 4 - ${self["{h}$X"]} ))
+             _ymax=$(( SCREEN_H - 4 - ${self[h]} ))
     local -i _mid=$(( _ymin + (_ymax - _ymin) / 2 )) \
              _yhi=$_mid _dive=8
     case "$_phase" in
@@ -71,17 +71,17 @@ Boss_move () {
     _boss_move_target "$1" "$_step" "$_yhi" 7 8 9 4 0 "$_dive"
 
     # Boss 永不主动离场，只会被打死。
-    local _by=$(( ${self["{y}$X"]} + ${self["{h}$X"]} )) \
-          _bx=${self["{x}$X"]}
+    local _by=$(( ${self[y]} + ${self[h]} )) \
+          _bx=${self[x]}
 
     # 周期性瞄准散弹：3 发朝玩家方向，补足固定弹幕的威胁。
-    local -i _ac=$(( ${self["{aim_cd}$X"]:-0} - 1 ))
+    local -i _ac=$(( ${self[aim_cd]:-0} - 1 ))
     if (( _ac <= 0 )) ; then
-        self["{aim_cd}$X"]=90
+        self[aim_cd]=90
         if [[ -n "${XO_OBJ_POOL[OBJ_player]+_}" ]] && (( EB_LIVE + 3 <= ENEMY_BULLET_LIMIT )) ; then
-            local -i _cx=$(( _bx + ${self["{w}$X"]} / 2 )) \
-                     _cy=$(( ${self["{y}$X"]} + ${self["{h}$X"]} / 2 )) \
-                     _px=${OBJ_player["{x}$X"]} _py=${OBJ_player["{y}$X"]}
+            local -i _cx=$(( _bx + ${self[w]} / 2 )) \
+                     _cy=$(( ${self[y]} + ${self[h]} / 2 )) \
+                     _px=${OBJ_player[x]} _py=${OBJ_player[y]}
             local -i _dx=$(( _px - _cx )) _dy=$(( _py - _cy )) _bi
             if (( _dx == 0 && _dy == 0 )) ; then _bi=4
             elif (( _dy < 0 )) ; then
@@ -100,7 +100,7 @@ Boss_move () {
             done
         fi
     else
-        self["{aim_cd}$X"]=_ac
+        self[aim_cd]=_ac
     fi
 
     (( RANDOM % 100 < 10 )) || return 0

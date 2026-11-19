@@ -27,9 +27,9 @@ check ()        # $1=标签 $2=期望 $3=实际
 {
     CHECKS=$((CHECKS+1))
     if [[ "$2" == "$3" ]] ; then
-        printf '  [ok]   %-46s %s\n' "$1" "$3"
+        printf '  [ok]   %-46s %s\033[0m\n' "$1" "$3"
     else
-        printf '  [FAIL] %-46s 期望=[%s] 实际=[%s]\n' "$1" "$2" "$3"
+        printf '  [FAIL] %-46s 期望=[%s] 实际=[%s]\033[0m\n' "$1" "$2" "$3"
         FAILS=$((FAILS+1))
     fi
 }
@@ -47,20 +47,20 @@ buf_read ()
 {
     local -n _l=$1
     BUF_LIST=${_l["{OBJMIX}$X"]}
-    BUF_PHASE=${_l["{buff_phase}$X"]}
-    BUF_STR=${_l["{buff_str}$X"]}
-    BUF_HP=${_l["{hp}$X"]}
-    BUF_INV=${_l["{inv_cd}$X"]}
-    BUF_BI=${_l["{bi_cd}$X"]}
-    BUF_PH=${_l["{phase}$X"]}
-    BUF_MS=${_l["{ms_cd}$X"]}
+    BUF_PHASE=${_l[buff_phase]}
+    BUF_STR=${_l[buff_str]}
+    BUF_HP=${_l[hp]}
+    BUF_INV=${_l[inv_cd]}
+    BUF_BI=${_l[bi_cd]}
+    BUF_PH=${_l[phase]}
+    BUF_MS=${_l[ms_cd]}
 }
 
 # 读任意对象的任意字段（$1=对象 $2=字段名，不带花括号）
 field ()
 {
     local -n _f=$1
-    printf '%s' "${_f["{$2}$X"]}"
+    printf '%s' "${_f[$2]}"
     unset -n _f
 }
 
@@ -68,8 +68,8 @@ field ()
 inv_dec ()
 {
     local -n _d=$1
-    if (( ${_d["{inv_cd}$X"]:-0} > 0 )) ; then
-        _d["{inv_cd}$X"]=$(( ${_d["{inv_cd}$X"]} - 1 ))
+    if (( ${_d[inv_cd]:-0} > 0 )) ; then
+        _d[inv_cd]=$(( ${_d[inv_cd]} - 1 ))
     fi
     unset -n _d
 }
@@ -78,7 +78,7 @@ inv_dec ()
 hp_to ()
 {
     local -n _h=$1
-    _h["{hp}$X"]=$2
+    _h[hp]=$2
     unset -n _h
 }
 
@@ -100,7 +100,7 @@ test_case1 ()
     local ph x y
     for ph in 0 1 2 3 ; do
         local -n _bb=OBJ_bb
-        _bb["{phase}$X"]=$ph
+        _bb[phase]=$ph
         unset -n _bb
 
         _boss_buff_tick OBJ_bb
@@ -146,7 +146,7 @@ test_case1 ()
     # （那样会覆盖掉 init，测的就不是真实流程了）。
     xo_obj_born_named OBJ_rb Boss >/dev/null 2>&1 || { log_test 0 1 ; return 1 ; }
     local -n _r0=OBJ_rb
-    _r0["{inv_cd}$X"]=0
+    _r0[inv_cd]=0
     unset -n _r0
 
     xo_obj_mixin_add OBJ_rb M_BuffInvuln || { log_test 0 1 ; return 1 ; }
@@ -195,8 +195,8 @@ test_case1 ()
     # 这时回血必须仍然能被挂上，否则玩家一辈子见不到它。
     xo_obj_born_named OBJ_rb10 Boss >/dev/null 2>&1 || { log_test 0 1 ; return 1 ; }
     local -n _r10=OBJ_rb10
-    _r10["{hp}$X"]=127
-    _r10["{phase}$X"]=1
+    _r10[hp]=127
+    _r10[phase]=1
     unset -n _r10
     local okrc=0
     _boss_buff_ok OBJ_rb10 M_BuffHeal || okrc=$?
@@ -215,8 +215,8 @@ test_case1 ()
     xo_obj_born_named OBJ_rb3 Boss >/dev/null 2>&1 || { log_test 0 1 ; return 1 ; }
     hp_to OBJ_rb3 80          # 阶段 0 要打掉一半（90）才会触发回血
     local -n _c=OBJ_rb3
-    _c["{bi_cd}$X"]=0
-    _c["{inv_cd}$X"]=0
+    _c[bi_cd]=0
+    _c[inv_cd]=0
     unset -n _c
     xo_obj_mixin_add OBJ_rb3 M_BuffInvuln || { log_test 0 1 ; return 1 ; }
     xo_obj_mixin_add OBJ_rb3 M_BuffHeal   || { log_test 0 1 ; return 1 ; }
@@ -295,8 +295,8 @@ test_case1 ()
 
     # 阶段切换给的无敌窗口不应该被"再叠一层"
     local -n _ov=OBJ_rb4
-    _ov["{inv_cd}$X"]=100      # 假设此刻正处在阶段切换给的无敌里
-    _ov["{bi_cd}$X"]=0
+    _ov[inv_cd]=100      # 假设此刻正处在阶段切换给的无敌里
+    _ov[bi_cd]=0
     unset -n _ov
     xo_obj_call_all OBJ_rb4 buff_tick
     buf_read OBJ_rb4
@@ -319,7 +319,7 @@ test_case1 ()
     xo_obj_born_named OBJ_rb8 Boss >/dev/null 2>&1 || { log_test 0 1 ; return 1 ; }
     hp_to OBJ_rb8 15
     local -n _g3=OBJ_rb8
-    _g3["{phase}$X"]=3
+    _g3[phase]=3
     unset -n _g3
     xo_obj_mixin_add OBJ_rb8 M_BuffHeal || { log_test 0 1 ; return 1 ; }
     xo_obj_call_all OBJ_rb8 buff_tick
@@ -327,7 +327,7 @@ test_case1 ()
     check 'phase 3 回血封顶在 20%（36）' 36 "$BUF_HP"
 
     local -n _g2=OBJ_rb5
-    _g2["{inv_cd}$X"]=10
+    _g2[inv_cd]=10
     unset -n _g2
     xo_call OBJ_rb5 move >/dev/null 2>&1
     buf_read OBJ_rb5
@@ -368,8 +368,8 @@ test_case1 ()
     check '导弹真的被画到屏幕上' 1 "$_seen"
 
     # 移动：走满一个 step 朝玩家方向前进 1 格（玩家在导弹下方）
-    OBJ_player["{x}$X"]=$mx
-    OBJ_player["{y}$X"]=$(( my + 8 ))
+    OBJ_player[x]=$mx
+    OBJ_player[y]=$(( my + 8 ))
     G_INV=900
     local -i k y_before=$my
     for (( k=0 ; k<BOSS_BUFF_MISSILE_STEP ; k++ )) ; do
@@ -419,7 +419,7 @@ test_case1 ()
     xo_obj_born_named OBJ_rb7 Boss >/dev/null 2>&1 || { log_test 0 1 ; return 1 ; }
 
     BULLETS=()
-    OBJ_player["{spd_pct}$X"]=100
+    OBJ_player[spd_pct]=100
     xo_call OBJ_player fire
     local -i v_normal=${BULLETS[0]:+$(field "${BULLETS[0]}" vy)}
     (( v_normal < 0 )) && v_normal=$(( -v_normal ))
@@ -437,27 +437,27 @@ test_case1 ()
 
     # 光降弹速不会减少输出：射速也必须被压
     BULLETS=()
-    OBJ_player["{spd_pct}$X"]=100
+    OBJ_player[spd_pct]=100
     xo_call OBJ_player fire
     local -i cd_normal=$G_FIRE_CD
     BULLETS=()
-    OBJ_player["{spd_pct}$X"]=50
+    OBJ_player[spd_pct]=50
     xo_call OBJ_player fire
     local -i cd_slow=$G_FIRE_CD
     check '减速同时压射速（cd ×1.5）' \
         "$(( cd_normal * BOSS_BUFF_SLOW_CD_PCT / 100 ))" "$cd_slow"
 
     local -n _pl=OBJ_player
-    _pl["{slow}$X"]=0
-    _pl["{spd_pct}$X"]=100
+    _pl[slow]=0
+    _pl[spd_pct]=100
     unset -n _pl
     check '到期后速度恢复' 100 "$(field OBJ_player spd_pct)"
 
     printf '\n== J. 量子能量武器 ==\n'
-    OBJ_player["{spd_pct}$X"]=100
+    OBJ_player[spd_pct]=100
     xo_obj_born_named OBJ_laser BulletTypeLaser >/dev/null 2>&1 || { log_test 0 1 ; return 1 ; }
-    OBJ_player["{bullet}$X"]=OBJ_laser
-    OBJ_player["{lanes}$X"]=0
+    OBJ_player[bullet]=OBJ_laser
+    OBJ_player[lanes]=0
     BULLETS=()
     xo_call OBJ_player fire
     local lb=${BULLETS[0]}
@@ -471,20 +471,20 @@ test_case1 ()
     local -A _lname=( [1]=青 [2]=绿 [3]=紫 [4]='红加粗' )
     local _ln
     for _ln in 1 2 3 4 ; do
-        OBJ_player["{lanes}$X"]=$_ln
+        OBJ_player[lanes]=$_ln
         BULLETS=()
         xo_call OBJ_player fire
         check "威力 $(( _ln + 1 )) 的激光是${_lname[$_ln]}色" \
             "${_lwant[$_ln]}" "$(field "${BULLETS[0]}" color)"
     done
 
-    OBJ_player["{lanes}$X"]=4
+    OBJ_player[lanes]=4
     BULLETS=()
     xo_call OBJ_player fire
     check '满 lanes 时威力 5，符号仍是 |' '5|' \
         "$(field "${BULLETS[0]}" damage)$(field "${BULLETS[0]}" symbol)"
-    OBJ_player["{lanes}$X"]=0
-    OBJ_player["{bullet}$X"]=OBJ_player["{w1}$X"]
+    OBJ_player[lanes]=0
+    OBJ_player[bullet]=OBJ_player[w1]
 
     printf '\n== K. 扫描电网（Boss 红色自上而下 / 我方绿色自下而上）==\n'
     if [[ -z "${XO_OBJ_POOL[OBJ_player]+_}" ]] ; then
@@ -515,8 +515,8 @@ test_case1 ()
 
     # K3 Boss 波：打到玩家 -3 血、打掉护盾、一条波只结算一次
     # 洞是随机的，本段测"命中"，所以强制不留洞（否则玩家/子弹可能正好落在洞里）
-    OBJ_player["{hp}$X"]=20
-    OBJ_player["{shield}$X"]=1
+    OBJ_player[hp]=20
+    OBJ_player[shield]=1
     G_INV=0
     _wave_clear_all
     _wave_start 0 "$BOSS_WAVE_DAMAGE"
@@ -530,12 +530,12 @@ test_case1 ()
         ENEMIES=() ; eb_reset ; DROPS=() ; WORDS=()
         _play_game_tick >/dev/null 2>&1
     done
-    hp_after=${OBJ_player["{hp}$X"]}
+    hp_after=${OBJ_player[hp]}
     check 'Boss 波：命中扣 3 血' 17 "$hp_after"
-    check 'Boss 波：无视护盾，命中即打掉' 0 "${OBJ_player["{shield}$X"]}"
+    check 'Boss 波：无视护盾，命中即打掉' 0 "${OBJ_player[shield]}"
 
     # 再来一条波：血量只再扣一次 3（说明每条波只结算一次）
-    OBJ_player["{hp}$X"]=20
+    OBJ_player[hp]=20
     G_INV=0
     _wave_clear_all
     _wave_start 0 "$BOSS_WAVE_DAMAGE"
@@ -547,16 +547,16 @@ test_case1 ()
         ENEMIES=() ; eb_reset ; DROPS=() ; WORDS=()
         _play_game_tick >/dev/null 2>&1
     done
-    check '每条波对玩家只结算一次' 17 "${OBJ_player["{hp}$X"]}"
+    check '每条波对玩家只结算一次' 17 "${OBJ_player[hp]}"
 
     # K4 我方波：对同一个敌人只结算 30 点，且只结算一次
     ENEMIES=() ; eb_reset ; DROPS=() ; WORDS=() ; BULLETS=()
     xo_obj_born_named OBJ_wv EnemyQ >/dev/null 2>&1 || { log_test 0 1 ; return 1 ; }
     local -n _we=OBJ_wv
-    _we["{x}$X"]=$(( ${OBJ_player["{x}$X"]} + 10 ))
-    _we["{y}$X"]=10
-    _we["{hp}$X"]=60
-    _we["{maxhp}$X"]=60
+    _we[x]=$(( ${OBJ_player[x]} + 10 ))
+    _we[y]=10
+    _we[hp]=60
+    _we[maxhp]=60
     unset -n _we
     ENEMIES=(OBJ_wv)
     G_INV=900        # 别让路上的敌人影响玩家，本段只关心敌人掉血
@@ -572,7 +572,7 @@ test_case1 ()
         _play_game_tick >/dev/null 2>&1
     done
     local -n _wv=OBJ_wv
-    local -i wv_hp=${_wv["{hp}$X"]}
+    local -i wv_hp=${_wv[hp]}
     unset -n _wv
     check '我方波：对敌人结算 30 点' 30 "$wv_hp"
 
@@ -581,7 +581,7 @@ test_case1 ()
         _play_game_tick >/dev/null 2>&1
     done
     local -n _wv2=OBJ_wv
-    check '同一敌人不会被同一条波重复结算' 30 "${_wv2["{hp}$X"]}"
+    check '同一敌人不会被同一条波重复结算' 30 "${_wv2[hp]}"
     unset -n _wv2
     ENEMIES=() ; G_INV=0
 
@@ -592,8 +592,8 @@ test_case1 ()
     check '掉落 W 的字符' 'W' "$(field "$wdrop" symbol)"
     _wave_clear_all
     local -n _wd=$wdrop
-    _wd["{x}$X"]=${OBJ_player["{x}$X"]}
-    _wd["{y}$X"]=${OBJ_player["{y}$X"]}
+    _wd[x]=${OBJ_player[x]}
+    _wd[y]=${OBJ_player[y]}
     unset -n _wd
     DROPS=("$wdrop")
     ENEMIES=() ; eb_reset ; BULLETS=() ; WORDS=()
@@ -679,25 +679,25 @@ test_case1 ()
     check '洞中心是安全格' 0 "$( _wave_gap_x "$s" $(( WV_GAP1[s] + 1 + 3 )) ; echo $? )"
 
     # 下面两条测"缝内安全 / 缝外受伤"，把缝固定成已知位置，避免随机位置让断言不稳
-    OBJ_player["{hp}$X"]=20
-    OBJ_player["{shield}$X"]=0
+    OBJ_player[hp]=20
+    OBJ_player[shield]=0
     G_INV=0
     _wave_clear_all
     _wave_start 0 "$BOSS_WAVE_DAMAGE"
     s=$REPLY
     WV_GAP1[s]=0 ; WV_GAP2[s]=40
-    OBJ_player["{x}$X"]=4            # 第 4 列 = 缝 1 的中心（波从第 3 列起算）
+    OBJ_player[x]=4            # 第 4 列 = 缝 1 的中心（波从第 3 列起算）
     local -i guard6=0
     while (( WV_ON[s] && guard6 < 200 )) ; do
         ((guard6++))
         ENEMIES=() ; eb_reset ; DROPS=() ; WORDS=()
         _play_game_tick >/dev/null 2>&1
     done
-    check '站在逃生缝里不受伤' 20 "${OBJ_player["{hp}$X"]}"
+    check '站在逃生缝里不受伤' 20 "${OBJ_player[hp]}"
 
     # 站在缝外：照常挨打
-    OBJ_player["{hp}$X"]=20
-    OBJ_player["{x}$X"]=20           # 第 20 列不在任何一个缝里
+    OBJ_player[hp]=20
+    OBJ_player[x]=20           # 第 20 列不在任何一个缝里
     G_INV=0
     guard6=0
     _wave_clear_all
@@ -709,7 +709,7 @@ test_case1 ()
         ENEMIES=() ; eb_reset ; DROPS=() ; WORDS=()
         _play_game_tick >/dev/null 2>&1
     done
-    check '站在缝外照常受伤' 17 "${OBJ_player["{hp}$X"]}"
+    check '站在缝外照常受伤' 17 "${OBJ_player[hp]}"
     _wave_clear_all ; G_INV=0
 
     # ------------------------------------------------------------------
@@ -718,32 +718,32 @@ test_case1 ()
     printf '\n== 能力钩子：初始化 / 清理 ==\n'
     if [[ -n "${XO_OBJ_POOL[OBJ_rbX]+_}" ]] ; then xo_obj_bury OBJ_rbX >/dev/null 2>&1 ; fi
     xo_obj_born_named OBJ_rbX Boss >/dev/null 2>&1
-    OBJ_rbX["{hp}$X"]=180 ; OBJ_rbX["{maxhp}$X"]=180
+    OBJ_rbX[hp]=180 ; OBJ_rbX[maxhp]=180
 
     # INV：注入即初始化，不再依赖调用方补 buff_gain
     xo_obj_mixin_add OBJ_rbX M_BuffInvuln
-    check 'INV 注入后立即初始化冷却' "$BOSS_BUFF_INV_OFF" "${OBJ_rbX["{bi_cd}$X"]}"
+    check 'INV 注入后立即初始化冷却' "$BOSS_BUFF_INV_OFF" "${OBJ_rbX[bi_cd]}"
 
     # 人为改成脏值 → 卸载必须清掉 → 重新获取必须回到初始值（不窜属性）
-    OBJ_rbX["{bi_cd}$X"]=7
+    OBJ_rbX[bi_cd]=7
     xo_obj_mixin_delete OBJ_rbX M_BuffInvuln
-    check 'INV 卸载后冷却清零' 0 "${OBJ_rbX["{bi_cd}$X"]}"
+    check 'INV 卸载后冷却清零' 0 "${OBJ_rbX[bi_cd]}"
     xo_obj_mixin_add OBJ_rbX M_BuffInvuln
-    check 'INV 重新获取后状态被重置' "$BOSS_BUFF_INV_OFF" "${OBJ_rbX["{bi_cd}$X"]}"
+    check 'INV 重新获取后状态被重置' "$BOSS_BUFF_INV_OFF" "${OBJ_rbX[bi_cd]}"
     xo_obj_mixin_delete OBJ_rbX
 
     # HEAL：卸载作废观察窗口（否则下次拿到会立刻回血）
     xo_obj_mixin_add OBJ_rbX M_BuffHeal
-    check 'HEAL 注入后打开观察窗口' "$BOSS_BUFF_HEAL_WAIT" "${OBJ_rbX["{heal_cd}$X"]}"
+    check 'HEAL 注入后打开观察窗口' "$BOSS_BUFF_HEAL_WAIT" "${OBJ_rbX[heal_cd]}"
     xo_obj_mixin_delete OBJ_rbX M_BuffHeal
-    check 'HEAL 卸载后窗口作废' 0 "${OBJ_rbX["{heal_cd}$X"]}"
+    check 'HEAL 卸载后窗口作废' 0 "${OBJ_rbX[heal_cd]}"
 
     # MISSILE：卸载清发射节拍
     xo_obj_mixin_add OBJ_rbX M_BuffMissile
-    check 'MISSILE 注入后立即可发射' 0 "${OBJ_rbX["{ms_cd}$X"]}"
-    OBJ_rbX["{ms_cd}$X"]=9
+    check 'MISSILE 注入后立即可发射' 0 "${OBJ_rbX[ms_cd]}"
+    OBJ_rbX[ms_cd]=9
     xo_obj_mixin_delete OBJ_rbX M_BuffMissile
-    check 'MISSILE 卸载后节拍清零' 0 "${OBJ_rbX["{ms_cd}$X"]}"
+    check 'MISSILE 卸载后节拍清零' 0 "${OBJ_rbX[ms_cd]}"
 
     # 列表形式：一次注入两个，别名顺序即优先级
     xo_obj_mixin_add OBJ_rbX M_BuffInvuln M_BuffMissile
@@ -754,7 +754,7 @@ test_case1 ()
     xo_obj_mixin_delete OBJ_rbX
     _wave_clear_all
     xo_obj_mixin_add OBJ_rbX M_BuffWave
-    local -i wv_gap=${OBJ_rbX["{wv_gap}$X"]} wv_left=${OBJ_rbX["{wv_left}$X"]}
+    local -i wv_gap=${OBJ_rbX[wv_gap]} wv_left=${OBJ_rbX[wv_left]}
     check 'WAVE 获得即放第一根' 1 "$WAVE_ON"
     check 'WAVE 间隔落在 1..3 秒' 1 "$(( wv_gap >= 1*FPS && wv_gap <= 3*FPS ? 1 : 0 ))"
     check 'WAVE 总发数 2..4（已放 1）' 1 "$(( wv_left >= 1 && wv_left <= 3 ? 1 : 0 ))"
@@ -762,10 +762,10 @@ test_case1 ()
     check 'WAVE 不是一次性：连发期间仍持有' 'M_BuffWave' "$REPLY"
 
     # 固定成"还剩 1 根、间隔 3 tick"，验证倒计时、放第二根、随后立即自卸
-    OBJ_rbX["{wv_gap}$X"]=3 ; OBJ_rbX["{wv_cd}$X"]=3 ; OBJ_rbX["{wv_left}$X"]=1
+    OBJ_rbX[wv_gap]=3 ; OBJ_rbX[wv_cd]=3 ; OBJ_rbX[wv_left]=1
     _wave_clear_all
     xo_obj_call_all OBJ_rbX buff_tick
-    check '倒计时递减' 2 "${OBJ_rbX["{wv_cd}$X"]}"
+    check '倒计时递减' 2 "${OBJ_rbX[wv_cd]}"
     xo_obj_call_all OBJ_rbX buff_tick
     xo_obj_call_all OBJ_rbX buff_tick
     check '倒计时没走完不放' 0 "$WAVE_ON"
@@ -777,7 +777,7 @@ test_case1 ()
     # 同屏多条：间隔到点就开新槽，不和正在扫的波抢（这是压迫感的来源）
     _wave_clear_all
     xo_obj_mixin_add OBJ_rbX M_BuffWave
-    OBJ_rbX["{wv_cd}$X"]=0 ; OBJ_rbX["{wv_left}$X"]=3
+    OBJ_rbX[wv_cd]=0 ; OBJ_rbX[wv_left]=3
     xo_obj_call_all OBJ_rbX buff_tick
     xo_obj_call_all OBJ_rbX buff_tick
     local -i wave_cnt=0 i3
@@ -789,13 +789,13 @@ test_case1 ()
     _wave_clear_all
 
     # 槽位耗尽时不能丢发：放不下就下一 tick 重试
-    OBJ_rbX["{wv_cd}$X"]=0 ; OBJ_rbX["{wv_left}$X"]=2
+    OBJ_rbX[wv_cd]=0 ; OBJ_rbX[wv_left]=2
     for (( i3=0 ; i3<WAVE_SLOTS ; i3++ )) ; do
         _wave_start 0 "$BOSS_WAVE_DAMAGE" >/dev/null
     done
     xo_obj_call_all OBJ_rbX buff_tick
-    check '槽满时保留发数（下一 tick 重试）' 2 "${OBJ_rbX["{wv_left}$X"]}"
-    check '槽满时倒计时设为 1（下 tick 再试）' 1 "${OBJ_rbX["{wv_cd}$X"]}"
+    check '槽满时保留发数（下一 tick 重试）' 2 "${OBJ_rbX[wv_left]}"
+    check '槽满时倒计时设为 1（下 tick 再试）' 1 "${OBJ_rbX[wv_cd]}"
     _wave_clear_all
 
     # 列表形式同时注入：WAVE 不会在 init 里自卸，两个都留在名单里
@@ -807,7 +807,7 @@ test_case1 ()
     _wave_clear_all
 
     # bury 时逐个 cleanup（只清能力自己的节拍，共享字段不动）
-    OBJ_rbX["{inv_cd}$X"]=99
+    OBJ_rbX[inv_cd]=99
     xo_obj_bury OBJ_rbX >/dev/null 2>&1
     check 'bury 已执行（对象出池）' '' "${XO_OBJ_POOL[OBJ_rbX]-}"
 

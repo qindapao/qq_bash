@@ -22,23 +22,23 @@ readonly EnemyVStaticTemplate='
 EnemyV_born () {
     local -n self=$1
     Enemy_born "$1"
-    self["{art}$X"]=$' v \n/ \\'
+    self[art]=$' v \n/ \\'
 }
 EnemyV_move () {
     local -n self=$1
     _enemy_fire "$1" 2 '.' 1
-    local cd=$(( ${self["{cd}$X"]} + 1 ))
-    (( cd < 6 )) && { self["{cd}$X"]=$cd ; return 0 ; }
-    self["{cd}$X"]=0
-    local _ax=${self["{x}$X"]} _w=${self["{w}$X"]} _h=${self["{h}$X"]}
+    local cd=$(( ${self[cd]} + 1 ))
+    (( cd < 6 )) && { self[cd]=$cd ; return 0 ; }
+    self[cd]=0
+    local _ax=${self[x]} _w=${self[w]} _h=${self[h]}
     (( RANDOM % 3 == 0 )) && {
         local dx=$(( (RANDOM % 2) * 2 - 1 ))
         local x=$(( _ax + dx ))
         (( x < 2 )) && x=2
         (( x > SCREEN_W - 2 - _w )) && x=$(( SCREEN_W - 2 - _w ))
-        self["{x}$X"]=$x
+        self[x]=$x
     }
-    self["{y}$X"]=$(( ${self["{y}$X"]} + 1 ))
-    (( ${self["{y}$X"]} + _h > SCREEN_H - 1 )) && return 1
+    self[y]=$(( ${self[y]} + 1 ))
+    (( ${self[y]} + _h > SCREEN_H - 1 )) && return 1
     return 0
 }

@@ -15,17 +15,17 @@ readonly M_RamStaticTemplate='
 
 M_Ram_ram_tick () {
     local -n self=$1
-    local -i cd=${self["{ram_cd}$X"]:-0}
-    (( cd > 0 )) && self["{ram_cd}$X"]=$(( cd - 1 ))
+    local -i cd=${self[ram_cd]:-0}
+    (( cd > 0 )) && self[ram_cd]=$(( cd - 1 ))
     return 0
 }
 
 M_Ram_ram_ready () {
     local -n self=$1
-    local -i b=${self["{blink}$X"]:-0} \
-             cd=${self["{ram_cd}$X"]:-0}
+    local -i b=${self[blink]:-0} \
+             cd=${self[ram_cd]:-0}
     (( b > 0 && cd <= 0 )) || return 1
-    self["{ram_cd}$X"]=10
+    self[ram_cd]=10
     return 0
 }
 

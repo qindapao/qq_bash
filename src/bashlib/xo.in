@@ -35,6 +35,86 @@
 #     xo_* / _xo_*      xo 框架内部函数
 #     x_* / _x_*        x 框架内部函数
 # ==============================================================================
+# 扁平类设计：
+# 
+# $X和大括号在游戏中或者类似的不需要嵌套结构的代码中现在完全是噪音。
+# 
+# 可以这样。大写字母公共键不剥离。保持API兼容。用户键可剥离。所以base类的键必须
+# 只能有大写键。
+# 
+# 然后扁平类的父类一定是扁平类。
+# 
+# Base上面可以做个BaseX。这样就有自己的打印函数。这样挺好。所有X树对象继承于它。
+# 而非X树对象直接继承Base。
+# BaseX只实现自己的打印函数。
+# 
+# 这样打印函数也就可以统一了。
+# 
+# 扁平类只保留Base的字段其他全部剥离。
+# 
+# FLT 标识为1。
+# 
+# 扁平类和树类能力Mixin可以公用，也可以分开，取决于Mixin的实现，如果Mixin支持两
+# 种键名格式那么就可以公共，
+# 如果只支持扁平或者树的键的格式，那么就只能支持特定的。
+# 在Mixin的 {REQUIRES} => blink 字段中，申明下当前的Mixin是全支持还是只支持特性
+# 的类 FLT=1 表示当前的Mixin只支持扁平类，FLT=0 表示当前的Mixin只支持树类，如果
+# 没有写，那么证明当前的同时支持树和扁平类，那么Mixin的实现内部就要自己处理这两
+# 类键的差异。
+#
+# 【Mixin 扁平声明约定 —— 强制】
+# 写法固定成下面这样，FLT 必须是 {REQUIRES} 的第一个 token：
+#     {REQUIRES} => FLT=1 bi_cd inv_cd      # 只支持扁平类，后面跟依赖字段
+#     {REQUIRES} => FLT=0                   # 只支持树类
+#     {REQUIRES} => hp maxhp                # 不写 FLT = 树/扁平都支持
+# 规则：
+#   1) FLT 只能写在第一位，其它依赖字段跟在它后面（空格分隔）。位置不能变。
+#   2) FLT=1 → 只支持扁平类；FLT=0 → 只支持树类；框架会拒绝不匹配的组合。
+#   3) 不写 FLT → 默认两种都支持；此时 Mixin 的实现必须自己兼容两种键：
+#      读字段要么同时处理 self[x] 和 self["{x}$X"]，要么通过框架访问器；
+#      只按一种键写，在另一种类上会静默读到空值。
+#   4) 框架用 token 边界 regex 判断（(^|空白)FLT=1(空白|$)），所以 FLT 后面跟字段、
+#      跟换行、或直接在行尾都能识别；FLT=10 不会误判。为了可读性，仍然强制写在第一位。
+#
+# 【键名规则（扁平类 vs 树类）】
+#   元键（两类都保留 {} 和 $X）：
+#       {CLS}$X  {SUP}$X  {MIX}$X  {OBJMIX}$X  {FLT}$X
+#   用户字段：
+#       扁平类（FLT=1）：{hp}$X → hp        self[hp] / obj[hp]
+#       树类  （FLT=0）：保持 {hp}$X 原样    self["{hp}$X"]
+#   扁平类剥离后不再有 x 树内部节点（1.c.* / max_index 等），也不能再用
+#   x_get/x_set 一类的树接口访问它。
+# 
+# 再增加一个语义，树的父亲可以是扁平。但是扁平的父亲不可以是树。所以Base就是扁
+# 平对象。儿子的能力一定比父亲强而不能退化。但是一旦一条扁平继承链中的一个子类
+# 进化成了树，那么它的父类也需要跟着一起升级，应该字段的规则都不一样的。所以一
+# 般建议不要这么设计，如果扁平类确实需要一个树形的容器，更好的做法是在它的内部
+# 直接组合一个树容器对象。而不是让自己升变。升变造成的
+# 影响和后果是无法估量的，因为你不知道是否有人在类以外直接访问了类的字段，排查
+# 起来非常麻烦。
+# 
+# 语义闭环。可以这么理解。扁平可以升级树。但是树只要是树就不能退化成扁平。就是
+# 这个意思。只是升级很麻烦，但是Base和BaseX特殊，因为Base只有大写的元键，所以
+# BaseX继承它的时候没有任何干扰，
+# Base的字段不需要进行任何的剥离。这是唯一的特殊。
+# 
+# Base的打印函数就是打印关联数组。子类如果是x_tree需要自己实现打印函数。
+# 
+# 所以后期如果扁平类想升级成x_tree类。除了改实现中和使用代码中的键名和分隔符方
+# 式。还要把模板中的根类指向BaseX，而不再是Base了。
+# 
+# 扁平类的对象拥有随便写字段的能力，但是还是建议要用的所有字段都在模板中定位好，
+# 可定位可追溯。
+# 
+# 模板定义的时候扁平类和树类完全相同。最大不同是FLT字段的值一个是1一个是0。其他
+# 字段规则完全相同。是否剥离大括号和$X发生在类对象生成的时候。
+# 
+# 继承描述的是「它本身是一种什么东西」；组合描述的是「它拥有一个附属部件」。这两
+# 个本来就不是一回事。
+# 
+# 组合对象的Mixin链不自动传播，这一直是我们的设计原则，如果用户要调用组合对象的
+# Mixin，那么他直接显式调用就行。
+
 
 # ==============================================================================
 # 【Mixin 使用说明】
@@ -315,9 +395,21 @@ readonly BaseStaticTemplate='
         {SUP} => 
         # 类级 Mixin 列表（空格分隔，顺序即优先级）：类自身 > 靠前的 Mixin > 继承
         {MIX} => 
+        # 是否是扁平类，默认Base是扁平类是一切类的跟
+        # 由于它没有小写键，所以只剥离树中的工具键，外观看起来它是扁平类
+        # 或者x_tree完全没有区别
+        {FLT} => 1
     '
 
-Base_print () { x_dump "$1" '' 4 2 ; }
+# 暂时不关注顺序，如果以后对顺序有要求可以对键排序
+Base_print () {
+    local -n self=$1
+    local key
+    printf "%s ->\n" "$1"
+    for key in "${!self[@]}" ; do
+        printf "    %s => %s\n" "${key@Q}" "${self[$key]@Q}"
+    done
+}
 
 Base_born ()
 {
@@ -360,6 +452,21 @@ Base_is_a ()
     done
     return 1
 }
+
+# ----------------------------------------------------------------------------
+# 所有的 x_tree 类的根，它本身是 Base 子类，Base是所有扁平类的根
+readonly BaseXStaticTemplate='
+    BaseXObj -> 
+        # 类名（所有 x_tree 类的根）
+        {CLS} => BaseX
+        {SUP} => Base
+        # 类级 Mixin 列表（空格分隔，顺序即优先级）：类自身 > 靠前的 Mixin > 继承
+        {MIX} => 
+        # 不是扁平类，是 x_tree
+        {FLT} => 0
+    '
+
+BaseX_print () { x_dump "$1" '' 4 2 ; }
 
 # ----------------------------------------------------------------------------
 
@@ -478,9 +585,39 @@ _xo_init_get_class_inher_chain ()
     return 0
 }
 
+_xo_check_mixin_to_class_match ()
+{
+    local cls=$1 mixin=$2 flat
+    local -n cls_obj="${cls}Obj"
+    local -n mixin_tmpl="${mixin}StaticTemplate"
+    flat=${cls_obj[{FLT}$X]}
+    # 约定：FLT 必须是 {REQUIRES} 的第一个 token（见文件头的"Mixin 扁平声明约定"）。
+    # 用 regex 匹配 token 边界：FLT 写在行尾、后面跟换行/空格都能识别；FLT=10 不会误判。
+    if ((flat==1)) && [[ "$mixin_tmpl" =~ (^|[[:space:]])FLT=0([[:space:]]|$) ]] ; then
+        die ERR "Cls:${cls} FLT=1 but mixin:${mixin} FLT=0"
+        return 1
+    elif ((flat==0)) && [[ "$mixin_tmpl" =~ (^|[[:space:]])FLT=1([[:space:]]|$) ]] ; then
+        die ERR "Cls:${cls} FLT=0 but mixin:${mixin} FLT=1"
+        return 1
+    fi
+    return 0
+}
+
+# 扁平类保留的元键（其余字段一律剥成扁平键）。和 _xo_field_key 的判定保持一致。
+declare -gA XO_FLAT_META=(
+    ["{CLS}$X"]=1
+    ["{SUP}$X"]=1
+    ["{MIX}$X"]=1
+    ["{OBJMIX}$X"]=1
+    ["{FLT}$X"]=1
+)
+
 # 根据所有的类模板变量动态生成所有类的类对象，并且动态更新类实例函数。
 # 当前 x_walk 的顺序本来就能保证是 拓扑序（父先于子），但是不是 DFS 前序
 # 所以按照 x_walk 的顺序直接覆盖就行。
+#
+# 扁平类（FLT=1）在构建时就写成扁平关联数组：不建 x 树、不插节点，
+# 只在最后序列化一次 ObjStr。树类（FLT=0）仍走原来的"拷贝父类树 + x_insert"路径。
 _xo_init_class ()
 {
     _xo_init_class_cb ()
@@ -510,28 +647,79 @@ _xo_init_class ()
         }
         eval "${_ret_A/o/temp_obj}"
             #@endif
-        # 如果当前类是 Base，那么直接取模板即可。
-        # 并且所有的类实例方法都不用更新
-        if [[ "$cls" == 'Base' ]] ; then
+        # 扁平属性：模板显式声明的 FLT 优先，否则继承父类（Base 是根，模板里声明了 FLT=1）。
+        # 扁平类的父类一定是扁平类；树类的父类可以是树类，也可以是 Base（BaseX 场景）。
+        local flat=1
+        local -i is_flat_father=0
+        if [[ "$cls" != 'Base' ]] ; then
+            local -n father_obj0=${father}Obj
+            is_flat_father=${father_obj0[{FLT}$X]:-0}
+            if [[ -n "${temp_obj[{FLT}$X]+_}" ]] ; then
+                flat=${temp_obj[{FLT}$X]}
+            else
+                flat=$is_flat_father
+            fi
+        fi
+
+        if (( flat )) ; then
+            # ---- 扁平类：不建 x 树；父类(扁平)KV 直接拷贝，模板叶子按扁平键写入 ----
+            # 和以前的"建树再剥离"相比，这里少一整趟遍历，也少一次重新序列化。
+            if [[ "$cls" == 'Base' ]] ; then
+                declare -gA "BaseObj=()"
+            else
+                    #@if at_k_var_substitution==1
+                declare -gA "${cls}Obj=(${father_obj0[*]@K})"
+                    #@endif
+                    #@if at_k_var_substitution==0
+                array_to_kv_q_str ${father}Obj ; eval "${_ret_g_A/o/${cls}Obj}"
+                    #@endif
+            fi
+            local -n _flat_obj="${cls}Obj"
+            _xo_init_class_cb_insert_flat ()
+            {
+                local type=$1 value=$4 full_key=$6
+                [[ "$type" == "$X_NODE_KIND_OBJ" || "$type" == "$X_NODE_KIND_ARR" ]] && return 0
+                local k=$full_key
+                # 元键保持 {X}$X；用户字段剥成扁平键（规则见文件头"键名规则"）
+                if [[ -z "${XO_FLAT_META[$k]+_}" ]] ; then
+                    k=${k%'}'*}
+                    k=${k:1}
+                fi
+                _flat_obj[$k]=$value
+                return 0
+            }
+            x_walk temp_obj '' _xo_init_class_cb_insert_flat || {
+                die ERR "Class:${cls} flat init fail!"
+                return 1
+            }
+            # Base 是根：没有父类，也不需要更新/透传实例方法
+        elif (( is_flat_father )) ; then
+            # ---- 树类，但父类是扁平类（当前只有 Base -> BaseX 这一种） ----
+            # 扁平父类不能有用户字段：树类没法从扁平键继承字段，混着建会得到混合键。
+            # Base 只有元键，所以 BaseX 合法；其它情况直接报错，不允许"扁平升变为树"。
+            local k
+            for k in "${!father_obj0[@]}" ; do
+                [[ -n "${XO_FLAT_META[$k]+_}" ]] || {
+                    die ERR "Cls:${cls}: 树类的父类 ${father} 是扁平类且含用户字段 '${k}'（禁止扁平升变为树）"
+                    return 1
+                }
+            done
+            # 父类只有元键，自己的模板里已经包含这些元键，直接从模板建树。
                 #@if at_k_var_substitution==1
-            declare -gA "BaseObj=(${temp_obj[*]@K})"
+            declare -gA "${cls}Obj=(${temp_obj[*]@K})"
                 #@endif
                 #@if at_k_var_substitution==0
-            array_to_kv_q_str temp_obj ; eval "${_ret_g_A/o/BaseObj}"
+            array_to_kv_q_str temp_obj ; eval "${_ret_g_A/o/${cls}Obj}"
                 #@endif
         else
-            # 如果当前类不是 Base, 那么先复制一份父类的类对象
-            # 树 walk 的拓扑序保证：父类对象已在之前的回调中创建，
-            # father_obj 一定存在
+            # 树类 + 树父类：复制父类树，再把当前类的叶子 x_insert 上去
                 #@if at_k_var_substitution==1
-            local -n father_obj=${father}Obj
-            declare -gA "${cls}Obj=(${father_obj[*]@K})"
+            declare -gA "${cls}Obj=(${father_obj0[*]@K})"
                 #@endif
                 #@if at_k_var_substitution==0
             array_to_kv_q_str ${father}Obj ; eval "${_ret_g_A/o/${cls}Obj}"
                 #@endif
 
-            # 把当前类所有的叶子直接插入父类复制出来的分身
             _xo_init_class_cb_insert_cb ()
             {
                 local type=$1 value=$4 full_key=$6
@@ -548,7 +736,9 @@ _xo_init_class ()
                 die ERR "Class:${cls} cover father:${father} fail!"
                 return 1
             }
+        fi
 
+        if [[ "$cls" != 'Base' ]] ; then
             # ---- Mixin 方法注入（在继承透传之前，保证 Mixin 优先于继承） ----
             # 优先级：类自身方法 > Mixin 方法 > 继承透传方法
             # Mixin 公共方法命名：M_Mixin名_方法名（单下划线）
@@ -561,6 +751,8 @@ _xo_init_class ()
                 local mix mix_pattern mix_fn mm
                 local -a mix_methods=()
                 for mix in $mix_list ; do
+                    # 校验混入的Mixin和当前类的扁平属性是否匹配
+                    _xo_check_mixin_to_class_match "$cls" "$mix" || return $?
                     printf -v mix_pattern '!%s_[!_]*' "$mix"
                         #@if compgen_v==1
                     compgen -V mix_methods -A function -X "$mix_pattern"
@@ -653,6 +845,8 @@ _xo_init_class ()
     }
     x_walk CLASS_INHER_TREE '' _xo_init_class_cb || return $?
 }
+
+
 
 # -------------------------对象管理部分---------------------------------------
 
@@ -901,6 +1095,19 @@ declare -gA RES_COUNT=() RES_MARKET=() RES_LIMIT=()
 declare -gai RES_LIMIT_DEFAULT=512
 declare -gA XO_RESET_FIELDS=() XO_RESET_DEF=() XO_RESET_READY=()
 
+# 字段键：返回该字段在类对象/实例里的真实键名。
+#   扁平类（FLT=1）：hp          树类（FLT=0）：{hp}$X
+# fire/hire 的默认值读写走这里，两条路共用同一套键规则。
+_xo_field_key ()
+{
+    local -n _kc="${1}Obj"
+    if [[ "${_kc[{FLT}$X]:-0}" == 1 ]] ; then
+        REPLY=$2
+    else
+        REPLY="{${2}}$X"
+    fi
+}
+
 # 预处理一个类的重置清单（每类只做一次）
 _xo_reset_prepare ()
 {
@@ -913,13 +1120,14 @@ _xo_reset_prepare ()
     XO_RESET_FIELDS[$cls]=$list
     if [[ -n "$list" ]] ; then
         local -n _c="${cls}Obj"
-        local f
+        local f k
         for f in $list ; do
-            if [[ -z "${_c["{$f}$X"]+_}" ]] ; then
+            _xo_field_key "$cls" "$f" ; k=$REPLY
+            if [[ -z "${_c[$k]+_}" ]] ; then
                 die ERR "xo: class '${cls}' ResetFields lists unknown field '${f}'"
                 return 1
             fi
-            XO_RESET_DEF["$cls|$f"]=${_c["{$f}$X"]}
+            XO_RESET_DEF["$cls|$f"]=${_c[$k]}
         done
     fi
     XO_RESET_READY[$cls]=1
@@ -940,9 +1148,10 @@ _xo_obj_reset_fields ()
         return 0
     fi
     local -n o=$obj
-    local f
+    local f k
     for f in $list ; do
-        o["{$f}$X"]=${XO_RESET_DEF["$cls|$f"]}
+        _xo_field_key "$cls" "$f" ; k=$REPLY
+        o[$k]=${XO_RESET_DEF["$cls|$f"]}
     done
     return 0
 }
@@ -1253,6 +1462,9 @@ xo_obj_mixin_add ()
         # 幂等：已持有 → 跳过（不重复 init，避免把正在倒计时的状态重置）
         [[ " $list " == *" $mixin "* ]] && continue
 
+        # 校验混入的Mixin和当前类的扁平属性是否匹配
+        _xo_check_mixin_to_class_match "$_cls" "$mixin" || return $?
+
         _xo_mixin_methods "$mixin"
         methods=$REPLY
         # 只提供钩子、没有公共方法的能力也允许：它"获得即生效"，不对外提供可调用能力。
@@ -1421,6 +1633,11 @@ xo_obj_call_all ()
     return 0
 }
 
+#-------------------------------------------------------------------------------
+# xo_set xo_qset xo_get 对于扁平类来说完全没有意义
+# 因为扁平类就是直接的关联数组读取和写入，没有{}和$X
+# 本身已经足够轻量，不需要再封装
+#
 #-------------------------------------------------------------------------------
 #                      属性写入部分
 # 【关于多层属性】

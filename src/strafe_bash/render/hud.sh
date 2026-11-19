@@ -6,15 +6,15 @@ _STRAFE_HUD_SH=1
 . "$STRAFE_PROJ_DIR/config/globals.sh"
 
 draw_hud_line1 () {
-    local bt=${OBJ_player["{bullet}$X"]}
+    local bt=${OBJ_player[bullet]}
     local weapon='.'
     if [[ -n "$bt" && -n "${XO_OBJ_POOL[$bt]+_}" ]] ; then
         local -n _bt=$bt
-        weapon=${_bt["{u}$X"]}
+        weapon=${_bt[u]}
     fi
     local _s
     # 被 Boss 减速时在主状态行上直接标出来（玩家最常看的一行），比藏在 BONUS 行尾显眼
-    local _slow=$(( ${OBJ_player["{slow}$X"]:-0} / FPS ))
+    local _slow=$(( ${OBJ_player[slow]:-0} / FPS ))
     local _slowseg=''
     (( _slow > 0 )) && printf -v _slowseg '  SLOW:%d' "$_slow"
     # 临时桩：人才市场存量（MKT）。RES_MARKET 的键数就是全市场对象总数。
@@ -37,8 +37,8 @@ draw_hud_line1 () {
     local _mktf="  MKT:${_mkt}"
     [[ -n "$_mktseg" ]] && _mktf="  MKT:${_mkt}(${_mktseg})"
     printf -v _s 'HP:%d/%d%s  SCORE:%d  STAGE:%d  W:%s  BOMB:%d/5  E:%d/%d  OBJ:%d%s' \
-        "${OBJ_player["{hp}$X"]:-0}" "${OBJ_player["{maxhp}$X"]:-20}" "$_slowseg" \
-        "${OBJ_player["{score}$X"]:-0}" "$(( G_BOSS_KILLS + 1 ))" "$weapon" "${OBJ_player["{bombs}$X"]:-0}" \
+        "${OBJ_player[hp]:-0}" "${OBJ_player[maxhp]:-20}" "$_slowseg" \
+        "${OBJ_player[score]:-0}" "$(( G_BOSS_KILLS + 1 ))" "$weapon" "${OBJ_player[bombs]:-0}" \
         "${#ENEMIES[@]}" "$ENEMY_LIMIT" "${#XO_OBJ_POOL[@]}" "$_mktf"
     local _maxw=$(( SCREEN_W - 2 ))
     _s="${_s:0:_maxw}"
@@ -54,10 +54,10 @@ draw_hud_line2 () {
     local _i _w
     if [[ -n "${XO_OBJ_POOL[OBJ_player]+_}" ]] ; then
         for _i in 2 3 4 5 ; do
-            _w=${OBJ_player["{w$_i}$X"]}
+            _w=${OBJ_player["w$_i"]}
             [[ -n "$_w" && -n "${XO_OBJ_POOL[$_w]+_}" ]] || continue
             local -n _wobj=$_w
-            local _wu=${_wobj["{u}$X"]} _wd=${_wobj["{damage}$X"]}
+            local _wu=${_wobj[u]} _wd=${_wobj[damage]}
             _s+=" ${_wu}:${_wd}"
         done
     fi
@@ -76,24 +76,24 @@ draw_bonus_hud () {
     # 4 种武器按 tier 2..5 动态取实际字符和倒计时，
     # 不能像旧版那样写死 * @ $ |，否则武器和数字会错位。
     for _i in 2 3 4 5 ; do
-        _w=${OBJ_player["{w$_i}$X"]}
+        _w=${OBJ_player["w$_i"]}
         _wu='?'
         if [[ -n "$_w" && -n "${XO_OBJ_POOL[$_w]+_}" ]] ; then
             local -n _wobj=$_w
-            _wu=${_wobj["{u}$X"]}
+            _wu=${_wobj[u]}
         fi
-        _tv=$(( ${OBJ_player["{t$_i}$X"]:-0} / FPS ))
+        _tv=$(( ${OBJ_player["t$_i"]:-0} / FPS ))
         printf -v _part '  %s:%3d' "$_wu" "$_tv"
         _s+=$_part
     done
-    local mt=$(( ${OBJ_player["{mt}$X"]:-0} / FPS )) \
-          lt=$(( ${OBJ_player["{lt}$X"]:-0} / FPS )) \
-          st=$(( ${OBJ_player["{st}$X"]:-0} / FPS )) \
-          lcount=$(( ${OBJ_player["{lanes}$X"]:-0} + 1 ))
+    local mt=$(( ${OBJ_player[mt]:-0} / FPS )) \
+          lt=$(( ${OBJ_player[lt]:-0} / FPS )) \
+          st=$(( ${OBJ_player[st]:-0} / FPS )) \
+          lcount=$(( ${OBJ_player[lanes]:-0} + 1 ))
     printf -v _part '  m:%3d  L:%3d(%d)  S:%3d' "$mt" "$lt" "$lcount" "$st"
     _s+=$_part
     # 被 Boss 减速时给个倒计时提示（简单动画：数字每秒跳动）
-    local slow=$(( ${OBJ_player["{slow}$X"]:-0} / FPS ))
+    local slow=$(( ${OBJ_player[slow]:-0} / FPS ))
     if (( slow > 0 )) ; then
         printf -v _part '  SLOW:%3d' "$slow"
         _s+=$_part

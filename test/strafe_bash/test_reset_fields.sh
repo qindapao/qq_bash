@@ -23,11 +23,11 @@ check ()        # $1=标签 $2=期望 $3=实际
     CHECKS=$((CHECKS+1))
     if [[ "$want" == "$got" ]] ; then
         log_test 1 1
-        printf '  [ok]   %-46s %s\n' "$label" "$got"
+        printf '  [ok]   %-46s %s\033[0m\n' "$label" "$got"
     else
         FAILS=$((FAILS+1))
         log_test 0 1
-        printf '  [FAIL] %-46s 期望=[%s] 实际=[%s]\n' "$label" "$want" "$got"
+        printf '  [FAIL] %-46s 期望=[%s] 实际=[%s]\033[0m\n' "$label" "$want" "$got"
     fi
 }
 

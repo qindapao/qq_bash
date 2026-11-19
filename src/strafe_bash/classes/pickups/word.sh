@@ -24,33 +24,33 @@ readonly WordStaticTemplate='
     '
 Word_born () {
     local -n self=$1
-    self["{text}$X"]=$2
+    self[text]=$2
     local _w
     str_display_width "$2" _w
-    self["{len}$X"]=$_w \
-    self["{y}$X"]=$GAME_TOP
+    self[len]=$_w \
+    self[y]=$GAME_TOP
     local _maxx=$(( SCREEN_W - 3 - _w ))
     (( _maxx < 2 )) && _maxx=2
-    self["{x}$X"]=$(( RANDOM % (_maxx - 2 + 1) + 2 )) \
-    self["{vx}$X"]=0 \
-    self["{cd}$X"]=0
+    self[x]=$(( RANDOM % (_maxx - 2 + 1) + 2 )) \
+    self[vx]=0 \
+    self[cd]=0
 }
 Word_move () {
     local -n self=$1
-    local cd=$(( ${self["{cd}$X"]} + 1 ))
-    (( cd < 4 )) && { self["{cd}$X"]=$cd ; return 0 ; }
-    self["{cd}$X"]=0
+    local cd=$(( ${self[cd]} + 1 ))
+    (( cd < 4 )) && { self[cd]=$cd ; return 0 ; }
+    self[cd]=0
     if (( RANDOM % 4 == 0 )) ; then
-        self["{vx}$X"]=$(( (RANDOM % 3) - 1 ))
+        self[vx]=$(( (RANDOM % 3) - 1 ))
     fi
-    local _x=${self["{x}$X"]} _y=${self["{y}$X"]} _len=${self["{len}$X"]}
-    local vx=${self["{vx}$X"]}
+    local _x=${self[x]} _y=${self[y]} _len=${self[len]}
+    local vx=${self[vx]}
     local nx=$(( _x + vx ))
-    (( nx < 2 )) && { nx=2 ; self["{vx}$X"]=0 ; }
+    (( nx < 2 )) && { nx=2 ; self[vx]=0 ; }
     local _maxx=$(( SCREEN_W - 3 - _len ))
-    (( nx > _maxx )) && { nx=$_maxx ; self["{vx}$X"]=0 ; }
-    self["{x}$X"]=$nx \
-    self["{y}$X"]=$(( _y + 1 ))
-    (( ${self["{y}$X"]} >= SCREEN_H - 1 )) && return 1
+    (( nx > _maxx )) && { nx=$_maxx ; self[vx]=0 ; }
+    self[x]=$nx \
+    self[y]=$(( _y + 1 ))
+    (( ${self[y]} >= SCREEN_H - 1 )) && return 1
     return 0
 }

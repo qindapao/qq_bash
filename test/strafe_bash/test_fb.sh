@@ -21,9 +21,9 @@ check ()        # $1=标签 $2=期望 $3=实际
 {
     CHECKS=$((CHECKS+1))
     if [[ "$2" == "$3" ]] ; then
-        printf '  [ok]   %-44s %s\n' "$1" "$3"
+        printf '  [ok]   %-44s %s\033[0m\n' "$1" "$3"
     else
-        printf '  [FAIL] %-44s 期望=[%s] 实际=[%s]\n' "$1" "$2" "$3"
+        printf '  [FAIL] %-44s 期望=[%s] 实际=[%s]\033[0m\n' "$1" "$2" "$3"
         FAILS=$((FAILS+1))
     fi
 }

@@ -30,29 +30,29 @@ _art_clear_at () {
 
 _plane_clear () {
     local -n _pl_self=$1
-    local _atop=${_pl_self["{y}$X"]}
-    (( ${_pl_self["{shield}$X"]:-0} )) && _atop=$(( _atop - 1 ))
-    _art_clear_at "$_atop" $(( ${_pl_self["{x}$X"]} - ${_pl_self["{al}$X"]} )) "${_pl_self["{art}$X"]}"
+    local _atop=${_pl_self[y]}
+    (( ${_pl_self[shield]:-0} )) && _atop=$(( _atop - 1 ))
+    _art_clear_at "$_atop" $(( ${_pl_self[x]} - ${_pl_self[al]} )) "${_pl_self[art]}"
 }
 
 _plane_set_shield () {
     local p=$1 on=$2
     local -n self=$p
     if (( on )) ; then
-        self["{art}$X"]=${self["{shield_art}$X"]} \
-        self["{al}$X"]=${self["{shield_al}$X"]:-4} \
-        self["{shield}$X"]=1 \
-        self["{st}$X"]=$BONUS_ST
-        local y=${self["{y}$X"]}
-        local -i _al=${self["{al}$X"]}
-        (( y < GAME_TOP + 1 )) && self["{y}$X"]=$(( GAME_TOP + 1 ))
-        local x=${self["{x}$X"]}
-        (( x < _al + 2 )) && self["{x}$X"]=$(( _al + 2 ))
-        (( x > SCREEN_W - _al - 2 )) && self["{x}$X"]=$(( SCREEN_W - _al - 2 ))
+        self[art]=${self[shield_art]} \
+        self[al]=${self[shield_al]:-4} \
+        self[shield]=1 \
+        self[st]=$BONUS_ST
+        local y=${self[y]}
+        local -i _al=${self[al]}
+        (( y < GAME_TOP + 1 )) && self[y]=$(( GAME_TOP + 1 ))
+        local x=${self[x]}
+        (( x < _al + 2 )) && self[x]=$(( _al + 2 ))
+        (( x > SCREEN_W - _al - 2 )) && self[x]=$(( SCREEN_W - _al - 2 ))
     else
-        self["{art}$X"]=${self["{base_art}$X"]} \
-        self["{al}$X"]=${self["{base_al}$X"]:-1} \
-        self["{shield}$X"]=0 \
-        self["{st}$X"]=0
+        self[art]=${self[base_art]} \
+        self[al]=${self[base_al]:-1} \
+        self[shield]=0 \
+        self[st]=0
     fi
 }

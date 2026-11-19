@@ -46,11 +46,13 @@ exec_all_test_case ()
 
     local cur_dir=$PWD
     local is_test_fail=0 state
+    local -a failed_files=()
     for file_name in "${all_files[@]}" ; do
         cd ${file_name%/*}
         "$BASH_BIN" ${file_name##*/} > >(tee -a "$test_report")
         if (($?)) ; then
             echo "~~~~~~~~${file_name}~~~~~~~~ test fail!" | tee -a "$test_report"
+            failed_files+=("$file_name")
             is_test_fail=1
         else
             echo "~~~~~~~~${file_name}~~~~~~~~ test pass!" | tee -a "$test_report"
@@ -62,6 +64,19 @@ exec_all_test_case ()
     local result=pass
     ((is_test_fail)) && result=fail
     echo "test start in ${start_time},end_in ${end_time},result:${result}."
+
+    # 失败清单：只列脚本和单跑命令，用户直接复制即可定位到具体用例。
+    # 放在 result 之后，方便跑完一眼看到"哪些要重跑"。
+    if ((is_test_fail)) ; then
+        local f
+        echo
+        echo '==================== failed test scripts ===================='
+        for f in "${failed_files[@]}" ; do
+            printf '  test/%s\n' "$f"
+            printf '    run: (cd test/%s && %s %s)\n' "${f%/*}" "$BASH_BIN" "${f##*/}"
+        done
+        echo '============================================================='
+    fi
     return $is_test_fail
 }
 

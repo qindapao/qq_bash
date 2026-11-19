@@ -50,12 +50,12 @@ _scene_clear_art_at () {
 _render_erase_one () {
     local -i skip_static=${2:-0}
     local -n o=$1
-    local px=${o["{prev_x}$X"]:-${o["{x}$X"]:-0}} py=${o["{prev_y}$X"]:-${o["{y}$X"]:-0}}
+    local px=${o[prev_x]:-${o[x]:-0}} py=${o[prev_y]:-${o[y]:-0}}
     # 帧缓冲：把属于它的格子清掉（用 owner 判定；未迁移的对象没有 owner，天然 no-op）
     local -i _fx _fy _fi
-    for _fy in "$py" "${o["{y}$X"]:-0}" ; do
+    for _fy in "$py" "${o[y]:-0}" ; do
         (( _fy >= 2 && _fy <= SCREEN_H - 2 )) || continue
-        _fx=${o["{x}$X"]:-0}
+        _fx=${o[x]:-0}
         (( _fx >= 2 && _fx <= SCREEN_W - 2 )) || continue
         _fi=$(( (_fy - 1) * FB_W + (_fx - 1) ))
         if [[ "${FB_OWNER[_fi]}" == "$1" ]] ; then
@@ -75,11 +75,11 @@ _render_erase_one () {
     # 但 art 形态也算"变"——护盾开关会换 art/宽度/行数（2 行变 3 行且上移 1 行），
     # 只比位置会漏擦，屏幕上留下旧护盾的轮廓。
     if (( skip_static )) && \
-       (( px == ${o["{x}$X"]:-0} && py == ${o["{y}$X"]:-0} )) ; then
-        if [[ -z "${o[{prev_art}$X]+_}" ]] \
-           || [[ "${o[{prev_art}$X]}" == "${o[{art}$X]}" \
-              && "${o[{prev_al}$X]}" == "${o[{al}$X]}" \
-              && "${o[{prev_shield}$X]}" == "${o[{shield}$X]}" ]] ; then
+       (( px == ${o[x]:-0} && py == ${o[y]:-0} )) ; then
+        if [[ -z "${o[prev_art]+_}" ]] \
+           || [[ "${o[prev_art]}" == "${o[art]}" \
+              && "${o[prev_al]}" == "${o[al]}" \
+              && "${o[prev_shield]}" == "${o[shield]}" ]] ; then
             return 0
         fi
     fi
@@ -90,14 +90,14 @@ _render_erase_one () {
         FRAME_BUF+="$ESC[${py};${px}H "
         ;;
     Plane|PlaneBee|PlaneHornet|PlaneEagle|PlaneIl2)
-        local psh=${o["{prev_shield}$X"]:-0} \
-              pal=${o["{prev_al}$X"]:-${o["{al}$X"]:-1}} \
-              part=${o["{prev_art}$X"]:-${o["{art}$X"]}} pay=$py
-        (( psh )) && pay=$(( py + ${o["{shield_top}$X"]:--1} ))
+        local psh=${o[prev_shield]:-0} \
+              pal=${o[prev_al]:-${o[al]:-1}} \
+              part=${o[prev_art]:-${o[art]}} pay=$py
+        (( psh )) && pay=$(( py + ${o[shield_top]:--1} ))
         _scene_clear_art_at "$pay" $(( px - pal )) "$part"
         ;;
     Word)
-        local len=${o["{len}$X"]:-0}
+        local len=${o[len]:-0}
         local eff=$len
         (( px + eff > SCREEN_W - 1 )) && eff=$(( SCREEN_W - 1 - px ))
         (( eff < 0 )) && eff=0
@@ -108,13 +108,13 @@ _render_erase_one () {
     EnemyV|EnemyQ|EnemyM|EnemyB|Boss|BossSpinner|SkullKing)
         # 用上一帧的 art 擦除：Boss 换阶段/无头时，当前 art 可能比旧 art 窄，
         # 拿当前 art 去擦会留下旧头/旧腿的残影。
-        local _old_art=${o["{prev_art}$X"]:-${o["{art}$X"]}}
+        local _old_art=${o[prev_art]:-${o[art]}}
         _scene_clear_art_at "$py" "$px" "$_old_art"
         local _bcls=${o["{CLS}$X"]}
         if [[ "$_bcls" == "Boss" ]] || [[ "$_bcls" == "BossSpinner" ]] \
            || [[ "$_bcls" == "SkullKing" ]] || [[ "$_bcls" == "EnemyB" ]] \
            || [[ "$_bcls" == "EnemyM" ]] ; then
-            local _bh=${o["{h}$X"]:-1}
+            local _bh=${o[h]:-1}
             if (( py + _bh < SCREEN_H )) ; then
                 # 整行擦除（\033[K）会抹掉这一行上的帧缓冲对象，擦完把它们的格子标脏补回
                 FRAME_BUF+="$ESC[$((py + _bh));2H$ESC[K$ESC[$((py + _bh));${SCREEN_W}H$FRAME_V"
@@ -159,22 +159,22 @@ render () {
     # 我方子弹已迁移到帧缓冲：擦除/绘制都在 tick 和 fb_emit 里，这里不再遍历。
     for m in "${MISSILES[@]}" ; do
         local -n _m=$m
-        _ex=${_m["{prev_x}$X"]:-${_m["{x}$X"]:-0}} \
-        _ey=${_m["{prev_y}$X"]:-${_m["{y}$X"]:-0}}
+        _ex=${_m[prev_x]:-${_m[x]:-0}} \
+        _ey=${_m[prev_y]:-${_m[y]:-0}}
         if (( _ex || _ey )) ; then
             FRAME_BUF+="$ESC[${_ey};${_ex}H "
         fi
-        _ptx=${_m["{prev_trail_x}$X"]:--1} \
-        _pty=${_m["{prev_trail_y}$X"]:--1}
+        _ptx=${_m[prev_trail_x]:--1} \
+        _pty=${_m[prev_trail_y]:--1}
         if (( _ptx >= 0 && _pty >= 0 )) ; then
             FRAME_BUF+="$ESC[${_pty};${_ptx}H "
         fi
     done
     for e in "${ENEMIES[@]}" ; do
         local -n _ep=$e
-        local -i _epx=${_ep["{x}$X"]} _epy=${_ep["{y}$X"]} \
-                 _epvx=${_ep["{prev_x}$X"]:-0} _epvy=${_ep["{prev_y}$X"]:-0}
-        local _epart=${_ep["{art}$X"]} _epart0=${_ep["{prev_art}$X"]-}
+        local -i _epx=${_ep[x]} _epy=${_ep[y]} \
+                 _epvx=${_ep[prev_x]:-0} _epvy=${_ep[prev_y]:-0}
+        local _epart=${_ep[art]} _epart0=${_ep[prev_art]-}
         # 位置和 art 都没变：这一帧不用擦——阶段 2 会把同一批格子原样重画一遍。
         # 擦除只在"敌人移动/换 art"时才有意义，静态敌人每帧擦一遍纯属浪费。
         if (( _epx == _epvx && _epy == _epvy )) && [[ "$_epart" == "$_epart0" ]] ; then
@@ -224,16 +224,16 @@ render () {
     # 我方子弹已迁移到帧缓冲：tick 里写格子，fb_emit 统一输出。
     for m in "${MISSILES[@]}" ; do
         local -n _m=$m
-        local _mx=${_m["{x}$X"]} _my=${_m["{y}$X"]} _msym=${_m["{symbol}$X"]} \
-              _ptx=${_m["{prev_x}$X"]:-} _pty=${_m["{prev_y}$X"]:-}
+        local _mx=${_m[x]} _my=${_m[y]} _msym=${_m[symbol]} \
+              _ptx=${_m[prev_x]:-} _pty=${_m[prev_y]:-}
         if [[ -n "$_ptx" && -n "$_pty" ]] && (( _ptx >= 2 && _pty >= 2 )) \
            && (( _ptx != _mx || _pty != _my )) ; then
             FRAME_BUF+="$ESC[${_pty};${_ptx}H$C_PLAYER_BULLET.$C_RESET"
-            _m["{prev_trail_x}$X"]=$_ptx \
-            _m["{prev_trail_y}$X"]=$_pty
+            _m[prev_trail_x]=$_ptx \
+            _m[prev_trail_y]=$_pty
         fi
         FRAME_BUF+="$ESC[${_my};${_mx}H$C_PLAYER_BULLET$_msym$C_RESET"
-        _m["{prev_x}$X"]=$_mx _m["{prev_y}$X"]=$_my
+        _m[prev_x]=$_mx _m[prev_y]=$_my
     done
 
     # ===== 帧缓冲：输出本帧变过的格子（敌方子弹 / 导弹）=====
@@ -255,11 +255,11 @@ render () {
             EnemyV)      _color=$C_GREEN ;;
         esac
         if [[ "$_cls" == "Boss" || "$_cls" == "BossSpinner" || "$_cls" == "SkullKing" ]] && \
-           (( ${_e["{inv_cd}$X"]:-0} > 0 )) ; then
+           (( ${_e[inv_cd]:-0} > 0 )) ; then
             _color=$C_CYAN
         fi
-        local _ay=${_e["{y}$X"]} _ax=${_e["{x}$X"]} _h=${_e["{h}$X"]} \
-              _hp2=${_e["{hp}$X"]} _maxhp=${_e["{maxhp}$X"]} _art=${_e["{art}$X"]}
+        local _ay=${_e[y]} _ax=${_e[x]} _h=${_e[h]} \
+              _hp2=${_e[hp]} _maxhp=${_e[maxhp]} _art=${_e[art]}
         _scene_art_lines "$_art"
         local -i _r=0 _rn=${_SCENE_ART_CACHE["$_art|__n"]:-0} _cy _cx _cw
         while (( _r < _rn )) ; do
@@ -273,15 +273,15 @@ render () {
             if (( _ay + _h < SCREEN_H )) ; then
                 # 动态增益标签挂在 HP 行尾（非 Boss 没有这个字段，读出来是空）
                 local _buff=''
-                [[ -n "${_e["{buff_str}$X"]-}" ]] && _buff=" ${_e["{buff_str}$X"]}"
+                [[ -n "${_e[buff_str]-}" ]] && _buff=" ${_e[buff_str]}"
                 printf -v _t '\033[%d;%dH\033[K%s[%d/%d]%s%s\033[%d;%dH%s' $((_ay + _h)) "$_ax" \
                     "$_color" "$_hp2" "$_maxhp" "$C_RESET" "$_buff" $((_ay + _h)) "$SCREEN_W" "$FRAME_V"
                 FRAME_BUF+="$_t"
             fi
         fi
-        _e["{prev_x}$X"]=$_ax \
-        _e["{prev_y}$X"]=$_ay \
-        _e["{prev_art}$X"]=$_art
+        _e[prev_x]=$_ax \
+        _e[prev_y]=$_ay \
+        _e[prev_art]=$_art
     done
 
     # ===== 帧缓冲（顶层）：掉落物在敌人 art 之后、飘字之前输出 =====
@@ -290,15 +290,15 @@ render () {
 
     for w in "${WORDS[@]}" ; do
         local -n _w=$w
-        local _wx=${_w["{x}$X"]} _wy=${_w["{y}$X"]} _wtxt=${_w["{text}$X"]}
+        local _wx=${_w[x]} _wy=${_w[y]} _wtxt=${_w[text]}
         FRAME_BUF+="$ESC[${_wy};${_wx}H$C_CYAN$_wtxt$C_RESET"
-        _w["{prev_x}$X"]=$_wx _w["{prev_y}$X"]=$_wy
+        _w[prev_x]=$_wx _w[prev_y]=$_wy
     done
 
     # ===== 阶段 3：玩家最后画（层级最高）=====
     # 玩家先画会被自己的子弹（出生点在 y-1，护盾时正压顶罩）和敌弹（机翼不是
     # 判定点，会飞过机翼）覆盖，表现为机体/护盾反复被遮住。放最后即不再被遮。
-    local _hp=${OBJ_player["{hp}$X"]:-0} _maxhp=${OBJ_player["{maxhp}$X"]:-20} _ph=''
+    local _hp=${OBJ_player[hp]:-0} _maxhp=${OBJ_player[maxhp]:-20} _ph=''
     if (( _hp >= _maxhp )) ; then _ph="${C_BLUE}${C_BOLD}"
     elif (( _hp * 2 < _maxhp )) ; then _ph="${C_RED}${C_BOLD}"
     else _ph="${C_FG_DEFAULT}${C_BOLD}"
@@ -307,12 +307,12 @@ render () {
 
     # 独立的赋值合成一条（每条 local 约 3µs）；有依赖的必须另起一条——
     # bash 先把整条命令的字展开再赋值，同一条里的后半段看不到前半段。
-    local _px=${OBJ_player["{x}$X"]} _py=${OBJ_player["{y}$X"]} \
-          _part=${OBJ_player["{art}$X"]} \
-          _al=${OBJ_player["{al}$X"]:-1} \
-          _bal=${OBJ_player["{base_al}$X"]:-1} \
-          _sht=${OBJ_player["{shield_top}$X"]:--1} \
-          _sh=${OBJ_player["{shield}$X"]:-0}
+    local _px=${OBJ_player[x]} _py=${OBJ_player[y]} \
+          _part=${OBJ_player[art]} \
+          _al=${OBJ_player[al]:-1} \
+          _bal=${OBJ_player[base_al]:-1} \
+          _sht=${OBJ_player[shield_top]:--1} \
+          _sh=${OBJ_player[shield]:-0}
     local _pax=$(( _px - _al )) _pay=$_py
     (( _sh )) && _pay=$(( _pay + _sht ))
     _scene_art_lines "$_part"
@@ -353,11 +353,11 @@ render () {
         (( _blink_visible )) && FRAME_BUF+="$ESC[$((_pay + _pr));${_start}H$_out"
         ((_pr++))
     done
-    OBJ_player["{prev_x}$X"]=$_px \
-    OBJ_player["{prev_y}$X"]=$_py \
-    OBJ_player["{prev_art}$X"]=$_part \
-    OBJ_player["{prev_al}$X"]=$_al \
-    OBJ_player["{prev_shield}$X"]=$_sh
+    OBJ_player[prev_x]=$_px \
+    OBJ_player[prev_y]=$_py \
+    OBJ_player[prev_art]=$_part \
+    OBJ_player[prev_al]=$_al \
+    OBJ_player[prev_shield]=$_sh
 
     # ===== 电网最后画：它是覆盖层，玩家要能看清缺口在哪 =====
     # 擦除在阶段 1 已经做完了，这里只负责把当前行盖上去。

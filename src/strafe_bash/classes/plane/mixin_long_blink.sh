@@ -15,5 +15,5 @@ readonly M_LongBlinkStaticTemplate='
 
 M_LongBlink_blink_start () {
     local -n self=$1
-    self["{blink}$X"]=$(( 4 * FPS ))
+    self[blink]=$(( 4 * FPS ))
 }

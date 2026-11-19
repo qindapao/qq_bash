@@ -36,19 +36,19 @@ readonly EnemyStaticTemplate='
     '
 Enemy_born () {
     local -n self=$1
-    local w=${self["{w}$X"]:-1}
+    local w=${self[w]:-1}
     (( w < 1 )) && w=1
-    self["{x}$X"]=$(( RANDOM % (SCREEN_W - 2 - w) + 2 )) \
-    self["{y}$X"]=$GAME_TOP self["{vx}$X"]=0 self["{vy}$X"]=1 \
-    self["{cd}$X"]=0
+    self[x]=$(( RANDOM % (SCREEN_W - 2 - w) + 2 )) \
+    self[y]=$GAME_TOP self[vx]=0 self[vy]=1 \
+    self[cd]=0
 }
 
 _enemy_fire () {
     local e=$1 percent=$2 esym=$3 edmg=$4
     (( RANDOM % 100 < percent )) || return 0
     local -n _e=$e
-    local _fw=${_e["{w}$X"]} \
-          _fy=$(( ${_e["{y}$X"]} + ${_e["{h}$X"]} ))
-    local _fx=$(( ${_e["{x}$X"]} + _fw / 2 ))
+    local _fw=${_e[w]} \
+          _fy=$(( ${_e[y]} + ${_e[h]} ))
+    local _fx=$(( ${_e[x]} + _fw / 2 ))
     enemy_bullet_spawn EnemyBullet "$_fx" "$_fy" "$esym" "$edmg"
 }

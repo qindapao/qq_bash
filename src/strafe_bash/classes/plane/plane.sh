@@ -102,18 +102,18 @@ Plane_born () {
         PlaneIl2)    _base=$PLANE_ART_IL2    ; _shield=$PLANE_ART_SHIELD_IL2    ;;
         *)           _base=$PLANE_ART_BASE   ; _shield=$PLANE_ART_SHIELD       ;;
     esac
-    self["{base_art}$X"]=$_base \
-    self["{shield_art}$X"]=$_shield \
-    self["{art}$X"]=$_base \
-    self["{x}$X"]=$(( SCREEN_W / 2 )) \
-    self["{y}$X"]=$(( SCREEN_H - 2 )) \
-    self["{al}$X"]=${self["{base_al}$X"]:-1} \
-    self["{shield}$X"]=0 \
-    self["{st}$X"]=0 \
-    self["{prev_art}$X"]=$_base \
-    self["{prev_al}$X"]=${self["{base_al}$X"]:-1} \
-    self["{prev_shield}$X"]=0 \
-    self["{hp}$X"]=${self["{maxhp}$X"]:-20}
+    self[base_art]=$_base \
+    self[shield_art]=$_shield \
+    self[art]=$_base \
+    self[x]=$(( SCREEN_W / 2 )) \
+    self[y]=$(( SCREEN_H - 2 )) \
+    self[al]=${self[base_al]:-1} \
+    self[shield]=0 \
+    self[st]=0 \
+    self[prev_art]=$_base \
+    self[prev_al]=${self[base_al]:-1} \
+    self[prev_shield]=0 \
+    self[hp]=${self[maxhp]:-20}
 }
 Plane_use_skill () {
     # 预留接口：具体机型以后覆盖这个方法。
@@ -124,17 +124,17 @@ Plane_retire () {
     local -n self=$1
     local i wpn
     for i in 1 2 3 4 5 ; do
-        wpn=${self["{w$i}$X"]}
+        wpn=${self["w$i"]}
         [[ -n "$wpn" && -n "${XO_OBJ_POOL[$wpn]+_}" ]] && xo_obj_bury "$wpn"
     done
 }
 Plane_move () {
     local -n self=$1
     local dx=${2:-0} dy=${3:-0}
-    local _al=${self["{al}$X"]:-1}
-    local _sh=${self["{shield}$X"]:-0}
-    local x=$(( ${self["{x}$X"]} + dx ))
-    local y=$(( ${self["{y}$X"]} + dy ))
+    local _al=${self[al]:-1}
+    local _sh=${self[shield]:-0}
+    local x=$(( ${self[x]} + dx ))
+    local y=$(( ${self[y]} + dy ))
     local _minx=$(( _al + 2 ))
     local _maxx=$(( SCREEN_W - _al - 2 ))
     (( x < _minx )) && x=$_minx
@@ -143,12 +143,12 @@ Plane_move () {
     (( _sh )) && _miny=$(( GAME_TOP + 1 ))
     (( y < _miny )) && y=$_miny
     (( y > SCREEN_H - 2 )) && y=$(( SCREEN_H - 2 ))
-    self["{x}$X"]=$x \
-    self["{y}$X"]=$y
+    self[x]=$x \
+    self[y]=$y
 }
 Plane_fire () {
     local -n self=$1
-    local wpn=${self["{bullet}$X"]}
+    local wpn=${self[bullet]}
     if [[ -z "$wpn" || -z "${XO_OBJ_POOL[$wpn]+_}" ]] ; then
         G_FIRE_CD=6
         return 0
@@ -156,24 +156,24 @@ Plane_fire () {
 
     # 当前武器的 8 方向字符 / 伤害 / 射速 / 弹速
     local -n w=$wpn
-    local dmg=${w["{damage}$X"]:-1} \
-          cd=${w["{cd}$X"]:-6} \
-          spd=${w["{spd}$X"]:-1} \
-          _laser=${w["{laser}$X"]:-0}
-    local su=${w["{u}$X"]:-.}
-    local sul=${w["{ul}$X"]:-$su} \
-          sur=${w["{ur}$X"]:-$su} \
-          sl=${w["{l}$X"]:-$su} \
-          sr=${w["{r}$X"]:-$su}
+    local dmg=${w[damage]:-1} \
+          cd=${w[cd]:-6} \
+          spd=${w[spd]:-1} \
+          _laser=${w[laser]:-0}
+    local su=${w[u]:-.}
+    local sul=${w[ul]:-$su} \
+          sur=${w[ur]:-$su} \
+          sl=${w[l]:-$su} \
+          sr=${w[r]:-$su}
 
-    local -i _sdelta=${self["{spd_delta}$X"]:-0} \
-             _cddelta=${self["{cd_delta}$X"]:-0} \
-             _lex=${self["{laser_exempt}$X"]:-0}
+    local -i _sdelta=${self[spd_delta]:-0} \
+             _cddelta=${self[cd_delta]:-0} \
+             _lex=${self[laser_exempt]:-0}
     (( _laser && _lex )) && _sdelta=0
 
     # 敌方减速：既降弹速（命中延迟），也压射速 —— 只降弹速的话 DPS 一点不变，
     # 玩家只会觉得"手感变钝"，不会觉得被削弱。
-    local -i _spct=${self["{spd_pct}$X"]:-100}
+    local -i _spct=${self[spd_pct]:-100}
     spd=$(( spd + _sdelta ))
     if (( _spct < 100 )) ; then
         spd=$(( spd * _spct / 100 ))
@@ -192,10 +192,10 @@ Plane_fire () {
         return 0
     fi
 
-    local _fx=${self["{x}$X"]} \
-          _fy=$(( ${self["{y}$X"]} - 1 )) \
-          _lanes=${self["{lanes}$X"]:-0} \
-          _side=${self["{lanes_side}$X"]:-0}
+    local _fx=${self[x]} \
+          _fy=$(( ${self[y]} - 1 )) \
+          _lanes=${self[lanes]:-0} \
+          _side=${self[lanes_side]:-0}
     local -i _up=$(( -spd )) _left=$(( -spd )) _right=$spd
 
     # 量子能量武器只有一道：不按 lanes 分裂成多颗子弹，而是把 lanes+1 作为威力（1..5）。
@@ -216,11 +216,11 @@ Plane_fire () {
         local _nbid=$REPLY
         if [[ -n "$_lclr" ]] ; then
             local -n _nbref=$_nbid
-            _nbref["{color}$X"]=$_lclr
+            _nbref[color]=$_lclr
             # 出生时拼的 glyph 用的是默认色，这里换成激光色并把出生格重写一遍
-            _nbref["{glyph}$X"]="$_lclr${_nbref["{symbol}$X"]}$C_RESET"
+            _nbref[glyph]="$_lclr${_nbref[symbol]}$C_RESET"
             local -i _lfi=$(( (_fy - 1) * FB_W + (_fx - 1) ))
-            FB_CELL[_lfi]=${_nbref["{glyph}$X"]} FB_OWNER[_lfi]=$_nbid FB_DIRTY+=("$_lfi")
+            FB_CELL[_lfi]=${_nbref[glyph]} FB_OWNER[_lfi]=$_nbid FB_DIRTY+=("$_lfi")
         fi
         BULLETS+=("$_nbid")
         return 0

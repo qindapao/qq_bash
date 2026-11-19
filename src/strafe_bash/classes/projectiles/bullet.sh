@@ -26,12 +26,12 @@ readonly BulletStaticTemplate='
     '
 Bullet_born () {
     local -n self=$1
-    self["{x}$X"]=$2 self["{y}$X"]=$3 self["{symbol}$X"]=$4 \
-    self["{damage}$X"]=$5 self["{vx}$X"]=${6:-0} self["{vy}$X"]=${7:--1}
+    self[x]=$2 self[y]=$3 self[symbol]=$4 \
+    self[damage]=$5 self[vx]=${6:-0} self[vy]=${7:--1}
     # 帧缓冲：出生即占一格（颜色空时用玩家统一弹色，和旧渲染一致）
-    self["{glyph}$X"]="${self["{color}$X"]:-$C_PLAYER_BULLET}${self["{symbol}$X"]}$C_RESET"
+    self[glyph]="${self[color]:-$C_PLAYER_BULLET}${self[symbol]}$C_RESET"
     local -i _fi=$(( ($3 - 1) * FB_W + ($2 - 1) ))
-    FB_CELL[_fi]=${self["{glyph}$X"]} FB_OWNER[_fi]=$1 FB_DIRTY+=("$_fi")
+    FB_CELL[_fi]=${self[glyph]} FB_OWNER[_fi]=$1 FB_DIRTY+=("$_fi")
 }
 
 # 可回收类的易变字段：fire 时只把这几个恢复成模板默认值（其余字段每次 _born 都重设）。
@@ -40,10 +40,10 @@ Bullet_born () {
 readonly BulletResetFields='prev_x prev_y color'
 Bullet_move () {
     local -n self=$1
-    self["{x}$X"]=$(( ${self["{x}$X"]} + ${self["{vx}$X"]} )) \
-    self["{y}$X"]=$(( ${self["{y}$X"]} + ${self["{vy}$X"]} ))
-    (( ${self["{y}$X"]} < GAME_TOP )) && return 1
-    (( ${self["{x}$X"]} < 2 )) && return 1
-    (( ${self["{x}$X"]} > SCREEN_W - 2 )) && return 1
+    self[x]=$(( ${self[x]} + ${self[vx]} )) \
+    self[y]=$(( ${self[y]} + ${self[vy]} ))
+    (( ${self[y]} < GAME_TOP )) && return 1
+    (( ${self[x]} < 2 )) && return 1
+    (( ${self[x]} > SCREEN_W - 2 )) && return 1
     return 0
 }

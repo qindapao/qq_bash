@@ -492,6 +492,80 @@ In short: for a persistent ability, adding it once or many times is identical
 (idempotent, `_init` runs once). For a one-shot ability, repeats in the same call
 are also identical; only a separate call fires it again, which is intended.
 
+### Flat classes
+
+`Base` is a **flat** class: all of its fields are uppercase metakeys, and objects
+built from it store user fields without the `{...}$X` wrapper. `BaseX` (a
+`Base` subclass) is the root of **tree** classes, which keep the wrapped keys and
+the `x` tree machinery. A class picks its shape with the `{FLT}` field:
+
+```text
+    {FLT} => 1     flat class  (rules above);  user field {hp}$X is stored as hp
+    {FLT} => 0     tree class  (BaseX root);   user field stays {hp}$X
+```
+
+`{FLT}` is inherited, so every class under `Base` is flat unless it overrides the
+field. `xo_init` strips flat class objects and rebuilds their `ObjStr` cache, so
+instances are born flat; tree classes are left untouched.
+
+Key names after stripping:
+
+```text
+    metakeys, kept wrapped in both shapes:   {CLS}$X {SUP}$X {MIX}$X {OBJMIX}$X {FLT}$X
+    flat class user fields:   {hp}$X  ->  hp        read with  self[hp] / obj[hp]
+    tree class user fields:   {hp}$X  unchanged     read with  self["{hp}$X"]
+```
+
+A flat class object has no `x` tree nodes (`1.c.*`, `max_index`, ...) any more:
+it is a plain associative array, so `x_get` / `x_set`-style access does not apply
+to it. `Base_print` dumps it as a plain array; `BaseX_print` keeps `x_dump`.
+
+**No ad-hoc fields.** The flat shape makes it *possible* to write any key into an
+object, but it is forbidden: every field a method touches must be declared in the
+class template (with a comment, as the constitution requires), and an undeclared
+key is a bug. Field names follow the table at the top of `xo.in`: public fields
+are lower snake case (`hp`, `prev_x`), private ones are `_ClassName_field`
+(`_Boss_phase`), and `_kind{...}` temporary containers are framework-internal and
+never used for game data.
+
+#### The `{REQUIRES}` rule for mixins
+
+A mixin that only works with one shape must say so in `{REQUIRES}`, and the
+declaration is **mandatory in the first position**:
+
+```text
+    {REQUIRES} => FLT=1 bi_cd inv_cd     # flat only, then its field dependencies
+    {REQUIRES} => FLT=0                  # tree only
+    {REQUIRES} => hp maxhp               # no FLT: both shapes
+```
+
+- `FLT=1` means "flat classes only", `FLT=0` means "tree classes only"; the
+  framework rejects a class/mixin pair whose shapes differ.
+- **No `FLT` token means the mixin supports both shapes**, and then its
+  implementation must handle both key layouts itself (`self[x]` and
+  `self["{x}$X"]`, or through a framework accessor). Writing it for one shape
+  only will silently read empty fields on the other.
+- `FLT` is required to be the first token by convention (it keeps the declaration
+  readable and greppable). The framework detects it with a token-boundary regex,
+  so it is found whether the next character is a field, a newline, or the end of
+  the line; `FLT=10` is not mistaken for `FLT=1`.
+
+#### Migrating to flat field access
+
+Once a class is flat, its own methods and its `_born` / `_retire` hooks must use
+the stripped keys:
+
+```bash
+    # tree style (old)                 # flat style (new)
+    ${self["{x}$X"]}                    ${self[x]}
+    self["{x}$X"]=$x                    self[x]=$x
+    ${self["{hp}$X"]:-0}                ${self[hp]:-0}
+```
+
+Metakeys are the only exception: they stay wrapped, e.g. `${self["{CLS}$X"]}` and
+`${self["{OBJMIX}$X"]}`. Mixin bodies follow the same rule (or the `{REQUIRES}`
+declaration must say they only support one shape).
+
 ### Il-2 mixin stack
 
 Il-2 uses a three-entry Mixin list:

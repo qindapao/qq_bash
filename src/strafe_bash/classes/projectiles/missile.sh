@@ -27,9 +27,9 @@ readonly MissileStaticTemplate='
     '
 Missile_born () {
     local -n self=$1
-    self["{x}$X"]=$2 self["{y}$X"]=$3 self["{damage}$X"]=${4:-2} \
-         self["{vx}$X"]=0 self["{vy}$X"]=-1 self["{symbol}$X"]='^' \
-             self["{prev_trail_x}$X"]=-1 self["{prev_trail_y}$X"]=-1
+    self[x]=$2 self[y]=$3 self[damage]=${4:-2} \
+         self[vx]=0 self[vy]=-1 self[symbol]='^' \
+             self[prev_trail_x]=-1 self[prev_trail_y]=-1
 }
 
 # 易变字段（复用前要恢复）：只有渲染写入的位置句柄。
@@ -37,7 +37,7 @@ Missile_born () {
 readonly MissileResetFields='prev_x prev_y'
 Missile_move () {
     local -n self=$1
-    local -i x=${self["{x}$X"]} y=${self["{y}$X"]}
+    local -i x=${self[x]} y=${self[y]}
     local -i vx=0 vy=-1
     local _e _ex _ey _dx _dy _d _best=999999
 
@@ -57,7 +57,7 @@ Missile_move () {
     for _e in "${ENEMIES[@]}" ; do
         [[ -n "$_e" && -n "${XO_OBJ_POOL[$_e]+_}" ]] || continue
         local -n _me=$_e
-        _ex=${_me["{x}$X"]} ; _ey=${_me["{y}$X"]}
+        _ex=${_me[x]} ; _ey=${_me[y]}
         _dx=$(( _ex - x )) ; _dy=$(( _ey - y ))
         (( _dx < 0 )) && _dx=$(( -_dx ))
         (( _dy < 0 )) && _dy=$(( -_dy ))
@@ -73,16 +73,16 @@ Missile_move () {
         fi
     done
 
-    self["{vx}$X"]=$vx self["{vy}$X"]=$vy \
-         self["{x}$X"]=$(( x + vx )) self["{y}$X"]=$(( y + vy ))
-    if (( vy < 0 )) ; then self["{symbol}$X"]='^'
-    elif (( vy > 0 )) ; then self["{symbol}$X"]='v'
-    elif (( vx < 0 )) ; then self["{symbol}$X"]='<'
-    elif (( vx > 0 )) ; then self["{symbol}$X"]='>'
+    self[vx]=$vx self[vy]=$vy \
+         self[x]=$(( x + vx )) self[y]=$(( y + vy ))
+    if (( vy < 0 )) ; then self[symbol]='^'
+    elif (( vy > 0 )) ; then self[symbol]='v'
+    elif (( vx < 0 )) ; then self[symbol]='<'
+    elif (( vx > 0 )) ; then self[symbol]='>'
     fi
-    (( ${self["{x}$X"]} < 2 )) && return 1
-    (( ${self["{x}$X"]} > SCREEN_W - 2 )) && return 1
-    (( ${self["{y}$X"]} < GAME_TOP )) && return 1
-    (( ${self["{y}$X"]} >= SCREEN_H - 1 )) && return 1
+    (( ${self[x]} < 2 )) && return 1
+    (( ${self[x]} > SCREEN_W - 2 )) && return 1
+    (( ${self[y]} < GAME_TOP )) && return 1
+    (( ${self[y]} >= SCREEN_H - 1 )) && return 1
     return 0
 }

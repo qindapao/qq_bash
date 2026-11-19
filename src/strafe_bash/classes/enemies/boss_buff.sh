@@ -37,6 +37,37 @@ declare -gA BOSS_BUFF_LABEL=(
     [M_BuffSlow]=SLOW
 )
 
+
+readonly M_BuffMissileStaticTemplate='
+    M_BlinkObj ->
+        {CLS} => M_BuffMissile
+        {REQUIRES} => FLT=1 ms_cd x y w h
+    '
+
+readonly M_BuffInvulnStaticTemplate='
+    M_BlinkObj ->
+        {CLS} => M_BuffInvuln
+        {REQUIRES} => FLT=1 bi_cd inv_cd
+    '
+
+readonly M_BuffHealStaticTemplate='
+    M_BlinkObj ->
+        {CLS} => M_BuffHeal
+        {REQUIRES} => FLT=1 hp maxhp heal_cd x y w
+    '
+
+readonly M_BuffWaveStaticTemplate='
+    M_BlinkObj ->
+        {CLS} => M_BuffWave
+        {REQUIRES} => FLT=1 wv_gap wv_cd wv_left
+    '
+
+readonly M_BuffSlowStaticTemplate='
+    M_BlinkObj ->
+        {CLS} => M_BuffSlow
+        {REQUIRES} => FLT=1 OBJ_player -> spd_pct slow
+    '
+
 # 把 {OBJMIX} 映射成短标签写回 {buff_str}；{OBJMIX} 是唯一事实来源。
 _boss_buff_sync_str () {
     local -n _b=$1
@@ -44,7 +75,7 @@ _boss_buff_sync_str () {
     for m in $list ; do
         out+="${BOSS_BUFF_LABEL[$m]:-?} "
     done
-    _b["{buff_str}$X"]=${out% }
+    _b[buff_str]=${out% }
 }
 
 # 能力是否"当前值得拿"：没写 buff_ok 谓词的能力默认永远可用
@@ -87,8 +118,8 @@ _boss_buff_gain () {
 _boss_buff_tick () {
     local boss=$1
     local -n _b=$boss
-    local -i _ph=${_b["{phase}$X"]:-0} _last=${_b["{buff_phase}$X"]:--1}
-    _b["{buff_phase}$X"]=$_ph
+    local -i _ph=${_b[phase]:-0} _last=${_b[buff_phase]:--1}
+    _b[buff_phase]=$_ph
 
     # 出生时 _last=-1，所以 phase 0 也算一次；加上 3 次阶段切换，一局正好 4 次
     (( _ph != _last )) && _boss_buff_gain "$boss"
@@ -106,7 +137,7 @@ _boss_buff_tick () {
 M_BuffInvuln__init () {
     local -n self=$1
     # 获得时先等一个"可受伤"间隔再触发，避免和"阶段切换自带的无敌"重叠浪费
-    self["{bi_cd}$X"]=$BOSS_BUFF_INV_OFF
+    self[bi_cd]=$BOSS_BUFF_INV_OFF
     return 0
 }
 
@@ -115,22 +146,22 @@ M_BuffInvuln__cleanup () {
     # 只清自己的节拍。{inv_cd} 是与"阶段切换无敌"共用的字段，能力清理不能去动它——
     # 否则会提前结束一段与本能力无关的无敌窗口（越权清别人的状态）。
     # 正在生效的无敌也随它自然走完（最多 BOSS_BUFF_INV_ON），本能力只是不再续期。
-    self["{bi_cd}$X"]=0
+    self[bi_cd]=0
     return 0
 }
 
 M_BuffInvuln_buff_tick () {
     local -n self=$1
-    local -i cd=${self["{bi_cd}$X"]:-0}
+    local -i cd=${self[bi_cd]:-0}
     if (( cd > 0 )) ; then
-        self["{bi_cd}$X"]=$(( cd - 1 ))
+        self[bi_cd]=$(( cd - 1 ))
         return 0
     fi
     # 到点了：进入下一轮冷却；但如果此刻已经无敌（例如阶段切换给的窗口），
     # 就不再叠加一层——否则玩家会觉得"几乎一直在无敌"。
-    self["{bi_cd}$X"]=$(( BOSS_BUFF_INV_ON + BOSS_BUFF_INV_OFF ))
-    if (( ${self["{inv_cd}$X"]:-0} == 0 )) ; then
-        self["{inv_cd}$X"]=$BOSS_BUFF_INV_ON
+    self[bi_cd]=$(( BOSS_BUFF_INV_ON + BOSS_BUFF_INV_OFF ))
+    if (( ${self[inv_cd]:-0} == 0 )) ; then
+        self[inv_cd]=$BOSS_BUFF_INV_ON
     fi
     return 0
 }
@@ -146,11 +177,11 @@ M_BuffInvuln_buff_tick () {
 _boss_phase_hp_cap () {
     local -n _c=$1
     # 注意：不要写成 local a=1 b=$a —— bash 会先把所有赋值展开再逐个赋值，b 拿到的是旧值。
-    local -i mx=${_c["{maxhp}$X"]:-1} \
-             ph=${_c["{phase}$X"]:-0} \
-             p1=${_c["{pcut1}$X"]:-70} \
-             p2=${_c["{pcut2}$X"]:-50} \
-             p3=${_c["{pcut3}$X"]:-20}
+    local -i mx=${_c[maxhp]:-1} \
+             ph=${_c[phase]:-0} \
+             p1=${_c[pcut1]:-70} \
+             p2=${_c[pcut2]:-50} \
+             p3=${_c[pcut3]:-20}
     (( mx > 0 )) || mx=1
     local -i cap=$mx lo=$(( mx * p1 / 100 ))
     case $ph in
@@ -164,7 +195,7 @@ _boss_phase_hp_cap () {
 
 M_BuffHeal_buff_ok () {
     local -n self=$1
-    local -i hp=${self["{hp}$X"]:-0} mx=${self["{maxhp}$X"]:-0}
+    local -i hp=${self[hp]:-0} mx=${self[maxhp]:-0}
     # 只要受过伤就值得拿。不要用"当前还有没有恢复空间"来筛：阶段判定是整数截断
     # （127*100/180 = 70 就算进了 phase 1），而本阶段上限是 126，所以刚跨阶段时
     # 血量几乎总比上限高一点，按"有空间"筛就永远筛不中，回血从挂不上。
@@ -177,20 +208,20 @@ M_BuffHeal_buff_ok () {
 # 才一次性补回本阶段上限 —— 既守住"不破阶"，又让回血真的看得见。
 M_BuffHeal__init () {
     local -n self=$1
-    self["{heal_cd}$X"]=$BOSS_BUFF_HEAL_WAIT
+    self[heal_cd]=$BOSS_BUFF_HEAL_WAIT
     return 0
 }
 
 M_BuffHeal__cleanup () {
     local -n self=$1
     # 能力被摘掉：观察窗口作废（正在等待的回血不再发生）
-    self["{heal_cd}$X"]=0
+    self[heal_cd]=0
     return 0
 }
 
 M_BuffHeal_buff_tick () {
     local -n self=$1
-    local -i ttl=${self["{heal_cd}$X"]:-0} hp=${self["{hp}$X"]:-0}
+    local -i ttl=${self[heal_cd]:-0} hp=${self[hp]:-0}
 
     if (( ttl <= 0 )) ; then
         # 窗口内一直没等到机会：卸载，把槽位还回去
@@ -199,7 +230,7 @@ M_BuffHeal_buff_tick () {
         return 0
     fi
 
-    self["{heal_cd}$X"]=$(( ttl - 1 ))
+    self[heal_cd]=$(( ttl - 1 ))
 
     _boss_phase_hp_cap "$1"
     local -i cap=$REPLY lo=$REPLY_LO
@@ -208,8 +239,8 @@ M_BuffHeal_buff_tick () {
 
     # 本阶段的血被打掉了一半 → 补回本阶段上限（绝不越过它）
     if (( cap - hp >= need )) ; then
-        self["{hp}$X"]=$cap
-        local -i by=${self["{y}$X"]} bx=${self["{x}$X"]} bw=${self["{w}$X"]:-9}
+        self[hp]=$cap
+        local -i by=${self[y]} bx=${self[x]} bw=${self[w]:-9}
 
         local -i cx=$(( bx + bw / 2 )) cy=$(( by + 1 )) i ttl2
         local -a _dxs=(-2 -1 0 1 2 1 0 -1) _dys=(-1 -1 -1 -1 0 1 1 1)
@@ -230,25 +261,25 @@ M_BuffHeal_buff_tick () {
 M_BuffMissile__init () {
     local -n self=$1
     # 获得即发射：否则玩家要等 4 秒才看到第一次效果，容易以为能力没生效
-    self["{ms_cd}$X"]=0
+    self[ms_cd]=0
     return 0
 }
 
 M_BuffMissile__cleanup () {
     local -n self=$1
     # 只清自己的发射节拍；已经在飞的导弹属于游戏层的子弹表，不在这里回收
-    self["{ms_cd}$X"]=0
+    self[ms_cd]=0
     return 0
 }
 
 M_BuffMissile_buff_tick () {
     local -n self=$1
-    local -i cd=${self["{ms_cd}$X"]:-0}
+    local -i cd=${self[ms_cd]:-0}
     if (( cd > 0 )) ; then
-        self["{ms_cd}$X"]=$(( cd - 1 ))
+        self[ms_cd]=$(( cd - 1 ))
         return 0
     fi
-    self["{ms_cd}$X"]=$BOSS_BUFF_MISSILE_CD
+    self[ms_cd]=$BOSS_BUFF_MISSILE_CD
 
     # 场上数量上限：只在真要发射时数一次，不在每 tick 数
     local -i live=0 _mi
@@ -256,8 +287,8 @@ M_BuffMissile_buff_tick () {
         (( EB_ALIVE[_mi] && EB_TYPE[_mi] == 2 )) && (( live++ ))
     done
 
-    local -i sx=$(( ${self["{x}$X"]} + ${self["{w}$X"]:-9} / 2 ))
-    local -i sy=$(( ${self["{y}$X"]} + ${self["{h}$X"]:-5} ))
+    local -i sx=$(( ${self[x]} + ${self[w]:-9} / 2 ))
+    local -i sy=$(( ${self[y]} + ${self[h]:-5} ))
 
     (( live >= BOSS_BUFF_MISSILE_MAX )) && return 0
     enemy_bullet_spawn EnemyMissile "$sx" "$sy" \
@@ -277,44 +308,44 @@ M_BuffWave__init () {
     local -n self=$1
     local -i gap_s=$(( BOSS_WAVE_GAP_MIN + RANDOM % (BOSS_WAVE_GAP_MAX - BOSS_WAVE_GAP_MIN + 1) )) \
              n=$(( BOSS_WAVE_BURST_MIN + RANDOM % (BOSS_WAVE_BURST_MAX - BOSS_WAVE_BURST_MIN + 1) ))
-    self["{wv_gap}$X"]=$(( gap_s * FPS )) \
-    self["{wv_cd}$X"]=$(( gap_s * FPS )) \
-    self["{wv_left}$X"]=$(( n - 1 ))      # 第一根立刻放，所以剩下 n-1 根
+    self[wv_gap]=$(( gap_s * FPS )) \
+    self[wv_cd]=$(( gap_s * FPS )) \
+    self[wv_left]=$(( n - 1 ))      # 第一根立刻放，所以剩下 n-1 根
     _wave_start 0 "$BOSS_WAVE_DAMAGE"
     return 0
 }
 
 M_BuffWave_buff_tick () {
     local -n self=$1
-    local -i cd=${self["{wv_cd}$X"]:-0}
+    local -i cd=${self[wv_cd]:-0}
     if (( cd > 0 )) ; then
-        self["{wv_cd}$X"]=$(( cd - 1 ))
+        self[wv_cd]=$(( cd - 1 ))
         return 0
     fi
 
     # 到点：占一个空槽放一条波（同屏可以有多条）
     if ! _wave_start 0 "$BOSS_WAVE_DAMAGE" ; then
         # 槽位满了：下一 tick 再试，别把这一根丢掉
-        self["{wv_cd}$X"]=1
+        self[wv_cd]=1
         return 0
     fi
-    local -i left=$(( ${self["{wv_left}$X"]:-0} - 1 ))
+    local -i left=$(( ${self[wv_left]:-0} - 1 ))
     if (( left <= 0 )) ; then
         # 最后一根已经放出去了：立刻卸载，把槽位还给后面的阶段
         xo_obj_mixin_delete "$1" M_BuffWave
         _boss_buff_sync_str "$1"
         return 0
     fi
-    self["{wv_left}$X"]=$left \
-    self["{wv_cd}$X"]=${self["{wv_gap}$X"]}
+    self[wv_left]=$left \
+    self[wv_cd]=${self[wv_gap]}
     return 0
 }
 
 M_BuffWave__cleanup () {
     local -n self=$1
     # 只清自己的连发状态；已经放出去的波属于场景系统，让它自然扫完
-    self["{wv_left}$X"]=0 \
-    self["{wv_cd}$X"]=0
+    self[wv_left]=0 \
+    self[wv_cd]=0
     return 0
 }
 
@@ -326,7 +357,7 @@ M_BuffWave__cleanup () {
 # ---------------------------------------------------------------------------
 M_BuffSlow__init () {
     [[ -n "${XO_OBJ_POOL[OBJ_player]+_}" ]] || return 0
-    OBJ_player["{spd_pct}$X"]=$BOSS_BUFF_SLOW_PCT \
-    OBJ_player["{slow}$X"]=$BONUS_SLOW
+    OBJ_player[spd_pct]=$BOSS_BUFF_SLOW_PCT \
+    OBJ_player[slow]=$BONUS_SLOW
     return 0
 }

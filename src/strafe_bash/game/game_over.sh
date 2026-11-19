@@ -9,7 +9,7 @@ _STRAFE_GAME_OVER_SH=1
 
 player_death_fx () {
     [[ -n "${XO_OBJ_POOL[OBJ_player]+_}" ]] || return 0
-    local -i x=${OBJ_player["{x}$X"]} y=${OBJ_player["{y}$X"]}
+    local -i x=${OBJ_player[x]} y=${OBJ_player[y]}
     local -a _dx=(0 1 1 1 0 -1 -1 -1)
     local -a _dy=(-1 -1 0 1 1 1 0 -1)
     local -a _chars=('*' '@' '#' '+' '.')
@@ -62,7 +62,7 @@ EOF
 game_over_screen () {
     local -i score=0 secs mm ss
     if [[ -n "${XO_OBJ_POOL[OBJ_player]+_}" ]] ; then
-        score=${OBJ_player["{score}$X"]:-0}
+        score=${OBJ_player[score]:-0}
     fi
     secs=$(( G_RUN_TICKS / FPS ))
     mm=$(( secs / 60 ))

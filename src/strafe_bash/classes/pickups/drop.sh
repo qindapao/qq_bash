@@ -27,39 +27,39 @@ readonly DropStaticTemplate='
 Drop_born () {
     local -n self=$1
     local t=$2
-    self["{dtype}$X"]=$t \
-        self["{symbol}$X"]=$t
+    self[dtype]=$t \
+        self[symbol]=$t
 
     # 武器掉落（tier 1..5）显示对应武器的主字符，而不是数字。
     # 武器对象在本局 init_game 时已经创建好，这里只查它的 {u}。
     case "$t" in
         1|2|3|4|5)
             if [[ -n "${XO_OBJ_POOL[OBJ_player]+_}" ]] ; then
-                local _w=${OBJ_player["{w$t}$X"]}
+                local _w=${OBJ_player["w$t"]}
                 if [[ -n "$_w" && -n "${XO_OBJ_POOL[$_w]+_}" ]] ; then
                     local -n _wobj=$_w
-                    self["{symbol}$X"]=${_wobj["{u}$X"]}
+                    self[symbol]=${_wobj[u]}
                 fi
             fi
             ;;
     esac
 
-    self["{x}$X"]=$(( (RANDOM % (SCREEN_W - 4)) + 2 )) \
-        self["{y}$X"]=$GAME_TOP \
-        self["{cd}$X"]=0
+    self[x]=$(( (RANDOM % (SCREEN_W - 4)) + 2 )) \
+        self[y]=$GAME_TOP \
+        self[cd]=0
     # 帧缓冲（顶层）：出生即占一格
-    self["{glyph}$X"]="$C_REVERSE${self["{symbol}$X"]}$C_RESET"
-    local -i _fi=$(( (${self["{y}$X"]} - 1) * FB_W + (${self["{x}$X"]} - 1) ))
-    FB_DROP[_fi]=${self["{glyph}$X"]} FB_DOWNER[_fi]=$1 FB_TOP+=("$_fi")
+    self[glyph]="$C_REVERSE${self[symbol]}$C_RESET"
+    local -i _fi=$(( (${self[y]} - 1) * FB_W + (${self[x]} - 1) ))
+    FB_DROP[_fi]=${self[glyph]} FB_DOWNER[_fi]=$1 FB_TOP+=("$_fi")
 }
 Drop_move () {
     local -n self=$1
-    local cd=$(( ${self["{cd}$X"]} + 1 ))
-    (( cd < 6 )) && { self["{cd}$X"]=$cd ; return 0 ; }
-    local -i _oy=${self["{y}$X"]} _x=${self["{x}$X"]} _fi
-    self["{cd}$X"]=0 \
-    self["{y}$X"]=$(( _oy + 1 ))
-    local -i _ny=${self["{y}$X"]}
+    local cd=$(( ${self[cd]} + 1 ))
+    (( cd < 6 )) && { self[cd]=$cd ; return 0 ; }
+    local -i _oy=${self[y]} _x=${self[x]} _fi
+    self[cd]=0 \
+    self[y]=$(( _oy + 1 ))
+    local -i _ny=${self[y]}
     # 帧缓冲（顶层）：清旧格 + 写新格
     _fi=$(( (_oy - 1) * FB_W + (_x - 1) ))
     if [[ "${FB_DOWNER[_fi]}" == "$1" ]] ; then
@@ -67,7 +67,7 @@ Drop_move () {
     fi
     if (( _ny < SCREEN_H - 1 )) ; then
         _fi=$(( (_ny - 1) * FB_W + (_x - 1) ))
-        FB_DROP[_fi]=${self["{glyph}$X"]} FB_DOWNER[_fi]=$1 FB_TOP+=("$_fi")
+        FB_DROP[_fi]=${self[glyph]} FB_DOWNER[_fi]=$1 FB_TOP+=("$_fi")
     fi
     (( _ny >= SCREEN_H - 1 )) && return 1
     return 0
