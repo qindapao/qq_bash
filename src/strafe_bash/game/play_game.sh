@@ -1199,6 +1199,39 @@ play_game () {
     # 需要重画时置 1（首次 / 每次 tick / load 后）。
     local -i need_render=1
 
+    # ========================================================================
+    # 输入路径：Windows 默认用“探测 + 空闲自旋”，Linux 保持 read -t 0.002。
+    #
+    # 背景（实测，MSYS/Git Bash）：
+    #   read -t 0.002 在 Windows 上并不是 2ms，而是按 15.9ms 定时器粒度向上取整
+    #   （实测 -t 0.002/0.005/0.01 都约 16ms，-t 0.02 约 32ms）。主循环的这轮等待
+    #   因此变成 16ms，一轮循环 = 16ms + 工作，超过 33.3ms 的帧截止后帧就被推到
+    #   两轮一次：同一局实测基线 20.4fps，poll 模式 29.9fps（每帧 CPU 反而更低）。
+    #
+    #   Linux 上 read -t 0.002 是真 2ms，原路径本来就好，保持不动。
+    #   STRAFE_INPUT_POLL=1/0 可用于手动覆盖默认值。
+    # ========================================================================
+    local -i _poll=${STRAFE_INPUT_POLL:-0}
+    if [[ -z "${STRAFE_INPUT_POLL:-}" ]] ; then
+        case "${OSTYPE:-}" in
+            msys*|cygwin*|mingw*) _poll=1 ;;
+        esac
+    fi
+    # poll 模式下的空闲等待：自旋到下一个 tick/render 到期，期间随时响应输入。
+    # read -t 0 只探测、不消费；有输入就立刻回到主循环处理。
+    _idle_wait ()
+    {
+        local -i _next_us=$(( TICK_US - LOGIC_ACC_US ))
+        local -i _rw_us=$(( RENDER_US - RENDER_ACC_US ))
+        (( _rw_us < _next_us )) && _next_us=$_rw_us
+        (( _next_us > 0 )) || return 0
+        local -i _iw0=${EPOCHREALTIME/./}
+        while : ; do
+            IFS= read -rsn1 -t 0 && return 0
+            (( ${EPOCHREALTIME/./} - _iw0 >= _next_us )) && return 0
+        done
+    }
+
     screen_clear
     _mouse_on
     FRAME_BUF=""
@@ -1218,7 +1251,14 @@ play_game () {
         # ---- 读输入（高频 100Hz）----
         G_DX=0 ; G_DY=0
         local -i paused_changed=0 _in_n=0
-        while IFS= read -rsn1 -t 0.002 key ; do
+        while : ; do
+            if (( _poll )) ; then
+                # 先探测再有数据才读：read -t 0 只探测、不消费
+                IFS= read -rsn1 -t 0 || break
+                IFS= read -rsn1 key || break
+            else
+                IFS= read -rsn1 -t 0.002 key || break
+            fi
             (( _in_n++ ))
             (( _in_n > 64 )) && break
             case "$key" in
@@ -1376,6 +1416,7 @@ play_game () {
             fi
             frame_flush
             LOGIC_ACC_US=0
+            (( _poll )) && _idle_wait
             continue
         fi
         if (( paused_drawn )) ; then
@@ -1460,6 +1501,7 @@ play_game () {
             frame_flush
         fi
 
+        (( _poll )) && _idle_wait
         (( G_GAME_OVER )) && { _mouse_off ; return 0 ; }
     done
 }

@@ -26,6 +26,15 @@ Options:
   dark    neon colours for dark-background terminals
   auto    follow COLORFGBG when the terminal exports it, otherwise dark
 
+Environment:
+  STRAFE_THEME=light|dark|auto    same as -t/--theme
+  STRAFE_INPUT_POLL=1|0           force the probe-based input loop on/off
+                                  default: on under MSYS/CYGWIN, off elsewhere
+                                  (Windows read -t has a 15.9 ms granularity,
+                                   polling is what keeps 30 fps there)
+  STRAFE_ERRLOG=<path>            where runtime errors are written
+                                  default: /tmp/strafe_bash.err
+
 Controls:
   1-4                    choose a plane on the title screen
   W A S D  /  H J K L    move

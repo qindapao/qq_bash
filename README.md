@@ -135,6 +135,11 @@ not cover it.
 - Runtime errors go to `$STRAFE_ERRLOG` (default `/tmp/strafe_bash.err`); on
   exit the last lines are printed on the normal screen, so a crash is readable
   after the alternate screen is gone.
+- Input polling: `read -t` is quantised to the 15.9 ms Windows timer on
+  MSYS/CYGWIN, so a 2 ms timeout really waits 16 ms and costs frames. Those
+  platforms therefore default to a probe-based loop (`read -t 0` + poll until the
+  next tick); Linux keeps the exact 2 ms timeout. Set `STRAFE_INPUT_POLL=1` or
+  `STRAFE_INPUT_POLL=0` to override the default.
 
 Protocols, synchronized output and the alternate-screen rationale are in
 [DEVELOP.md](DEVELOP.md#terminal-and-input-notes).
