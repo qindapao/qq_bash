@@ -40,7 +40,7 @@ _scene_clear_art_at () {
         if (( _cw > 0 )) ; then
             _buf+="$ESC[${_cy};${_cx}H${SPACE_PROTOTYPE_STRING:0:_cw}"
             # art 擦掉的格子里可能有掉落物/子弹：重新标脏，下一次 emit 补画回来
-            _fb_touch_row "$_cy" "$_cx" $(( _cx + _cw - 1 ))
+            _scene_erase_mark "$_cy" "$_cx" $(( _cx + _cw - 1 ))
         fi
         ((r++))
     done
@@ -118,7 +118,7 @@ _render_erase_one () {
             if (( py + _bh < SCREEN_H )) ; then
                 # 整行擦除（\033[K）会抹掉这一行上的帧缓冲对象，擦完把它们的格子标脏补回
                 FRAME_BUF+="$ESC[$((py + _bh));2H$ESC[K$ESC[$((py + _bh));${SCREEN_W}H$FRAME_V"
-                _fb_touch_row $((py + _bh)) 2 $(( SCREEN_W - 2 ))
+                _scene_erase_mark $((py + _bh)) 2 $(( SCREEN_W - 2 ))
             fi
         fi
         ;;
@@ -131,8 +131,88 @@ _render_erase_one () {
 # 纯 xo 测试环境不加载本文件，仍然走 base_types.sh 里的探测版。
 Entity_retire () { _render_erase_one "$1" ; }
 
+# ============================================================================
+# 一帧内的"擦除区间"记录 + 统一补脏
+#
+# 擦 art / 电网行 / Boss 血条会把压在下面的帧缓冲对象（敌弹、我方子弹、掉落）
+# 一起擦掉。旧做法每擦一行调一次 _fb_touch_row 逐格找回；实测单行成本 ≈ 83us
+# 固定开销 + 29us/格（98 格就是 ~2.9ms）。行数一多（18 个小敌各 2 行、或 Boss
+# 5 行）就非常贵。
+#
+# 现在：擦除时只记"行 + 列区间"，fb_emit 前做一次成本比较，选便宜的那条：
+#   旧成本 ≈ 29*格子数 + 83*行数
+#   新成本 ≈ 29*候选对象数 + 8*行数   （候选 = 活着的敌弹 + 我方子弹 + 掉落）
+# 化简得"新更快"的条件：候选数 < 格子数 + 2.6*行数。系数由本机实测得出，
+# 跨机器绝对值会变，但比例基本稳定；且该判断只在有擦除的帧做，静态帧零成本。
+# ============================================================================
+declare -gai _ER_MIN=() _ER_MAX=()
+declare -gi _ER_CELLS=0 _ER_ROWS=0
+
+# 记录一行被擦过的列区间（$1=行 $2=起始列 $3=结束列，含）
+_scene_erase_mark () {
+    local -i _r=$1
+    (( _r >= 1 && _r <= SCREEN_H )) || return 0
+    local -i _a=$2 _b=$3
+    _ER_CELLS=$(( _ER_CELLS + _b - _a + 1 ))
+    if (( ${_ER_MIN[_r]:--1} < 0 )) ; then
+        _ER_MIN[_r]=$_a _ER_MAX[_r]=$_b
+        _ER_ROWS=$(( _ER_ROWS + 1 ))
+    else
+        (( _a < _ER_MIN[_r] )) && _ER_MIN[_r]=$_a
+        (( _b > _ER_MAX[_r] )) && _ER_MAX[_r]=$_b
+    fi
+    return 0
+}
+
+# 把被擦除区间盖住的存活帧缓冲对象补脏；按成本模型选"逐行 touch"或"一次扫描"
+_scene_erase_refill () {
+    (( _ER_ROWS )) || return 0
+    local -i _i _y _x
+    local -i _ncand=$(( EB_LIVE + ${#BULLETS[@]} + ${#DROPS[@]} ))
+    # 新路径成本模型：候选数 < 格子数 + 2.6*行数 时才划算
+    if (( _ncand * 5 >= _ER_CELLS * 5 + 13 * _ER_ROWS )) ; then
+        local -i _r
+        for _r in "${!_ER_MIN[@]}" ; do
+            _fb_touch_row "$_r" "${_ER_MIN[_r]}" "${_ER_MAX[_r]}"
+        done
+        return 0
+    fi
+    # 敌弹（SoA：槽位可能为空，先判 ALIVE）
+    for (( _i=0 ; _i<EB_N ; _i++ )) ; do
+        (( EB_ALIVE[_i] )) || continue
+        _y=${EB_Y[_i]}
+        (( ${_ER_MIN[_y]:--1} < 0 )) && continue
+        _x=${EB_X[_i]}
+        (( _x >= _ER_MIN[_y] && _x <= _ER_MAX[_y] )) || continue
+        FB_DIRTY+=( $(( (_y - 1) * FB_W + (_x - 1) )) )
+    done
+    # 我方子弹（对象层）
+    local _pb
+    for _pb in "${BULLETS[@]}" ; do
+        [[ -n "${XO_OBJ_POOL[$_pb]+_}" ]] || continue
+        local -n _rpb=$_pb
+        _y=${_rpb[y]} _x=${_rpb[x]}
+        (( ${_ER_MIN[_y]:--1} < 0 )) && continue
+        (( _x >= _ER_MIN[_y] && _x <= _ER_MAX[_y] )) || continue
+        FB_DIRTY+=( $(( (_y - 1) * FB_W + (_x - 1) )) )
+    done
+    # 掉落物
+    local _pd
+    for _pd in "${DROPS[@]}" ; do
+        [[ -n "${XO_OBJ_POOL[$_pd]+_}" ]] || continue
+        local -n _rpd=$_pd
+        _y=${_rpd[y]} _x=${_rpd[x]}
+        (( ${_ER_MIN[_y]:--1} < 0 )) && continue
+        (( _x >= _ER_MIN[_y] && _x <= _ER_MAX[_y] )) || continue
+        FB_DIRTY+=( $(( (_y - 1) * FB_W + (_x - 1) )) )
+    done
+    return 0
+}
+
 render () {
     local b e d eb m w _t _WSP _ex _ey
+    # 本帧的擦除区间记录（无擦除的静态帧保持为空，补脏函数直接返回）
+    _ER_MIN=() _ER_MAX=() _ER_CELLS=0 _ER_ROWS=0
     # 擦行用的行尾填充串只与屏幕宽度有关：每帧算一次，别在逐对象循环里 printf %*s
     # 电网从第 3 列开始画、宽度 SCREEN_W-4，所以擦除也用它（左右各留 1 格，对称）
     _WSP=${SPACE_PROTOTYPE_STRING:0:SCREEN_W-4}
@@ -199,7 +279,7 @@ render () {
             if (( _ly >= 0 && _ly != WV_Y[_ws] )) ; then
                 FRAME_BUF+="$ESC[${_ly};3H$_WSP"
                 # 整行擦过：这一行里帧缓冲对象（掉落/敌弹）的格子要补回来
-                _fb_touch_row "$_ly" 3 $(( SCREEN_W - 2 ))
+                _scene_erase_mark "$_ly" 3 $(( SCREEN_W - 2 ))
             fi
             WV_LAST_Y[_ws]=-1
         done
@@ -213,7 +293,7 @@ render () {
             local -i _ly=${WV_LAST_Y[_ws]:--1}
             (( _ly >= 0 )) || continue
             FRAME_BUF+="$ESC[${_ly};3H$_WSP"
-            _fb_touch_row "$_ly" 3 $(( SCREEN_W - 2 ))
+            _scene_erase_mark "$_ly" 3 $(( SCREEN_W - 2 ))
             WV_LAST_Y[_ws]=-1
         done
     fi
@@ -241,6 +321,7 @@ render () {
     # 放在这里（导弹之后、art 之前），后画的 art 仍然覆盖敌弹，和我们迁移前一致。
     # 已知边界：Boss 换形态时阶段 2 会清一次旧 art（_scene_clear_art_at），
     # 如果敌弹正好停在旧 art 区域，那一格会被擦掉，等它下次移动（≤3 tick）自动补回。
+    _scene_erase_refill
     fb_emit
 
     for e in "${ENEMIES[@]}" ; do

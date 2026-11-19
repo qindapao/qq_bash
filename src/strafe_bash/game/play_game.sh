@@ -1361,9 +1361,15 @@ play_game () {
                         paused=0
                         msg="" ; msg_tick=0
                         need_render=1
+                        # 恢复鼠标上报（暂停时关掉了，见下面的 else 分支）
+                        (( G_MOUSE_ON )) || _mouse_on
                     else
                         paused=1
                         paused_drawn=0
+                        # 暂停期间关闭鼠标上报：终端就不会再产生鼠标报文，
+                        # 既不用逐字节解析（Windows 上每条序列要几十毫秒），
+                        # 也不会在恢复时把暂停期间积压的旧位置一次性应用 → 飞机乱飘。
+                        (( G_MOUSE_ON )) && _mouse_off
                     fi
                     paused_changed=1
                     ;;
@@ -1382,6 +1388,8 @@ play_game () {
                             # 读档成功后立刻回到游戏，不再停在暂停画面
                             paused=0
                             paused_drawn=0
+                            # 暂停时关掉过鼠标上报，这里要和 p 恢复一样重新打开
+                            (( G_MOUSE_ON )) || _mouse_on
                             msg="" ; msg_tick=0
                             screen_clear
                             FRAME_BUF=""
