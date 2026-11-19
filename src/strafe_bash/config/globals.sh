@@ -1,6 +1,6 @@
 # config/globals.sh — 全局状态
-[[ -n "${_STRAFE_GLOBALS_SH:-}" ]] && return 0
-_STRAFE_GLOBALS_SH=1
+declare -gA _STRAFE_LOADED
+(( _STRAFE_LOADED[globals]++ )) && return 0
 
 declare -a BULLETS=() ENEMIES=() DROPS=() MISSILES=() MISSILE_TRAIL_CLEAR=()
 declare -a BOMB_FX_POS=()

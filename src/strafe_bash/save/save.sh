@@ -1,6 +1,6 @@
 # save/save.sh — 最小存档/读档（只保存玩家进度）
-[[ -n "${_STRAFE_SAVE_SH:-}" ]] && return 0
-_STRAFE_SAVE_SH=1
+declare -gA _STRAFE_LOADED
+(( _STRAFE_LOADED[save]++ )) && return 0
 . "$STRAFE_LIB_HOME/xo.sh"
 . "$STRAFE_PROJ_DIR/config/const.sh"
 . "$STRAFE_PROJ_DIR/config/globals.sh"

@@ -14,8 +14,8 @@
 #
 # 帧缓冲与旧渲染器可以并存：旧渲染器照常往 FRAME_BUF 拼，帧缓冲的
 # fb_emit 在最后把脏格补上（后写覆盖先写，正好符合"对象在 art 之上"）。
-[[ -n "${_STRAFE_FB_SH:-}" ]] && return 0
-_STRAFE_FB_SH=1
+declare -gA _STRAFE_LOADED
+(( _STRAFE_LOADED[fb]++ )) && return 0
 
 . "$STRAFE_PROJ_DIR/config/const.sh"
 . "$STRAFE_PROJ_DIR/render/ansi.sh"

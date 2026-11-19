@@ -1,6 +1,6 @@
 # classes/plane/plane_types.sh — 四种可选机型
-[[ -n "${_STRAFE_PLANE_TYPES_SH:-}" ]] && return 0
-_STRAFE_PLANE_TYPES_SH=1
+declare -gA _STRAFE_LOADED
+(( _STRAFE_LOADED[plane_types]++ )) && return 0
 . "$STRAFE_PROJ_DIR/classes/plane/plane.sh"
 
 # Bee: inherits the default Plane values

@@ -1,7 +1,7 @@
 # classes/plane/mixin_ram.sh — M_Ram
 # 撞击能力：闪烁/受伤状态中，按冷却对撞到的敌机造成 5 点伤害。
-[[ -n "${_STRAFE_MIXIN_RAM_SH:-}" ]] && return 0
-_STRAFE_MIXIN_RAM_SH=1
+declare -gA _STRAFE_LOADED
+(( _STRAFE_LOADED[mixin_ram]++ )) && return 0
 
 readonly M_RamStaticTemplate='
     M_RamObj ->

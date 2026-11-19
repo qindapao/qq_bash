@@ -1,6 +1,6 @@
 # classes/plane/plane.sh — Plane（玩家飞机）
-[[ -n "${_STRAFE_PLANE_SH:-}" ]] && return 0
-_STRAFE_PLANE_SH=1
+declare -gA _STRAFE_LOADED
+(( _STRAFE_LOADED[plane]++ )) && return 0
 . "$STRAFE_LIB_HOME/xo.sh"
 . "$STRAFE_PROJ_DIR/config/const.sh"
 . "$STRAFE_PROJ_DIR/config/art.sh"

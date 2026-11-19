@@ -12,8 +12,8 @@
 #   buff_tick    每 tick 执行（周期无敌、发射导弹……）
 # 私有方法名自带一个下划线，所以完整函数名是 M_<能力>__init / M_<能力>__cleanup 这种双下划线。
 # 未实现的钩子直接跳过，不需要在游戏层写任何特例。
-[[ -n "${_STRAFE_BOSS_BUFF_SH:-}" ]] && return 0
-_STRAFE_BOSS_BUFF_SH=1
+declare -gA _STRAFE_LOADED
+(( _STRAFE_LOADED[boss_buff]++ )) && return 0
 . "$STRAFE_LIB_HOME/xo.sh"
 . "$STRAFE_PROJ_DIR/config/const.sh"
 . "$STRAFE_PROJ_DIR/config/globals.sh"

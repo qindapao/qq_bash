@@ -1,6 +1,6 @@
 # render/ansi.sh — ANSI 控制基础函数
-[[ -n "${_STRAFE_ANSI_SH:-}" ]] && return 0
-_STRAFE_ANSI_SH=1
+declare -gA _STRAFE_LOADED
+(( _STRAFE_LOADED[ansi]++ )) && return 0
 
 # ESC 常量在 config/const.sh（项目级）；这里确保它已加载
 . "$STRAFE_PROJ_DIR/config/const.sh"

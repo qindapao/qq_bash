@@ -1,7 +1,7 @@
 # classes/enemies/skull_king.sh — SkullKing（骷髅王）
 # 500 HP；4 段伤害 art；8 方向 O/X 弹幕。
-[[ -n "${_STRAFE_SKULL_KING_SH:-}" ]] && return 0
-_STRAFE_SKULL_KING_SH=1
+declare -gA _STRAFE_LOADED
+(( _STRAFE_LOADED[skull_king]++ )) && return 0
 . "$STRAFE_LIB_HOME/xo.sh"
 . "$STRAFE_PROJ_DIR/config/const.sh"
 . "$STRAFE_PROJ_DIR/config/color.sh"

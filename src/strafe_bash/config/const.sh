@@ -1,6 +1,6 @@
 # config/const.sh — 常量定义（屏幕尺寸、帧率、奖励时长、边框字符）
-[[ -n "${_STRAFE_CONST_SH:-}" ]] && return 0
-_STRAFE_CONST_SH=1
+declare -gA _STRAFE_LOADED
+(( _STRAFE_LOADED[const]++ )) && return 0
 
 # 项目级 ESC 常量：所有转义序列都用它拼，禁止写 \033 字面量
 readonly ESC=$'\033'

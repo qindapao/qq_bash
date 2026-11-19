@@ -1,6 +1,6 @@
 # classes/base_types.sh — BulletType
-[[ -n "${_STRAFE_BULLETTYPE_SH:-}" ]] && return 0
-_STRAFE_BULLETTYPE_SH=1
+declare -gA _STRAFE_LOADED
+(( _STRAFE_LOADED[base_types]++ )) && return 0
 . "$STRAFE_LIB_HOME/xo.sh"
 
 # 当前继承树，一旦改变继承层级需要更新这个注释

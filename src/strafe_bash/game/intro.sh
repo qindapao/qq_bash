@@ -1,6 +1,6 @@
 # game/intro.sh — 单页开场 + 选机
-[[ -n "${_STRAFE_INTRO_SH:-}" ]] && return 0
-_STRAFE_INTRO_SH=1
+declare -gA _STRAFE_LOADED
+(( _STRAFE_LOADED[intro]++ )) && return 0
 . "$STRAFE_PROJ_DIR/config/const.sh"
 . "$STRAFE_PROJ_DIR/config/globals.sh"
 . "$STRAFE_PROJ_DIR/config/color.sh"

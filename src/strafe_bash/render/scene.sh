@@ -1,6 +1,6 @@
 # render/scene.sh — 主场景渲染（拼接 FRAME_BUF，不直接 printf）
-[[ -n "${_STRAFE_SCENE_SH:-}" ]] && return 0
-_STRAFE_SCENE_SH=1
+declare -gA _STRAFE_LOADED
+(( _STRAFE_LOADED[scene]++ )) && return 0
 . "$STRAFE_LIB_HOME/xo.sh"
 . "$STRAFE_PROJ_DIR/config/const.sh"
 . "$STRAFE_PROJ_DIR/config/color.sh"

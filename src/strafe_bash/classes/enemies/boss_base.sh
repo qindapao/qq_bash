@@ -1,6 +1,6 @@
 # classes/enemies/boss_base.sh — BossBase 抽象基类
-[[ -n "${_STRAFE_BOSS_BASE_SH:-}" ]] && return 0
-_STRAFE_BOSS_BASE_SH=1
+declare -gA _STRAFE_LOADED
+(( _STRAFE_LOADED[boss_base]++ )) && return 0
 . "$STRAFE_LIB_HOME/xo.sh"
 . "$STRAFE_PROJ_DIR/classes/base_types.sh"
 . "$STRAFE_PROJ_DIR/config/const.sh"

@@ -1,6 +1,6 @@
 # game/main.sh — 游戏主入口（初始化、加载选择、主循环驱动）
-[[ -n "${_STRAFE_MAIN_SH:-}" ]] && return 0
-_STRAFE_MAIN_SH=1
+declare -gA _STRAFE_LOADED
+(( _STRAFE_LOADED[main]++ )) && return 0
 
 # 静默加载：xo.in 会 source grammar.sh 并打印 bash 特性开关表，那些输出不能进画面
 . "$STRAFE_LIB_HOME/xo.sh" >/dev/null 2>&1

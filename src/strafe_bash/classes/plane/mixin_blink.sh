@@ -1,7 +1,7 @@
 # classes/plane/mixin_blink.sh — M_Blink
 # 受伤后的短暂无敌闪烁；方法由 xo_init 注入 Plane 及其子类。
-[[ -n "${_STRAFE_MIXIN_BLINK_SH:-}" ]] && return 0
-_STRAFE_MIXIN_BLINK_SH=1
+declare -gA _STRAFE_LOADED
+(( _STRAFE_LOADED[mixin_blink]++ )) && return 0
 
 readonly M_BlinkStaticTemplate='
     M_BlinkObj ->

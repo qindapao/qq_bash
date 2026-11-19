@@ -545,7 +545,7 @@ _xo_init_get_class_inher_chain ()
     local -A _visited=()
 
     for cls in "${!cls_super[@]}" ; do
-        chain=() ; cur=$cls ; _visited=()
+        chain=() cur=$cls _visited=()
 
         while [[ "$cur" != 'Base' ]] ; do
             # 悬空引用：SUPER 指向一个未定义的类

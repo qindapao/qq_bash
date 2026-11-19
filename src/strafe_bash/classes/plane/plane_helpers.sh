@@ -1,6 +1,6 @@
 # classes/plane/plane_helpers.sh — 飞机绘制辅助（_art_clear_at, _plane_clear, _plane_set_shield）
-[[ -n "${_STRAFE_PLANE_HELPERS_SH:-}" ]] && return 0
-_STRAFE_PLANE_HELPERS_SH=1
+declare -gA _STRAFE_LOADED
+(( _STRAFE_LOADED[plane_helpers]++ )) && return 0
 . "$STRAFE_LIB_HOME/xo.sh"
 . "$STRAFE_PROJ_DIR/config/const.sh"
 . "$STRAFE_PROJ_DIR/config/art.sh"

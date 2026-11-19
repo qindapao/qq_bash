@@ -1,6 +1,6 @@
 # config/words.sh — 箴言词库
-[[ -n "${_STRAFE_WORDS_SH:-}" ]] && return 0
-_STRAFE_WORDS_SH=1
+declare -gA _STRAFE_LOADED
+(( _STRAFE_LOADED[words]++ )) && return 0
 . "$STRAFE_PROJ_DIR/config/const.sh"
 
 declare -a WORD_LIST=(

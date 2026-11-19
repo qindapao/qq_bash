@@ -1,6 +1,6 @@
 # classes/enemies/boss_pattern.sh — 共享的“单发子弹拼巨型弹幕”时序
-[[ -n "${_STRAFE_BOSS_PATTERN_SH:-}" ]] && return 0
-_STRAFE_BOSS_PATTERN_SH=1
+declare -gA _STRAFE_LOADED
+(( _STRAFE_LOADED[boss_pattern]++ )) && return 0
 . "$STRAFE_LIB_HOME/xo.sh"
 . "$STRAFE_PROJ_DIR/config/const.sh"
 . "$STRAFE_PROJ_DIR/config/color.sh"

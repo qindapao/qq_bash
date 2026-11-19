@@ -1,6 +1,6 @@
 # game/game_over.sh — 死亡爆炸、GAME OVER 与结算
-[[ -n "${_STRAFE_GAME_OVER_SH:-}" ]] && return 0
-_STRAFE_GAME_OVER_SH=1
+declare -gA _STRAFE_LOADED
+(( _STRAFE_LOADED[game_over]++ )) && return 0
 . "$STRAFE_PROJ_DIR/config/const.sh"
 . "$STRAFE_PROJ_DIR/config/globals.sh"
 . "$STRAFE_PROJ_DIR/config/color.sh"

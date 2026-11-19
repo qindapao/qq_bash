@@ -1,6 +1,6 @@
 # classes/enemies/enemy_base.sh — Enemy 基类 + _enemy_fire
-[[ -n "${_STRAFE_ENEMY_BASE_SH:-}" ]] && return 0
-_STRAFE_ENEMY_BASE_SH=1
+declare -gA _STRAFE_LOADED
+(( _STRAFE_LOADED[enemy_base]++ )) && return 0
 . "$STRAFE_LIB_HOME/xo.sh"
 . "$STRAFE_PROJ_DIR/config/const.sh"
 . "$STRAFE_PROJ_DIR/config/globals.sh"

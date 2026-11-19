@@ -1,6 +1,6 @@
 # classes/projectiles/bullet.sh — Bullet
-[[ -n "${_STRAFE_BULLET_SH:-}" ]] && return 0
-_STRAFE_BULLET_SH=1
+declare -gA _STRAFE_LOADED
+(( _STRAFE_LOADED[bullet]++ )) && return 0
 . "$STRAFE_LIB_HOME/xo.sh"
 . "$STRAFE_PROJ_DIR/classes/base_types.sh"
 

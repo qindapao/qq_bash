@@ -1,6 +1,6 @@
 # classes/projectiles/missile.sh — Missile
-[[ -n "${_STRAFE_MISSILE_SH:-}" ]] && return 0
-_STRAFE_MISSILE_SH=1
+declare -gA _STRAFE_LOADED
+(( _STRAFE_LOADED[missile]++ )) && return 0
 . "$STRAFE_LIB_HOME/xo.sh"
 . "$STRAFE_PROJ_DIR/config/const.sh"
 . "$STRAFE_PROJ_DIR/classes/base_types.sh"

@@ -1,6 +1,6 @@
 # game/term_restore.sh — 终端恢复（退出/中断时清理）
-[[ -n "${_STRAFE_TERM_RESTORE_SH:-}" ]] && return 0
-_STRAFE_TERM_RESTORE_SH=1
+declare -gA _STRAFE_LOADED
+(( _STRAFE_LOADED[term_restore]++ )) && return 0
 . "$STRAFE_PROJ_DIR/render/ansi.sh"
 . "$STRAFE_PROJ_DIR/config/color.sh"
 

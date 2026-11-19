@@ -8,8 +8,8 @@
 # 帧缓冲归属用 "E$槽号" 这个短句柄。
 #
 # 巨型/多格弹不进这里：它们有 art、有血量，属于对象层（和敌人同构）。
-[[ -n "${_STRAFE_SOA_BULLETS_SH:-}" ]] && return 0
-_STRAFE_SOA_BULLETS_SH=1
+declare -gA _STRAFE_LOADED
+(( _STRAFE_LOADED[soa_bullets]++ )) && return 0
 . "$STRAFE_PROJ_DIR/config/const.sh"
 . "$STRAFE_PROJ_DIR/config/globals.sh"
 . "$STRAFE_PROJ_DIR/config/color.sh"

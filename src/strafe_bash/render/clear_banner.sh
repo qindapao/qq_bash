@@ -1,6 +1,6 @@
 # render/clear_banner.sh — 全清提示横幅（静态 FIGlet 风格，不创建对象）
-[[ -n "${_STRAFE_CLEAR_BANNER_SH:-}" ]] && return 0
-_STRAFE_CLEAR_BANNER_SH=1
+declare -gA _STRAFE_LOADED
+(( _STRAFE_LOADED[clear_banner]++ )) && return 0
 . "$STRAFE_PROJ_DIR/config/const.sh"
 . "$STRAFE_PROJ_DIR/config/color.sh"
 . "$STRAFE_PROJ_DIR/config/globals.sh"

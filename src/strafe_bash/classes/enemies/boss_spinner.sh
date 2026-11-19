@@ -1,6 +1,6 @@
 # classes/enemies/boss_spinner.sh — BossSpinner（旋刃，继承 BossBase）
-[[ -n "${_STRAFE_BOSS_SPINNER_SH:-}" ]] && return 0
-_STRAFE_BOSS_SPINNER_SH=1
+declare -gA _STRAFE_LOADED
+(( _STRAFE_LOADED[boss_spinner]++ )) && return 0
 . "$STRAFE_LIB_HOME/xo.sh"
 . "$STRAFE_PROJ_DIR/classes/base_types.sh"
 . "$STRAFE_PROJ_DIR/classes/enemies/boss_base.sh"

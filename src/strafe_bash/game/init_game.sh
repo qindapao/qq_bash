@@ -1,6 +1,6 @@
 # game/init_game.sh — 每局初始化（重置玩家状态、清理所有对象）
-[[ -n "${_STRAFE_INIT_GAME_SH:-}" ]] && return 0
-_STRAFE_INIT_GAME_SH=1
+declare -gA _STRAFE_LOADED
+(( _STRAFE_LOADED[init_game]++ )) && return 0
 . "$STRAFE_LIB_HOME/xo.sh"
 . "$STRAFE_PROJ_DIR/config/const.sh"
 . "$STRAFE_PROJ_DIR/config/art.sh"

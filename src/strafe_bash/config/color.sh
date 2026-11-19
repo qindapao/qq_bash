@@ -1,6 +1,6 @@
 # config/color.sh — ANSI 256 色
-[[ -n "${_STRAFE_COLOR_SH:-}" ]] && return 0
-_STRAFE_COLOR_SH=1
+declare -gA _STRAFE_LOADED
+(( _STRAFE_LOADED[color]++ )) && return 0
 
 C_RESET=$'\033[0m'
 C_BOLD=$'\033[1m'

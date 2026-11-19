@@ -1,6 +1,6 @@
 # classes/pickups/drop.sh — Drop
-[[ -n "${_STRAFE_DROP_SH:-}" ]] && return 0
-_STRAFE_DROP_SH=1
+declare -gA _STRAFE_LOADED
+(( _STRAFE_LOADED[drop]++ )) && return 0
 . "$STRAFE_LIB_HOME/xo.sh"
 . "$STRAFE_PROJ_DIR/config/const.sh"
 . "$STRAFE_PROJ_DIR/config/globals.sh"

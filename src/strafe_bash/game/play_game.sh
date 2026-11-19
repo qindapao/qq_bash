@@ -1,6 +1,6 @@
 # game/play_game.sh — 单局主循环（游戏核心逻辑）
-[[ -n "${_STRAFE_PLAY_GAME_SH:-}" ]] && return 0
-_STRAFE_PLAY_GAME_SH=1
+declare -gA _STRAFE_LOADED
+(( _STRAFE_LOADED[play_game]++ )) && return 0
 
 . "$STRAFE_LIB_HOME/xo.sh"
 

@@ -1,6 +1,6 @@
 # classes/pickups/word.sh — Word
-[[ -n "${_STRAFE_WORD_SH:-}" ]] && return 0
-_STRAFE_WORD_SH=1
+declare -gA _STRAFE_LOADED
+(( _STRAFE_LOADED[word]++ )) && return 0
 . "$STRAFE_LIB_HOME/xo.sh"
 . "$STRAFE_PROJ_DIR/config/const.sh"
 . "$STRAFE_PROJ_DIR/classes/base_types.sh"

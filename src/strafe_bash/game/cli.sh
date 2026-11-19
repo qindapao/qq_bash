@@ -2,8 +2,8 @@
 #
 # 必须在 source main.sh 之前执行：--theme 写进 STRAFE_THEME 后，
 # config/color.sh 才能在加载时读到它（它在 source 时就把调色板定下来了）。
-[[ -n "${_STRAFE_CLI_SH:-}" ]] && return 0
-_STRAFE_CLI_SH=1
+declare -gA _STRAFE_LOADED
+(( _STRAFE_LOADED[cli]++ )) && return 0
 
 # 帮助内容 = 开始页的全部信息（操作/掉落/武器/作者）+ 参数说明。
 cli_help () {

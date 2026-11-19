@@ -1,6 +1,6 @@
 # classes/enemies/boss.sh — Boss（标准 Boss，继承 BossBase）
-[[ -n "${_STRAFE_BOSS_SH:-}" ]] && return 0
-_STRAFE_BOSS_SH=1
+declare -gA _STRAFE_LOADED
+(( _STRAFE_LOADED[boss]++ )) && return 0
 . "$STRAFE_LIB_HOME/xo.sh"
 . "$STRAFE_PROJ_DIR/classes/base_types.sh"
 . "$STRAFE_PROJ_DIR/classes/enemies/boss_base.sh"

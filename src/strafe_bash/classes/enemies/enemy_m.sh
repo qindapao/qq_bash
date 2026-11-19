@@ -1,6 +1,6 @@
 # classes/enemies/enemy_m.sh — EnemyM
-[[ -n "${_STRAFE_ENEMY_M_SH:-}" ]] && return 0
-_STRAFE_ENEMY_M_SH=1
+declare -gA _STRAFE_LOADED
+(( _STRAFE_LOADED[enemy_m]++ )) && return 0
 . "$STRAFE_PROJ_DIR/classes/enemies/enemy_base.sh"
 
 readonly EnemyMStaticTemplate='

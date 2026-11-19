@@ -1,6 +1,6 @@
 # render/fx.sh — 特效渲染（拼接 FRAME_BUF）
-[[ -n "${_STRAFE_FX_SH:-}" ]] && return 0
-_STRAFE_FX_SH=1
+declare -gA _STRAFE_LOADED
+(( _STRAFE_LOADED[fx]++ )) && return 0
 . "$STRAFE_PROJ_DIR/config/const.sh"
 . "$STRAFE_PROJ_DIR/config/color.sh"
 . "$STRAFE_PROJ_DIR/config/globals.sh"
