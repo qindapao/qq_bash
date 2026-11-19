@@ -389,9 +389,9 @@ _play_game_tick () {
     # ---- 0. 奖励计时器递减（每 tick 减 1）----
     local -i _score_pct=${OBJ_player[score_pct]:-100}
     local _tk _tv
-    for _tk in "{t2}$X" "{t3}$X" "{t4}$X" "{t5}$X" "{mt}$X" "{lt}$X" "{st}$X" "{slow}$X" ; do
+    for _tk in t2 t3 t4 t5 mt lt st slow ; do
         _tv=${OBJ_player[$_tk]:-0}
-        (( _tv > 0 )) && OBJ_player["$_tk"]=$(( _tv - 1 ))
+        (( _tv > 0 )) && OBJ_player[$_tk]=$(( _tv - 1 ))
     done
     (( ${OBJ_player[lt]:-0} == 0 )) && OBJ_player[lanes]=0
     # 减速到期：恢复我方子弹速度（增益由 Boss 的 M_BuffSlow 施加）
@@ -410,7 +410,7 @@ _play_game_tick () {
         local -n _bo=$_bt
         _tier=${_bo[tier]:-1}
     fi
-    local _tk_cur="{t$_tier}$X"
+    local _tk_cur="t$_tier"
     if (( _tier >= 2 && _tier <= 5 )) && (( ${OBJ_player[$_tk_cur]:-0} == 0 )) ; then
         OBJ_player[bullet]=${OBJ_player[w1]}
     fi

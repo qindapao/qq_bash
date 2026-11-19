@@ -159,7 +159,7 @@ load_game () {
     OBJ_player[lt]=${SAVE[lt]}
     OBJ_player[shield]=${SAVE[shield]}
     OBJ_player[st]=${SAVE[st]}
-    local _wk="{w${_slot}}$X"
+    local _wk="w${_slot}"
     local _bh=${OBJ_player[$_wk]}
     OBJ_player[bullet]=$_bh
     # 护盾不是只靠 {shield}/{st}：还要恢复护盾 art、4 格宽度和 prev_shield。
