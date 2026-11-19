@@ -102,8 +102,13 @@ _mouse_apply () {
         _mouse_bomb
         return 0
     fi
-    # 指针放在飞机正下方两格，避免挡住机体
-    _mouse_move_to "$mx" "$(( my - 2 ))"
+    # 指针放在飞机正下方两格，避免挡住机体。
+    #
+    # 关键：鼠标是绝对坐标，同一批输入里可能积压了几十个移动事件（Boss 战 tick
+    # 变慢时尤其明显）。如果逐个应用，飞机会沿着"旧位置"快速跳一遍，看起来就像
+    # 鼠标飘忽。这里只记下本批最后一个位置，由 play_game 在输入排空后统一应用一次。
+    _mq_x=$mx _mq_y=$(( my - 2 )) _mq_pending=1 _mq_n=$(( ${_mq_n:-0} + 1 ))
+    return 0
 }
 
 # ============================================================================
@@ -1267,7 +1272,8 @@ play_game () {
 
         # ---- 读输入（高频 100Hz）----
         G_DX=0 ; G_DY=0
-        local -i paused_changed=0 _in_n=0
+        local -i paused_changed=0 _in_n=0 \
+                 _mq_pending=0 _mq_x=0 _mq_y=0 _mq_n=0
         while : ; do
             if (( _poll )) ; then
                 # 先探测再有数据才读：read -t 0 只探测、不消费
@@ -1285,8 +1291,13 @@ play_game () {
                         _mseq+=$_mc
                         [[ "$_mc" == M || "$_mc" == m ]] && break
                     done
+                    # 鼠标序列不计入按键洪泛上限：它不会被"逐条处理"，而是在本批
+                    # 输入排空后只应用最后一个位置。积压很多时（Boss 战主循环变慢），
+                    # 必须一次排空，否则每帧只消化一批、飞机就会沿着旧位置连续跳。
+                    (( _in_n-- ))
                     if (( G_MOUSE_ON && ! paused )) ; then
                         _mouse_apply "$_mseq"
+                        (( _mq_n >= 256 )) && break
                     fi
                     continue
                     ;;
@@ -1352,6 +1363,10 @@ play_game () {
                     ;;
             esac
         done
+        if (( _mq_pending )) ; then
+            _mq_pending=0
+            _mouse_move_to "$_mq_x" "$_mq_y"
+        fi
         ((running)) || { _mouse_off ; return 1 ; }
 
         # ---- want_bomb ----
@@ -1469,8 +1484,23 @@ play_game () {
                 fi
 
                 render_hit_fx_clear_expired
-                render
+                # 所有"瞬时特效"都在对象之前处理：先擦上一帧，再画本帧。
+                # 对象（尤其玩家）永远最后画，任何特效都不会盖住/擦掉它们；
+                # 否则每帧一个洞，表现为飞机"飘"。
+                fx_clear_pending BOMB_FX_POS
+                fx_clear_pending BOSS_DEATH_POS
+                # 横幅每帧会先清自己那块矩形再画，同样必须在对象之前。
+                (( CLEAR_BANNER_TICK > 0 )) && render_clear_banner
+                if (( bomb_fx_tick > 0 )) ; then
+                    render_bomb_fx
+                    ((bomb_fx_tick--))
+                fi
+                if (( BOSS_DEATH_TICK > 0 )) ; then
+                    render_boss_death
+                    ((BOSS_DEATH_TICK--))
+                fi
                 render_hit_fx
+                render
                 need_render=0
             fi
 
@@ -1488,32 +1518,6 @@ play_game () {
                     MSG_LEN=0
                 fi
             fi
-
-            if (( bomb_fx_tick > 0 )) ; then
-                render_bomb_fx
-                ((bomb_fx_tick--))
-            elif (( ${#BOMB_FX_POS[@]} > 0 )) ; then
-                local _bi _t
-                for (( _bi=0; _bi<${#BOMB_FX_POS[@]}; _bi+=2 )) ; do
-                    FRAME_BUF+="$ESC[${BOMB_FX_POS[_bi]};${BOMB_FX_POS[_bi+1]}H "
-                    _fb_touch_cell "${BOMB_FX_POS[_bi]}" "${BOMB_FX_POS[_bi+1]}"
-                done
-                BOMB_FX_POS=()
-            fi
-
-            if (( BOSS_DEATH_TICK > 0 )) ; then
-                render_boss_death
-                ((BOSS_DEATH_TICK--))
-            elif (( ${#BOSS_DEATH_POS[@]} > 0 )) ; then
-                local _bi _t
-                for (( _bi=0; _bi<${#BOSS_DEATH_POS[@]}; _bi+=2 )) ; do
-                    printf -v _t '\033[%d;%dH ' "${BOSS_DEATH_POS[_bi]}" "${BOSS_DEATH_POS[_bi+1]}"
-                    FRAME_BUF+="$_t"
-                done
-                BOSS_DEATH_POS=()
-            fi
-
-            (( CLEAR_BANNER_TICK > 0 )) && render_clear_banner
 
             frame_flush
         fi
