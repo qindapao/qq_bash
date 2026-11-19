@@ -618,6 +618,68 @@ declare -gA XO_FLAT_META=(
 #
 # 扁平类（FLT=1）在构建时就写成扁平关联数组：不建 x 树、不插节点，
 # 只在最后序列化一次 ObjStr。树类（FLT=0）仍走原来的"拷贝父类树 + x_insert"路径。
+#
+# ---- 初始化进度（可选，默认关闭） ----
+# 调用方在 xo_init 之前设置 XO_INIT_PROGRESS=1 打开，输出走文件描述符
+# XO_INIT_PROGRESS_FD（默认 2=stderr）。游戏里用 fd 1（stdout）并在备用屏幕内显示，
+# 退出时随备用屏幕一起消失。默认关闭，所以测试/管道输出不会被打扰。
+#
+# 性能：计数用一次 compgen 变量扫描（不额外 x_walk 继承树），绘制只在每类结束时
+# 做一次，27 个类 = 27 次 printf，实测在噪声内。
+declare -g XO_INIT_PROGRESS=${XO_INIT_PROGRESS:-0}
+declare -g XO_INIT_PROGRESS_FD=${XO_INIT_PROGRESS_FD:-2}
+declare -gi XO_INIT_TOTAL=0
+declare -gi XO_INIT_DONE=0
+# 整行布局：loading classes  19/27  [###############       ]  72%
+declare -gi XO_PROGRESS_BAR_MAX=24
+
+_xo_progress_count ()
+{
+    XO_INIT_TOTAL=0
+    local -a tmpl_vars=()
+        #@if compgen_v==1
+    compgen -V tmpl_vars -A variable -X '!*StaticTemplate'
+        #@endif
+        #@if compgen_v==0
+    tmpl_vars=($(compgen -A variable -X '!*StaticTemplate'))
+        #@endif
+    local v
+    for v in "${tmpl_vars[@]}" ; do
+        # M_ 开头的是 Mixin 模板，不是类
+        [[ "$v" == M_* ]] && continue
+        XO_INIT_TOTAL=$(( XO_INIT_TOTAL + 1 ))
+    done
+}
+
+_xo_progress_draw ()
+{
+    (( XO_INIT_PROGRESS )) || return 0
+    local -i pct=0 bars=0 width=${COLUMNS:-80} barw=0 linelen=0 padv=0
+    (( XO_INIT_TOTAL > 0 )) && pct=$(( XO_INIT_DONE * 100 / XO_INIT_TOTAL ))
+    # 终端宽度自适应：整行不超过 COLUMNS-2；窄终端缩条，宽终端最多 24 格
+    barw=$(( width - 33 ))
+    (( barw < 8 )) && barw=8
+    (( barw > XO_PROGRESS_BAR_MAX )) && barw=$XO_PROGRESS_BAR_MAX
+    bars=$(( pct * barw / 100 ))
+    local bar='' pad=''
+    (( bars > 0 )) && printf -v bar '%*s' "$bars" ''
+    bar=${bar// /#}
+    printf -v bar '%-*s' "$barw" "$bar"
+    # 居中：用最大行宽算一次，保证每次 \r 重画位置不变
+    linelen=$(( 31 + barw ))
+    (( width > linelen )) && padv=$(( (width - linelen) / 2 ))
+    (( padv > 0 )) && printf -v pad '%*s' "$padv" ''
+    printf '\r%sloading classes %3d/%d  [%s] %3d%% ' \
+        "$pad" "$XO_INIT_DONE" "$XO_INIT_TOTAL" "$bar" "$pct" >&"$XO_INIT_PROGRESS_FD"
+}
+
+_xo_progress_finish ()
+{
+    (( XO_INIT_PROGRESS )) || return 0
+    _xo_progress_draw
+    printf '\n' >&"$XO_INIT_PROGRESS_FD"
+}
+
 _xo_init_class ()
 {
     _xo_init_class_cb ()
@@ -841,9 +903,14 @@ _xo_init_class ()
         array_to_kv_q_str "${cls}Obj" ; eval "${_ret_g_s/o/${cls}ObjStr}"
             #@endif
 
+        XO_INIT_DONE=$(( XO_INIT_DONE + 1 ))
+        _xo_progress_draw
         return 0
     }
+    XO_INIT_DONE=0
+    (( XO_INIT_PROGRESS )) && _xo_progress_count
     x_walk CLASS_INHER_TREE '' _xo_init_class_cb || return $?
+    _xo_progress_finish
 }
 
 

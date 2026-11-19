@@ -40,14 +40,17 @@ main () {
     : > "$STRAFE_ERRLOG" 2>/dev/null
     exec 2>>"$STRAFE_ERRLOG"
 
+    # 先进备用屏幕：加载进度条画在备用屏幕里，退出时随它一起消失。
+    # stderr 已经重定向到日志，所以进度条走 stdout（fd 1）。
+    alt_screen_enter
+    cursor_hide
+    XO_INIT_PROGRESS=1
+    XO_INIT_PROGRESS_FD=1
     xo_init || fatal 'xo_init failed'
 
     # 上一次异常退出可能把鼠标上报留在打开状态，进场前先归零一次。
     printf '\033[?1000l\033[?1002l\033[?1003l\033[?1006l'
 
-    # 先进备用屏幕再画：intro 也是全屏画面，退出时由 term_restore 原样还原
-    alt_screen_enter
-    cursor_hide
     stty -echo -icanon time 0 min 0
 
     intro_screen
