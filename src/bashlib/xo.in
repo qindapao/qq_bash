@@ -685,9 +685,8 @@ _xo_init_class ()
     _xo_init_class_cb ()
     {
         # leaf / leaf_null / obj / obj_empty / arr / arr_empty
-        local token=$5 full_key=$6
-        local cls=${token:1:-1}
-        local father=${full_key%"$X$token$X"}
+        local token=$5 full_key=$6 tmp_key k
+        local cls=${token:1:-1} father=${full_key%"$X$token$X"}
         father=${father##*"$X"}
         father=${father:1:-1}
 
@@ -737,29 +736,23 @@ _xo_init_class ()
                     #@endif
             fi
             local -n _flat_obj="${cls}Obj"
-            _xo_init_class_cb_insert_flat ()
-            {
-                local type=$1 value=$4 full_key=$6
-                [[ "$type" == "$X_NODE_KIND_OBJ" || "$type" == "$X_NODE_KIND_ARR" ]] && return 0
-                local k=$full_key
-                # 元键保持 {X}$X；用户字段剥成扁平键（规则见文件头"键名规则"）
-                if [[ -z "${XO_FLAT_META[$k]+_}" ]] ; then
-                    k=${k%'}'*}
-                    k=${k:1}
+
+            # 这里的 temp_obj 必须只有一层，所以完全不用走树遍历，直接
+            # 关联数组原生遍历更快
+            for tmp_key in "${!temp_obj[@]}" ; do
+                if [[ -n "${XO_FLAT_META[$tmp_key]+_}" ]] ; then
+                    _flat_obj[$tmp_key]=${temp_obj[$tmp_key]}
+                elif [[ "$tmp_key" == '{'* ]] ; then
+                    k=${tmp_key%'}'*}
+                    _flat_obj[${k:1}]=${temp_obj[$tmp_key]}
                 fi
-                _flat_obj[$k]=$value
-                return 0
-            }
-            x_walk temp_obj '' _xo_init_class_cb_insert_flat || {
-                die ERR "Class:${cls} flat init fail!"
-                return 1
-            }
+                # 其它键全部丢弃
+            done
             # Base 是根：没有父类，也不需要更新/透传实例方法
         elif (( is_flat_father )) ; then
             # ---- 树类，但父类是扁平类（当前只有 Base -> BaseX 这一种） ----
             # 扁平父类不能有用户字段：树类没法从扁平键继承字段，混着建会得到混合键。
             # Base 只有元键，所以 BaseX 合法；其它情况直接报错，不允许"扁平升变为树"。
-            local k
             for k in "${!father_obj0[@]}" ; do
                 [[ -n "${XO_FLAT_META[$k]+_}" ]] || {
                     die ERR "Cls:${cls}: 树类的父类 ${father} 是扁平类且含用户字段 '${k}'（禁止扁平升变为树）"
