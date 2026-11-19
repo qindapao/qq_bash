@@ -1584,10 +1584,10 @@ x_delete ()
     # Empty key is legal. Only ROOT nodes are reserved.
     [[ -z "$tr_full_key" ]] && {
             #@if current_shell_process_replace==1
-        eval -- tr_t=(${|x_init "${tr_t[$X_ROOT_ID.t]}";})
+        eval -- "tr_t=(${|x_init "${tr_t[$X_ROOT_ID.t]}";})"
             #@endif
             #@if current_shell_process_replace==0
-        x_init "${tr_t[$X_ROOT_ID.t]}" ; eval -- tr_t=($REPLY)
+        x_init "${tr_t[$X_ROOT_ID.t]}" ; eval -- "tr_t=($REPLY)"
             #@endif
         tr_delete_reply=("$X_ROOT_ID" "")
         REPLY=${tr_delete_reply[*]@Q}
@@ -2901,14 +2901,15 @@ x_to_json_slow ()
     local tr_full_key=$2
     local tr_jstr
     local tr_temp_file=$(mktemp)
-    trap 'rm -f "$tr_temp_file"' RETURN
 
     command -v gobolt &>/dev/null || {
         die ERR "gobolt tool is not installed."
+        rm -f -- "$tr_temp_file"
         return $X_RET_ENUM_KEY_OTHER_TOOL_NOT_INSTALLED
     }
 
     [[ -z "${tr_t[$X_ROOT_ID.s]}" ]] && {
+        rm -f -- "$tr_temp_file"
         case "${tr_t[$X_ROOT_ID.t]}" in
         $X_TYPE_OBJ)   REPLY='{}' ; return $X_RET_ENUM_OK ;;
         $X_TYPE_ARR)   REPLY='[]' ; return $X_RET_ENUM_OK ;;
@@ -2968,7 +2969,9 @@ x_to_json_slow ()
         return $X_RET_ENUM_OK
     }
 
-    x_walk "$tr_name" "$tr_full_key" x_to_json_slow_cb || return $?
+    x_walk "$tr_name" "$tr_full_key" x_to_json_slow_cb ; local tr_rc=$?
+    rm -f -- "$tr_temp_file"
+    (( tr_rc )) && return $tr_rc
     REPLY=$tr_jstr
 }
 

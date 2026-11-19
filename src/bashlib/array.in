@@ -100,10 +100,22 @@ array_index ()
 
 # $1: array name
 # $2: join string
-# You can do this directly
-# printf -v xx "%s$sep" "${arr[@]}"
-# xx=${xx%"$sep"}
-array_join () { local IFS= ; eval -- 'REPLY=${'$1'[*]/%/$2} ; REPLY=${REPLY%"$2"}' ; }
+# 用 printf 一次拼完：格式 "%s<sep>" 会按参数重复。
+# 分隔符里的 \ 和 % 必须先转义——它们在 printf 格式串里有含义，
+# 不转义时 sep='%s' / '%' / '\t' 会被当格式符（实测拼坏）。
+# 不用旧 eval 写法：数组名会被拼进代码（可注入），且分隔符里的 & 会被
+# patsub_replacement 当替换引用吞掉。见宪法 §6。
+array_join ()
+{
+    local -n _aj_arr=$1
+    local _aj_sep=$2
+    local _aj_esc
+    # 先转义反斜杠，再转义 %：顺序不能反，否则后插入的 \ 不会被处理。
+    _aj_esc=${_aj_sep//'\'/'\\'}
+    _aj_esc=${_aj_esc//%/%%}
+    printf -v REPLY "%s$_aj_esc" "${_aj_arr[@]}"
+    REPLY=${REPLY%"$_aj_sep"}
+}
 
 #-------------------------------------------------------------------------------
 

@@ -1152,7 +1152,8 @@ xo_obj_bury ()
 #   - 市场键用 '|' 分隔：类名是标识符，不含 '|'，所以不会歧义。
 # ==============================================================================
 declare -gA RES_COUNT=() RES_MARKET=() RES_LIMIT=()
-declare -gai RES_LIMIT_DEFAULT=512
+# 回收市场默认容量
+declare -gi RES_LIMIT_DEFAULT=512
 declare -gA XO_RESET_FIELDS=() XO_RESET_DEF=() XO_RESET_READY=()
 
 # 字段键：返回该字段在类对象/实例里的真实键名。

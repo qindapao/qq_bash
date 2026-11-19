@@ -70,11 +70,11 @@ grammar_set_locale ()
     export LC_COLLATE=C
 
     # 收集系统可用的 UTF-8 locale
-    local avail_locales_list old_ifs=$IFS
+    local avail_locales_list
     avail_locales_list=$(locale -a 2>/dev/null |
                         grep -iE '^[^\.]+\.utf-?8(@[a-zA-Z0-9_-]+)?$')
     local -a avail_locales=()
-    local IFS=$'\n' ; avail_locales=($avail_locales_list) ; IFS=$old_ifs
+    [[ -n "$avail_locales_list" ]] && mapfile -t avail_locales <<< "$avail_locales_list"
 
     # C:     无语言偏好的纯 UTF-8 环境
     # en_US: 美国 最通用的英文 UTF-8 Locale
@@ -83,6 +83,10 @@ grammar_set_locale ()
     # zh_SG：中文（简体），新加坡
     # zh_TW：中文（繁体），中国台湾
     local chosen="" c=""
+    local old_ifs=$IFS IFS=$'\n'
+    local _avail_nl_lc=$'\n'"${avail_locales[*]}"$'\n'
+    local IFS=$old_ifs
+    _avail_nl_lc=${_avail_nl_lc,,}
 
     for c in    "C.UTF-8" \
                 "C.UTF8" \
@@ -96,7 +100,7 @@ grammar_set_locale ()
                 "zh_TW.UTF8" \
                 "zh_SG.UTF-8" \
                 "zh_SG.UTF8" ; do
-        if printf '%s\n' "${avail_locales[@]}" | grep -qix "$c"; then
+        if [[ "$_avail_nl_lc" == *$'\n'"${c,,}"$'\n'* ]] ; then
             chosen="$c"
             break
         fi
@@ -184,7 +188,7 @@ readonly BASH_GRAMMAR
 
 #-------------------------------------------------------------------------------
 
-# 兼容性宏 
+# 兼容性宏
 _ret_s='declare o=$REPLY ; REPLY='
 _ret_s_='o=$REPLY ; REPLY='
 _ret_i='declare -i o=$REPLY ; REPLY='

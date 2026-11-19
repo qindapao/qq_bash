@@ -146,7 +146,6 @@ awk_cut ()
     REPLY=
     local str=$1 sep=$2 cnt=$3
     local tmp_sep=$(mktemp) tmp_str=$(mktemp)
-    trap "rm -f ${tmp_sep} ${tmp_str}" RETURN EXIT
     printf '%s' "$sep" >"$tmp_sep"
     printf '%s' "$str" >"$tmp_str"
 
@@ -209,6 +208,7 @@ awk_cut ()
                 printf "%s ", a[idx]
             }
         ' "$tmp_sep" "$tmp_str")
+    rm -f -- "$tmp_sep" "$tmp_str"
     [[ -n "$REPLY" ]] && REPLY=${REPLY::-1}
 }
 
@@ -220,7 +220,6 @@ awk_cut_regex ()
     # Using temporary file syntax is more stable than process replacement
     # Because process replacement <(cmd) relies more on OS features
     local tmp_sep=$(mktemp) tmp_str=$(mktemp)
-    trap "rm -f ${tmp_sep} ${tmp_str}" RETURN EXIT
     printf '%s' "$sep" > "$tmp_sep"
     printf '%s' "$str" > "$tmp_str"
 
@@ -242,6 +241,7 @@ awk_cut_regex ()
             if (idx >= 1 && idx <= n) printf "%s ", a[idx]
             }
         ' "$tmp_sep" "$tmp_str")
+    rm -f -- "$tmp_sep" "$tmp_str"
     [[ -n "$REPLY" ]] && REPLY=${REPLY::-1}
 }
 
@@ -323,7 +323,6 @@ awk_str_index_of ()
     local haystack=$1 needle=$2 count=${3:-1}
     [[ -z "$needle" ]] && { REPLY=-1; return 0; }
     local tmp_needle=$(mktemp) tmp_haystack=$(mktemp)
-    trap "rm -f ${tmp_needle} ${tmp_haystack}" RETURN EXIT
     printf '%s' "$needle" > "$tmp_needle"
     printf '%s' "$haystack" > "$tmp_haystack"
 
@@ -358,6 +357,7 @@ awk_str_index_of ()
             print pos - 1
             }
         ' "$tmp_needle" "$tmp_haystack")
+    rm -f -- "$tmp_needle" "$tmp_haystack"
 }
 
 #-------------------------------------------------------------------------------
