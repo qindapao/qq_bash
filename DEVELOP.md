@@ -783,6 +783,33 @@ supports objects, arrays, nulls, booleans, ordered children, and path access.
 Full parameters and return codes are documented in the function headers of
 `src/bashlib/x.in`.
 
+### Input/output contract
+
+The tree format is ours, so the contract is enforced by convention rather than
+by defensive code:
+
+- **Encoding**: keys, values and dump/template text are valid UTF-8. Invalid
+  bytes and isolated C1 bytes (`0x80`–`0x9F` outside a UTF-8 sequence) are out
+  of scope; the escape/unescape pair is symmetric for valid UTF-8 only.
+- **Non-BMP characters** (`U+10000` and above, e.g. emoji) must be written as
+  literal UTF-8. `\uXXXX` covers the BMP only; surrogate escapes such as
+  `\uD83D` are not supported and are not converted back to a character.
+- **Control characters**: a dump/template line must not contain bare C0, DEL or
+  C1 characters (a newline is a line separator, not data). Write them as
+  `\uXXXX`, or use the `\b` `\f` `\r` `\t` shorthands. Multiline values and keys
+  use the `|` continuation form; the writer emits it and
+  `x_rebuild_from_dump` merges it back.
+- **Keys**: `{...}` delimiters, a literal `}` inside a key must be written
+  `\}`, and a key must not contain a raw `$X` separator.
+- **Arrays are dense**: the dump writes elements in index order and the rebuild
+  renumbers them from 0. Sparse or out-of-order array dumps are not supported.
+- **Malformed structure fails loudly**: for example `=>` without the trailing
+  space makes `x_rebuild_from_dump` return non-zero; it never yields a partial
+  tree with silently dropped branches.
+
+`str_escape_keep_nl` (values), `str_escape_key` (keys, additionally escapes
+`}`) and `str_unescape` form one inverse pair under these rules.
+
 ## Build and test
 
 ```bash
