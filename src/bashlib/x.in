@@ -3421,58 +3421,73 @@ x_get_arg_limits ()
 #               A 处理时：level = 1, path_stack = ["", "{key1}"]，砍树枝，弹出 "{key1}"，压入我们的 "{key2}".
 _x_rebuild_from_dump_get_dict_kv ()
 {
-    local tr_s= tr_out= tr_rest=${tr_dump_list[tr_i]}
-    local -i tr_begin=0 tr_pos=0 tr_len=${#tr_rest}
-    local tr_out_a=()
-    while ((tr_pos < tr_len)) ; do
-        tr_s=${tr_rest:tr_pos:1}
-        ((tr_pos++))
-        ((tr_begin)) || {
-            if [[ "$tr_s" == '{' ]] ; then tr_begin=1 ; fi
-            continue
-        }
-
-        if [[ "$tr_s" == '\' ]] ; then
-            tr_out_a+=("$tr_s")
-            if ((tr_pos < tr_len)) ; then
-                tr_out_a+=("${tr_rest:tr_pos:1}")
-                ((tr_pos++))
+    # key 结束位置 = 第一个未转义的 '}'。
+    # 绝大多数行没有转义：直接两次参数展开（去 '{' 前缀、截到第一个 '}'），
+    # 避免逐字符切片；只有 key 里出现 '\' 时才走慢路径逐字符扫描。
+    local tr_rest=${tr_dump_list[tr_i]}
+    local tr_out=
+    local tr_after_key tr_rest_after='' tr_ch
+    tr_after_key=${tr_rest#*'{'}
+    tr_out=${tr_after_key%%'}'*}
+    if [[ "$tr_out" == *\\* ]] ; then
+        # 慢路径：key 里有转义，逐字符找第一个未转义的 '}'
+        local -i tr_begin=-1 tr_pos=0 tr_len=${#tr_rest} tr_end=-1
+        while ((tr_pos < tr_len)) ; do
+            tr_ch=${tr_rest:tr_pos:1}
+            ((tr_pos++))
+            if ((tr_begin < 0)) ; then
+                [[ "$tr_ch" == '{' ]] && tr_begin=$tr_pos
+                continue
             fi
-            continue
+            if [[ "$tr_ch" == '\' ]] ; then
+                ((tr_pos++))
+                continue
+            fi
+            [[ "$tr_ch" == '}' ]] && { tr_end=$((tr_pos-1)) ; break ; }
+        done
+        if ((tr_begin < 0)) ; then
+            tr_out=''
+            tr_rest_after=$tr_rest
+        else
+            ((tr_end < 0)) && tr_end=$tr_len
+            tr_out=${tr_rest:tr_begin:tr_end-tr_begin}
+            tr_rest_after=${tr_rest:tr_end+1}
         fi
+    elif [[ "$tr_after_key" == *'}'* ]] ; then
+        tr_rest_after=${tr_after_key#*'}'}
+    fi
 
-        [[ "$tr_s" == '}' ]] && break
-        tr_out_a+=("$tr_s")
-    done
-    local tr_rest_after=${tr_rest:tr_pos}
-
-    printf -v tr_out "%s" "${tr_out_a[@]}"
-        #@if current_shell_process_replace==1
-    tr_out=${|str_unescape "$tr_out";}
-        #@endif
-        #@if current_shell_process_replace==0
-    str_unescape "$tr_out" ; eval "${_ret_s/o/tr_out}"
-        #@endif
-
-    tr_key[tr_i]="{$tr_out}$X"
-
-    # 函数如果返回 0 表示有值(是叶子字典)
-    # 函数如果返回 1 表示无值(是字典树)
-    if [[ "$tr_rest_after" == *'=>'* ]] ; then
-            # 规范：=> 后必须跟一个空格（语法空格）
-            [[ "$tr_rest_after" == *'=> '* ]] || {
-                die ERR "template line has '=>' without trailing space: ${tr_dump_list[tr_i]@Q}"
-                return 1
-            }
-
-            # 把值写了
-            tr_out=${tr_rest_after#*'=> '}
+    if [[ "$tr_out" == *\\* ]] ; then
             #@if current_shell_process_replace==1
         tr_out=${|str_unescape "$tr_out";}
             #@endif
             #@if current_shell_process_replace==0
         str_unescape "$tr_out" ; eval "${_ret_s/o/tr_out}"
             #@endif
+    fi
+
+    tr_key[tr_i]="{$tr_out}$X"
+
+    # 函数如果返回 0 表示有值(是叶子字典)
+    # 函数如果返回 1 表示无值(是字典树)
+    # 函数如果返回 2 表示格式错误（调用方必须中止重建，不能降级成树）
+    if [[ "$tr_rest_after" == *'=>'* ]] ; then
+        # 规范：=> 后必须跟一个空格（语法空格）
+        [[ "$tr_rest_after" == *'=> '* ]] || {
+            die ERR "template line has '=>' without trailing space: ${tr_dump_list[tr_i]@Q}"
+            return 2
+        }
+
+        # 把值写了
+        tr_out=${tr_rest_after#*'=> '}
+        if [[ "$tr_out" == *\\* ]] ; then
+                #@if current_shell_process_replace==1
+            tr_out=${|str_unescape "$tr_out";}
+                #@endif
+                #@if current_shell_process_replace==0
+            str_unescape "$tr_out" ; eval "${_ret_s/o/tr_out}"
+                #@endif
+        fi
         tr_value[tr_i]=$tr_out
         return 0
     else
@@ -3489,12 +3504,14 @@ _x_rebuild_from_dump_get_array ()
     local tr_out=${tr_dump_list[tr_i]}
     if [[ "$tr_out" == *'='* ]] ; then
         tr_out=${tr_out#*'= '}
-            #@if current_shell_process_replace==1
-        tr_out=${|str_unescape "$tr_out";}
-            #@endif
-            #@if current_shell_process_replace==0
-        str_unescape "$tr_out" ; eval "${_ret_s/o/tr_out}"
-            #@endif
+        if [[ "$tr_out" == *\\* ]] ; then
+                #@if current_shell_process_replace==1
+            tr_out=${|str_unescape "$tr_out";}
+                #@endif
+                #@if current_shell_process_replace==0
+            str_unescape "$tr_out" ; eval "${_ret_s/o/tr_out}"
+                #@endif
+        fi
         tr_value[tr_i]=$tr_out
         return 0
     else
@@ -3577,6 +3594,7 @@ x_rebuild_from_dump ()
         if [[ "${tr_dump_list[tr_i]:${#tr_indent}:1}" == '{' ]] ; then
             # 字典
             _x_rebuild_from_dump_get_dict_kv ; tr_ret=$?
+            (( tr_ret > 1 )) && return $X_RET_ENUM_TREE_IS_INVALID
             if [[ "$tr_ret" == '0' ]] ; then
                 tr_type[tr_i]=d_leaf
             else
