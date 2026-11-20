@@ -375,6 +375,60 @@
 # 注意：Base 的 {SUP} 为空表示「无父类」，与 NULL=扩展点 语义无关，
 # Base 是唯一特例。
 
+# ---------------- 框架全局变量 ----------------------------------------------
+
+# 继承树（x_tree 对象）：每个非根节点的 physical_full_key 路径即继承链
+# tree -> 
+#     Base (容器)
+#     └── A (容器)
+#         ├── B (容器)
+#         │   └── C (叶子)
+#         └── D (叶子)
+# 每个类插入时值统一写 X_VALUE_NULL，有子类的节点由 x_insert 自动升变成容器
+declare -gA XO_CLASS_INHER_TREE=()
+declare -gA XO_METHOD_INHERITED=()
+
+# 类定义扫描结果（lazy，只扫一次；见 _xo_scan_class_vars 的说明）。
+#   树类模板：*StaticTemplate（M_* 是 Mixin 声明，不算类）
+#   扁平类对象：*Obj
+declare -ga XO_CLASS_TREE_TMPL_VARS=()
+declare -ga XO_CLASS_FLAT_OBJ_VARS=()
+declare -gi XO_CLASS_VARS_READY=0
+# 扁平类保留的元键（其余字段一律剥成扁平键）。和 _xo_field_key 的判定保持一致。
+declare -gA XO_FLAT_META=(
+    ["{CLS}$X"]=1
+    ["{SUP}$X"]=1
+    ["{MIX}$X"]=1
+    ["{OBJMIX}$X"]=1
+    ["{FLT}$X"]=1
+)
+declare -g XO_INIT_PROGRESS=${XO_INIT_PROGRESS:-0}
+declare -g XO_INIT_PROGRESS_FD=${XO_INIT_PROGRESS_FD:-2}
+declare -gi XO_INIT_TOTAL=0
+declare -gi XO_INIT_DONE=0
+# 整行布局：loading classes  19/27  [###############       ]  72%
+declare -gi XO_PROGRESS_BAR_MAX=24
+
+declare -gA XO_OBJ_POOL=()
+# 预留 OBJ_1 ~ OBJ_10 给系统特殊对象（如全局单例、框架内部对象），
+# 用户对象从 OBJ_11 开始。修改此值时同步更新预留范围。
+declare -gi XO_OBJ_SEQ=10
+declare -g XO_INHER_CHAIN_DUMP_CACHE=''
+
+# -------------------资源回收-----------------------
+declare -gA XO_RES_COUNT=() XO_RES_MARKET=() XO_RES_LIMIT=()
+# 回收市场默认容量
+declare -gi XO_RES_LIMIT_DEFAULT=512
+declare -gA XO_RESET_FIELDS=() XO_RESET_DEF=() XO_RESET_READY=()
+
+# -------------------对象级Mixin--------------------
+# 缓存：mixin => "方法1 方法2"，首次使用时扫描一次，之后只查表
+declare -gA XO_MIXIN_METHODS=()
+# 分派表："OBJ_x|method" => "M_Mixin_method"
+declare -gA XO_OBJ_METHOD=()
+# 当前持有动态能力的对象集合；xo_obj_bury 靠它做「是否需要清理路由」的廉价门控
+declare -gA XO_OBJ_MIXED=()
+
 # ---------------- 根类区域 --------------------------------------------------
 # 模板规范：
 #   {字段} => 值
@@ -445,26 +499,6 @@ readonly BaseXStaticTemplate='
 BaseX_print () { x_dump "$1" '' 4 2 ; }
 
 # ----------------------------------------------------------------------------
-
-# 继承树（x_tree 对象）：每个非根节点的 physical_full_key 路径即继承链
-# tree -> 
-#     Base (容器)
-#     └── A (容器)
-#         ├── B (容器)
-#         │   └── C (叶子)
-#         └── D (叶子)
-# 每个类插入时值统一写 X_VALUE_NULL，有子类的节点由 x_insert 自动升变成容器
-declare -gA CLASS_INHER_TREE=()
-declare -gA XO_METHOD_INHERITED=()
-
-# 类定义扫描结果（lazy，只扫一次；见 _xo_scan_class_vars 的说明）。
-#   树类模板：*StaticTemplate（M_* 是 Mixin 声明，不算类）
-#   扁平类对象：*Obj
-declare -ga XO_CLASS_TREE_TMPL_VARS=()
-declare -ga XO_CLASS_FLAT_OBJ_VARS=()
-declare -gi XO_CLASS_VARS_READY=0
-
-
 # 扫描一次全局变量名，把类定义按后缀分桶缓存。
 #
 # 为什么缓存：compgen -A variable 本身 ~1ms，但 bash 5.2 没有 -V，只能走
@@ -553,10 +587,10 @@ _xo_init_get_class_inher_chain ()
 
     # ---- 2. 初始化继承树 ----
         #@if current_shell_process_replace==1
-    declare -gA "CLASS_INHER_TREE=(${|x_init "$X_TYPE_OBJ";})"
+    declare -gA "XO_CLASS_INHER_TREE=(${|x_init "$X_TYPE_OBJ";})"
         #@endif
         #@if current_shell_process_replace==0
-    x_init "$X_TYPE_OBJ" ; eval "${_ret_g_A/o/CLASS_INHER_TREE}"
+    x_init "$X_TYPE_OBJ" ; eval "${_ret_g_A/o/XO_CLASS_INHER_TREE}"
         #@endif
 
     # ---- 3. 每个类往上回溯拼路径，插入树 ----
@@ -604,10 +638,10 @@ _xo_init_get_class_inher_chain ()
         done
 
         # 幂等插入：路径不存在才写，存在就跳过
-        x_get_node_type CLASS_INHER_TREE "$path" path
+        x_get_node_type XO_CLASS_INHER_TREE "$path" path
         if [[ $? == "$X_NODE_KIND_UNKNOWN" ]] ; then
-            x_insert CLASS_INHER_TREE "$path" "$X_VALUE_NULL" || {
-                die ERR "Class:$cls failed to insert into CLASS_INHER_TREE"\
+            x_insert XO_CLASS_INHER_TREE "$path" "$X_VALUE_NULL" || {
+                die ERR "Class:$cls failed to insert into XO_CLASS_INHER_TREE"\
                         "(path:$path)"
                 return 1
             }
@@ -635,15 +669,6 @@ _xo_check_mixin_to_class_match ()
     return 0
 }
 
-# 扁平类保留的元键（其余字段一律剥成扁平键）。和 _xo_field_key 的判定保持一致。
-declare -gA XO_FLAT_META=(
-    ["{CLS}$X"]=1
-    ["{SUP}$X"]=1
-    ["{MIX}$X"]=1
-    ["{OBJMIX}$X"]=1
-    ["{FLT}$X"]=1
-)
-
 # 根据所有的类模板变量动态生成所有类的类对象，并且动态更新类实例函数。
 # 当前 x_walk 的顺序本来就能保证是 拓扑序（父先于子），但是不是 DFS 前序
 # 所以按照 x_walk 的顺序直接覆盖就行。
@@ -656,14 +681,6 @@ declare -gA XO_FLAT_META=(
 # XO_INIT_PROGRESS_FD（默认 2=stderr）。游戏里用 fd 1（stdout）并在备用屏幕内显示，
 # 退出时随备用屏幕一起消失。默认关闭，所以测试/管道输出不会被打扰。
 #
-# 性能：计数用一次 compgen 变量扫描（不额外 x_walk 继承树），绘制只在每类结束时
-# 做一次，27 个类 = 27 次 printf，实测在噪声内。
-declare -g XO_INIT_PROGRESS=${XO_INIT_PROGRESS:-0}
-declare -g XO_INIT_PROGRESS_FD=${XO_INIT_PROGRESS_FD:-2}
-declare -gi XO_INIT_TOTAL=0
-declare -gi XO_INIT_DONE=0
-# 整行布局：loading classes  19/27  [###############       ]  72%
-declare -gi XO_PROGRESS_BAR_MAX=24
 
 _xo_progress_count ()
 {
@@ -961,19 +978,13 @@ _xo_init_class ()
     }
     XO_INIT_DONE=0
     (( XO_INIT_PROGRESS )) && _xo_progress_count
-    x_walk CLASS_INHER_TREE '' _xo_init_class_cb || return $?
+    x_walk XO_CLASS_INHER_TREE '' _xo_init_class_cb || return $?
     _xo_progress_finish
 }
 
 
 
 # -------------------------对象管理部分---------------------------------------
-
-declare -gA XO_OBJ_POOL=()
-# 预留 OBJ_1 ~ OBJ_10 给系统特殊对象（如全局单例、框架内部对象），
-# 用户对象从 OBJ_11 开始。修改此值时同步更新预留范围。
-declare -gi XO_OBJ_SEQ=10
-
 
 xo_init ()
 {
@@ -986,19 +997,18 @@ xo_init ()
     _XO_INIT_CALLED=1
 }
 
-declare -g XO_INHER_CHAIN_DUMP_CACHE=''
 xo_dump_inher_chain ()
 {
     [[ -n "$_XO_INIT_CALLED" ]] || {
-        die ERR "xo: xo_init not called yet, CLASS_INHER_TREE is empty"
+        die ERR "xo: xo_init not called yet, XO_CLASS_INHER_TREE is empty"
         return 1
     }
     if [[ -z "$XO_INHER_CHAIN_DUMP_CACHE" ]] ; then
             #@if current_shell_process_replace==1
-        XO_INHER_CHAIN_DUMP_CACHE=${ x_dump CLASS_INHER_TREE '' 4 2 ;}
+        XO_INHER_CHAIN_DUMP_CACHE=${ x_dump XO_CLASS_INHER_TREE '' 4 2 ;}
             #@endif
             #@if current_shell_process_replace==0
-        XO_INHER_CHAIN_DUMP_CACHE=$(x_dump CLASS_INHER_TREE '' 4 2)
+        XO_INHER_CHAIN_DUMP_CACHE=$(x_dump XO_CLASS_INHER_TREE '' 4 2)
             #@endif
     fi
     printf "%s\n" "$XO_INHER_CHAIN_DUMP_CACHE"
@@ -1190,9 +1200,9 @@ xo_obj_bury ()
 #   - 默认值直接从类对象读（`${cls}Obj["{字段}$X"]`），不需要额外的默认值表。
 #
 # 市场结构（O(1) 后进先出，单关联数组，避免每类一个动态变量名）：
-#   RES_COUNT[类]           当前存货数
-#   RES_MARKET["类|序号"]    句柄
-#   RES_LIMIT[类]           容量上限，缺省 RES_LIMIT_DEFAULT
+#   XO_RES_COUNT[类]           当前存货数
+#   XO_RES_MARKET["类|序号"]    句柄
+#   XO_RES_LIMIT[类]           容量上限，缺省 XO_RES_LIMIT_DEFAULT
 #
 # 契约（和 bury 一样）：调用 fire 之前必须把句柄从调用方自己的集合里摘掉；
 # 用句柄前必须查 XO_OBJ_POOL。原因是 fire 之后变量仍然存在，过期句柄会读到
@@ -1211,10 +1221,6 @@ xo_obj_bury ()
 #   - xo_obj_hire_n 中途失败会返回 1，REPLY 里是**已经返聘出来的部分**句柄。
 #   - 市场键用 '|' 分隔：类名是标识符，不含 '|'，所以不会歧义。
 # ==============================================================================
-declare -gA RES_COUNT=() RES_MARKET=() RES_LIMIT=()
-# 回收市场默认容量
-declare -gi RES_LIMIT_DEFAULT=512
-declare -gA XO_RESET_FIELDS=() XO_RESET_DEF=() XO_RESET_READY=()
 
 # 字段键：返回该字段在类对象/实例里的真实键名。
 #   扁平类（FLT=1）：hp          树类（FLT=0）：{hp}$X
@@ -1309,11 +1315,11 @@ xo_obj_fire ()
     _xo_obj_reset_fields "$cls" "$obj" || return 1
 
     # 4. 进市场；超过容量就当场销毁，不囤货
-    local -i n=${RES_COUNT[$cls]:-0}
-    local -i lim=${RES_LIMIT[$cls]:-$RES_LIMIT_DEFAULT}
+    local -i n=${XO_RES_COUNT[$cls]:-0}
+    local -i lim=${XO_RES_LIMIT[$cls]:-$XO_RES_LIMIT_DEFAULT}
     if (( n < lim )) ; then
-        RES_MARKET["$cls|$n"]=$obj
-        RES_COUNT[$cls]=$(( n + 1 ))
+        XO_RES_MARKET["$cls|$n"]=$obj
+        XO_RES_COUNT[$cls]=$(( n + 1 ))
         unset -v 'XO_OBJ_POOL[$obj]'
     else
         unset -v "$obj"
@@ -1328,12 +1334,12 @@ xo_obj_hire ()
     REPLY=
     local cls=$1
     shift
-    local -i n=${RES_COUNT[$cls]:-0}
+    local -i n=${XO_RES_COUNT[$cls]:-0}
     if (( n > 0 )) ; then
         local -i idx=$(( n - 1 ))
-        local obj=${RES_MARKET["$cls|$idx"]}
-        unset -v "RES_MARKET[$cls|$idx]"
-        RES_COUNT[$cls]=$(( n - 1 ))
+        local obj=${XO_RES_MARKET["$cls|$idx"]}
+        unset -v "XO_RES_MARKET[$cls|$idx]"
+        XO_RES_COUNT[$cls]=$(( n - 1 ))
         # 顺序与 born 一致：先登记回池，再调 born 钩子（钩子可读写自己的字段）
         XO_OBJ_POOL[$obj]=$cls
         "${cls}_born" "$obj" "$@" || {
@@ -1371,11 +1377,11 @@ xo_fire_stats ()
 {
     local cls
     if [[ -n "${1:-}" ]] ; then
-        printf '%-16s %s / %s\n' "$1" "${RES_COUNT[$1]:-0}" "${RES_LIMIT[$1]:-$RES_LIMIT_DEFAULT}"
+        printf '%-16s %s / %s\n' "$1" "${XO_RES_COUNT[$1]:-0}" "${XO_RES_LIMIT[$1]:-$XO_RES_LIMIT_DEFAULT}"
         return 0
     fi
-    for cls in $( printf '%s\n' "${!RES_COUNT[@]}" | sort ) ; do
-        printf '%-16s %s / %s\n' "$cls" "${RES_COUNT[$cls]}" "${RES_LIMIT[$cls]:-$RES_LIMIT_DEFAULT}"
+    for cls in $( printf '%s\n' "${!XO_RES_COUNT[@]}" | sort ) ; do
+        printf '%-16s %s / %s\n' "$cls" "${XO_RES_COUNT[$cls]}" "${XO_RES_LIMIT[$cls]:-$XO_RES_LIMIT_DEFAULT}"
     done
     return 0
 }
@@ -1385,9 +1391,9 @@ xo_fire_stats ()
 # 只把框架持有的最后一份引用（对象变量）释放掉，避免换局反复调用时泄漏。
 xo_fire_clear ()
 {
-    unset -v "${RES_MARKET[@]}"
-    RES_MARKET=()
-    RES_COUNT=()
+    unset -v "${XO_RES_MARKET[@]}"
+    XO_RES_MARKET=()
+    XO_RES_COUNT=()
     return 0
 }
 
@@ -1505,12 +1511,6 @@ xo_is_a ()
 #   - born 不注入任何能力：初始能力由调用方在 born 之后自行 add（用现成的 _born 钩子）
 #-------------------------------------------------------------------------------
 
-# 缓存：mixin => "方法1 方法2"，首次使用时扫描一次，之后只查表
-declare -gA XO_MIXIN_METHODS=()
-# 分派表："OBJ_x|method" => "M_Mixin_method"
-declare -gA XO_OBJ_METHOD=()
-# 当前持有动态能力的对象集合；xo_obj_bury 靠它做「是否需要清理路由」的廉价门控
-declare -gA XO_OBJ_MIXED=()
 
 # 取一个 Mixin 的公共方法列表（去掉 Mixin_ 前缀），结果放 REPLY。
 # 只扫这一个 Mixin 的函数，不做全局 M_* 分组：Mixin 名带下划线时不会歧义。

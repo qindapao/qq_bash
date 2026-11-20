@@ -159,10 +159,10 @@
   * scene.sh 的 printf -v：只剩低频路径（炸弹/死亡特效、护盾行）；热路径已改拼接。
   * born vs hire/fire 比值重测：born 变轻后小类约 1.18x；大类场景未验证。
     建议造一个 60 字段的测试类，验证"born 随字段数线性增长、hire 基本不变"。
-  * 资源市场 RES_LIMIT_DEFAULT=512 是否合适（按类观察峰值再调）。
+  * 资源市场 XO_RES_LIMIT_DEFAULT=512 是否合适（按类观察峰值再调）。
 
 [发布前必删（临时桩）]
-  * hud.sh 的 draw_hud_line1：格式串里的 "  MKT:%d" 和 `local _mkt=${#RES_MARKET[@]}`
+  * hud.sh 的 draw_hud_line1：格式串里的 "  MKT:%d" 和 `local _mkt=${#XO_RES_MARKET[@]}`
     两行注释。调试用的人才市场存量显示，发布前一起删掉。
 
 [已完成，别重复做]

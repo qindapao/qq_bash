@@ -17,11 +17,11 @@ draw_hud_line1 () {
     local _slow=$(( ${OBJ_player[slow]:-0} / FPS ))
     local _slowseg=''
     (( _slow > 0 )) && printf -v _slowseg '  SLOW:%d' "$_slow"
-    # 临时桩：人才市场存量（MKT）。RES_MARKET 的键数就是全市场对象总数。
+    # 临时桩：人才市场存量（MKT）。XO_RES_MARKET 的键数就是全市场对象总数。
     # 发布前连同格式串里的 MKT 段和这一整段一起删掉（TODO.txt 有记录）。
-    local _mkt=${#RES_MARKET[@]} _mktseg='' _c _ab _n
-    for _c in "${!RES_COUNT[@]}" ; do
-        _n=${RES_COUNT[$_c]}
+    local _mkt=${#XO_RES_MARKET[@]} _mktseg='' _c _ab _n
+    for _c in "${!XO_RES_COUNT[@]}" ; do
+        _n=${XO_RES_COUNT[$_c]}
         (( _n > 0 )) || continue
         case "$_c" in
             Bullet)       _ab=B  ;;

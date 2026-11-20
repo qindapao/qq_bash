@@ -5,7 +5,7 @@ declare -gA _STRAFE_LOADED
 
 # 当前继承树，一旦改变继承层级需要更新这个注释
 # 所有类都是 Base 的后代：Base 及其子类默认扁平（FLT=1），BaseX 是唯一的树类（FLT=0）。
-# CLASS_INHER_TREE(1) -> 
+# XO_CLASS_INHER_TREE(1) -> 
 #     {Base}
 #         {BaseX} => null\u001c
 #         {BulletType}

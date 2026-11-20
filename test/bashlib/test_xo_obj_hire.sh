@@ -69,7 +69,7 @@ xo_init
 
 reset_market ()
 {
-    RES_MARKET=() ; RES_COUNT=() ; RES_LIMIT=() ; RETIRE_LOG=()
+    XO_RES_MARKET=() ; XO_RES_COUNT=() ; XO_RES_LIMIT=() ; RETIRE_LOG=()
 }
 
 # 1) 空市场时 hire 与 born 等价（字段集与值完全一致）
@@ -109,7 +109,7 @@ test_case2 ()
     local -i ok=1
     (( ${#RETIRE_LOG[@]} == 1 )) && [[ "${RETIRE_LOG[0]}" == "$h" ]] || ok=0
     [[ -z "${XO_OBJ_POOL[$h]+_}" ]] || ok=0          # 出池
-    (( ${RES_COUNT[HireObj]:-0} == 1 )) || ok=0      # 进市场
+    (( ${XO_RES_COUNT[HireObj]:-0} == 1 )) || ok=0      # 进市场
     declare -p "$h" >/dev/null 2>&1 || ok=0          # 变量还在（肉体保留）
 
     local -n o2=$h
@@ -124,12 +124,12 @@ test_case2 ()
 # 3) hire 拿回同一个句柄，重新进池并跑 born 钩子
 test_case3 ()
 {
-    local h=${RES_MARKET["HireObj|0"]}
+    local h=${XO_RES_MARKET["HireObj|0"]}
     xo_obj_hire HireObj 5 6
     local -i ok=1
     [[ "$REPLY" == "$h" ]] || ok=0
     [[ -n "${XO_OBJ_POOL[$h]+_}" ]] || ok=0
-    (( ${RES_COUNT[HireObj]:-0} == 0 )) || ok=0
+    (( ${XO_RES_COUNT[HireObj]:-0} == 0 )) || ok=0
     (( ${#RETIRE_LOG[@]} == 1 )) || ok=0             # hire 不调 retire
 
     local -n o=$h
@@ -166,7 +166,7 @@ test_case4 ()
 test_case5 ()
 {
     reset_market
-    RES_LIMIT[HireObj]=1
+    XO_RES_LIMIT[HireObj]=1
     # 两个对象同时在飞，再依次解聘：第一个进市场，第二个超限被销毁
     xo_obj_hire HireObj 1 ; local h1=$REPLY
     xo_obj_hire HireObj 1 ; local h2=$REPLY
@@ -174,11 +174,11 @@ test_case5 ()
     xo_obj_fire "$h2"
 
     local -i ok=1
-    (( ${RES_COUNT[HireObj]:-0} == 1 )) || ok=0
-    [[ -n "${RES_MARKET["HireObj|0"]}" ]] || ok=0
-    [[ "${RES_MARKET["HireObj|0"]}" == "$h1" ]] || ok=0
+    (( ${XO_RES_COUNT[HireObj]:-0} == 1 )) || ok=0
+    [[ -n "${XO_RES_MARKET["HireObj|0"]}" ]] || ok=0
+    [[ "${XO_RES_MARKET["HireObj|0"]}" == "$h1" ]] || ok=0
     declare -p "$h2" >/dev/null 2>&1 && ok=0          # 超限 → 真销毁
-    RES_LIMIT[HireObj]=512
+    XO_RES_LIMIT[HireObj]=512
 
     if (( ok )) ; then log_test 1 5 ; else log_test 0 5 ; fi
 }
@@ -197,7 +197,7 @@ test_case6 ()
         [[ -n "${XO_OBJ_POOL[$h]+_}" ]] || ok=0
     done
     for h in "${hs[@]}" ; do xo_obj_fire "$h" ; done
-    (( ${RES_COUNT[HireObj]:-0} == 3 )) || ok=0
+    (( ${XO_RES_COUNT[HireObj]:-0} == 3 )) || ok=0
     xo_obj_hire_n 3 HireObj 2 3
     local -a hs2=( $REPLY )
     (( ${#hs2[@]} == 3 )) || ok=0
@@ -227,7 +227,7 @@ test_case8 ()
         log_test 0 8 ; return 1
     fi
     local -i ok=1
-    (( ${RES_COUNT[BadObj]:-0} == 0 )) || ok=0
+    (( ${XO_RES_COUNT[BadObj]:-0} == 0 )) || ok=0
     [[ -n "${XO_OBJ_POOL[$h]+_}" ]] || ok=0    # 失败后对象仍在池里
     if (( ok )) ; then log_test 1 8 ; else log_test 0 8 ; fi
 }
@@ -241,7 +241,7 @@ test_case9 ()
         log_test 0 9 ; return 1
     fi
     local -i ok=1
-    (( ${RES_COUNT[FailObj]:-0} == 0 )) || ok=0
+    (( ${XO_RES_COUNT[FailObj]:-0} == 0 )) || ok=0
     [[ -n "${XO_OBJ_POOL[$h]+_}" ]] || ok=0
     if (( ok )) ; then log_test 1 9 ; else log_test 0 9 ; fi
 }
@@ -270,10 +270,10 @@ test_case11 ()
     xo_obj_born_named OBJ_h11 HireObj 5
     xo_obj_fire OBJ_h11
     local -i ok=1
-    (( ${RES_COUNT[HireObj]:-0} == 1 )) || ok=0
+    (( ${XO_RES_COUNT[HireObj]:-0} == 1 )) || ok=0
     if xo_obj_born_named OBJ_h11 HireObj 9 2>/dev/null ; then ok=0 ; fi
-    (( ${RES_COUNT[HireObj]:-0} == 1 )) || ok=0          # 市场没被破坏
-    [[ "${RES_MARKET["HireObj|0"]}" == 'OBJ_h11' ]] || ok=0
+    (( ${XO_RES_COUNT[HireObj]:-0} == 1 )) || ok=0          # 市场没被破坏
+    [[ "${XO_RES_MARKET["HireObj|0"]}" == 'OBJ_h11' ]] || ok=0
     xo_obj_hire HireObj                                   # 还能正常返聘回来
     [[ "$REPLY" == 'OBJ_h11' ]] || ok=0
     xo_obj_bury OBJ_h11
@@ -283,16 +283,16 @@ test_case11 ()
 # 12) xo_fire_clear：释放市场里的待业肉体（unset），而不是只丢引用
 test_case12 ()
 {
-    RES_MARKET=() ; RES_COUNT=() ; RETIRE_LOG=()
+    XO_RES_MARKET=() ; XO_RES_COUNT=() ; RETIRE_LOG=()
     xo_obj_hire HireObj 1 ; local h1=$REPLY
     xo_obj_hire HireObj 2 ; local h2=$REPLY
     xo_obj_fire "$h1" ; xo_obj_fire "$h2" || { log_test 0 12 ; return 1 ; }
 
     local -i ok=1
-    (( ${RES_COUNT[HireObj]:-0} == 2 )) || ok=0
+    (( ${XO_RES_COUNT[HireObj]:-0} == 2 )) || ok=0
     xo_fire_clear
-    (( ${RES_COUNT[HireObj]:-0} == 0 )) || ok=0
-    (( ${#RES_MARKET[@]} == 0 )) || ok=0
+    (( ${XO_RES_COUNT[HireObj]:-0} == 0 )) || ok=0
+    (( ${#XO_RES_MARKET[@]} == 0 )) || ok=0
     declare -p "$h1" >/dev/null 2>&1 && ok=0        # 肉体已释放
     declare -p "$h2" >/dev/null 2>&1 && ok=0
     [[ -z "${XO_OBJ_POOL[$h1]+_}" ]] || ok=0        # 本来就不在池里

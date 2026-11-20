@@ -51,7 +51,7 @@ stay aligned in any editor, terminal or diff viewer.
 |----------------------------------------------------------------------------|
 | DATA STRUCTURE  src/bashlib/x.in                                           |
 |   x tree: node ids, .c child table, .s order, <id>.k key, <id> value       |
-|   x_walk / x_dump / CLASS_INHER_TREE (class inheritance)                   |
+|   x_walk / x_dump / XO_CLASS_INHER_TREE (class inheritance)                |
 +----------------------------------------------------------------------------+
 ```
 
@@ -74,12 +74,12 @@ Four verbs, two hooks. Life is only born/bury; hire/fire is storage-level reuse.
       | 1 <cls>_retire   (both exits share it)   |
       | 2 drop object-level mixin routes         |
       | 3 reset volatile fields (fire only)      |
-      | 4 fire: push to RES_MARKET               |
+      | 4 fire: push to XO_RES_MARKET            |
       |   bury: unset the variable + leave pool  |
       +------------------------------------------+
            |                              |
            v                              v
-   fire -> IDLE (RES_MARKET)   bury -> GONE (no variable)
+   fire -> IDLE (XO_RES_MARKET)   bury -> GONE (no variable)
            |
            +---- xo_obj_hire ----> ALIVE
 ```
@@ -154,7 +154,7 @@ CONSTITUTION.md §3).
 | `${cls}ObjStr` | KV snapshot of the class object; born does one `declare -gA` with it (the expensive part) |
 | `${cls}StaticTemplate` | template of a tree class (FLT=0) only. A flat class that uses a template makes `xo_init` fail |
 | `${cls}ResetFields` | volatile fields of a recyclable class; fire resets only those (e.g. `prev_x prev_y color`) |
-| `CLASS_INHER_TREE` | class inheritance chain (x tree); used by `xo_init` to build dispatch |
+| `XO_CLASS_INHER_TREE` | class inheritance chain (x tree); used by `xo_init` to build dispatch |
 | `XO_METHOD_INHERITED` | forwarding table for inherited methods |
 | `XO_INHER_CHAIN_DUMP_CACHE` | cached inheritance dump, avoids recomputation |
 | `XO_CLASS_TREE_TMPL_VARS` | tree-class template variable names, scanned once at init |
@@ -173,9 +173,9 @@ CONSTITUTION.md §3).
 | `XO_MIXIN_METHODS[mixin]` | which methods each mixin provides |
 | `XO_OBJ_METHOD[handle\|method]` | per-object method routing (mixin implementation names) |
 | `XO_OBJ_MIXED[handle]` | set of objects carrying mixins (cheap gate: empty set means bury does one length check) |
-| `RES_COUNT[class]` | resource market: number of idle bodies of that class |
-| `RES_MARKET["class\|index"]` | resource market: idle handles, O(1) LIFO |
-| `RES_LIMIT[class]` `RES_LIMIT_DEFAULT` | per-class recycle cap / default 512 |
+| `XO_RES_COUNT[class]` | resource market: number of idle bodies of that class |
+| `XO_RES_MARKET["class\|index"]` | resource market: idle handles, O(1) LIFO |
+| `XO_RES_LIMIT[class]` `XO_RES_LIMIT_DEFAULT` | per-class recycle cap / default 512 |
 | `XO_RESET_FIELDS[class]` | cache: the class reset list, copied from `<cls>ResetFields` |
 | `XO_RESET_DEF["class\|field"]` | cache: template default of a volatile field, read from the class object |
 | `XO_RESET_READY[class]` | cache: flag, the reset list was preprocessed (lazy, on first fire) |
