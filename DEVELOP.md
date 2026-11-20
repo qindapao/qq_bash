@@ -322,7 +322,9 @@ Live-object handle lists, rebuilt every tick (collect first, then clean up once)
 8. **Mark first, clean up once**: collisions only set `killed_*` flags; the cleanup
    phase buries everything together.
 9. **Measure any mechanic change**: compare before/after with the fixed-load harness;
-   "it feels faster" is not evidence.
+   "it feels faster" is not evidence. Every performance number must state the CPU
+   model it was measured on (`Win32_Processor.Name` on Windows, `lscpu` on Linux);
+   numbers from different machines are not comparable and are not acceptance evidence.
 10. **Associative arrays: compound `+=` for fixed key sets.** Writing several literal
     keys at once — `self+=([x]=$2 [y]=$3 [symbol]=$4 ...)` — is allowed and preferred
     for readability: one assignment instead of N, and ~10% fewer instructions in a
