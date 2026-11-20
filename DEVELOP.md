@@ -268,6 +268,20 @@ Live-object handle lists, rebuilt every tick (collect first, then clean up once)
    phase buries everything together.
 9. **Measure any mechanic change**: compare before/after with the fixed-load harness;
    "it feels faster" is not evidence.
+10. **Associative arrays: compound `+=` for fixed key sets.** Writing several literal
+    keys at once — `self+=([x]=$2 [y]=$3 [symbol]=$4 ...)` — is allowed and preferred
+    for readability: one assignment instead of N, and ~10% fewer instructions in a
+    per-call microbenchmark. This is *not* a performance argument (the win is
+    ~0.5 µs per key, only visible at tens of thousands of calls per second).
+    Rules:
+    - the target must already be declared `declare -A`; otherwise `+=` treats it as
+      an indexed append (silent wrong type);
+    - never use `+=` on the parallel indexed SoA arrays (`EB_X`, `EB_Y`, `EB_ALIVE`,
+      ...): it appends at the end and desynchronises the columns;
+    - do not build a compound assignment from dynamic keys: that needs string
+      building or `eval` and is both slower and unsafe. Use the plain loop instead.
+    (Associative compound `+=` needs bash 4.3+; the project floor is 5+, so it is
+    always available.)
 
 ---
 

@@ -39,7 +39,14 @@ eb_reset () {
 # 出生：取一个槽（优先空闲栈），写字段并占格
 # $1=type $2=x $3=y $4=vx $5=vy $6=step $7=cd $8=damage $9=glyph $10=fuel
 eb_add () {
-    local -i i
+    # 出生坐标夹到可玩区：Boss 的巨型弹幕 pattern 是 cy±6 的偏移，
+    # Boss 停在顶部时 cy=7，偏移 -6 就会算到第 1 行（边框）。
+    # 不夹的话子弹会画进 HUD/边框的格子，等它死亡清格时又把边框擦出缺口。
+    local -i i _sx=${2:-0} _sy=${3:-0}
+    (( _sx < 2 )) && _sx=2
+    (( _sx > SCREEN_W - 2 )) && _sx=$(( SCREEN_W - 2 ))
+    (( _sy < GAME_TOP )) && _sy=$GAME_TOP
+    (( _sy > SCREEN_H - 2 )) && _sy=$(( SCREEN_H - 2 ))
     if (( ${#EB_FREE[@]} )) ; then
         i=${EB_FREE[-1]}
         unset 'EB_FREE[-1]'
@@ -48,7 +55,7 @@ eb_add () {
         i=$EB_N
         (( EB_N++ ))
     fi
-    EB_ALIVE[i]=1 EB_TYPE[i]=$1 EB_X[i]=$2 EB_Y[i]=$3 EB_VX[i]=$4 EB_VY[i]=$5 \
+    EB_ALIVE[i]=1 EB_TYPE[i]=$1 EB_X[i]=$_sx EB_Y[i]=$_sy EB_VX[i]=$4 EB_VY[i]=$5 \
     EB_STEP[i]=$6 EB_CD[i]=$7 EB_DMG[i]=$8 EB_GLYPH[i]=$9 EB_FUEL[i]=${10:-0} \
     EB_TAG[i]="E$i" EB_SEEN[i]=-1
     if (( $1 == 0 )) ; then
@@ -60,7 +67,7 @@ eb_add () {
         EB_VAR+=("$i")
     fi
     (( EB_LIVE++ ))
-    local -i _fi=$(( ($3 - 1) * FB_W + ($2 - 1) ))
+    local -i _fi=$(( (_sy - 1) * FB_W + (_sx - 1) ))
     # owner 存 1-based 槽位号（整数比较比字符串快）；空 owner=0 不会与任何槽冲突
     FB_CELL[_fi]=$9 FB_OWNER[_fi]=$(( i + 1 )) FB_DIRTY+=("$_fi")
     return 0
