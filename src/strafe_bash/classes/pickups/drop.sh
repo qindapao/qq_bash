@@ -6,24 +6,23 @@ declare -gA _STRAFE_LOADED
 . "$STRAFE_PROJ_DIR/config/globals.sh"
 . "$STRAFE_PROJ_DIR/classes/base_types.sh"
 
-readonly DropStaticTemplate='
-    DropObj ->
-        {CLS} => Drop
-        {SUP} => Entity
-        {MIX} => 
-        # 位置（每 6 tick 落一行）
-        {x} => 0
-        {y} => 0
-        # 显示字符：默认等于 dtype；武器档位掉落显示该武器的主字符
-        {symbol} => 1
-        # 掉落类型：H 回血 / b 炸弹 / m 导弹 / L 弹道 / S 护盾 / W 电网 /
-        #           2..5 对应四档武器（直接就是 tier）
-        {dtype} => 1
-        # 下落节拍计时器
-        {cd} => 0
-        # 帧缓冲用的成品串（反色+字符+复位）
-        {glyph} => 
-    '
+declare -gA DropObj=(
+    [{CLS}$X]='Drop'
+    [{SUP}$X]='Entity'
+    [{MIX}$X]=''
+    # 位置（每 6 tick 落一行）
+    [x]='0'
+    [y]='0'
+    # 显示字符：默认等于 dtype；武器档位掉落显示该武器的主字符
+    [symbol]='1'
+    # 掉落类型：H 回血 / b 炸弹 / m 导弹 / L 弹道 / S 护盾 / W 电网 /
+    #           2..5 对应四档武器（直接就是 tier）
+    [dtype]='1'
+    # 下落节拍计时器
+    [cd]='0'
+    # 帧缓冲用的成品串（反色+字符+复位）
+    [glyph]=''
+)
 Drop_born () {
     local -n self=$1
     local t=$2

@@ -16,40 +16,39 @@ readonly BOSS_SPINNER_ART_1=$'   o  >-----<\n    \\/  .-.  \\\n    |  ( O )  |\n
 readonly BOSS_SPINNER_ART_2=$'      >-----<\n     /  .-.  \\\n    |  ( O )  |\n     \\  \'-\'  /\n      >-----<'
 readonly BOSS_SPINNER_ART_3=$'      .-----.\n     /  .-.  \\\n    |  ( X )  |\n     \\  \'-\'  /\n      \'-----\''
 
-readonly BossSpinnerStaticTemplate='
-    BossSpinnerObj ->
-        {CLS} => BossSpinner
-        {SUP} => BossBase
-        {MIX} => 
-        # 死亡横幅上的名字
-        {name} => THE SPINNER
-        # 包围盒（16x5，比经典 Boss 更宽）
-        {w} => 16
-        {h} => 5
-        # 血量：最耐打的一档（300）
-        {hp} => 300
-        {maxhp} => 300
-        # 击杀得分基数
-        {score} => 8000
-        # 单字符符号（立绘走 art，仅调试用）
-        {symbol} => S
-        # 阶段边界百分比
-        {pcut1} => 75
-        {pcut2} => 50
-        {pcut3} => 25
-        # 死亡演出样式（1 = 旋刃专用演出）
-        {death_style} => 1
-        # 旋转环发射冷却：归零时打一圈 8 方向弹
-        {ring_cd} => 0
-        # 瞄准射击冷却：归零时朝玩家打一发
-        {aim_cd} => 0
-        # 走位模式计时器/步号/模式号：控制弹幕节奏的循环
-        {pat_cd} => 0
-        {pat_step} => -1
-        {pat_mode} => 0
-        # 旋转相位：每轮 +1，决定 8 方向缺口转到哪
-        {spin} => 0
-    '
+declare -gA BossSpinnerObj=(
+    [{CLS}$X]='BossSpinner'
+    [{SUP}$X]='BossBase'
+    [{MIX}$X]=''
+    # 死亡横幅上的名字
+    [name]='THE SPINNER'
+    # 包围盒（16x5，比经典 Boss 更宽）
+    [w]='16'
+    [h]='5'
+    # 血量：最耐打的一档（300）
+    [hp]='300'
+    [maxhp]='300'
+    # 击杀得分基数
+    [score]='8000'
+    # 单字符符号（立绘走 art，仅调试用）
+    [symbol]='S'
+    # 阶段边界百分比
+    [pcut1]='75'
+    [pcut2]='50'
+    [pcut3]='25'
+    # 死亡演出样式（1 = 旋刃专用演出）
+    [death_style]='1'
+    # 旋转环发射冷却：归零时打一圈 8 方向弹
+    [ring_cd]='0'
+    # 瞄准射击冷却：归零时朝玩家打一发
+    [aim_cd]='0'
+    # 走位模式计时器/步号/模式号：控制弹幕节奏的循环
+    [pat_cd]='0'
+    [pat_step]='-1'
+    [pat_mode]='0'
+    # 旋转相位：每轮 +1，决定 8 方向缺口转到哪
+    [spin]='0'
+)
 BossSpinner_born () {
     _boss_set_arts "$1" "$BOSS_SPINNER_ART_0" "$BOSS_SPINNER_ART_1" "$BOSS_SPINNER_ART_2" "$BOSS_SPINNER_ART_3"
     BossBase_born "$1"

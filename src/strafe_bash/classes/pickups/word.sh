@@ -5,23 +5,22 @@ declare -gA _STRAFE_LOADED
 . "$STRAFE_PROJ_DIR/config/const.sh"
 . "$STRAFE_PROJ_DIR/classes/base_types.sh"
 
-readonly WordStaticTemplate='
-    WordObj ->
-        {CLS} => Word
-        {SUP} => Entity
-        {MIX} => 
-        # 位置（缓慢下落，碰到即加分）
-        {x} => 0
-        {y} => 0
-        # 显示的单词文本
-        {text} => 
-        # 文本的显示宽度（列数，中文按 2 算）：拾取包围盒与边界都用它
-        {len} => 0
-        # 横向漂移（-1/0/1，随机变化）；撞到左右边界时归零
-        {vx} => 0
-        # 下落节拍计时器：每若干 tick 落一行
-        {cd} => 0
-    '
+declare -gA WordObj=(
+    [{CLS}$X]='Word'
+    [{SUP}$X]='Entity'
+    [{MIX}$X]=''
+    # 位置（缓慢下落，碰到即加分）
+    [x]='0'
+    [y]='0'
+    # 显示的单词文本
+    [text]=''
+    # 文本的显示宽度（列数，中文按 2 算）：拾取包围盒与边界都用它
+    [len]='0'
+    # 横向漂移（-1/0/1，随机变化）；撞到左右边界时归零
+    [vx]='0'
+    # 下落节拍计时器：每若干 tick 落一行
+    [cd]='0'
+)
 Word_born () {
     local -n self=$1
     self[text]=$2

@@ -5,26 +5,25 @@ declare -gA _STRAFE_LOADED
 . "$STRAFE_PROJ_DIR/config/const.sh"
 . "$STRAFE_PROJ_DIR/classes/base_types.sh"
 
-readonly MissileStaticTemplate='
-    MissileObj ->
-        {CLS} => Missile
-        {SUP} => Entity
-        {MIX} => 
-        # 位置（每 tick 朝最近敌人方向走一格）
-        {x} => 0
-        {y} => 0
-        # 符号：按方向显示 ^ v < >
-        {symbol} => ^
-        # 单发伤害（由装备等级决定，默认 2）
-        {damage} => 2
-        # 追踪方向（vx/vy 取值 -1/0/1）
-        {vx} => 0
-        {vy} => -1
-        # 上一个尾迹点：渲染时在身后补一个 '.'，形成一条会拐弯的轨迹
-        # -1 表示还没有尾迹（刚出生）
-        {prev_trail_x} => -1
-        {prev_trail_y} => -1
-    '
+declare -gA MissileObj=(
+    [{CLS}$X]='Missile'
+    [{SUP}$X]='Entity'
+    [{MIX}$X]=''
+    # 位置（每 tick 朝最近敌人方向走一格）
+    [x]='0'
+    [y]='0'
+    # 符号：按方向显示 ^ v < >
+    [symbol]='^'
+    # 单发伤害（由装备等级决定，默认 2）
+    [damage]='2'
+    # 追踪方向（vx/vy 取值 -1/0/1）
+    [vx]='0'
+    [vy]='-1'
+    # 上一个尾迹点：渲染时在身后补一个 '.'，形成一条会拐弯的轨迹
+    # -1 表示还没有尾迹（刚出生）
+    [prev_trail_x]='-1'
+    [prev_trail_y]='-1'
+)
 Missile_born () {
     local -n self=$1
     self[x]=$2 self[y]=$3 self[damage]=${4:-2} \

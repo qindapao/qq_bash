@@ -3,22 +3,21 @@ declare -gA _STRAFE_LOADED
 (( _STRAFE_LOADED[enemy_b]++ )) && return 0
 . "$STRAFE_PROJ_DIR/classes/enemies/enemy_base.sh"
 
-readonly EnemyBStaticTemplate='
-    EnemyBObj ->
-        {CLS} => EnemyB
-        {SUP} => Enemy
-        {MIX} => 
-        # 单字符符号（有 art，仅调试用）
-        {symbol} => B
-        # 血量 40：中 bosses 的小 BOSS，会掉武器
-        {hp} => 40
-        {maxhp} => 40
-        # 击杀得分基数
-        {score} => 500
-        # 包围盒（5x3，与 art 同尺寸）
-        {w} => 5
-        {h} => 3
-    '
+declare -gA EnemyBObj=(
+    [{CLS}$X]='EnemyB'
+    [{SUP}$X]='Enemy'
+    [{MIX}$X]=''
+    # 单字符符号（有 art，仅调试用）
+    [symbol]='B'
+    # 血量 40：中 bosses 的小 BOSS，会掉武器
+    [hp]='40'
+    [maxhp]='40'
+    # 击杀得分基数
+    [score]='500'
+    # 包围盒（5x3，与 art 同尺寸）
+    [w]='5'
+    [h]='3'
+)
 EnemyB_born () {
     local -n self=$1
     Enemy_born "$1"

@@ -15,16 +15,15 @@
 # ---------------------------------------------------------------------------
 # 测试类
 # ---------------------------------------------------------------------------
-HireObjStaticTemplate='
-    HireObj ->
-        {CLS} => HireObj
-        {SUP} => Base
-        {MIX} => 
-        {OBJMIX} => 
-        {a} => 0
-        {b} => 0
-        {hits} => 0
-'
+declare -gA HireObjObj=(
+    [{CLS}$X]='HireObj'
+    [{SUP}$X]='Base'
+    [{MIX}$X]=''
+    [{OBJMIX}$X]=''
+    [a]='0'
+    [b]='0'
+    [hits]='0'
+)
 # 易变字段：只有 a / hits 需要在解聘时回默认；b 由 born 钩子每次重设
 readonly HireObjResetFields='a hits'
 
@@ -37,34 +36,31 @@ HireObj_born () {
 }
 
 # 没声明 ResetFields 的类：走全字段重置的安全路径
-PlainObjStaticTemplate='
-    PlainObj ->
-        {CLS} => PlainObj
-        {SUP} => Base
-        {MIX} => 
-        {OBJMIX} => 
-        {v} => 5
-'
+declare -gA PlainObjObj=(
+    [{CLS}$X]='PlainObj'
+    [{SUP}$X]='Base'
+    [{MIX}$X]=''
+    [{OBJMIX}$X]=''
+    [v]='5'
+)
 PlainObj_born () { local -n _s=$1 ; _s[v]=${2:-5} ; }
 
 # ResetFields 写了不存在的字段：预处理阶段必须报错
-BadObjStaticTemplate='
-    BadObj ->
-        {CLS} => BadObj
-        {SUP} => Base
-        {MIX} => 
-        {x} => 0
-'
+declare -gA BadObjObj=(
+    [{CLS}$X]='BadObj'
+    [{SUP}$X]='Base'
+    [{MIX}$X]=''
+    [x]='0'
+)
 readonly BadObjResetFields='no_such_field'
 
 # retire 失败的类：fire 必须中止
-FailObjStaticTemplate='
-    FailObj ->
-        {CLS} => FailObj
-        {SUP} => Base
-        {MIX} => 
-        {x} => 0
-'
+declare -gA FailObjObj=(
+    [{CLS}$X]='FailObj'
+    [{SUP}$X]='Base'
+    [{MIX}$X]=''
+    [x]='0'
+)
 FailObj_retire () { return 1 ; }
 
 M_TX_ping () { REPLY='TX' ; }

@@ -48,14 +48,13 @@ readonly TChildStaticTemplate='
     '
 
 # ---- 扁平类，用来和树类做对照 ----
-readonly FlatRefStaticTemplate='
-    FlatRefObj ->
-        {CLS} => FlatRef
-        {SUP} => Base
-        {MIX} => 
-        {OBJMIX} => 
-        {hp} => 10
-    '
+declare -gA FlatRefObj=(
+    [{CLS}$X]='FlatRef'
+    [{SUP}$X]='Base'
+    [{MIX}$X]=''
+    [{OBJMIX}$X]=''
+    [hp]='10'
+)
 
 # ---- tree-only mixin，用来验证 FLT 校验 ----
 readonly M_TreeOnlyStaticTemplate='
@@ -119,13 +118,12 @@ printf '\n== 禁止扁平升变为树 ==\n'
 guard_script=$(mktemp)
 cat > "$guard_script" <<'EOS'
 . "$1" >/dev/null 2>&1
-readonly FlatDadStaticTemplate='
-    FlatDadObj ->
-        {CLS} => FlatDad
-        {SUP} => Base
-        {MIX} => 
-        {hp} => 5
-    '
+declare -gA FlatDadObj=(
+    [{CLS}$X]='FlatDad'
+    [{SUP}$X]='Base'
+    [{MIX}$X]=''
+    [hp]='5'
+)
 readonly BadTreeStaticTemplate='
     BadTreeObj ->
         {CLS} => BadTree

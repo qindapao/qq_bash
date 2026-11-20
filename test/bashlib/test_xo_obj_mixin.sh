@@ -34,19 +34,17 @@ M_H4__init () { HOOK_LOG+=("init:${1}:H4") ; xo_obj_mixin_delete "${1}" M_H4 ; }
 
 # 注意：下面「{OBJMIX} => 」这一行行尾有一个空格，这是本仓库模板空值的写法。
 # 对象级 Mixin 要求类模板声明该字段，运行时直接赋值才与对象树保持一致。
-TestObjStaticTemplate='
-    TestObj ->
-        {CLS} => TestObj
-        {SUP} => Base
-        {OBJMIX} => 
-'
+declare -gA TestObjObj=(
+    [{CLS}$X]='TestObj'
+    [{SUP}$X]='Base'
+    [{OBJMIX}$X]=''
+)
 
 # 故意不声明 {OBJMIX}：验证 add 的契约守卫会拒绝，而不是写一个野字段
-TestNoFieldStaticTemplate='
-    TestNoField ->
-        {CLS} => TestNoField
-        {SUP} => Base
-'
+declare -gA TestNoFieldObj=(
+    [{CLS}$X]='TestNoField'
+    [{SUP}$X]='Base'
+)
 
 TestObj_hello () { REPLY='hello' ; }
 

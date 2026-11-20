@@ -15,32 +15,31 @@ readonly BOSS_ART_70=$'    _____    \n   /     \\   \n  /  X O  \\  \n  \\_|_|_.
 readonly BOSS_ART_50=$'    _____    \n   /     \\   \n  /  X X  \\  \n  \\_._|_._/  \n   \\_____/   '
 readonly BOSS_ART_20=$'    _____    \n   /     \\   \n  /  x X  \\  \n  \\_._._._/  \n   \\_____/   '
 
-readonly BossStaticTemplate='
-    BossObj ->
-        {CLS} => Boss
-        {SUP} => BossBase
-        {MIX} => 
+declare -gA BossObj=(
+        [{CLS}$X]=Boss
+        [{SUP}$X]=BossBase
+        [{MIX}$X]=""
         # 死亡横幅上的名字
-        {name} => THE CLASSIC BOSS
+        [name]='THE CLASSIC BOSS'
         # 包围盒（13x5，与立绘同尺寸）
-        {w} => 13
-        {h} => 5
+        [w]=13
+        [h]=5
         # 血量：三阶段 Boss，比 BossBase 默认更耐打
-        {hp} => 180
-        {maxhp} => 180
+        [hp]=180
+        [maxhp]=180
         # 击杀得分基数
-        {score} => 5000
+        [score]=5000
         # 单字符符号（立绘走 art，仅调试用）
-        {symbol} => X
+        [symbol]=X
         # 阶段边界百分比（覆盖父类默认值需与血量匹配）
-        {pcut1} => 70
-        {pcut2} => 50
-        {pcut3} => 20
+        [pcut1]=70
+        [pcut2]=50
+        [pcut3]=20
         # 死亡演出样式
-        {death_style} => 0
+        [death_style]=0
         # 瞄准射击冷却：归零时朝玩家打一发，然后重置
-        {aim_cd} => 0
-    '
+        [aim_cd]=0
+    )
 Boss_born () {
     _boss_set_arts "$1" "$BOSS_ART_100" "$BOSS_ART_70" "$BOSS_ART_50" "$BOSS_ART_20"
     BossBase_born "$1"

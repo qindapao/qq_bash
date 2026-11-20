@@ -4,26 +4,25 @@ declare -gA _STRAFE_LOADED
 . "$STRAFE_LIB_HOME/xo.sh"
 . "$STRAFE_PROJ_DIR/classes/base_types.sh"
 
-readonly BulletStaticTemplate='
-    BulletObj ->
-        {CLS} => Bullet
-        {SUP} => Entity
-        {MIX} => 
-        # 位置（每 tick 按 vx/vy 前进）
-        {x} => 0
-        {y} => 0
-        # 子弹字符：由武器类的方向字符决定
-        {symbol} => .
-        # 单发伤害（激光用它承载威力）
-        {damage} => 1
-        # 每 tick 的位移量（vx 横 / vy 纵，负数向上）
-        {vx} => 0
-        {vy} => -1
-        # 颜色覆盖：空 = 用玩家子弹默认色；激光按威力写入颜色
-        {color} => 
-        # 帧缓冲用的成品串（颜色+字符+复位），出生时拼一次
-        {glyph} => 
-    '
+declare -gA BulletObj=(
+    [{CLS}$X]='Bullet'
+    [{SUP}$X]='Entity'
+    [{MIX}$X]=''
+    # 位置（每 tick 按 vx/vy 前进）
+    [x]='0'
+    [y]='0'
+    # 子弹字符：由武器类的方向字符决定
+    [symbol]='.'
+    # 单发伤害（激光用它承载威力）
+    [damage]='1'
+    # 每 tick 的位移量（vx 横 / vy 纵，负数向上）
+    [vx]='0'
+    [vy]='-1'
+    # 颜色覆盖：空 = 用玩家子弹默认色；激光按威力写入颜色
+    [color]=''
+    # 帧缓冲用的成品串（颜色+字符+复位），出生时拼一次
+    [glyph]=''
+)
 Bullet_born () {
     local -n self=$1
     self[x]=$2 self[y]=$3 self[symbol]=$4 \

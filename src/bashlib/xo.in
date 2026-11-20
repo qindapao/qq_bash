@@ -13,11 +13,12 @@
 # 【框架保留名（用户变量禁止使用）】
 #
 #   变量名后缀：
-#     *StaticTemplate   类模板 / Mixin 模板的变量名后缀
-#                       用户自定义普通变量不要以此结尾，会被 xo_init 当成模板解析
+#     *StaticTemplate   树类（FLT=0）的模板变量名后缀；扁平类禁止使用
+#     *Obj              类对象数组：扁平类的唯一定义方式（元键带 $X，用户字段裸键）
+#                       用户自定义普通变量不要用这两个后缀，会被 xo_init 扫描
 #
 #   类对象变量名（由 ${类名} 推导）：
-#     ${类名}Obj        类对象（x_tree 关联数组）
+#     ${类名}Obj        类对象（扁平类：直接定义；树类：由模板构建）
 #     ${类名}ObjStr     类对象 KV 字符串缓存（born 时加速用）
 #                       用户变量不要用这两个名字，会被框架覆盖
 #
@@ -139,7 +140,7 @@
 #
 #   M_XxxStaticTemplate 当前的作用：
 #     - 文档：声明 Mixin 名、{REQUIRES} 字段依赖
-#     当前 xo_init 完全跳过 M_*StaticTemplate（不解析、不建对象）
+#     - xo_init 只读它做 FLT 校验，不解析、不建对象（模板比关联数组省内存）
 #
 # ------------------------------------------------------------------------------
 # 【明确不做的三件事（deliberate non-goals，不是 TODO）】
@@ -208,21 +209,20 @@
 #          M_RestartableObj ->
 #              {CLS} => M_Restartable
 #              {MIX} =>
-#          '
+#      '
 #
 #      M_Restartable_restart() {
 #          local -n self=$1
-#          local dev=${self[{device_id}$X]}
+#          local dev=${self[device_id]}
 #          do_reset "$dev"
 #      }
 #
-#      # 类模板中声明
-#      DeviceStaticTemplate='
-#          DeviceObj ->
-#              {CLS} => Device
-#              {SUP} => Base
-#              {MIX} => M_Restartable
-#      '
+#      # 类定义里声明 {MIX}
+#      declare -gA DeviceObj=(
+#          [{CLS}$X]=Device
+#          [{SUP}$X]=Base
+#          [{MIX}$X]='M_Restartable'
+#      )
 #
 # 优先级：手写转发 > Mixin 注入 > 继承透传。同一方法名，手写转发优先。
 # 迁移到 Mixin 时，先删掉手写转发，再在 {MIX} 里声明 Mixin 名。
@@ -387,19 +387,19 @@
 #   例（正确）：{CLS} =>             -> "=> " 后无内容，值为空
 #   例（错误）：{CLS} => Base[SP]    -> 尾随空格进值，CLS 变成 "Base "
 #   例（错误）：{CLS} =>[SP][SP]Base -> 第二个空格进值，值为 " Base"
-readonly BaseStaticTemplate='
-    BaseObj -> 
-        # 类名（所有类的根，唯一允许 {SUP} 为空的类）
-        {CLS} => Base
-        # 父类名：Base 为空表示无父类，是唯一特例
-        {SUP} => 
-        # 类级 Mixin 列表（空格分隔，顺序即优先级）：类自身 > 靠前的 Mixin > 继承
-        {MIX} => 
-        # 是否是扁平类，默认Base是扁平类是一切类的跟
-        # 由于它没有小写键，所以只剥离树中的工具键，外观看起来它是扁平类
-        # 或者x_tree完全没有区别
-        {FLT} => 1
-    '
+
+declare -gA BaseObj=(
+    # 类名（所有类的根，唯一允许 {SUP} 为空的类）
+    [{CLS}$X]=Base
+    # 父类名：Base 为空表示无父类，是唯一特例
+    [{SUP}$X]=""
+    # 类级 Mixin 列表（空格分隔，顺序即优先级）：类自身 > 靠前的 Mixin > 继承
+    [{MIX}$X]=""
+    # 是否是扁平类，默认Base是扁平类是一切类的跟
+    # 由于它没有小写键，所以只剥离树中的工具键，外观看起来它是扁平类
+    # 或者x_tree完全没有区别
+    [{FLT}$X]=1
+)
 
 # 暂时不关注顺序，如果以后对顺序有要求可以对键排序
 Base_print () {
@@ -461,12 +461,14 @@ declare -gA XO_METHOD_INHERITED=()
 
 _xo_init_get_class_inher_chain ()
 {
-    local -a class_template_vars=()
+    local -a class_template_vars=() class_obj_vars=()
         #@if compgen_v==1
     compgen -V class_template_vars -A variable -X '!*StaticTemplate'
+    compgen -V class_obj_vars -A variable -X '!*Obj'
         #@endif
         #@if compgen_v==0
     class_template_vars=($(compgen -A variable -X '!*StaticTemplate'))
+    class_obj_vars=($(compgen -A variable -X '!*Obj'))
         #@endif
 
     local var_name super cls
@@ -477,7 +479,6 @@ _xo_init_get_class_inher_chain ()
     for var_name in "${class_template_vars[@]}" ; do
         [[ "$var_name" == M_*StaticTemplate ]] && continue
         cls=${var_name%StaticTemplate}
-        [[ "$cls" == 'Base' ]] && continue
 
             #@if current_shell_process_replace==1
         super=${|str_grep_first_line "${!var_name}" "$re" 2;}
@@ -493,6 +494,19 @@ _xo_init_get_class_inher_chain ()
             return 1
         fi
 
+        cls_super[$cls]=$super
+    done
+
+    for var_name in "${class_obj_vars[@]}" ; do
+        local -n var_obj=$var_name
+        cls=${var_obj["{CLS}$X"]}
+        [[ "$cls" == 'Base' ]] && continue
+        super=${var_obj["{SUP}$X"]}
+        # 契约：除 Base 外，所有类的 SUPER 非空
+        if [[ -z "$super" ]] ; then
+            die ERR "Class:$cls SUPER is NULL (only Base have empty SUPER)!"
+            return 1
+        fi
         cls_super[$cls]=$super
     done
 
@@ -612,7 +626,7 @@ declare -gi XO_PROGRESS_BAR_MAX=24
 _xo_progress_count ()
 {
     XO_INIT_TOTAL=0
-    local -a tmpl_vars=()
+    local -a tmpl_vars=() obj_vars=()
         #@if compgen_v==1
     compgen -V tmpl_vars -A variable -X '!*StaticTemplate'
         #@endif
@@ -625,6 +639,13 @@ _xo_progress_count ()
         [[ "$v" == M_* ]] && continue
         XO_INIT_TOTAL=$(( XO_INIT_TOTAL + 1 ))
     done
+        #@if compgen_v==1
+    compgen -V obj_vars -A variable -X '!*Obj'
+        #@endif
+        #@if compgen_v==0
+    obj_vars=($(compgen -A variable -X '!*Obj'))
+        #@endif
+    ((XO_INIT_TOTAL+=${#obj_vars[@]}))
 }
 
 _xo_progress_draw ()
@@ -666,25 +687,40 @@ _xo_init_class ()
         father=${father##*"$X"}
         father=${father:1:-1}
 
-        # 获取当前类对象
+        # 获取当前类对象。扁平类只有一种定义方式：直接数组 <Cls>Obj（元键带 $X）。
+        # 模板 *StaticTemplate 只允许树类使用。
         local tmpl_var="${cls}StaticTemplate"
-            #@if current_shell_process_replace==1
-        local obj_kv ; obj_kv=${|
-            x_rebuild_from_dump "${!tmpl_var}";}
-        if (($?)) ; then
-            die ERR "Class Template:${cls}StaticTemplate is invalid!"
-            return 1
+        local _tmpl_src=${!tmpl_var}
+        local -i _direct=0
+
+        if [[ -n "$_tmpl_src" ]] ; then
+                #@if current_shell_process_replace==1
+            local obj_kv ; obj_kv=${|
+                x_rebuild_from_dump "$_tmpl_src";}
+            if (($?)) ; then
+                die ERR "Class Template:${cls}StaticTemplate is invalid!"
+                return 1
+            fi
+            local -A "temp_obj=($obj_kv)"
+                #@endif
+                #@if current_shell_process_replace==0
+            x_rebuild_from_dump "$_tmpl_src" || {
+                die ERR "Class Template:${cls}StaticTemplate is invalid!"
+                return 1
+            }
+            eval "${_ret_A/o/temp_obj}"
+                #@endif
+        else
+            local -n cur_obj=${cls}Obj
+            local -A temp_obj=()
+            local _k
+            _direct=1
+            for _k in "${!cur_obj[@]}" ; do
+                temp_obj[$_k]=${cur_obj[$_k]}
+            done
         fi
-        local -A "temp_obj=($obj_kv)"
-            #@endif
-            #@if current_shell_process_replace==0
-        x_rebuild_from_dump "${!tmpl_var}" || {
-            die ERR "Class Template:${cls}StaticTemplate is invalid!"
-            return 1
-        }
-        eval "${_ret_A/o/temp_obj}"
-            #@endif
-        # 扁平属性：模板显式声明的 FLT 优先，否则继承父类（Base 是根，模板里声明了 FLT=1）。
+
+        # 扁平属性：显式声明的 FLT 优先，否则继承父类（Base 是根，声明了 FLT=1）。
         # 扁平类的父类一定是扁平类；树类的父类可以是树类，也可以是 Base（BaseX 场景）。
         local flat=1
         local -i is_flat_father=0
@@ -698,9 +734,20 @@ _xo_init_class ()
             fi
         fi
 
+        # 定义方式与类类型必须一一对应：
+        #   扁平类 -> 直接数组（唯一写法）；树类 -> StaticTemplate（唯一写法）。
+        if (( flat )) && (( ! _direct )) ; then
+            die ERR "Cls:${cls} is flat: define ${cls}Obj, StaticTemplate is tree-class only"
+            return 1
+        fi
+        if (( ! flat )) && (( _direct )) ; then
+            die ERR "Cls:${cls} is a tree class: use ${cls}StaticTemplate, not ${cls}Obj"
+            return 1
+        fi
+
         if (( flat )) ; then
-            # ---- 扁平类：不建 x 树；父类(扁平)KV 直接拷贝，模板叶子按扁平键写入 ----
-            # 和以前的"建树再剥离"相比，这里少一整趟遍历，也少一次重新序列化。
+            # ---- 扁平类：不建 x 树；父类(扁平)KV 直接拷贝，本类字段按扁平键写入 ----
+            # 直接数组的键已经和实例一致（元键 {X}$X、用户字段裸键），不需要剥离。
             if [[ "$cls" == 'Base' ]] ; then
                 declare -gA "BaseObj=()"
             else
@@ -712,17 +759,8 @@ _xo_init_class ()
                     #@endif
             fi
             local -n _flat_obj="${cls}Obj"
-
-            # 这里的 temp_obj 必须只有一层，所以完全不用走树遍历，直接
-            # 关联数组原生遍历更快
             for tmp_key in "${!temp_obj[@]}" ; do
-                if [[ -n "${XO_FLAT_META[$tmp_key]+_}" ]] ; then
-                    _flat_obj[$tmp_key]=${temp_obj[$tmp_key]}
-                elif [[ "$tmp_key" == '{'* ]] ; then
-                    k=${tmp_key%'}'*}
-                    _flat_obj[${k:1}]=${temp_obj[$tmp_key]}
-                fi
-                # 其它键全部丢弃
+                _flat_obj[$tmp_key]=${temp_obj[$tmp_key]}
             done
             # Base 是根：没有父类，也不需要更新/透传实例方法
         elif (( is_flat_father )) ; then

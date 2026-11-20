@@ -3,22 +3,21 @@ declare -gA _STRAFE_LOADED
 (( _STRAFE_LOADED[enemy_q]++ )) && return 0
 . "$STRAFE_PROJ_DIR/classes/enemies/enemy_base.sh"
 
-readonly EnemyQStaticTemplate='
-    EnemyQObj ->
-        {CLS} => EnemyQ
-        {SUP} => Enemy
-        {MIX} => 
-        # 单字符符号（有 art，仅调试用）
-        {symbol} => Q
-        # 血量 5：普通杂兵
-        {hp} => 5
-        {maxhp} => 5
-        # 击杀得分基数
-        {score} => 30
-        # 包围盒（3x2，与 art 同尺寸）
-        {w} => 3
-        {h} => 2
-    '
+declare -gA EnemyQObj=(
+    [{CLS}$X]='EnemyQ'
+    [{SUP}$X]='Enemy'
+    [{MIX}$X]=''
+    # 单字符符号（有 art，仅调试用）
+    [symbol]='Q'
+    # 血量 5：普通杂兵
+    [hp]='5'
+    [maxhp]='5'
+    # 击杀得分基数
+    [score]='30'
+    # 包围盒（3x2，与 art 同尺寸）
+    [w]='3'
+    [h]='2'
+)
 EnemyQ_born () {
     local -n self=$1
     Enemy_born "$1"

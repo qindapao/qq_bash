@@ -37,10 +37,11 @@ stay aligned in any editor, terminal or diff viewer.
 |   pickups/        Drop, Word                                               |
 |----------------------------------------------------------------------------|
 | OBJECT SYSTEM  src/bashlib/xo.in                                           |
-|   class template --xo_init--> class object ${cls}Obj (x tree + fields)     |
-|                                   |                                        |
+|   flat class: <Cls>Obj array (direct, the only flat definition)            |
+|   tree class: template --xo_init--> ${cls}Obj (x tree); templates are      |
+|               allowed only for tree classes (FLT=0)                        |
 |                                   +-- KV snapshot ${cls}ObjStr             |
-|   instance OBJ_n = one assoc array; keys "{field}\x1c", values = fields    |
+|   instance = one assoc array; flat keys "field", tree keys "{field}\x1c"   |
 |   lifecycle   born / hire / fire / bury                                    |
 |   hooks       <cls>_born (enters the world)  <cls>_retire (leaves it)      |
 |   dispatch    xo_call (class method)  xo_obj_call (capability, first wins) |
@@ -142,9 +143,9 @@ Hard constraints:
 |---|---|
 | `XO_OBJ_POOL[handle]` | handle -> class. The only registry of live objects; every "is it alive" check uses it |
 | `XO_OBJ_SEQ` | anonymous handle counter, produces `OBJ_11`, `OBJ_12`, ... |
-| `${cls}Obj` | per-class class object: x tree plus flat fields (field defaults live here) |
+| `${cls}Obj` | per-class class object. Flat classes are **defined** by this array (single source); tree classes are built from a template |
 | `${cls}ObjStr` | KV snapshot of the class object; born does one `declare -gA` with it (the expensive part) |
-| `${cls}StaticTemplate` | the class template text, the single source of a class definition |
+| `${cls}StaticTemplate` | template of a tree class (FLT=0) only. A flat class that uses a template makes `xo_init` fail |
 | `${cls}ResetFields` | volatile fields of a recyclable class; fire resets only those (e.g. `prev_x prev_y color`) |
 | `CLASS_INHER_TREE` | class inheritance chain (x tree); used by `xo_init` to build dispatch |
 | `XO_METHOD_INHERITED` | forwarding table for inherited methods |
@@ -262,8 +263,9 @@ Live-object handle lists, rebuilt every tick (collect first, then clean up once)
    but the wrapper frame is gone (~20 us per object per tick). `xo_call` stays
    for one-off calls (the player, the frame) where the frame does not matter.
    Never hardcode the class (`Bullet_move`) — that would break subclass override.
-7. **Class templates and class objects are read-only**; an instance is one assoc
-   array per object, keys formatted `{field}\x1c`.
+7. **Class definitions and class objects are read-only** (flat `<Cls>Obj` arrays,
+   tree-class templates, built class objects); an instance is one assoc array per
+   object: flat keys `field`, tree keys `{field}\x1c`.
 8. **Mark first, clean up once**: collisions only set `killed_*` flags; the cleanup
    phase buries everything together.
 9. **Measure any mechanic change**: compare before/after with the fixed-load harness;
@@ -322,29 +324,28 @@ and higher performance targets belong in Go, not in this Bash codebase.
 
 ## The `xo` object system
 
-`xo` gives Bash a small, pragmatic object model. Classes are declared as
-templates, and every object is an associative array in `XO_OBJ_POOL`.
+`xo` gives Bash a small, pragmatic object model. Every object is an associative
+array in `XO_OBJ_POOL`; flat classes are declared directly as `<Cls>Obj` arrays.
 
 ```bash
-readonly EnemyStaticTemplate='
-    EnemyObj ->
-        {CLS} => Enemy
-        {SUP} => Entity
-        {MIX} =>
-        {x} => 0
-        {y} => 0
-        {hp} => 1
-'
+declare -gA EnemyObj=(
+    [{CLS}$X]=Enemy
+    [{SUP}$X]=Entity
+    [{MIX}$X]=''
+    [x]=0
+    [y]=0
+    [hp]=1
+)
 
 Enemy_born () {
     local -n self=$1
-    self["{x}$X"]=10
-    self["{y}$X"]=5
+    self[x]=10
+    self[y]=5
 }
 
 Enemy_move () {
     local -n self=$1
-    self["{y}$X"]=$(( ${self["{y}$X"]} + 1 ))
+    self[y]=$(( ${self[y]} + 1 ))
 }
 
 xo_init
@@ -352,9 +353,48 @@ xo_obj_born Enemy      # -> REPLY=OBJ_1
 xo_call "$REPLY" move
 ```
 
+Tree classes are the exception: they exist for nested data, so they are declared
+with a template and built into an `x` tree at `xo_init` (the template text is
+parsed once and only the class object is kept):
+
+```bash
+readonly DivisionStaticTemplate='
+    DivisionObj ->
+        {CLS} => Division
+        {SUP} => BaseX
+        {MIX} => 
+        {FLT} => 0
+        {name} => unnamed
+        {teams} => 
+'
+
+Division_born () {
+    local -n self=$1
+    # 树类实例用 {field}$X 键；嵌套节点走 x_tree 路径
+    self["{name}$X"]=${2:-unnamed}
+}
+```
+
+- `{FLT} => 0` marks a tree class; flat classes never set it (they inherit
+  `FLT=1` from `Base`). `Division` inherits from `BaseX`, the tree root.
+- Template format: one header line (`DivisionObj ->`) followed by
+  `{field} => default` lines, `#` comments allowed. Values are unescaped once
+  (`\\` becomes `\`).
+- Tree instances use `{field}$X` keys; flat instances use plain keys (see the
+  `EnemyObj` example above).
+- A flat class declared as a template, or a tree class declared as an array,
+  makes `xo_init` fail; there is no compatibility path.
+
 Key ideas:
 
-- **Templates** use `{CLS}`, `{SUP}`, `{MIX}` and arbitrary `{field}` entries.
+- **Flat classes have exactly one definition style**: the `<Cls>Obj` array.
+  Metadata keys carry the `$X` separator (`{CLS}$X`, `{SUP}$X`, `{MIX}$X`,
+  `{FLT}$X`); user fields are plain keys. `xo_init` rejects a flat class that is
+  declared with a template, and rejects a tree class declared as an array.
+- **Templates** (`<Cls>StaticTemplate`) exist only for tree classes (FLT=0).
+- **Mixin declarations** stay as `M_XxxStaticTemplate` (declaration only, never
+  built into objects: a template costs less memory than an array). `{REQUIRES}`
+  is read from it for the FLT compatibility check.
 - **Single inheritance** — a class gets its parent's fields and methods.
 - **Mixins** — `{MIX}` lists method-only mixins; class methods win, then mixins,
   then inherited methods. The Il-2 list below is the worked example.
@@ -372,7 +412,7 @@ xo_obj_born_named OBJ_boss Boss  # same, with a stable handle
 xo_obj_bury "$obj"               # <CLS>_retire runs, then the pool entry is removed
 ```
 
-- `xo_obj_born*` copies the class template's fields, registers the object in
+- `xo_obj_born*` copies the class object's fields, registers the object in
   `XO_OBJ_POOL`, then calls `<CLS>_born` (default no-op).
 - `xo_obj_bury` calls `<CLS>_retire` before freeing anything. Retire means "the
   object leaves the world" — the memory and soul, not the body: whatever it owns
@@ -453,7 +493,7 @@ M_Ram
 ```
 
 This is what lets the game add a new enemy or Boss without a giant `case`
-statement: class templates hold the data, methods hold the behaviour.
+statement: class definitions hold the data, methods hold the behaviour.
 
 ### Object-level mixins
 

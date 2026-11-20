@@ -3,22 +3,21 @@ declare -gA _STRAFE_LOADED
 (( _STRAFE_LOADED[enemy_v]++ )) && return 0
 . "$STRAFE_PROJ_DIR/classes/enemies/enemy_base.sh"
 
-readonly EnemyVStaticTemplate='
-    EnemyVObj ->
-        {CLS} => EnemyV
-        {SUP} => Enemy
-        {MIX} => 
-        # 单字符符号（有 art，仅调试用）
-        {symbol} => v
-        # 血量 1：一碰就碎的最基础杂兵
-        {hp} => 1
-        {maxhp} => 1
-        # 击杀得分基数
-        {score} => 10
-        # 包围盒（3x2，与 art 同尺寸）
-        {w} => 3
-        {h} => 2
-    '
+declare -gA EnemyVObj=(
+    [{CLS}$X]='EnemyV'
+    [{SUP}$X]='Enemy'
+    [{MIX}$X]=''
+    # 单字符符号（有 art，仅调试用）
+    [symbol]='v'
+    # 血量 1：一碰就碎的最基础杂兵
+    [hp]='1'
+    [maxhp]='1'
+    # 击杀得分基数
+    [score]='10'
+    # 包围盒（3x2，与 art 同尺寸）
+    [w]='3'
+    [h]='2'
+)
 EnemyV_born () {
     local -n self=$1
     Enemy_born "$1"

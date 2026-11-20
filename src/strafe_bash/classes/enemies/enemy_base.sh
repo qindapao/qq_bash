@@ -7,33 +7,32 @@ declare -gA _STRAFE_LOADED
 . "$STRAFE_PROJ_DIR/classes/base_types.sh"
 . "$STRAFE_PROJ_DIR/classes/projectiles/soa_bullets.sh"
 
-readonly EnemyStaticTemplate='
-    EnemyObj ->
-        {CLS} => Enemy
-        {SUP} => Entity
-        {MIX} => 
-        # 位置与包围盒（w/h 单位格，碰撞与渲染都用它）
-        {x} => 0
-        {y} => 0
-        # 单字符符号：没有 art 的极简怪用它显示
-        {symbol} => 
-        # 血量：归零即死；maxhp 供 UI/回血参考
-        {hp} => 1
-        {maxhp} => 1
-        # 击杀得分基数（游戏层按分数倍率折算）
-        {score} => 0
-        # 通用计时器：各怪自己解释（开火节拍/换向等）
-        {cd} => 0
-        # 每 tick 的位移量（vx 横 vy 纵，1=向下）
-        {vx} => 0
-        {vy} => 1
-        # 包围盒
-        {w} => 1
-        {h} => 1
-        # 当前立绘；prev_art 是上一帧的立绘（换形态时清旧图用）
-        {art} => 
-        {prev_art} => 
-    '
+declare -gA EnemyObj=(
+    [{CLS}$X]='Enemy'
+    [{SUP}$X]='Entity'
+    [{MIX}$X]=''
+    # 位置与包围盒（w/h 单位格，碰撞与渲染都用它）
+    [x]='0'
+    [y]='0'
+    # 单字符符号：没有 art 的极简怪用它显示
+    [symbol]=''
+    # 血量：归零即死；maxhp 供 UI/回血参考
+    [hp]='1'
+    [maxhp]='1'
+    # 击杀得分基数（游戏层按分数倍率折算）
+    [score]='0'
+    # 通用计时器：各怪自己解释（开火节拍/换向等）
+    [cd]='0'
+    # 每 tick 的位移量（vx 横 vy 纵，1=向下）
+    [vx]='0'
+    [vy]='1'
+    # 包围盒
+    [w]='1'
+    [h]='1'
+    # 当前立绘；prev_art 是上一帧的立绘（换形态时清旧图用）
+    [art]=''
+    [prev_art]=''
+)
 Enemy_born () {
     local -n self=$1
     local w=${self[w]:-1}

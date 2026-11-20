@@ -77,23 +77,20 @@ M_Absorb_absorb () { REPLY='objabsorb' ; }
 
 # Mob 声明 {OBJMIX}（行尾空格是模板空值写法）；Boss 故意不声明，
 # 用来验证「声明会随类对象继承下去」。
-EntityStaticTemplate='
-    Entity ->
-        {CLS} => Entity
-        {SUP} => Base
-'
-MobStaticTemplate='
-    Mob ->
-        {CLS} => Mob
-        {SUP} => Entity
-        {MIX} => M_Shield
-        {OBJMIX} => 
-'
-BossStaticTemplate='
-    Boss ->
-        {CLS} => Boss
-        {SUP} => Mob
-'
+declare -gA EntityObj=(
+    [{CLS}$X]='Entity'
+    [{SUP}$X]='Base'
+)
+declare -gA MobObj=(
+    [{CLS}$X]='Mob'
+    [{SUP}$X]='Entity'
+    [{MIX}$X]='M_Shield'
+    [{OBJMIX}$X]=''
+)
+declare -gA BossObj=(
+    [{CLS}$X]='Boss'
+    [{SUP}$X]='Mob'
+)
 
 xo_init
 
