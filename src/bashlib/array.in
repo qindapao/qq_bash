@@ -22,25 +22,29 @@ array_sorted_insert ()
 
     # Binary search insertion position
     case "$ar_rule" in
-    ">")  # Ascending order
+    # Ascending order
+    ">")
         while ((ar_left < ar_right)); do
             local a_mid=$(((ar_left + ar_right) / 2))
             [[ "${arr[a_mid]}" < "${value}" ]] && ar_left=$((a_mid + 1)) || ar_right=$a_mid
         done
         ;;
-    "<")  # descending order
+    # descending order
+    "<")
         while ((ar_left < ar_right)); do
             local a_mid=$(((ar_left + ar_right) / 2))
             [[ "${arr[a_mid]}" > "${value}" ]] && ar_left=$((a_mid + 1)) || ar_right=$a_mid
         done
         ;;
-    "-gt")  # Ascending order
+    # Ascending order
+    "-gt")
         while ((ar_left < ar_right)); do
             local a_mid=$(((ar_left + ar_right) / 2))
             (( arr[a_mid] < value )) && ar_left=$((a_mid + 1)) || ar_right=$a_mid
         done
         ;;
-    "-lt")  # descending order
+    # descending order
+    "-lt")
         while ((ar_left < ar_right)); do
             local a_mid=$(((ar_left + ar_right) / 2))
             (( arr[a_mid] > value )) && ar_left=$((a_mid + 1)) || ar_right=$a_mid

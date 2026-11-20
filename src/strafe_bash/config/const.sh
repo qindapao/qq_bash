@@ -42,15 +42,22 @@ declare -gi BOSS_BUFF_MAX=2
 # 无敌增益的节奏：4 秒无敌 + 6 秒可受伤（打起来才不至于太难）。
 # 与阶段切换用的 BOSS_INV_TICKS（3 秒）分开，互不影响；两者重叠时不会叠加。
 # 注意：一次循环的周期是两者之和；若把周期写成"只有持续时间"，无敌会首尾相接变成永久。
-declare -gi BOSS_BUFF_INV_ON=120       # 无敌 4 秒
-declare -gi BOSS_BUFF_INV_OFF=180      # 可受伤 6 秒
-declare -gi BOSS_BUFF_HEAL_WAIT=300    # 回血的观察窗口：10 秒内没等到机会就卸载
+# 无敌 4 秒
+declare -gi BOSS_BUFF_INV_ON=120
+# 可受伤 6 秒
+declare -gi BOSS_BUFF_INV_OFF=180
+# 回血的观察窗口：10 秒内没等到机会就卸载
+declare -gi BOSS_BUFF_HEAL_WAIT=300
 
 # 增益：敌跟踪导弹（伤害 1、有燃料、比玩家慢、用敌方配色）
-declare -gi BOSS_BUFF_MISSILE_CD=90     # 3 秒一发（稍微提高出弹频率；导弹现在可以被打掉）
-declare -gi BOSS_BUFF_MISSILE_FUEL=60   # 燃料：能走 60 格（约 4 秒的移动量），烧完自毁
-declare -gi BOSS_BUFF_MISSILE_STEP=3    # 每 3 tick 走 1 格（玩家导弹是每 tick 1 格）
-declare -gi BOSS_BUFF_MISSILE_MAX=3     # 同时在场上限，避免叠得太狠
+# 3 秒一发（稍微提高出弹频率；导弹现在可以被打掉）
+declare -gi BOSS_BUFF_MISSILE_CD=90
+# 燃料：能走 60 格（约 4 秒的移动量），烧完自毁
+declare -gi BOSS_BUFF_MISSILE_FUEL=60
+# 每 3 tick 走 1 格（玩家导弹是每 tick 1 格）
+declare -gi BOSS_BUFF_MISSILE_STEP=3
+# 同时在场上限，避免叠得太狠
+declare -gi BOSS_BUFF_MISSILE_MAX=3
 # 导弹字符：ASCII 'O'（单宽，任何终端/字体都不会错位）。
 # 旧值 '⬤' U+2B24 在部分终端/字体里被渲染成双宽，会让整行错位（宪法 §5）。
 BOSS_BUFF_MISSILE_SYM='O'
@@ -58,10 +65,14 @@ BOSS_BUFF_MISSILE_SYM='O'
 # 扫描电网（Boss 增益 / 我方拾取物 W）
 # 每 WAVE_STEP_TICKS 个 tick 走一行：慢速扫描，玩家有时机躲开/看清
 declare -gi WAVE_STEP_TICKS=3
-declare -gi BOSS_WAVE_DAMAGE=3          # Boss 电网打玩家的伤害
-declare -gi BOSS_WAVE_STRIP_SHIELD=1    # 电网无视护盾：命中时把护盾直接打掉
-declare -gi PLAYER_WAVE_DAMAGE=30       # 我方电网对敌人的伤害（每敌人每条波只结算一次）
-WAVE_SYMBOL='~'             # 电网用的字符（ASCII，宽度无风险）
+# Boss 电网打玩家的伤害
+declare -gi BOSS_WAVE_DAMAGE=3
+# 电网无视护盾：命中时把护盾直接打掉
+declare -gi BOSS_WAVE_STRIP_SHIELD=1
+# 我方电网对敌人的伤害（每敌人每条波只结算一次）
+declare -gi PLAYER_WAVE_DAMAGE=30
+# 电网用的字符（ASCII，宽度无风险）
+WAVE_SYMBOL='~'
 # Boss 电网的逃生缝：每条波随机挖 WAVE_GAP_COUNT 个 WAVE_GAP_W 格宽的洞。
 # 玩家判定点只有中心 1 格，3 格宽的洞足够站；洞里的子弹也不清。
 declare -gi WAVE_GAP_COUNT=2
@@ -75,9 +86,12 @@ declare -gi BOSS_WAVE_GAP_MIN=1
 declare -gi BOSS_WAVE_GAP_MAX=3
 
 # 增益：我方子弹减速
-declare -gi BOSS_BUFF_SLOW_PCT=50       # 弹速降到 50%
-declare -gi BOSS_BUFF_SLOW_CD_PCT=150   # 同时射速压到 2/3（cd ×1.5）：只降弹速不会减少输出
-declare -gi BONUS_SLOW=$(( 30 * FPS ))  # 持续 30 秒
+# 弹速降到 50%
+declare -gi BOSS_BUFF_SLOW_PCT=50
+# 同时射速压到 2/3（cd ×1.5）：只降弹速不会减少输出
+declare -gi BOSS_BUFF_SLOW_CD_PCT=150
+# 持续 30 秒
+declare -gi BONUS_SLOW=$(( 30 * FPS ))
 
 # 骷髅王 O/X：下方 8 发长排 + 其余 7 个方向，连发 5 波，然后休息约 2.7 秒。
 declare -gi SKULL_KING_ROW_BULLETS=8

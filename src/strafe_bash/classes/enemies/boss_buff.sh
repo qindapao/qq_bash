@@ -310,7 +310,8 @@ M_BuffWave__init () {
              n=$(( BOSS_WAVE_BURST_MIN + RANDOM % (BOSS_WAVE_BURST_MAX - BOSS_WAVE_BURST_MIN + 1) ))
     self[wv_gap]=$(( gap_s * FPS )) \
     self[wv_cd]=$(( gap_s * FPS )) \
-    self[wv_left]=$(( n - 1 ))      # 第一根立刻放，所以剩下 n-1 根
+    # 第一根立刻放，所以剩下 n-1 根
+    self[wv_left]=$(( n - 1 ))
     _wave_start 0 "$BOSS_WAVE_DAMAGE"
     return 0
 }

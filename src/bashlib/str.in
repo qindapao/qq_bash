@@ -457,7 +457,8 @@ _str_escape_impl ()
     for ((i = 0; i < ${#s}; i++)); do
         ch=${s:i:1}
         case $ch in
-            $'\n')  out+=$'\n'   ;;   # 保留真换行
+            # 保留真换行
+            $'\n')  out+=$'\n'   ;;
             *)
                 # 显式按码点判断，不依赖 [[:cntrl:]] 对 C1 的 locale 行为：
                 printf -v code '%d' "'$ch"
@@ -523,7 +524,8 @@ str_unescape ()
     while [[ $rest == *\\* ]]; do
         head=${rest%%\\*}
         out+=$head
-        rest=${rest:${#head}+1}          # 吃掉 head 和一个 '\'
+        # 吃掉 head 和一个 '\'
+        rest=${rest:${#head}+1}
         [[ -z $rest ]] && { out+='\' ; break ; }
         ch=${rest:0:1}
         case $ch in
@@ -602,7 +604,8 @@ str_display_width ()
         printf -v cp '%d' "'$ch"
 
         if (( cp < 32 || (cp >= 127 && cp < 160) )); then
-            :                                        # 控制字符宽度 0
+            # 控制字符宽度 0
+            :
         elif (( (cp >= 0x1100  && cp <= 0x115F) ||
                 (cp >= 0x2E80  && cp <= 0x303E) ||
                 (cp >= 0x3041  && cp <= 0x33FF) ||

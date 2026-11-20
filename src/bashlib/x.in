@@ -1131,7 +1131,8 @@ x_insert ()
                 ((tr_t[max_index]++))
             else
                 tr_child_id="${tr_t[max_index]}" ; ((tr_t[max_index]++))
-                tr_t["$tr_child_key"]=$tr_child_id    # 对象键才建 .c.
+                # 对象键才建 .c.
+                tr_t["$tr_child_key"]=$tr_child_id
             fi
             tr_tmp_node_ids_map[$tr_child_id]=1
 
@@ -1642,9 +1643,12 @@ x_delete ()
     # (it can be a leaf or an intermediate node)
 
     # 3. First delete the value/key attached to the current node
-    unset -v 'tr_t["$tr_full_key"]'   # delete value
-    unset -v 'tr_t["$tr_node.k"]'   # delete key
-    unset -v 'tr_t["$tr_node.t"]'  # delete type
+    # delete value
+    unset -v 'tr_t["$tr_full_key"]'
+    # delete key
+    unset -v 'tr_t["$tr_node.k"]'
+    # delete type
+    unset -v 'tr_t["$tr_node.t"]'
 
     # 4. Kill all subtrees rooted at the current node
     #   (even if it is a single leaf)
@@ -1991,12 +1995,18 @@ x_iter ()
 # 示例回调：把遍历元组打印为一行。演示 x_walk 用法，不用于生产。
 x_cb_print ()
 {
-    local node_kind=$1         # leaf / leaf_null / obj / obj_empty / arr / arr_empty
-    local index_token=$2       # "{k}" or "[0]"
-    local index_full_key=$3    # "{a}$X[0]$X{b}$X"
-    local value=$4             # only meaningful for leaf/leaf_null
-    local physical_token=$5    # Internal tokens like "<123>" (if needed)
-    local physical_full_key=$6 # "{a}$X<12>$X<56>$X"
+    # leaf / leaf_null / obj / obj_empty / arr / arr_empty
+    local node_kind=$1
+    # "{k}" or "[0]"
+    local index_token=$2
+    # "{a}$X[0]$X{b}$X"
+    local index_full_key=$3
+    # only meaningful for leaf/leaf_null
+    local value=$4
+    # Internal tokens like "<123>" (if needed)
+    local physical_token=$5
+    # "{a}$X<12>$X<56>$X"
+    local physical_full_key=$6
     local node_id=$7
     local parent_id=$8
     local printf_info
@@ -2456,9 +2466,12 @@ _x_array_write ()
 {
     # local - ; set +x
     local tr_name=$1 tr_up_key=$2
-    local tr_mode=$3      # push / unshift
-    local tr_write=$4     # leaf / tree
-    local tr_value=$5     # leaf value or subtree name
+    # push / unshift
+    local tr_mode=$3
+    # leaf / tree
+    local tr_write=$4
+    # leaf value or subtree name
+    local tr_value=$5
 
     local tr_next_key
         #@if current_shell_process_replace==1
@@ -2498,8 +2511,10 @@ _x_array_get ()
 {
     # local - ; set +x
     local tr_name=$1 tr_up_key=$2
-    local tr_mode=$3      # pop / shift
-    local tr_read=$4      # leaf / tree
+    # pop / shift
+    local tr_mode=$3
+    # leaf / tree
+    local tr_read=$4
 
     local tr_next_key
         #@if current_shell_process_replace==1

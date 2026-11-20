@@ -20,10 +20,14 @@ declare -gA _STRAFE_LOADED
 . "$STRAFE_PROJ_DIR/config/const.sh"
 . "$STRAFE_PROJ_DIR/render/ansi.sh"
 
-declare -ga FB_CELL=()      # 屏幕真值，索引 = (y-1)*FB_W + (x-1)
-declare -ga FB_DIRTY=()     # 本帧写过的格（art 之前输出：子弹/导弹/敌弹）
-declare -ga FB_TOP=()       # 顶层格（art 之后输出：掉落物等，旧顺序里画在 art 之上）
-declare -ga FB_OWNER=()     # 每格最后写入者的句柄（0/空 = 无主），清格前要先核对
+# 屏幕真值，索引 = (y-1)*FB_W + (x-1)
+declare -ga FB_CELL=()
+# 本帧写过的格（art 之前输出：子弹/导弹/敌弹）
+declare -ga FB_DIRTY=()
+# 顶层格（art 之后输出：掉落物等，旧顺序里画在 art 之上）
+declare -ga FB_TOP=()
+# 每格最后写入者的句柄（0/空 = 无主），清格前要先核对
+declare -ga FB_OWNER=()
 # 掉落物层：旧渲染顺序里它画在子弹之后（压住子弹），所以单独一层做合成，
 # 子弹飞过时不会把掉落物覆盖掉。
 declare -ga FB_DROP=()

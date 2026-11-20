@@ -94,7 +94,8 @@ _mouse_apply () {
     local ev=${seq: -1} body=${seq:2:${#seq}-3} mb mx my
     IFS=';' read -r mb mx my <<< "$body"
     [[ "$mx" =~ ^[0-9]+$ && "$my" =~ ^[0-9]+$ ]] || return 0
-    (( mb & 64 )) && return 0     # 滚轮不移动飞机
+    # 滚轮不移动飞机
+    (( mb & 64 )) && return 0
     # SGR 的 m 通常是 release，但 WindTerm 的 no-button motion 也会用 m。
     # 只有“没有 motion 位”的 m 才是真正的释放。
     [[ "$ev" == "m" ]] && (( !(mb & 32) )) && return 0

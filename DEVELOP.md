@@ -137,12 +137,19 @@ Hard constraints:
 
 ### 1.5 Global variables
 
-**Object system (`xo.in`)**
+Framework globals are grouped by owner; the prefix says where they come from:
+`XO_`/`xo_` object system, `X_` tree system, `RES_` resource market, `_ret_*`
+library return snippets, `_*_IMPORTED` import guards. These names are
+framework-owned: user code must not define variables in these namespaces, and
+the `*Obj` / `*StaticTemplate` suffixes are reserved (see
+CONSTITUTION.md §3).
+
+**Object system (`xo.in`) — class definitions and inheritance**
 
 | Variable | Purpose |
 |---|---|
-| `XO_OBJ_POOL[handle]` | handle -> class. The only registry of live objects; every "is it alive" check uses it |
-| `XO_OBJ_SEQ` | anonymous handle counter, produces `OBJ_11`, `OBJ_12`, ... |
+| `BaseObj` | the `Base` class object (framework root; `{CLS}$X=Base`, `{FLT}$X=1`) |
+| `BaseXStaticTemplate` | template of `BaseX`, the only framework tree class (`FLT=0`) |
 | `${cls}Obj` | per-class class object. Flat classes are **defined** by this array (single source); tree classes are built from a template |
 | `${cls}ObjStr` | KV snapshot of the class object; born does one `declare -gA` with it (the expensive part) |
 | `${cls}StaticTemplate` | template of a tree class (FLT=0) only. A flat class that uses a template makes `xo_init` fail |
@@ -150,7 +157,19 @@ Hard constraints:
 | `CLASS_INHER_TREE` | class inheritance chain (x tree); used by `xo_init` to build dispatch |
 | `XO_METHOD_INHERITED` | forwarding table for inherited methods |
 | `XO_INHER_CHAIN_DUMP_CACHE` | cached inheritance dump, avoids recomputation |
+| `XO_CLASS_TREE_TMPL_VARS` | tree-class template variable names, scanned once at init |
+| `XO_CLASS_FLAT_OBJ_VARS` | flat-class object variable names, scanned once at init |
+| `XO_CLASS_VARS_READY` | guard: the one-shot class-variable scan already ran |
+| `XO_FLAT_META` | metakeys kept when a flat class is built (everything else is a user field) |
 | `_XO_INIT_CALLED` | `xo_init` may run only once |
+| `_XO_IMPORTED` | import guard of `xo.sh` |
+
+**Object system (`xo.in`) — instances, mixins, resource market**
+
+| Variable | Purpose |
+|---|---|
+| `XO_OBJ_POOL[handle]` | handle -> class. The only registry of live objects; every "is it alive" check uses it |
+| `XO_OBJ_SEQ` | anonymous handle counter, produces `OBJ_11`, `OBJ_12`, ... |
 | `XO_MIXIN_METHODS[mixin]` | which methods each mixin provides |
 | `XO_OBJ_METHOD[handle\|method]` | per-object method routing (mixin implementation names) |
 | `XO_OBJ_MIXED[handle]` | set of objects carrying mixins (cheap gate: empty set means bury does one length check) |
@@ -160,6 +179,46 @@ Hard constraints:
 | `XO_RESET_FIELDS[class]` | cache: the class reset list, copied from `<cls>ResetFields` |
 | `XO_RESET_DEF["class\|field"]` | cache: template default of a volatile field, read from the class object |
 | `XO_RESET_READY[class]` | cache: flag, the reset list was preprocessed (lazy, on first fire) |
+
+**Init progress (diagnostics, off by default)**
+
+| Variable | Purpose |
+|---|---|
+| `XO_INIT_PROGRESS` | 1 = draw the "loading classes" bar during `xo_init` |
+| `XO_INIT_PROGRESS_FD` | fd the bar is written to (default 2) |
+| `XO_INIT_TOTAL` / `XO_INIT_DONE` | class definitions to build / classes built so far |
+| `XO_PROGRESS_BAR_MAX` | max bar width in cells |
+
+**Tree system (`x.in`)**
+
+| Variable | Purpose |
+|---|---|
+| `X` | key separator `$'\034'` between tree path components |
+| `X_ROOT_ID` | root node id (1) |
+| `X_TYPE_OBJ` `X_TYPE_ARR` | tree container type |
+| `X_NODE_KIND_OBJ` `X_NODE_KIND_ARR` `X_NODE_KIND_OBJ_EMPTY` `X_NODE_KIND_ARR_EMPTY` `X_NODE_KIND_LEAF` `X_NODE_KIND_LEAF_NULL` `X_NODE_KIND_UNKNOWN` | node kinds returned by `x_get_node_type` |
+| `X_VALUE_NULL` `X_VALUE_TRUE` `X_VALUE_FALSE` `X_VALUE_NULL_OBJ` `X_VALUE_NULL_ARR` | sentinels `null\034`, `true\034`, `false\034`, `{}\034`, `[]\034` |
+| `X_FLAT_IS_MATCH` `X_FLAT_IS_NOT_MATCH` `X_FLAT_ARRAY_NULL` `X_FLAT_ASSOC_NULL` | flat-vs-tree compare results |
+| `X_GOBOLT_JSONTYPENULL` `X_GOBOLT_JSONTYPETRUE` `X_GOBOLT_JSONTYPEFALSE` `X_GOBOLT_JSONTYPENUMBER` `X_GOBOLT_JSONTYPESTRING` `X_GOBOLT_JSONTYPEARRAY` `X_GOBOLT_JSONTYPEOBJECT` `X_GOBOLT_JSONTYPEUNKNOWN` | JSON type ids 1..8 used by the gobolt conversion |
+| `X_RET_ENUM_OK` | success (0) |
+| `X_RET_ENUM_KEY_IS_TREE` `X_RET_ENUM_KEY_IS_LEAF` `X_RET_ENUM_KEY_IS_NOTFOUND` `X_RET_ENUM_KEY_IS_INVALID` `X_RET_ENUM_KEY_OUT_OF_INDEX` `X_RET_ENUM_KEY_IS_NOT_LEAF` `X_RET_ENUM_KEY_IS_NULL` `X_RET_ENUM_KEY_UP_LEV_TYPE_MISMATCH` `X_RET_ENUM_KEY_CHILD_CNT_IS_ZERO` `X_RET_ENUM_KEY_OTHER_TOOL_NOT_INSTALLED` `X_RET_ENUM_KEY_BJSON_TYPE_INVALID` `X_RET_ENUM_KEY_BJSON_TYPE_OBJ` `X_RET_ENUM_KEY_BJSON_TYPE_ARR` `X_RET_ENUM_KEY_PARAMETER_LENGTH_EXCEEDS_LIMIT` | per-key status codes 1..14 |
+| `X_RET_ENUM_TREE_IS_INVALID` `X_RET_ENUM_TREE_IS_EMPTY` `X_RET_ENUM_TREE_NOT_HAVE_ROOT` `X_RET_ENUM_TREE_IS_NOT_SAME` | whole-tree failures 50..53 |
+
+**Library return snippets (`grammar.sh`)**
+
+`_ret_*` are `eval` snippets that move `REPLY` into a caller-named variable
+(`eval "${_ret_A/o/name}"`): `_ret_s` (declare local scalar), `_ret_s_` (assign
+existing `o`), `_ret_i` (local int), `_ret_a` (local array), `_ret_A` (local
+assoc), `_ret_e` (return with the current `$?`), plus global variants
+`_ret_g_s`, `_ret_g_i`, `_ret_g_a`, `_ret_g_A`.
+
+**Import guards and build metadata**
+
+| Variable | Purpose |
+|---|---|
+| `_VAR_IMPORTED` `_STR_IMPORTED` `_ARRAY_IMPORTED` `_GRAMMAR_IMPORTED` `_X_IMPORTED` `_XO_IMPORTED` | one-shot source guards (each `.in` returns early on second import) |
+| `BASH_GRAMMAR[...]` | bash capability switches probed at build time, used by `#@if` |
+| `_STR_BUILT_IN_THRESHOLDS` | `str.in` thresholds for choosing builtin vs external tools |
 
 The three `XO_RESET_*` tables are one lazy cache per class, filled on the first
 `fire` of that class and never rebuilt:
@@ -178,14 +237,7 @@ every later fire: 3 hash lookups + 3 writes (~20us) instead of
 declare -p + indirect lookup per field on every single fire.
 ```
 
-**Data structures (`x.in`, `grammar.sh`)**
-
-| Variable | Purpose |
-|---|---|
-| `BASH_GRAMMAR[...]` | bash capability switches probed at build time, used by `#@if` |
-| `RENDER_FPS` `RENDER_US` | measured render figures, diagnostics only |
-
-**Game runtime (`config/globals.sh`)**
+**Game runtime (`config/globals.sh`, `config/const.sh`)**
 
 Live-object handle lists, rebuilt every tick (collect first, then clean up once):
 `BULLETS`, `ENEMY_BULLETS`, `MISSILES`, `ENEMIES`, `DROPS`, `WORDS`.
@@ -197,6 +249,7 @@ Live-object handle lists, rebuilt every tick (collect first, then clean up once)
 | `BOSS_DEATH_*` | boss death animation state (tick, style, centre, wave) |
 | `CLEAR_BANNER_*` | the "ACE" banner remaining ticks and text |
 | `FRAME_BUF` | the whole frame output buffer; render only appends, one flush per frame |
+| `RENDER_FPS`, `RENDER_US` | render cadence: frames per second and its period in microseconds |
 | `G_FIRE_CD`, `G_MISSILE_CD`, `G_MISSILE_SIDE` | player fire/missile cadence and left-right alternation |
 | `G_INV` | player invulnerability frames (blink and damage immunity) |
 | `G_DX`, `G_DY`, `G_MOUSE_ON` | input direction and mouse mode |

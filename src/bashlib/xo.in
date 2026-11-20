@@ -457,27 +457,68 @@ BaseX_print () { x_dump "$1" '' 4 2 ; }
 declare -gA CLASS_INHER_TREE=()
 declare -gA XO_METHOD_INHERITED=()
 
+# 类定义扫描结果（lazy，只扫一次；见 _xo_scan_class_vars 的说明）。
+#   树类模板：*StaticTemplate（M_* 是 Mixin 声明，不算类）
+#   扁平类对象：*Obj
+declare -ga XO_CLASS_TREE_TMPL_VARS=()
+declare -ga XO_CLASS_FLAT_OBJ_VARS=()
+declare -gi XO_CLASS_VARS_READY=0
 
+
+# 扫描一次全局变量名，把类定义按后缀分桶缓存。
+#
+# 为什么缓存：compgen -A variable 本身 ~1ms，但 bash 5.2 没有 -V，只能走
+# arr=($(compgen ...))，MSYS 上每次命令替换 fork 约 20ms；继承链扫描要用一份、
+# 进度统计原来又要两份，缓存后整个 init 只 fork 一次（5.3+ 的 -V 连这一次都省）。
+#
+# 为什么用 -X 过滤而不是先扫全部再分桶：不过滤时命令替换要回传 450+ 个名字，
+# 赋值/分词就要 ~10ms；用 extglob 的 | 表达式把"两个后缀"一次过滤成 30 多个名字，
+# 实测 22ms vs 33ms。注意 @(...) 必须在 extglob 开启时才有意义（关着会得到空列表，
+# 不报错），所以这里临时打开、结束后恢复原状。
+#
+# 缓存时机：只在 xo_init 内、构建类对象之前调用。此时所有类定义已 source 完，
+# 而 ${cls}Obj 还没被构建出来 —— 缓存代表"定义"，不是"构建产物"。
+# xo_init 只允许跑一次，所以不需要失效逻辑。
+#
+# 注意：compgen 在函数里会看到函数局部变量；过滤只按后缀保留，局部名不以
+# *StaticTemplate / *Obj 结尾就不会误入。
+_xo_scan_class_vars ()
+{
+    (( XO_CLASS_VARS_READY )) && return 0
+    local -a all_vars=()
+    local -i _eg_on=0
+    shopt -q extglob && _eg_on=1
+    shopt -s extglob
+        #@if compgen_v==1
+    compgen -V all_vars -A variable -X '!*@(StaticTemplate|Obj)'
+        #@endif
+        #@if compgen_v==0
+    all_vars=($(compgen -A variable -X '!*@(StaticTemplate|Obj)'))
+        #@endif
+    (( _eg_on )) || shopt -u extglob
+    local v
+    for v in "${all_vars[@]}" ; do
+        case "$v" in
+            # Mixin 声明，不是类
+            M_*StaticTemplate) ;;
+            *StaticTemplate) XO_CLASS_TREE_TMPL_VARS+=("$v") ;;
+            *Obj)            XO_CLASS_FLAT_OBJ_VARS+=("$v") ;;
+        esac
+    done
+    XO_CLASS_VARS_READY=1
+    return 0
+}
 
 _xo_init_get_class_inher_chain ()
 {
-    local -a class_template_vars=() class_obj_vars=()
-        #@if compgen_v==1
-    compgen -V class_template_vars -A variable -X '!*StaticTemplate'
-    compgen -V class_obj_vars -A variable -X '!*Obj'
-        #@endif
-        #@if compgen_v==0
-    class_template_vars=($(compgen -A variable -X '!*StaticTemplate'))
-    class_obj_vars=($(compgen -A variable -X '!*Obj'))
-        #@endif
+    _xo_scan_class_vars
 
     local var_name super cls
     local -A cls_super=()
     local re='^([ ]+)\{SUP\} => (.*)$'
 
     # ---- 1. 收集 类名 -> 父类名（排除 Mixin 和 Base 自身）----
-    for var_name in "${class_template_vars[@]}" ; do
-        [[ "$var_name" == M_*StaticTemplate ]] && continue
+    for var_name in "${XO_CLASS_TREE_TMPL_VARS[@]}" ; do
         cls=${var_name%StaticTemplate}
 
             #@if current_shell_process_replace==1
@@ -497,7 +538,7 @@ _xo_init_get_class_inher_chain ()
         cls_super[$cls]=$super
     done
 
-    for var_name in "${class_obj_vars[@]}" ; do
+    for var_name in "${XO_CLASS_FLAT_OBJ_VARS[@]}" ; do
         local -n var_obj=$var_name
         cls=${var_obj["{CLS}$X"]}
         [[ "$cls" == 'Base' ]] && continue
@@ -551,7 +592,8 @@ _xo_init_get_class_inher_chain ()
                 return 1
             fi
             _visited[$cur]=1
-            chain=("$cur" "${chain[@]}")     # 头插，保持 Base→...→cls 顺序
+            # 头插，保持 Base→...→cls 顺序
+            chain=("$cur" "${chain[@]}")
             cur=${cls_super[$cur]}
         done
 
@@ -625,27 +667,10 @@ declare -gi XO_PROGRESS_BAR_MAX=24
 
 _xo_progress_count ()
 {
-    XO_INIT_TOTAL=0
-    local -a tmpl_vars=() obj_vars=()
-        #@if compgen_v==1
-    compgen -V tmpl_vars -A variable -X '!*StaticTemplate'
-        #@endif
-        #@if compgen_v==0
-    tmpl_vars=($(compgen -A variable -X '!*StaticTemplate'))
-        #@endif
-    local v
-    for v in "${tmpl_vars[@]}" ; do
-        # M_ 开头的是 Mixin 模板，不是类
-        [[ "$v" == M_* ]] && continue
-        XO_INIT_TOTAL=$(( XO_INIT_TOTAL + 1 ))
-    done
-        #@if compgen_v==1
-    compgen -V obj_vars -A variable -X '!*Obj'
-        #@endif
-        #@if compgen_v==0
-    obj_vars=($(compgen -A variable -X '!*Obj'))
-        #@endif
-    ((XO_INIT_TOTAL+=${#obj_vars[@]}))
+    # 复用 _xo_scan_class_vars 的分桶结果，不再 compgen（省两次 fork）。
+    # 计数口径 = 类定义数：树类模板 1 个、扁平类对象 1 个（构建出的 ${cls}Obj 不计）。
+    _xo_scan_class_vars
+    XO_INIT_TOTAL=$(( ${#XO_CLASS_TREE_TMPL_VARS[@]} + ${#XO_CLASS_FLAT_OBJ_VARS[@]} ))
 }
 
 _xo_progress_draw ()
@@ -682,7 +707,7 @@ _xo_init_class ()
     _xo_init_class_cb ()
     {
         # leaf / leaf_null / obj / obj_empty / arr / arr_empty
-        local token=$5 full_key=$6 tmp_key k
+        local token=$5 full_key=$6 k
         local cls=${token:1:-1} father=${full_key%"$X$token$X"}
         father=${father##*"$X"}
         father=${father:1:-1}
@@ -692,6 +717,8 @@ _xo_init_class ()
         local tmpl_var="${cls}StaticTemplate"
         local _tmpl_src=${!tmpl_var}
         local -i _direct=0
+        # 本类显式声明的 FLT（没有就继承父类）
+        local _own_flt='' _has_flt=''
 
         if [[ -n "$_tmpl_src" ]] ; then
                 #@if current_shell_process_replace==1
@@ -710,14 +737,16 @@ _xo_init_class ()
             }
             eval "${_ret_A/o/temp_obj}"
                 #@endif
+            _own_flt=${temp_obj[{FLT}$X]:-}
+            [[ -n "${temp_obj[{FLT}$X]+_}" ]] && _has_flt=1
         else
+            # 直接数组：不拷贝到 temp_obj，合并时直接展开 cur_obj。
+            # declare 的实参先展开、再赋值，所以 "父类 + 本类" 同一次 declare 里
+            # 读到的是覆盖前的本类对象，安全。
             local -n cur_obj=${cls}Obj
-            local -A temp_obj=()
-            local _k
             _direct=1
-            for _k in "${!cur_obj[@]}" ; do
-                temp_obj[$_k]=${cur_obj[$_k]}
-            done
+            _own_flt=${cur_obj[{FLT}$X]:-}
+            [[ -n "${cur_obj[{FLT}$X]+_}" ]] && _has_flt=1
         fi
 
         # 扁平属性：显式声明的 FLT 优先，否则继承父类（Base 是根，声明了 FLT=1）。
@@ -727,8 +756,8 @@ _xo_init_class ()
         if [[ "$cls" != 'Base' ]] ; then
             local -n father_obj0=${father}Obj
             is_flat_father=${father_obj0[{FLT}$X]:-0}
-            if [[ -n "${temp_obj[{FLT}$X]+_}" ]] ; then
-                flat=${temp_obj[{FLT}$X]}
+            if [[ -n "$_has_flt" ]] ; then
+                flat=$_own_flt
             else
                 flat=$is_flat_father
             fi
@@ -748,20 +777,35 @@ _xo_init_class ()
         if (( flat )) ; then
             # ---- 扁平类：不建 x 树；父类(扁平)KV 直接拷贝，本类字段按扁平键写入 ----
             # 直接数组的键已经和实例一致（元键 {X}$X、用户字段裸键），不需要剥离。
+            #
+            # 一次 declare 完成"父类 KV + 本类 KV"：@K 展开成 key value 配对（每对
+            # 相邻，内部顺序是哈希序），两段展开按文本先后拼进同一个词链表；declare
+            # 按词序逐对 assoc_insert，同键后写覆盖先写 —— 所以本类字段一定覆盖父类
+            # 同名字段。同时省掉"先拷到 temp_obj"的一步（~300µs/类）。
+                #@if at_k_var_substitution==1
+            if [[ "$cls" == 'Base' ]] ; then
+                declare -gA "BaseObj=(${cur_obj[*]@K})"
+            else
+                declare -gA "${cls}Obj=(${father_obj0[*]@K} ${cur_obj[*]@K})"
+            fi
+                #@endif
+                #@if at_k_var_substitution==0
+            # 4.x 没有 @K：先把本类字段存进 temp_obj，再覆盖成父类，最后合并回来。
+            local -A temp_obj=()
+            local _k
+            for _k in "${!cur_obj[@]}" ; do
+                temp_obj[$_k]=${cur_obj[$_k]}
+            done
             if [[ "$cls" == 'Base' ]] ; then
                 declare -gA "BaseObj=()"
             else
-                    #@if at_k_var_substitution==1
-                declare -gA "${cls}Obj=(${father_obj0[*]@K})"
-                    #@endif
-                    #@if at_k_var_substitution==0
                 array_to_kv_q_str ${father}Obj ; eval "${_ret_g_A/o/${cls}Obj}"
-                    #@endif
             fi
             local -n _flat_obj="${cls}Obj"
-            for tmp_key in "${!temp_obj[@]}" ; do
-                _flat_obj[$tmp_key]=${temp_obj[$tmp_key]}
+            for _k in "${!temp_obj[@]}" ; do
+                _flat_obj[$_k]=${temp_obj[$_k]}
             done
+                #@endif
             # Base 是根：没有父类，也不需要更新/透传实例方法
         elif (( is_flat_father )) ; then
             # ---- 树类，但父类是扁平类（当前只有 Base -> BaseX 这一种） ----
@@ -888,7 +932,8 @@ _xo_init_class ()
             local m
             for m in "${father_methods[@]}" ; do
                 local fn="${cls}_${m}"
-                declare -F "$fn" >/dev/null && continue   # 子类已有，跳过
+                # 子类已有，跳过
+                declare -F "$fn" >/dev/null && continue
 
                 # 路径压缩：父类方法若是透传/Mixin，映射表里存的已是最终目标
                 local target_cls=$father
@@ -1646,20 +1691,25 @@ xo_obj_mixin_delete ()
     #   删 M_A 后: ping → M_B_ping（剩下的里 M_B 最先提供）
     #              solo → 删除路由（没人提供，调用会回落到类方法）
     local m pick k methods_d
-    for d in "${drop[@]}" ; do                    # 被删掉的 Mixin
+    # 被删掉的 Mixin
+    for d in "${drop[@]}" ; do
         _xo_mixin_methods "$d"
         methods_d=$REPLY
-        for m in $methods_d ; do                  # 它提供过的每个方法
+        # 它提供过的每个方法
+        for m in $methods_d ; do
             pick=''
-            for k in "${keep[@]}" ; do            # 剩下的 Mixin，按名单原顺序
+            # 剩下的 Mixin，按名单原顺序
+            for k in "${keep[@]}" ; do
                 _xo_mixin_methods "$k"
                 # 找到第一个能提供 m 的就接任；keep 的顺序就是优先级
                 [[ " $REPLY " == *" $m "* ]] && { pick=$k ; break ; }
             done
             if [[ -n "$pick" ]] ; then
-                XO_OBJ_METHOD["$obj|$m"]="${pick}_${m}"   # 有人接任
+                # 有人接任
+                XO_OBJ_METHOD["$obj|$m"]="${pick}_${m}"
             else
-                unset -v 'XO_OBJ_METHOD[$obj|$m]'         # 没人接任，路由消失
+                # 没人接任，路由消失
+                unset -v 'XO_OBJ_METHOD[$obj|$m]'
             fi
         done
     done

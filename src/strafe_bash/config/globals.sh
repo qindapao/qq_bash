@@ -47,20 +47,32 @@ declare -g FRAME_BUF=""
 declare -gi WAVE_SLOTS=5
 # 派生标量：是否有任何波存活（热路径早退用，不要手工维护）
 declare -gi WAVE_ON=0
-declare -gai WV_ON=()        # 每槽：1=活 0=空
-declare -gai WV_Y=()         # 当前行
-declare -gai WV_DIR=()       # +1 向下 / -1 向上
-declare -gai WV_OWNER=()     # 0=Boss 1=我方
-declare -gai WV_DMG=()       # 伤害
-declare -gai WV_CD=()        # 每 WAVE_STEP_TICKS 走一行的计数
-declare -gai WV_LAST_Y=()    # 渲染用：上一帧画在哪行（-1 = 没画过）
-declare -gai WV_HIT=()       # 本波是否已经打过玩家（Boss 波用，每波只结算一次）
-declare -gai WV_GAP1=()      # 逃生缝（字符串下标，0 = 屏幕第 2 列）；我方波为负
+# 每槽：1=活 0=空
+declare -gai WV_ON=()
+# 当前行
+declare -gai WV_Y=()
+# +1 向下 / -1 向上
+declare -gai WV_DIR=()
+# 0=Boss 1=我方
+declare -gai WV_OWNER=()
+# 伤害
+declare -gai WV_DMG=()
+# 每 WAVE_STEP_TICKS 走一行的计数
+declare -gai WV_CD=()
+# 渲染用：上一帧画在哪行（-1 = 没画过）
+declare -gai WV_LAST_Y=()
+# 本波是否已经打过玩家（Boss 波用，每波只结算一次）
+declare -gai WV_HIT=()
+# 逃生缝（字符串下标，0 = 屏幕第 2 列）；我方波为负
+declare -gai WV_GAP1=()
 declare -gai WV_GAP2=()
-declare -gai WV_CLEAR_LO=()  # 本 tick 扫过的行区间（清弹用）
+# 本 tick 扫过的行区间（清弹用）
+declare -gai WV_CLEAR_LO=()
 declare -gai WV_CLEAR_HI=()
-declare -ga WV_CLR=()        # 颜色转义串
-declare -ga WV_LINE=()       # 整行字符（每条波自己的洞）
+# 颜色转义串
+declare -ga WV_CLR=()
+# 整行字符（每条波自己的洞）
+declare -ga WV_LINE=()
 # 我方电网对敌人的命中表："slot|敌人句柄" => 1（每条波对每个敌人只结算一次）
 declare -gA WAVE_HIT_ENEMY=()
 # 本 tick 电网对玩家造成的伤害累计（伤害结算时并入 player_dmg）
@@ -68,9 +80,12 @@ declare -gi G_WAVE_DMG_PENDING=0
 
 # 玩家命中几何：tick 每帧算一次，敌弹的 _move 里直接拿来判命中
 # （避免逐弹去读 OBJ_player 的关联数组，那才是热路径上真正贵的部分）
-declare -gi _HL_ON=0        # 1 = 玩家在场，可以判命中
-declare -gi _HL_X=0 _HL_Y=0 # 玩家中心格
-declare -gi _HL_SH=0        # 1 = 有护盾（判定用矩形）
+# 1 = 玩家在场，可以判命中
+declare -gi _HL_ON=0
+# 玩家中心格
+declare -gi _HL_X=0 _HL_Y=0
+# 1 = 有护盾（判定用矩形）
+declare -gi _HL_SH=0
 declare -gi _HL_X1=0 _HL_X2=0 _HL_Y1=0 _HL_Y2=0
 # 本 tick 敌弹命中玩家累计的伤害（结算时并入 player_dmg）
 declare -gi G_PLAYER_DMG_PENDING=0
