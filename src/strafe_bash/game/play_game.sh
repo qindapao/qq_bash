@@ -321,7 +321,7 @@ _ram_enemy () {
     (( hp <= 0 )) || return 1
     ((G_KILLS++))
     OBJ_player[score]=$(( ${OBJ_player[score]:-0} + escore * _score_pct / 100 ))
-    if Base_is_a "$eid" BossBase ; then
+    if xo_is_a "$eid" BossBase ; then
         ((G_BOSS_KILLS++))
         _boss_on_death "$eid" "$ex" "$ey" "$ew" "$eh" "$eart"
     fi
@@ -705,7 +705,7 @@ _play_game_tick () {
         "${XO_OBJ_POOL[$e]}_move" "$e"
         if (( $? == 0 )) ; then
             alive_e+=("$e")
-            # Boss 动态增益：类名比较比 Base_is_a 便宜，且只有 3 个 Boss 会进入
+            # Boss 动态增益：类名比较比 xo_is_a 便宜，且只有 3 个 Boss 会进入
             case "${XO_OBJ_POOL[$e]}" in
                 Boss|BossSpinner|SkullKing) _boss_buff_tick "$e" ;;
             esac
@@ -867,7 +867,7 @@ _play_game_tick () {
                     ((_ndead++))
                     ((G_KILLS++))
                     score_gain=$(( score_gain + _escore[_j] * _score_pct / 100 ))
-                    if Base_is_a "${_eid[_j]}" BossBase ; then
+                    if xo_is_a "${_eid[_j]}" BossBase ; then
                         ((G_BOSS_KILLS++))
                         _boss_on_death  "${_eid[_j]}" \
                                         "${_ex[_j]}" \
@@ -910,7 +910,7 @@ _play_game_tick () {
                     ((_ndead++))
                     ((G_KILLS++))
                     score_gain=$(( score_gain + _escore[_j] * _score_pct / 100 ))
-                    if Base_is_a "${_eid[_j]}" BossBase ; then
+                    if xo_is_a "${_eid[_j]}" BossBase ; then
                         ((G_BOSS_KILLS++))
                         _boss_on_death "${_eid[_j]}" "${_ex[_j]}" "${_ey[_j]}" "${_ew[_j]}" "${_eh[_j]}" "${_eart[_j]}"
                     fi
@@ -947,7 +947,7 @@ _play_game_tick () {
                     ((_ndead++))
                     ((G_KILLS++))
                     score_gain=$(( score_gain + _escore[_wj] * _score_pct / 100 ))
-                    if Base_is_a "${_eid[_wj]}" BossBase ; then
+                    if xo_is_a "${_eid[_wj]}" BossBase ; then
                         ((G_BOSS_KILLS++))
                         _boss_on_death "${_eid[_wj]}" "${_ex[_wj]}" "${_ey[_wj]}" "${_ew[_wj]}" "${_eh[_wj]}" "${_eart[_wj]}"
                     fi
@@ -1186,7 +1186,7 @@ _play_game_tick () {
             local -n _e=$e
             local _c=${_e["{CLS}$X"]}
             [[ "$_c" == "EnemyB" ]] && ((alive_B++))
-            Base_is_a "$e" BossBase && ((alive_Boss++))
+            xo_is_a "$e" BossBase && ((alive_Boss++))
         done
 
         local spawn_cls='' _r=$(( RANDOM % 1000 ))
@@ -1461,7 +1461,7 @@ play_game () {
                 if (( new_hp <= 0 )) ; then
                     bomb_score=$(( bomb_score + escore * _bomb_pct / 100 ))
                     ((G_KILLS++))
-                    if Base_is_a "$e" BossBase ; then
+                    if xo_is_a "$e" BossBase ; then
                         ((G_BOSS_KILLS++))
                         _boss_on_death "$e" "$_ex" "$_ey" "$_ew" "$_eh" "$_eart"
                     fi

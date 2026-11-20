@@ -348,7 +348,7 @@ Key ideas:
 - **Object pool** — `XO_OBJ_POOL[OBJ_7]` stores the class; `xo_obj_bury` frees it.
 - **Dispatch** — `xo_call "$obj" move`; specialise with `Enemy_move`,
   `Boss_move`, etc.
-- **Type checks** — `Base_is_a "$obj" BossBase`.
+- **Type checks** — `xo_is_a "$obj" BossBase`.
 
 ### Object lifecycle: born and retire
 

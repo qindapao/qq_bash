@@ -429,30 +429,6 @@ Base_retire ()
     :
 }
 
-Base_class ()
-{
-    local -n self=$1
-    REPLY=${self[{CLS}$X]}
-}
-
-Base_is_a ()
-{
-    local obj=$1 expect=$2
-    # 不是受管对象（已销毁或非法），返回 1
-    [[ -z "${XO_OBJ_POOL[$obj]+_}" ]] && return 1
-    local cls
-    local -n self=$obj
-    cls=${self[{CLS}$X]}
-
-    while [[ -n "$cls" ]] ; do
-        [[ "$cls" == "$expect" ]] && return 0
-        [[ "$cls" == 'Base' ]] && break
-        local -n c=${cls}Obj
-        cls=${c[{SUP}$X]}
-    done
-    return 1
-}
-
 # ----------------------------------------------------------------------------
 # 所有的 x_tree 类的根，它本身是 Base 子类，Base是所有扁平类的根
 readonly BaseXStaticTemplate='
@@ -1378,6 +1354,31 @@ xo_call ()
 {
     "${XO_OBJ_POOL[$1]}_${2}" "$1" "${@:3}"
 }
+
+#-------------------------------------------------------------------------------
+#返回某个对象的类
+#这个函数没有多大意义，直接读取就好
+xo_class_of () { REPLY=${XO_OBJ_POOL[$1]} ; }
+
+
+#-------------------------------------------------------------------------------
+#返回某个对象是否属于某类
+xo_is_a ()
+{
+    local obj=$1 expect=$2
+    # 不是受管对象（已销毁或非法），返回 1
+    [[ -z "${XO_OBJ_POOL[$obj]+_}" ]] && return 1
+    local cls=${XO_OBJ_POOL[$obj]}
+
+    while [[ -n "$cls" ]] ; do
+        [[ "$cls" == "$expect" ]] && return 0
+        [[ "$cls" == 'Base' ]] && break
+        local -n c=${cls}Obj
+        cls=${c[{SUP}$X]}
+    done
+    return 1
+}
+
 
 #-------------------------------------------------------------------------------
 #                      【对象级 Mixin（动态能力）】
