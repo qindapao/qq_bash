@@ -51,9 +51,9 @@ declare -gi BOSS_BUFF_MISSILE_CD=90     # 3 秒一发（稍微提高出弹频率
 declare -gi BOSS_BUFF_MISSILE_FUEL=60   # 燃料：能走 60 格（约 4 秒的移动量），烧完自毁
 declare -gi BOSS_BUFF_MISSILE_STEP=3    # 每 3 tick 走 1 格（玩家导弹是每 tick 1 格）
 declare -gi BOSS_BUFF_MISSILE_MAX=3     # 同时在场上限，避免叠得太狠
-# 导弹字符：U+2B24 BLACK LARGE CIRCLE，East Asian Width = N（单宽，实测对齐）。
-# 个别字体缺这个字时可以只改这一个常量（例如换成 'O' 或 '▪' U+25AA）。
-BOSS_BUFF_MISSILE_SYM='⬤'
+# 导弹字符：ASCII 'O'（单宽，任何终端/字体都不会错位）。
+# 旧值 '⬤' U+2B24 在部分终端/字体里被渲染成双宽，会让整行错位（宪法 §5）。
+BOSS_BUFF_MISSILE_SYM='O'
 
 # 扫描电网（Boss 增益 / 我方拾取物 W）
 # 每 WAVE_STEP_TICKS 个 tick 走一行：慢速扫描，玩家有时机躲开/看清

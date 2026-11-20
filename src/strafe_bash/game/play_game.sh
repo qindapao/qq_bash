@@ -171,7 +171,7 @@ _wave_start () {
     WAVE_ON=1
     if (( owner == 0 )) ; then
         WV_DIR[slot]=1 \
-        WV_Y[slot]=$(( GAME_TOP - 1 )) \
+        WV_Y[slot]=$GAME_TOP \
         WV_CLR[slot]=$C_RED
     else
         WV_DIR[slot]=-1 WV_Y[slot]=$(( SCREEN_H - 1 )) WV_CLR[slot]=$C_GREEN
@@ -375,10 +375,8 @@ _boss_on_death () {
 
     local -a _bdt=(2 3 4 5 H b m L S)
     local _bdc="${_bdt[RANDOM % 9]}"
-    xo_obj_born Drop "$_bdc"
-    local -n _bd=$REPLY
-    _bd[x]=$(( ex + ew / 2 )) \
-    _bd[y]=$(( ey + eh - 1 ))
+    # 直接在 Boss 尸体位置出生：先 born 再改坐标会在出生格（HUD 下面那行）留残影
+    xo_obj_born Drop "$_bdc" "$(( ex + ew / 2 ))" "$(( ey + eh - 1 ))"
     DROPS+=("$REPLY")
 }
 
@@ -1559,7 +1557,8 @@ play_game () {
                     render_boss_death
                     ((BOSS_DEATH_TICK--))
                 fi
-                render_hit_fx
+                # 命中火花已移入 render（art 之后、飘字/玩家之前），
+                # 否则 fb_emit 写帧缓冲时会把它覆盖掉。
                 render
                 need_render=0
             fi

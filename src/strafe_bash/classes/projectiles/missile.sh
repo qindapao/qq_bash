@@ -28,8 +28,8 @@ readonly MissileStaticTemplate='
 Missile_born () {
     local -n self=$1
     self[x]=$2 self[y]=$3 self[damage]=${4:-2} \
-         self[vx]=0 self[vy]=-1 self[symbol]='^' \
-             self[prev_trail_x]=-1 self[prev_trail_y]=-1
+    self[vx]=0 self[vy]=-1 self[symbol]='^' \
+    self[prev_trail_x]=-1 self[prev_trail_y]=-1
 }
 
 # 易变字段（复用前要恢复）：只有渲染写入的位置句柄。

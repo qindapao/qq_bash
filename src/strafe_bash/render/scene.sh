@@ -276,7 +276,8 @@ render () {
         for (( _ws=0 ; _ws<WAVE_SLOTS ; _ws++ )) ; do
             (( WV_ON[_ws] )) || continue
             local -i _ly=${WV_LAST_Y[_ws]:--1}
-            if (( _ly >= 0 && _ly != WV_Y[_ws] )) ; then
+            # 只在可玩区内擦：波可能从 GAME_TOP 之上起步，别把 HUD 行擦出缺口
+            if (( _ly >= GAME_TOP && _ly != WV_Y[_ws] )) ; then
                 FRAME_BUF+="$ESC[${_ly};3H$_WSP"
                 # 整行擦过：这一行里帧缓冲对象（掉落/敌弹）的格子要补回来
                 _scene_erase_mark "$_ly" 3 $(( SCREEN_W - 2 ))
@@ -291,7 +292,7 @@ render () {
         # 波已全部结束：把每条波最后画过的行擦掉，否则会留在画面上
         for (( _ws=0 ; _ws<WAVE_SLOTS ; _ws++ )) ; do
             local -i _ly=${WV_LAST_Y[_ws]:--1}
-            (( _ly >= 0 )) || continue
+            (( _ly >= GAME_TOP )) || continue
             FRAME_BUF+="$ESC[${_ly};3H$_WSP"
             _scene_erase_mark "$_ly" 3 $(( SCREEN_W - 2 ))
             WV_LAST_Y[_ws]=-1
@@ -440,7 +441,7 @@ render () {
     OBJ_player[prev_al]=$_al \
     OBJ_player[prev_shield]=$_sh
 
-    # ===== 电网最后画：它是覆盖层，玩家要能看清缺口在哪 =====
+    # ===== 电网：覆盖层，玩家要能看清缺口在哪 =====
     # 擦除在阶段 1 已经做完了，这里只负责把当前行盖上去。
     if (( WAVE_ON )) ; then
         local -i _ws
@@ -450,6 +451,13 @@ render () {
             WV_LAST_Y[_ws]=${WV_Y[_ws]}
         done
     fi
+
+    # ===== 命中火花：最上层 =====
+    # 必须画在 fb_emit / art / 玩家之后：子弹被打掉时它的帧缓冲格会被清空并标脏，
+    # 玩家的 art 也会盖住护盾命中点；放在最后才不会被同一帧的任何写入覆盖。
+    # 擦除在 render 之前（render_hit_fx_clear_expired），会 _fb_touch_cell 补回
+    # 被火花盖住的对象/art，所以不会留下"洞"。
+    render_hit_fx
 
 }
 

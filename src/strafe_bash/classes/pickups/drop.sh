@@ -27,6 +27,7 @@ readonly DropStaticTemplate='
 Drop_born () {
     local -n self=$1
     local t=$2
+    local _px=${3:-} _py=${4:-}
     self[dtype]=$t \
         self[symbol]=$t
 
@@ -44,14 +45,30 @@ Drop_born () {
             ;;
     esac
 
-    self[x]=$(( (RANDOM % (SCREEN_W - 4)) + 2 )) \
-        self[y]=$GAME_TOP \
-        self[cd]=0
+    # 位置：默认在顶部随机列；调用方可以指定（Boss 死亡掉落就在 Boss 尸体处）。
+    # 必须一次定好位置再写帧缓冲：先 born 再改 x/y 会在出生格留下一个永不消失的残影。
+    if [[ -n "$_px" ]] ; then self[x]=$_px ; else self[x]=$(( (RANDOM % (SCREEN_W - 4)) + 2 )) ; fi
+    if [[ -n "$_py" ]] ; then self[y]=$_py ; else self[y]=$GAME_TOP ; fi
+    self[cd]=0
     # 帧缓冲（顶层）：出生即占一格
     self[glyph]="$C_REVERSE${self[symbol]}$C_RESET"
     local -i _fi=$(( (${self[y]} - 1) * FB_W + (${self[x]} - 1) ))
     FB_DROP[_fi]=${self[glyph]} FB_DOWNER[_fi]=$1 FB_TOP+=("$_fi")
 }
+# 退役：清掉它在顶层帧缓冲占的那一格（owner 校验，避免误清别人的格）。
+# 拾取（bury）和落到屏幕底（bury）都走这里；少了这一步，掉落物被吃掉后
+# 它的字符会留在屏幕上，直到别的对象恰好覆盖那一格 —— 就是"静止残影"。
+Drop_retire () {
+    local -n _dr=$1
+    local -i _dx=${_dr[x]} _dy=${_dr[y]}
+    (( _dx >= 2 && _dx <= SCREEN_W - 2 && _dy >= GAME_TOP && _dy <= SCREEN_H - 1 )) || return 0
+    local -i _di=$(( (_dy - 1) * FB_W + (_dx - 1) ))
+    if [[ "${FB_DOWNER[_di]}" == "$1" ]] ; then
+        FB_DROP[_di]='' FB_DOWNER[_di]='' FB_TOP+=("$_di")
+    fi
+    return 0
+}
+
 Drop_move () {
     local -n self=$1
     local cd=$(( ${self[cd]} + 1 ))

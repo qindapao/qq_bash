@@ -34,10 +34,25 @@ Bullet_born () {
     FB_CELL[_fi]=${self[glyph]} FB_OWNER[_fi]=$1 FB_DIRTY+=("$_fi")
 }
 
+# 退役：清掉它在帧缓冲占的那一格（owner 校验，避免误清别人的格）。
+# fire（被电网扫掉、打中敌人）和 bury 都走这里，是子弹格的唯一出口；
+# 少了这一步，帧缓冲里会留下"死子弹"的幽灵格，之后该格被别的事件标脏时会把它重画出来。
+Bullet_retire () {
+    local -n _br=$1
+    local -i _bx=${_br[x]} _by=${_br[y]}
+    (( _bx >= 2 && _bx <= SCREEN_W - 2 && _by >= GAME_TOP && _by < SCREEN_H - 1 )) || return 0
+    local -i _bi=$(( (_by - 1) * FB_W + (_bx - 1) ))
+    if [[ "${FB_OWNER[_bi]}" == "$1" ]] ; then
+        FB_CELL[_bi]='' FB_OWNER[_bi]='' FB_DIRTY+=("$_bi")
+    fi
+    return 0
+}
+
 # 可回收类的易变字段：fire 时只把这几个恢复成模板默认值（其余字段每次 _born 都重设）。
 #   prev_x/prev_y —— 渲染每帧写入；不清会让返聘出来的第一帧擦错格子
 #   color        —— 激光按威力写入颜色；不清会让普通子弹继承上一任的激光色
 readonly BulletResetFields='prev_x prev_y color'
+
 Bullet_move () {
     local -n self=$1
     self[x]=$(( ${self[x]} + ${self[vx]} )) \
