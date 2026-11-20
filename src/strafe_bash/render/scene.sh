@@ -10,6 +10,9 @@ declare -gA _STRAFE_LOADED
 # ASCII art 行缓存：art 字符串在一局内是稳定的（Boss 阶段切换会换新 art），
 # 避免每帧重复做 %% 和 # 前缀截取。
 declare -A _SCENE_ART_CACHE=()
+# 每个对象上一帧血条文本的宽度：血条只清"上一帧和本帧的较大宽度"，
+# 不用 \033[K 整行清（会擦掉同行的 art / 掉落物）。
+declare -gA _SCENE_HP_W=()
 _scene_art_lines () {
     local art=$1
     [[ -n "${_SCENE_ART_CACHE["$art|__n"]+_}" ]] && return 0
@@ -196,7 +199,7 @@ _scene_erase_refill () {
         (( _x >= _ER_MIN[_y] && _x <= _ER_MAX[_y] )) || continue
         FB_DIRTY+=( $(( (_y - 1) * FB_W + (_x - 1) )) )
     done
-    # 掉落物
+    # 掉落物：属于顶层，必须进 FB_TOP（art 之后输出），否则会被 art 盖住 → 闪烁
     local _pd
     for _pd in "${DROPS[@]}" ; do
         [[ -n "${XO_OBJ_POOL[$_pd]+_}" ]] || continue
@@ -204,10 +207,13 @@ _scene_erase_refill () {
         _y=${_rpd[y]} _x=${_rpd[x]}
         (( ${_ER_MIN[_y]:--1} < 0 )) && continue
         (( _x >= _ER_MIN[_y] && _x <= _ER_MAX[_y] )) || continue
-        FB_DIRTY+=( $(( (_y - 1) * FB_W + (_x - 1) )) )
+        FB_TOP+=( $(( (_y - 1) * FB_W + (_x - 1) )) )
     done
     return 0
 }
+
+# 血条行的绘制直接内联在 render 的敌人 art 循环里（见下方），这里不再包一层函数：
+# 函数调用 + nameref 绑定的固定开销（本机实测 ~175us/次）比 printf 本身还贵。
 
 render () {
     local b e d eb m w _t _WSP _ex _ey
@@ -340,8 +346,7 @@ render () {
            (( ${_e[inv_cd]:-0} > 0 )) ; then
             _color=$C_CYAN
         fi
-        local _ay=${_e[y]} _ax=${_e[x]} _h=${_e[h]} \
-              _hp2=${_e[hp]} _maxhp=${_e[maxhp]} _art=${_e[art]}
+        local _ay=${_e[y]} _ax=${_e[x]} _art=${_e[art]}
         _scene_art_lines "$_art"
         local -i _r=0 _rn=${_SCENE_ART_CACHE["$_art|__n"]:-0} _cy _cx _cw
         while (( _r < _rn )) ; do
@@ -349,18 +354,26 @@ render () {
             FRAME_BUF+="$ESC[$((_ay + _r));${_ax}H$_color$_line$C_RESET"
             ((_r++))
         done
-        if [[ "$_cls" == "Boss" ]] || [[ "$_cls" == "BossSpinner" ]] \
-           || [[ "$_cls" == "SkullKing" ]] || [[ "$_cls" == "EnemyB" ]] \
-           || [[ "$_cls" == "EnemyM" ]] ; then
-            if (( _ay + _h < SCREEN_H )) ; then
-                # 动态增益标签挂在 HP 行尾（非 Boss 没有这个字段，读出来是空）
-                local _buff=''
-                [[ -n "${_e[buff_str]-}" ]] && _buff=" ${_e[buff_str]}"
-                printf -v _t '\033[%d;%dH\033[K%s[%d/%d]%s%s\033[%d;%dH%s' $((_ay + _h)) "$_ax" \
-                    "$_color" "$_hp2" "$_maxhp" "$C_RESET" "$_buff" $((_ay + _h)) "$SCREEN_W" "$FRAME_V"
-                FRAME_BUF+="$_t"
-            fi
-        fi
+        # 血条行就地画（零额外遍历）：只清自己的文本段，不用 \033[K
+        case "$_cls" in
+            Boss|BossSpinner|SkullKing|EnemyB|EnemyM)
+                local -i _hrow=$(( _ay + ${_e[h]} ))
+                if (( _hrow < SCREEN_H )) ; then
+                    local _hhp=${_e[hp]} _hmax=${_e[maxhp]} _hbuff=''
+                    [[ -n "${_e[buff_str]-}" ]] && _hbuff=" ${_e[buff_str]}"
+                    local -i _hw=$(( ${#_hhp} + ${#_hmax} + 3 + ${#_hbuff} )) \
+                             _hwprev=${_SCENE_HP_W[$e]:-0}
+                    (( _hw < _hwprev )) && _hw=$_hwprev
+                    (( _ax + _hw > SCREEN_W - 1 )) && _hw=$(( SCREEN_W - 1 - _ax ))
+                    if (( _hw > 0 )) ; then
+                        _SCENE_HP_W[$e]=$(( ${#_hhp} + ${#_hmax} + 3 + ${#_hbuff} ))
+                        # 直接拼串比 printf -v 快一倍（实测 24us vs 52us/次）：
+                        # 这里只有整数和常量，没有需要 %*s 对齐的复杂格式。
+                        FRAME_BUF+=$'\033['$_hrow';'$_ax'H'${SPACE_PROTOTYPE_STRING:0:_hw}$'\033['$_hrow';'$_ax'H'$_color'['$_hhp'/'$_hmax']'$C_RESET$_hbuff
+                    fi
+                fi
+                ;;
+        esac
         _e[prev_x]=$_ax \
         _e[prev_y]=$_ay \
         _e[prev_art]=$_art
@@ -369,6 +382,15 @@ render () {
     # ===== 帧缓冲（顶层）：掉落物在敌人 art 之后、飘字之前输出 =====
     # 旧渲染顺序如此：掉落物画在 art 之上、飘字之下，迁移后必须保持。
     fb_emit_top
+    # art 每帧都会重画，会盖住上一帧已经 emit 过的掉落物（掉落物只在移动时标脏），
+    # 表现为"道具经过敌人时闪烁"。掉落物最多 DROP_LIMIT（8）个，这里直接重画一遍，
+    # 保证它们永远最后画；比每帧塞进 FB_TOP 再走一遍 emit 便宜（少了逐格查表）。
+    local _dd
+    for _dd in "${DROPS[@]}" ; do
+        [[ -n "${XO_OBJ_POOL[$_dd]+_}" ]] || continue
+        local -n _rdd=$_dd
+        FRAME_BUF+=$'\033['${_rdd[y]}';'${_rdd[x]}'H'${_rdd[glyph]}
+    done
 
     for w in "${WORDS[@]}" ; do
         local -n _w=$w

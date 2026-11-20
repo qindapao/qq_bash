@@ -86,21 +86,26 @@ fb_emit () { _fb_emit_list FB_DIRTY ; }
 fb_emit_top () { _fb_emit_list FB_TOP ; }
 
 # 单格被擦掉之后（特效清格、火花消失）：该格若有帧缓冲对象，重新标脏补画。
+# 分两层标：掉落物属于顶层（art 之后输出），必须进 FB_TOP；子弹进 FB_DIRTY。
+# 混在一起会让掉落物在 art 之前被重画，随后又被 art 盖掉 —— 表现为闪烁。
 # $1=行 $2=列
 _fb_touch_cell () {
     local -i _idx=$(( ($1 - 1) * FB_W + ($2 - 1) ))
-    [[ -n "${FB_CELL[_idx]}" || -n "${FB_DROP[_idx]}" ]] && FB_DIRTY+=("$_idx")
+    [[ -n "${FB_DROP[_idx]}" ]] && FB_TOP+=("$_idx")
+    [[ -n "${FB_CELL[_idx]}" ]] && FB_DIRTY+=("$_idx")
     return 0
 }
 
 # 整行被"整行擦除"擦过之后，把这一行里仍被帧缓冲对象占着的格重新标脏，
 # 下一次 emit 就会补画回来（电网擦行、血条行和消息行的 \033[K 都会用）。
+# 同样按两层分开标（见 _fb_touch_cell）。
 # $1=行 $2=起始列 $3=结束列（含）
 _fb_touch_row () {
     local -i _x _idx
     for (( _x=$2 ; _x<=$3 ; _x++ )) ; do
         _idx=$(( ($1 - 1) * FB_W + (_x - 1) ))
-        [[ -n "${FB_CELL[_idx]}" || -n "${FB_DROP[_idx]}" ]] && FB_DIRTY+=("$_idx")
+        [[ -n "${FB_DROP[_idx]}" ]] && FB_TOP+=("$_idx")
+        [[ -n "${FB_CELL[_idx]}" ]] && FB_DIRTY+=("$_idx")
     done
     return 0
 }
