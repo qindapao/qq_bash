@@ -1119,7 +1119,8 @@ xo_obj_bury ()
 #   - **不要手动 unset / 改写 OBJ_* 变量**。整个 OBJ_ 前缀是框架保留的；
 #     市场里的肉体如果被外部 unset，xo_obj_hire 会照常把它登记回池却发现变量
 #     不在——这是未定义行为。销毁对象只有 xo_obj_bury 一个出口。
-#   - xo_fire_clear 只丢引用、不销毁肉体（测试/换局用）；需要彻底回收请逐个 bury。
+#   - xo_fire_clear 释放市场里的肉体（unset 对象变量）；它们早已退役、不在池中，
+#     不能再 bury（bury 要求对象在池子里，且会二次执行 retire）。
 #   - xo_call / xo_obj_call 是**裸分发**，不查池：对死句柄会得到 bash 的
 #     "command not found: _move"。热路径上加了校验就是每对象每 tick 多一次查表，
 #     所以契约是"调用方先查 XO_OBJ_POOL"。xo_obj_call_all / xo_obj_mixin_list
@@ -1296,10 +1297,12 @@ xo_fire_stats ()
     return 0
 }
 
-# 清空市场（测试/换局用）。注意：对象变量本身不会被销毁（它们是"待业"的肉体），
-# 这里只是丢弃所有引用。需要彻底回收请逐个 bury。
+# 清空市场：释放所有"待业肉体"并清零计数（测试/换局用）。
+# 市场里的对象在 fire 时已退役、已移出池子，所以这里不再跑 retire，也不碰池子；
+# 只把框架持有的最后一份引用（对象变量）释放掉，避免换局反复调用时泄漏。
 xo_fire_clear ()
 {
+    unset -v "${RES_MARKET[@]}"
     RES_MARKET=()
     RES_COUNT=()
     return 0

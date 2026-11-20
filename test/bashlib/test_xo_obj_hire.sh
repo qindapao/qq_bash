@@ -284,4 +284,27 @@ test_case11 ()
     if (( ok )) ; then log_test 1 11 ; else log_test 0 11 ; fi
 }
 
+# 12) xo_fire_clear：释放市场里的待业肉体（unset），而不是只丢引用
+test_case12 ()
+{
+    RES_MARKET=() ; RES_COUNT=() ; RETIRE_LOG=()
+    xo_obj_hire HireObj 1 ; local h1=$REPLY
+    xo_obj_hire HireObj 2 ; local h2=$REPLY
+    xo_obj_fire "$h1" ; xo_obj_fire "$h2" || { log_test 0 12 ; return 1 ; }
+
+    local -i ok=1
+    (( ${RES_COUNT[HireObj]:-0} == 2 )) || ok=0
+    xo_fire_clear
+    (( ${RES_COUNT[HireObj]:-0} == 0 )) || ok=0
+    (( ${#RES_MARKET[@]} == 0 )) || ok=0
+    declare -p "$h1" >/dev/null 2>&1 && ok=0        # 肉体已释放
+    declare -p "$h2" >/dev/null 2>&1 && ok=0
+    [[ -z "${XO_OBJ_POOL[$h1]+_}" ]] || ok=0        # 本来就不在池里
+    # 清空后 hire 仍正常：市场为空 → 走 born 新建
+    xo_obj_hire HireObj 5 ; local h3=$REPLY
+    [[ -n "$h3" && -n "${XO_OBJ_POOL[$h3]+_}" ]] || ok=0
+    declare -p "$h3" >/dev/null 2>&1 || ok=0
+    if (( ok )) ; then log_test 1 12 ; else log_test 0 12 ; fi
+}
+
 eval -- "$(AS_RUN_TEST_CASES)"
