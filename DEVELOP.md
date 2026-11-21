@@ -157,9 +157,10 @@ CONSTITUTION.md §3).
 | `XO_CLASS_INHER_TREE` | class inheritance chain (x tree); used by `xo_init` to build dispatch |
 | `XO_METHOD_INHERITED` | forwarding table for inherited methods |
 | `XO_INHER_CHAIN_DUMP_CACHE` | cached inheritance dump, avoids recomputation |
-| `XO_CLASS_TREE_TMPL_VARS` | tree-class template variable names, scanned once at init |
-| `XO_CLASS_FLAT_OBJ_VARS` | flat-class object variable names, scanned once at init |
-| `XO_CLASS_VARS_READY` | guard: the one-shot class-variable scan already ran |
+| `XO_CLASS_TREE_TMPL_VARS` | manually registered tree-class template names |
+| `XO_CLASS_FLAT_OBJ_VARS` | manually registered flat-class object names |
+| `XO_CLASS_METHODS[class]` | manually registered public methods owned by each class |
+| `XO_CLASS_VARS_READY` | legacy one-shot scan guard; init no longer depends on it |
 | `XO_FLAT_META` | metakeys kept when a flat class is built (everything else is a user field) |
 | `_XO_INIT_CALLED` | `xo_init` may run only once |
 | `_XO_IMPORTED` | import guard of `xo.sh` |
@@ -170,7 +171,7 @@ CONSTITUTION.md §3).
 |---|---|
 | `XO_OBJ_POOL[handle]` | handle -> class. The only registry of live objects; every "is it alive" check uses it |
 | `XO_OBJ_SEQ` | anonymous handle counter, produces `OBJ_11`, `OBJ_12`, ... |
-| `XO_MIXIN_METHODS[mixin]` | which methods each mixin provides |
+| `XO_MIXIN_METHODS[mixin]` | manually registered public methods each mixin provides |
 | `XO_OBJ_METHOD[handle\|method]` | per-object method routing (mixin implementation names) |
 | `XO_OBJ_MIXED[handle]` | set of objects carrying mixins (cheap gate: empty set means bury does one length check) |
 | `XO_RES_COUNT[class]` | resource market: number of idle bodies of that class |
@@ -403,6 +404,10 @@ Enemy_move () {
     self[y]=$(( ${self[y]} + 1 ))
 }
 
+# Explicit registration is required before xo_init.
+XO_CLASS_FLAT_OBJ_VARS[EnemyObj]=1
+XO_CLASS_METHODS[Enemy]='born move'
+
 xo_init
 xo_obj_born Enemy      # -> REPLY=OBJ_1
 xo_call "$REPLY" move
@@ -428,6 +433,10 @@ Division_born () {
     # 树类实例用 {field}$X 键；嵌套节点走 x_tree 路径
     self["{name}$X"]=${2:-unnamed}
 }
+
+# Tree classes register their template name and own public methods too.
+XO_CLASS_TREE_TMPL_VARS[DivisionStaticTemplate]=1
+XO_CLASS_METHODS[Division]='born'
 ```
 
 - `{FLT} => 0` marks a tree class; flat classes never set it (they inherit
@@ -442,6 +451,24 @@ Division_born () {
 
 Key ideas:
 
+- **Explicit registration is mandatory.** Every flat class must add its object
+  array to `XO_CLASS_FLAT_OBJ_VARS`; every tree class must add its template to
+  `XO_CLASS_TREE_TMPL_VARS`; every class must list its own public methods in
+  `XO_CLASS_METHODS[<class>]`; every mixin must list its public methods in
+  `XO_MIXIN_METHODS[<mixin>]`.
+- **Do not pre-list inherited or mixin-injected methods.** A class list contains
+  only methods defined by that class. `xo_init` appends mixin and inherited
+  methods to the effective list in this order: own methods, mixins, inherited.
+- **Registration is the source of truth.** `XO_CLASS_METHODS` decides what is
+  inherited and what `xo_class_methods_print` shows. A class method that exists
+  as a function but is not registered is a contract violation.
+- **Do not copy parent methods into a child registry.** `-d` / `xo_init 1`
+  rejects a child entry like `XO_CLASS_METHODS[Child]='foo'` when no
+  `Child_foo` function exists; the scan compares the declared list with the
+  child's own `Child_*` functions.
+- **Duplicate method names are rejected by validation.** `-d` / `--debug`
+  (or `xo_init 1`) runs the `compgen` reverse check and rejects duplicate names
+  in any class or mixin method list.
 - **Flat classes have exactly one definition style**: the `<Cls>Obj` array.
   Metadata keys carry the `$X` separator (`{CLS}$X`, `{SUP}$X`, `{MIX}$X`,
   `{FLT}$X`); user fields are plain keys. `xo_init` rejects a flat class that is

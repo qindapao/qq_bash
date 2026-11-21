@@ -126,6 +126,9 @@ not cover it.
 - Theme: `./strafe_bash.sh -t light` (or `--theme dark|auto`). The default
   `auto` follows `COLORFGBG` and otherwise assumes a dark terminal. `-h` prints
   the full help: options, controls, drops, weapons and author.
+- Registration validation: `./strafe_bash.sh -d` (or `STRAFE_DEBUG=1`). It runs
+  the `compgen` reverse check for classes, templates, classes' methods and
+  Mixins; normal startup uses the fast manual-registry path.
 - Tested on mintty (MSYS2 / Git Bash). A plain Windows console window cannot
   report the mouse at all, so the plane is keyboard-only there.
 - WindTerm may report clicks but not continuous movement; click-to-move still

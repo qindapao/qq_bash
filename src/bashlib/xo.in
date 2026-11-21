@@ -1010,17 +1010,37 @@ _xo_check_statement_match ()
         read -r -a wb <<< "$2"
 
         local w
-        for w in "${wa[@]}" ; do
-            A["$w"]=1
-        done
-        for w in "${wb[@]}" ; do
-            B["$w"]=1
-        done
+        for w in "${wa[@]}" ; do A["$w"]=1 ; done
+        for w in "${wb[@]}" ; do B["$w"]=1 ; done
 
         (( ${#A[@]} == ${#B[@]} )) || return 1
 
         for w in "${!A[@]}" ; do
             [[ -n "${B[$w]+_}" ]] || return 1
+        done
+        return 0
+    }
+
+    _xo_words_has_duplicate () {
+        local -A seen=()
+        local w
+        for w in $1 ; do
+            if [[ -n "${seen[$w]+_}" ]] ; then
+                REPLY=$w ; return 0
+            fi
+            seen[$w]=1
+        done
+        return 1
+    }
+
+    _xo_check_no_duplicate_methods () {
+        local -n _map=$1
+        local k
+        for k in "${!_map[@]}" ; do
+            if _xo_words_has_duplicate "${_map[$k]}" ; then
+                die ERR "$1[$k] duplicate method: $REPLY"
+                return 1
+            fi
         done
         return 0
     }
@@ -1062,6 +1082,10 @@ _xo_check_statement_match ()
     local -A xo_class_tree_tmpl_vars=() xo_class_flat_obj_vars=() \
              xo_mixin_methods=() xo_class_methods=()
     _xo_scan_class_vars
+    # 手工注册表里同一类/Mixin 的方法名不能重复；单词集合比较会去重，
+    # 所以重复必须在集合比较之前单独拦截。
+    _xo_check_no_duplicate_methods XO_CLASS_METHODS || return $?
+    _xo_check_no_duplicate_methods XO_MIXIN_METHODS || return $?
     # 首先校验类模板和类对象申明没有遗漏和错误
     _xo_assoc_equal XO_CLASS_TREE_TMPL_VARS xo_class_tree_tmpl_vars || return $?
     _xo_assoc_equal XO_CLASS_FLAT_OBJ_VARS xo_class_flat_obj_vars || return $?

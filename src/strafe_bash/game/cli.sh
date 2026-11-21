@@ -16,10 +16,12 @@ Usage:
   strafe_bash.sh                  play
   strafe_bash.sh -t light         play with the light-background palette
   strafe_bash.sh --theme dark     play with the neon palette
+  strafe_bash.sh -d               validate class/Mixin registration at startup
   strafe_bash.sh -h | --help      show this help
 
 Options:
   -t, --theme light|dark|auto     terminal theme (default: auto)
+  -d, --debug                     run xo class/Mixin registration validation
   -h, --help                      show this help
 
   light   darker colours for light-background terminals
@@ -28,6 +30,7 @@ Options:
 
 Environment:
   STRAFE_THEME=light|dark|auto    same as -t/--theme
+  STRAFE_DEBUG=1|0                same as -d/--debug
   STRAFE_INPUT_POLL=1|0           force the probe-based input loop on/off
                                   default: on under MSYS/CYGWIN, off elsewhere
                                   (Windows read -t has a 15.9 ms granularity,
@@ -82,6 +85,9 @@ cli_parse () {
                 (( $# >= 2 )) || { printf 'missing value for %s (try -h)\n' "$1" >&2 ; return 2 ; }
                 _cli_set_theme "$2" || return 2
                 shift
+                ;;
+            -d|--debug)
+                export STRAFE_DEBUG=1
                 ;;
             --theme=*)
                 _cli_set_theme "${1#*=}" || return 2
