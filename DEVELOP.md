@@ -486,6 +486,59 @@ Key ideas:
   `Boss_move`, etc.
 - **Type checks** — `xo_is_a "$obj" BossBase`.
 
+### Class debug view (`xo_debug_classes`)
+
+For debugging class inheritance, fields, methods and mixins together, use:
+
+```bash
+xo_debug_classes        # indent 4
+xo_debug_classes 2      # indent 2
+```
+
+It requires `xo_init` to have run. It builds a **separate** global tree:
+
+```text
+XO_CLASS_DEBUG_TREE
+```
+
+and prints it with `x_dump`. It does **not** modify
+`XO_CLASS_INHER_TREE`, `XO_INHER_CHAIN_DUMP_CACHE`, class objects or method
+tables.
+
+The tree has this shape:
+
+```text
+{Base}
+  {@META}       SUP / FLT / CLS / OBJMIX / MIX
+  {@ATTRIBUTES} effective user fields (nested objects and arrays preserved)
+  {@FUNCTIONS}  effective methods:
+                  own             class's own method
+                  <class>         inherited from that class
+                  M_*             provided by that Mixin
+  {@MIXINS}     class-level Mixin list
+{__MIXINS}
+  {M_Foo}
+    {@FUNCTIONS}
+      foo => own
+```
+
+Notes:
+
+- `{@ATTRIBUTES}` shows **effective** fields, including inherited ones. A field
+  inherited from a parent is still listed under the child; the tree does not
+  currently record the field's defining class.
+- Nested dictionaries and arrays are preserved; array elements use the normal
+  `x_dump` array representation (`o = value`).
+- `{@...}` keys are reserved for debug sections, so a class field named
+  `META` / `ATTRIBUTES` / `FUNCTIONS` / `MIXINS` cannot collide with them.
+- The debug tree is disposable; build it on demand. It is not a hot-path
+  structure. A full game dump is roughly 1000 lines and about a second, so do
+  not call it from the game loop.
+- `xo_dump_inher_chain` remains the raw canonical inheritance dump;
+  `xo_class_methods_print <class>` remains the compact per-class method list.
+
+The regression fixture is `test/bashlib/test_xo_debug_classes.sh`.
+
 ### Object lifecycle: born and retire
 
 ```bash
@@ -807,6 +860,8 @@ supports objects, arrays, nulls, booleans, ordered children, and path access.
 - `x_insert` / `x_delete` / `x_get_leaf` / `x_get_tree`
 - `x_push_leaf` / `x_pop_leaf` / `x_shift_leaf` / `x_unshift_leaf`
 - `x_walk` / `x_iter` / `x_to_flat_array` / `x_flat_to_tree`
+- `x_walk_dict_tree` — fast walker for **pure `{}` trees**; it rejects arrays
+  and physical-id nodes. Use `x_walk` for mixed trees.
 - `x_to_json` / `x_from_json` / `x_dump` / `x_equals` / `x_graft`
 
 Full parameters and return codes are documented in the function headers of

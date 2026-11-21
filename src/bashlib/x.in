@@ -2260,8 +2260,12 @@ x_walk_dict_tree ()
                     tr_kind=$X_NODE_KIND_OBJ_EMPTY
                     tr_value=$X_VALUE_NULL_OBJ
                 fi
+            elif [[ "${tr_t[$tr_child_id.t]}" == "$X_TYPE_ARR" ]] ; then
+                die ERR "x_walk_dict_tree: array node is not supported (path:${tr_child_path@Q})"
+                return $X_RET_ENUM_KEY_IS_INVALID
             else
-                tr_kind=$X_NODE_KIND_UNKNOWN
+                die ERR "x_walk_dict_tree: unknown node kind (path:${tr_child_path@Q})"
+                return $X_RET_ENUM_KEY_IS_INVALID
             fi
 
             "$tr_cb" "$tr_kind" "$tr_tk" "$tr_child_path" "$tr_value" \

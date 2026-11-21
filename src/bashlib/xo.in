@@ -1566,6 +1566,154 @@ xo_class_methods_print ()
     done
 }
 
+#-------------------------------------------------------------------------------
+# 调试视图：把继承树、类属性、有效方法、类 Mixin 和 Mixin 公共方法
+# 合并到一棵独立的 XO_CLASS_DEBUG_TREE。性能不重要，禁止修改
+# XO_CLASS_INHER_TREE 及其 dump 缓存。
+#
+# 结构：
+#   {Base}
+#     {@META}      SUP / FLT / CLS / OBJMIX / MIX
+#     {@ATTRIBUTES} 用户字段
+#     {@FUNCTIONS}  有效方法 -> own / <cls> / <M_*>
+#     {@MIXINS}     类声明的 Mixin
+#   {__MIXINS}
+#     {M_Foo}
+#       {@FUNCTIONS}
+#
+# @in  $1=x_dump 缩进宽度（默认 4）
+# @out XO_CLASS_DEBUG_TREE
+xo_debug_classes ()
+{
+    [[ -n "$_XO_INIT_CALLED" ]] || {
+        die ERR "xo: xo_init not called yet"
+        return 1
+    }
+
+    local -i _xd_indent=${1:-4}
+    local _xd_tree=XO_CLASS_DEBUG_TREE
+    local _xd_cls _xd_path _xd_prefix _xd_key _xd_val _xd_fn
+    local -i _xd_flat
+    local -a _xd_cls_order=()
+    local -A _xd_cls_path=()
+
+    unset -v "$_xd_tree" 2>/dev/null
+    x_init "$X_TYPE_OBJ" || return $?
+    eval "declare -gA ${_xd_tree}=($REPLY)"
+
+    _xo_debug_put () {
+        x_insert_dict "$_xd_tree" "$1" "$2" || {
+            die ERR "xo_debug_classes: insert failed: $1"
+            return 1
+        }
+    }
+
+    # 树类属性可能含数组；必须走支持 [] 的 x_insert，不能用 x_insert_dict。
+    _xo_debug_put_any () {
+        x_insert "$_xd_tree" "$1" "$2" || {
+            die ERR "xo_debug_classes: insert failed: $1"
+            return 1
+        }
+    }
+
+    _xo_debug_collect_cb () {
+        local _xd_c=${5:1:-1}
+        _xd_cls_path[$_xd_c]=$6
+        _xd_cls_order+=("$_xd_c")
+        # 先建成 OBJECT；绝不能直接往 canonical 树的 NULL 叶子上挂。
+        _xo_debug_put "$6" "$X_VALUE_NULL_OBJ"
+    }
+
+    _xo_debug_attr_cb () {
+        local _xd_kind=$1 _xd_token=$5 _xd_full=$3 _xd_value=$4
+        case "$_xd_token" in
+            '{CLS}'|'{SUP}'|'{MIX}'|'{FLT}'|'{OBJMIX}') return 0 ;;
+        esac
+
+        local _xd_p="$_xd_attr_prefix$_xd_full"
+        case "$_xd_kind" in
+            "$X_NODE_KIND_LEAF"|"$X_NODE_KIND_LEAF_NULL")
+                _xo_debug_put_any "$_xd_p" "$_xd_value" ;;
+            "$X_NODE_KIND_OBJ"|"$X_NODE_KIND_OBJ_EMPTY")
+                _xo_debug_put_any "$_xd_p" "$X_VALUE_NULL_OBJ" ;;
+            "$X_NODE_KIND_ARR"|"$X_NODE_KIND_ARR_EMPTY")
+                _xo_debug_put_any "$_xd_p" "$X_VALUE_NULL_ARR" ;;
+        esac
+    }
+
+    x_walk_dict_tree XO_CLASS_INHER_TREE '' _xo_debug_collect_cb || return $?
+
+    for _xd_cls in "${_xd_cls_order[@]}" ; do
+        _xd_path=${_xd_cls_path[$_xd_cls]}
+        local -n _xd_co="${_xd_cls}Obj"
+
+        _xd_flat=0
+        [[ -n "${XO_CLASS_FLAT_OBJ_VARS[${_xd_cls}Obj]+_}" ]] && _xd_flat=1
+
+        # ---- {@META}：直接使用类对象的原始元键 ----
+        _xd_prefix="${_xd_path}{@META}$X"
+        _xo_debug_put "${_xd_prefix}{SUP}$X" "${_xd_co[{SUP}$X]:-}"
+        _xo_debug_put "${_xd_prefix}{FLT}$X" "${_xd_co[{FLT}$X]:-$_xd_flat}"
+        _xo_debug_put "${_xd_prefix}{CLS}$X" "$_xd_cls"
+        _xo_debug_put "${_xd_prefix}{OBJMIX}$X" "${_xd_co[{OBJMIX}$X]:-}"
+        _xo_debug_put "${_xd_prefix}{MIX}$X" "${_xd_co[{MIX}$X]:-}"
+
+        # ---- {@ATTRIBUTES} ----
+        _xd_prefix="${_xd_path}{@ATTRIBUTES}$X"
+        _xo_debug_put "$_xd_prefix" "$X_VALUE_NULL_OBJ"
+
+        if ((_xd_flat)) ; then
+            local -a _xd_kv=()
+            for _xd_key in "${!_xd_co[@]}" ; do
+                [[ "$_xd_key" == *"$X"* ]] && continue
+                _xd_kv+=("{${_xd_key}}" "${_xd_co[$_xd_key]}")
+            done
+            if ((${#_xd_kv[@]})) ; then
+                x_insert_token_dict "$_xd_tree" "" "$_xd_prefix" "${_xd_kv[@]}" || return $?
+            fi
+        else
+            # 树类：只复制用户字段，过滤类元数据。
+            local _xd_attr_prefix=$_xd_prefix
+            x_walk "${_xd_cls}Obj" '' _xo_debug_attr_cb || return $?
+        fi
+
+        # ---- {@FUNCTIONS} ----
+        _xd_prefix="${_xd_path}{@FUNCTIONS}$X"
+        _xo_debug_put "$_xd_prefix" "$X_VALUE_NULL_OBJ"
+        for _xd_fn in ${XO_CLASS_METHODS[$_xd_cls]:-} ; do
+            _xd_key="${_xd_cls}_${_xd_fn}"
+            _xd_val='own'
+            if [[ -n "${XO_METHOD_INHERITED[$_xd_key]+_}" ]] ; then
+                _xd_val=${XO_METHOD_INHERITED[$_xd_key]}
+            fi
+            _xo_debug_put "${_xd_prefix}{${_xd_fn}}$X" "$_xd_val"
+        done
+
+        # ---- {@MIXINS} ----
+        _xd_prefix="${_xd_path}{@MIXINS}$X"
+        _xo_debug_put "$_xd_prefix" "$X_VALUE_NULL_OBJ"
+        for _xd_fn in ${_xd_co[{MIX}$X]:-} ; do
+            _xo_debug_put "${_xd_prefix}{${_xd_fn}}$X" '1'
+        done
+    done
+
+    # ---- 根级 Mixin 公共方法 ----
+    local _xd_mixins_root="{__MIXINS}$X"
+    _xo_debug_put "$_xd_mixins_root" "$X_VALUE_NULL_OBJ"
+    for _xd_cls in "${!XO_MIXIN_METHODS[@]}" ; do
+        _xd_path="${_xd_mixins_root}{${_xd_cls}}$X"
+        _xo_debug_put "$_xd_path" "$X_VALUE_NULL_OBJ"
+        _xd_prefix="${_xd_path}{@FUNCTIONS}$X"
+        _xo_debug_put "$_xd_prefix" "$X_VALUE_NULL_OBJ"
+        for _xd_fn in ${XO_MIXIN_METHODS[$_xd_cls]} ; do
+            _xo_debug_put "${_xd_prefix}{${_xd_fn}}$X" 'own'
+        done
+    done
+
+    x_dump "$_xd_tree" '' "$_xd_indent" 2
+    return 0
+}
+
 # xo_call — 实例方法调用（热路径，每帧数十次，紧凑写法是有意的）
 # $1=对象句柄  $2=方法名  $3..=方法参数
 # 方法名约定：${{CLS}}_${方法名}，如 Dog_speak

@@ -79,3 +79,18 @@ for key in "${!expected[@]}" ; do
 done
 
 echo "PASS: complex dict tree, ${#actual[@]} nodes, topological order"
+
+# 纯字典遍历器遇到数组必须显式失败，不能静默漏掉子节点。
+x_insert_dict DW "{arr}$X" "$X_VALUE_NULL_ARR" >/dev/null 2>&1
+x_insert DW "{arr}$X[0]$X" 'zero' >/dev/null 2>&1
+out=$(x_walk_dict_tree DW '' probe 2>&1)
+rc=$?
+if (( rc == 0 )) ; then
+    echo 'FAIL: x_walk_dict_tree accepted an array node'
+    exit 1
+fi
+printf '%s\n' "$out" | grep -q 'array node is not supported' || {
+    echo 'FAIL: missing array rejection message'
+    exit 1
+}
+echo 'PASS: array node rejected explicitly'
