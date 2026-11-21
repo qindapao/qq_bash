@@ -2209,6 +2209,75 @@ x_walk ()
 
 #-------------------------------------------------------------------------------
 
+# 纯字典树专用遍历：只处理 {} 对象键，不支持 [] / <>。
+# 与 x_walk 的回调签名一致（8 个参数），但跳过了 x_get_node_type 和索引路径计算。
+# @in  $1=树名  $2=起始物理全 key（空=根）  $3=回调函数名（默认 x_cb_print）
+# @ret 0=OK  其他=回调返回的非 0 值
+x_walk_dict_tree ()
+{
+    local -n tr_t=$1
+    local tr_prefix=$2
+    local tr_cb=${3:-x_cb_print}
+
+    local tr_root_id=$X_ROOT_ID tr_root_path=''
+    if [[ -n "$tr_prefix" ]] ; then
+        local tr_node_info
+        _x_token_to_node_id "$1" "$tr_prefix" 1 || eval "${_ret_e}"
+        eval "${_ret_s_/o/tr_node_info}"
+        local -A "tr_node_info=($tr_node_info)"
+        tr_root_id=${tr_node_info[node_id]}
+        tr_root_path=${tr_node_info[physical_full_key]}
+    fi
+
+    local -a tr_stack_ids=("$tr_root_id")
+    local -a tr_stack_paths=("$tr_root_path")
+    local tr_node_id tr_node_path tr_tk tr_child_id tr_child_path tr_kind tr_value tr_child_key
+
+    while ((${#tr_stack_ids[@]})) ; do
+        tr_node_id=${tr_stack_ids[-1]}
+        tr_node_path=${tr_stack_paths[-1]}
+        unset -v 'tr_stack_ids[-1]' 'tr_stack_paths[-1]'
+
+        local -a "tr_children=(${tr_t[$tr_node_id.s]})"
+        for tr_tk in "${tr_children[@]}" ; do
+            tr_child_id=${tr_t["$tr_node_id.c.$tr_tk"]}
+            [[ -n "$tr_child_id" ]] || continue
+
+            tr_child_path="$tr_node_path$tr_tk$X"
+            tr_value=''
+            if [[ ${tr_t[$tr_child_id.k]+_} ]] ; then
+                tr_child_key=${tr_t["$tr_child_id.k"]}
+                tr_value=${tr_t["$tr_child_key"]}
+                if [[ "$tr_value" == "$X_VALUE_NULL" ]] ; then
+                    tr_kind=$X_NODE_KIND_LEAF_NULL
+                else
+                    tr_kind=$X_NODE_KIND_LEAF
+                fi
+            elif [[ "${tr_t[$tr_child_id.t]}" == "$X_TYPE_OBJ" ]] ; then
+                if [[ -n "${tr_t[$tr_child_id.s]}" ]] ; then
+                    tr_kind=$X_NODE_KIND_OBJ
+                else
+                    tr_kind=$X_NODE_KIND_OBJ_EMPTY
+                    tr_value=$X_VALUE_NULL_OBJ
+                fi
+            else
+                tr_kind=$X_NODE_KIND_UNKNOWN
+            fi
+
+            "$tr_cb" "$tr_kind" "$tr_tk" "$tr_child_path" "$tr_value" \
+                     "$tr_tk" "$tr_child_path" "$tr_child_id" "$tr_node_id" || return $?
+
+            [[ "$tr_kind" == "$X_NODE_KIND_OBJ" ]] && {
+                tr_stack_ids+=("$tr_child_id")
+                tr_stack_paths+=("$tr_child_path")
+            }
+        done
+    done
+    return $X_RET_ENUM_OK
+}
+
+#-------------------------------------------------------------------------------
+
 # 重建节点 ID（紧凑化），默认 DFS 序重新编号。
 # @in  $1=树名
 # @out REPLY=新树（关联数组 KV 格式）

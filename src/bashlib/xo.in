@@ -955,7 +955,7 @@ _xo_init_class ()
     }
     XO_INIT_DONE=0
     (( XO_INIT_PROGRESS )) && _xo_progress_count
-    x_walk XO_CLASS_INHER_TREE '' _xo_init_class_cb || return $?
+    x_walk_dict_tree XO_CLASS_INHER_TREE '' _xo_init_class_cb || return $?
     _xo_progress_finish
 }
 
