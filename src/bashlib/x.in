@@ -143,6 +143,24 @@ x_bjson_key_escape ()
 }
 
 #-------------------------------------------------------------------------------
+# 不做 tokens 合法性检查
+_split_tokens_fast ()
+{
+    if ((${#X}==1)) ; then
+        local IFS=$X
+        local -a tokens=()
+        local -i _noglob=0
+        [[ -o noglob ]] && _noglob=1
+        set -f
+        tokens=($1)
+        (( _noglob )) || set +f
+        REPLY="${tokens[*]@Q}"
+    else
+        _split_tokens "$@"
+    fi
+}
+
+#-------------------------------------------------------------------------------
 
 # 拆分 "$X" 分隔的 token 串为数组，校验每个 token 是否合法（'{k}'/'[]'/'()'/'<>'）。
 # @in  $1=token 串  $2=插入语义标志(1=允许 '()' 主键)

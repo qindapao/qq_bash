@@ -519,7 +519,7 @@ BaseX_print () { x_dump "$1" '' 4 2 ; }
 _xo_init_get_class_inher_chain ()
 {
     local var_name super cls
-    local -A cls_super=()
+    local -A cls_super=() cls_has_child=()
     local re='^([ ]+)\{SUP\} => (.*)$'
 
     # ---- 1. 收集 类名 -> 父类名（排除 Mixin 和 Base 自身）----
@@ -541,6 +541,7 @@ _xo_init_get_class_inher_chain ()
         fi
 
         cls_super[$cls]=$super
+        cls_has_child[$super]=1
     done
 
     for var_name in "${!XO_CLASS_FLAT_OBJ_VARS[@]}" ; do
@@ -554,6 +555,7 @@ _xo_init_get_class_inher_chain ()
             return 1
         fi
         cls_super[$cls]=$super
+        cls_has_child[$super]=1
     done
 
     # ---- 2. 初始化继承树 ----
@@ -564,20 +566,17 @@ _xo_init_get_class_inher_chain ()
     x_init "$X_TYPE_OBJ" ; eval "${_ret_g_A/o/XO_CLASS_INHER_TREE}"
         #@endif
 
-    # ---- 3. 每个类往上回溯拼路径，插入树 ----
+    # ---- 3. 校验继承链；只插入叶子路径 ----
     #
-    # 【幂等插入】
-    #   x_insert 不允许往已有 children 的节点写叶子值。
-    #   当某个子类先被处理时，它的中间祖先节点（如 Entity）会被自动
-    #   升变成容器；此时再单独插入祖先自身（写 NULL），就会触发
-    #   "have children" 错误。
+    # 先校验所有类的 SUPER 链，再只给叶子类拼路径。
+    # 不能先按“有没有子类”跳过：纯环上的每个节点都有子类，
+    # 先跳过会把整条环漏掉，永远不会触发环检测。
     #
-    #   修复：先查路径是否存在，存在就跳过。x_get_node_type 用 path 模式
-    #   探测，返回 UNKNOWN 说明路径不存在，可以插入；否则（叶子/容器）
-    #   说明已经存在（作为叶子写过，或作为容器被升变过），跳过。
-    #
-    local cur path seg
+    # 叶子完整路径唯一，x_insert 会自动创建中间容器；
+    # 所以不需要再查路径是否已存在，也不会往已有容器上写叶子值。
+    local cur path
     local -a chain
+    local -i _ci
     local -A _visited=()
 
     for cls in "${!cls_super[@]}" ; do
@@ -597,26 +596,25 @@ _xo_init_get_class_inher_chain ()
                 return 1
             fi
             _visited[$cur]=1
-            # 头插，保持 Base→...→cls 顺序
-            chain=("$cur" "${chain[@]}")
+            # 尾部追加；下面反向拼路径。
+            chain+=("$cur")
             cur=${cls_super[$cur]}
         done
 
-        # 拼物理路径：{Base}$X{A}$X{B}$X{C}$X
+        # 有子类的类是中间容器，x_insert 会从叶子路径自动创建。
+        [[ -n "${cls_has_child[$cls]+_}" ]] && continue
+
+        # chain 是 leaf→...→A，反向拼成 {Base}$X{A}$X...$X{leaf}$X。
         path="{Base}$X"
-        for seg in "${chain[@]}" ; do
-            path+="{$seg}$X"
+        for (( _ci=${#chain[@]}-1 ; _ci>=0 ; _ci-- )) ; do
+            path+="{"${chain[_ci]}"}$X"
         done
 
-        # 幂等插入：路径不存在才写，存在就跳过
-        x_get_node_type XO_CLASS_INHER_TREE "$path" path
-        if [[ $? == "$X_NODE_KIND_UNKNOWN" ]] ; then
-            x_insert XO_CLASS_INHER_TREE "$path" "$X_VALUE_NULL" || {
-                die ERR "Class:$cls failed to insert into XO_CLASS_INHER_TREE"\
-                        "(path:$path)"
-                return 1
-            }
-        fi
+        x_insert XO_CLASS_INHER_TREE "$path" "$X_VALUE_NULL" || {
+            die ERR "Class:$cls failed to insert into XO_CLASS_INHER_TREE"\
+                    "(path:$path)"
+            return 1
+        }
     done
 
     return 0
