@@ -165,7 +165,7 @@ _split_tokens_fast ()
         REPLY="${tokens[*]@Q}"
         return 0
     fi
-    _split_tokens_full "$@"
+    _split_tokens "$@"
 }
 
 #-------------------------------------------------------------------------------
@@ -174,7 +174,7 @@ _split_tokens_fast ()
 # @in  $1=token 串  $2=插入语义标志(1=允许 '()' 主键)
 # @out REPLY=token 数组（@Q 格式）
 # @ret 0=OK  4=X_RET_ENUM_KEY_IS_INVALID
-_split_tokens_full ()
+_split_tokens ()
 {
     REPLY=
     local tokens_str=$1
@@ -215,19 +215,6 @@ _split_tokens_full ()
     
     REPLY="${tokens[*]@Q}"
     return $X_RET_ENUM_OK
-}
-
-#-------------------------------------------------------------------------------
-
-# 默认走完整校验；$3=1 时只做切分，调用方必须保证 token 已可信。
-# @in  $1=token 串  $2=插入语义标志  $3=1 启用 fast
-_split_tokens ()
-{
-    if [[ "${3:-0}" == 1 ]] ; then
-        _split_tokens_fast "$1" "${2:-0}"
-    else
-        _split_tokens_full "$1" "${2:-0}"
-    fi
 }
 
 #-------------------------------------------------------------------------------
@@ -786,10 +773,10 @@ x_insert_token_dict ()
 
             local tk_str node tk cid
                 #@if current_shell_process_replace==1
-            tk_str=${|_split_tokens "$tr_prefix" 0 1;} || return $?
+            tk_str=${|_split_tokens_fast "$tr_prefix" 0;} || return $?
                 #@endif
                 #@if current_shell_process_replace==0
-            _split_tokens "$tr_prefix" 0 1 || eval "$_ret_e"
+            _split_tokens_fast "$tr_prefix" 0 || eval "$_ret_e"
             eval "${_ret_s_/o/tk_str}"
                 #@endif
             local -a "tks=($tk_str)"
@@ -908,10 +895,10 @@ x_insert_dict ()
 
     # Here tr_full_key needs to remove the tr_path_key prefix and start traversing
         #@if current_shell_process_replace==1
-    tr_tokens_str=${|_split_tokens "${tr_full_key#"$tr_path_key"}" 1 1;} || return $?
+    tr_tokens_str=${|_split_tokens_fast "${tr_full_key#"$tr_path_key"}" 1;} || return $?
         #@endif
         #@if current_shell_process_replace==0
-    _split_tokens "${tr_full_key#"$tr_path_key"}" 1 1 || eval "${_ret_e}"
+    _split_tokens_fast "${tr_full_key#"$tr_path_key"}" 1 || eval "${_ret_e}"
     eval "${_ret_s_/o/tr_tokens_str}"
         #@endif
     local -a "tr_tokens=($tr_tokens_str)"
