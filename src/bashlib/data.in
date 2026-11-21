@@ -100,10 +100,7 @@ xo_data_type ()
 # Remove every live dataclass. Intended for tests / shutdown, not hot paths.
 xo_data_clear ()
 {
-    local h
-    for h in "${!XO_DATA_CLASS_POOL[@]}" ; do
-        unset -v "$h"
-    done
+    unset -v "${!XO_DATA_CLASS_POOL[@]}"
     XO_DATA_CLASS_POOL=()
     return 0
 }
