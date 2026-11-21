@@ -449,9 +449,11 @@ _play_game_tick () {
         OBJ_player[bullet]=${OBJ_player[w1]}
     fi
     # ---- 1. 冷却递减 ----
-    (( G_FIRE_CD > 0 )) && ((G_FIRE_CD--))
-    (( G_MISSILE_CD > 0 )) && ((G_MISSILE_CD--))
-    (( G_INV > 0 )) && ((G_INV--))
+    # 三条互不依赖，合并成一条算术命令，省两次命令分派；末尾 1 固定成功状态。
+    (( (G_FIRE_CD > 0 && G_FIRE_CD--),
+       (G_MISSILE_CD > 0 && G_MISSILE_CD--),
+       (G_INV > 0 && G_INV--),
+       1 ))
 
     # ---- 2. 玩家移动 ----
     (( G_DX || G_DY )) && \
