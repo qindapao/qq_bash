@@ -703,7 +703,7 @@ _xo_init_class ()
         local _tmpl_src=${!tmpl_var}
         local -i _direct=0
         # 本类显式声明的 FLT（没有就继承父类）
-        local _own_flt='' _has_flt=''
+        local _own_flt='' _has_flt='' _cur
 
         if [[ -n "$_tmpl_src" ]] ; then
                 #@if current_shell_process_replace==1
@@ -861,7 +861,8 @@ _xo_init_class ()
                         XO_METHOD_INHERITED[$mix_fn]=$mix
 
                         # 当前类新增加的方法要更新类方法管理资源池
-                        XO_CLASS_METHODS[$cls]+=" $mm"
+                        _cur=${XO_CLASS_METHODS[$cls]:-}
+                        XO_CLASS_METHODS[$cls]=${_cur:+$_cur }$mm
                     done
                 done
             fi
@@ -911,7 +912,8 @@ _xo_init_class ()
                 XO_METHOD_INHERITED[$fn]=$target_cls
 
                 # 当前类新增加的方法要更新类方法管理资源池
-                XO_CLASS_METHODS[$cls]+=" $m"
+                _cur=${XO_CLASS_METHODS[$cls]:-}
+                XO_CLASS_METHODS[$cls]=${_cur:+$_cur }$m
             done
         fi
 
