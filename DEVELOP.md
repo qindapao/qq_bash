@@ -871,6 +871,25 @@ supports objects, arrays, nulls, booleans, ordered children, and path access.
 Full parameters and return codes are documented in the function headers of
 `src/bashlib/x.in`.
 
+### Choosing an insert API
+
+| API | Path | Validation | Use when |
+|---|---|---|---|
+| `x_insert` | full physical path | full | NULL leaf upgrade, `[]`/`()`, existing containers |
+| `x_insert_dict` | full physical path | light | parent is already OBJ; only `{}` / `<id>`; no upgrade |
+| `x_insert_token_dict` | one layer under a known parent | none | batch insertion of direct children |
+
+`x_insert_dict` deliberately does **not**:
+
+- create an array from `[i]` / `()`
+- upgrade a NULL leaf to an object
+- validate that an intermediate parent is an object
+- reject an already-existing container at the full path
+
+It may leave `.k` plus `.t`/children on a NULL leaf; `x_get_node_type` will
+still report a leaf, so the children become invisible. Use `x_insert` for
+upgrade/array cases, and keep `x_insert_dict` on trusted OBJ paths only.
+
 ### Dataclass handles (`data.in`)
 
 `data.in` adds lightweight external containers that are **not** `xo` classes:
