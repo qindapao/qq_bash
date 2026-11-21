@@ -79,8 +79,7 @@ xo_data_bury ()
         return 1
     }
 
-    unset -v "$h"
-    unset -v 'XO_DATA_CLASS_POOL[$h]'
+    unset -v "$h" 'XO_DATA_CLASS_POOL[$h]'
     return 0
 }
 
