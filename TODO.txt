@@ -146,6 +146,10 @@
     做法：born → 记下所有用户字段（只取 `{...}`，跳过 x-tree 内部节点）→ 全部写哨兵
     → fire → hire → 逐字段比对基准。漏登记一个字段直接红。
     当前覆盖 Bullet / Missile；以后新增登记了 ResetFields 的类，加一行 `test_class`。
+  * **`test/strafe_bash/test_soa_buckets.sh` 偶发失败（待分析）**：
+    2026-11-21 全量 test.sh 出现"桶总长等于存活直下弹数 期望=[57] 实际=[58]"；
+    单独连跑 3 次均通过。需排查桶索引与 EB_ALIVE 是否存在瞬时不一致，
+    以及该测试的随机场景是否缺少稳定复现条件。定位前不要把这次失败当成回归。
 
 [P4] 收尾 / 待观察
   * `local` / 赋值合并：**已扫完**（scene.sh、play_game.sh、classes 全量）。

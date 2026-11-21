@@ -634,7 +634,8 @@ _xo_init_get_class_inher_chain ()
             path+="{"${chain[_ci]}"}$X"
         done
 
-        x_insert XO_CLASS_INHER_TREE "$path" "$X_VALUE_NULL" || {
+        # 路径完全由已校验的类名拼成，且只插叶子，使用轻校验的 x_insert_dict。
+        x_insert_dict XO_CLASS_INHER_TREE "$path" "$X_VALUE_NULL" || {
             die ERR "Class:$cls failed to insert into XO_CLASS_INHER_TREE"\
                     "(path:$path)"
             return 1
