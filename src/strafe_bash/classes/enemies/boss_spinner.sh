@@ -10,6 +10,13 @@ declare -gA _STRAFE_LOADED
 . "$STRAFE_PROJ_DIR/classes/projectiles/soa_bullets.sh"
 . "$STRAFE_PROJ_DIR/classes/enemies/boss_pattern.sh"
 
+
+# 类变量和方法声明
+declare -gA XO_CLASS_FLAT_OBJ_VARS XO_CLASS_METHODS
+XO_CLASS_FLAT_OBJ_VARS[BossSpinnerObj]=1
+XO_CLASS_METHODS[BossSpinner]='born move'
+
+
 # 旋刃四阶段 art（来自任务二设计稿）。
 readonly BOSS_SPINNER_ART_0=$'   o  >-----<  o\n    \\/  .-.  \\/\n    |  ( O )  |\n    /\\  \'-\'  /\\\n   o  >-----<  o'
 readonly BOSS_SPINNER_ART_1=$'   o  >-----<\n    \\/  .-.  \\\n    |  ( O )  |\n     \\  \'-\'  /\\\n      >-----<  o'

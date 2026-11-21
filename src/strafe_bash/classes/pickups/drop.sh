@@ -6,6 +6,12 @@ declare -gA _STRAFE_LOADED
 . "$STRAFE_PROJ_DIR/config/globals.sh"
 . "$STRAFE_PROJ_DIR/classes/base_types.sh"
 
+
+# 类变量和方法声明
+declare -gA XO_CLASS_FLAT_OBJ_VARS XO_CLASS_METHODS
+XO_CLASS_FLAT_OBJ_VARS[DropObj]=1
+XO_CLASS_METHODS[Drop]='born retire move'
+
 declare -gA DropObj=(
     [{CLS}$X]='Drop'
     [{SUP}$X]='Entity'

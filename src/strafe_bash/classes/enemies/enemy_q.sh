@@ -3,6 +3,11 @@ declare -gA _STRAFE_LOADED
 (( _STRAFE_LOADED[enemy_q]++ )) && return 0
 . "$STRAFE_PROJ_DIR/classes/enemies/enemy_base.sh"
 
+# 类变量和方法声明
+declare -gA XO_CLASS_FLAT_OBJ_VARS XO_CLASS_METHODS
+XO_CLASS_FLAT_OBJ_VARS[EnemyQObj]=1
+XO_CLASS_METHODS[EnemyQ]='born move'
+
 declare -gA EnemyQObj=(
     [{CLS}$X]='EnemyQ'
     [{SUP}$X]='Enemy'

@@ -3,6 +3,10 @@
 declare -gA _STRAFE_LOADED
 (( _STRAFE_LOADED[mixin_ram]++ )) && return 0
 
+# Mixin 公共方法声明
+declare -gA XO_MIXIN_METHODS
+XO_MIXIN_METHODS[M_Ram]='ram_tick ram_ready ram_damage'
+
 readonly M_RamStaticTemplate='
     M_RamObj ->
         {CLS} => M_Ram

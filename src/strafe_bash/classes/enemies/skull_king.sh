@@ -11,6 +11,13 @@ declare -gA _STRAFE_LOADED
 . "$STRAFE_PROJ_DIR/classes/projectiles/soa_bullets.sh"
 . "$STRAFE_PROJ_DIR/classes/enemies/boss_pattern.sh"
 
+
+# 类变量和方法声明
+declare -gA XO_CLASS_FLAT_OBJ_VARS XO_CLASS_METHODS
+XO_CLASS_FLAT_OBJ_VARS[SkullKingObj]=1
+XO_CLASS_METHODS[SkullKing]='born move'
+
+
 IFS= read -r -d '' SKULL_ART_0 <<'EOF' || true
      .-.
     (o.o)

@@ -64,6 +64,15 @@ readonly M_TreeOnlyStaticTemplate='
     '
 M_TreeOnly_ping () { REPLY=pong ; }
 
+# 手工注册表契约：树模板、扁平类对象、类方法、Mixin 方法都必须显式登记。
+XO_CLASS_TREE_TMPL_VARS[TNodeStaticTemplate]=1
+XO_CLASS_METHODS[TNode]='born'
+XO_CLASS_TREE_TMPL_VARS[TChildStaticTemplate]=1
+XO_CLASS_METHODS[TChild]=''
+XO_CLASS_FLAT_OBJ_VARS[FlatRefObj]=1
+XO_CLASS_METHODS[FlatRef]=''
+XO_MIXIN_METHODS[M_TreeOnly]='ping'
+
 xo_init
 
 printf '\n== 树类：类对象形态 ==\n'
@@ -131,6 +140,10 @@ readonly BadTreeStaticTemplate='
         {MIX} => 
         {FLT} => 0
     '
+XO_CLASS_FLAT_OBJ_VARS[FlatDadObj]=1
+XO_CLASS_METHODS[FlatDad]=''
+XO_CLASS_TREE_TMPL_VARS[BadTreeStaticTemplate]=1
+XO_CLASS_METHODS[BadTree]=''
 xo_init >/dev/null 2>&1
 echo "rc=$?"
 xo_init 2>&1 | head -2

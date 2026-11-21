@@ -3,6 +3,11 @@
 declare -gA _STRAFE_LOADED
 (( _STRAFE_LOADED[mixin_blink]++ )) && return 0
 
+# Mixin 公共方法声明
+declare -gA XO_MIXIN_METHODS
+XO_MIXIN_METHODS[M_Blink]='blink_start blink_tick blink_visible'
+
+
 readonly M_BlinkStaticTemplate='
     M_BlinkObj ->
         {CLS} => M_Blink

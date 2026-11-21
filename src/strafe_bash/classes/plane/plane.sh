@@ -12,6 +12,13 @@ declare -gA _STRAFE_LOADED
 . "$STRAFE_PROJ_DIR/classes/plane/mixin_ram.sh"
 . "$STRAFE_PROJ_DIR/classes/projectiles/bullet.sh"
 
+
+# 类变量和方法声明
+declare -gA XO_CLASS_FLAT_OBJ_VARS XO_CLASS_METHODS
+XO_CLASS_FLAT_OBJ_VARS[PlaneObj]=1
+XO_CLASS_METHODS[Plane]='born use_skill retire move fire'
+
+
 declare -gA PlaneObj=(
     [{CLS}$X]='Plane'
     [{SUP}$X]='Entity'

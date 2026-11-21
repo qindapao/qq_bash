@@ -3,6 +3,18 @@ declare -gA _STRAFE_LOADED
 (( _STRAFE_LOADED[plane_types]++ )) && return 0
 . "$STRAFE_PROJ_DIR/classes/plane/plane.sh"
 
+
+# 类变量和方法声明
+declare -gA XO_CLASS_FLAT_OBJ_VARS XO_CLASS_METHODS
+XO_CLASS_FLAT_OBJ_VARS[PlaneBeeObj]=1
+XO_CLASS_METHODS[PlaneBee]=''
+XO_CLASS_FLAT_OBJ_VARS[PlaneHornetObj]=1
+XO_CLASS_METHODS[PlaneHornet]=''
+XO_CLASS_FLAT_OBJ_VARS[PlaneEagleObj]=1
+XO_CLASS_METHODS[PlaneEagle]=''
+XO_CLASS_FLAT_OBJ_VARS[PlaneIl2Obj]=1
+XO_CLASS_METHODS[PlaneIl2]=''
+
 # Bee: inherits the default Plane values
 # 字段含义全部继承自 Plane，这里一个都没覆盖
 declare -gA PlaneBeeObj=(

@@ -37,6 +37,14 @@ declare -gA BOSS_BUFF_LABEL=(
     [M_BuffSlow]=SLOW
 )
 
+# Mixin 公共方法声明
+declare -gA XO_MIXIN_METHODS
+XO_MIXIN_METHODS[M_BuffMissile]='buff_tick'
+XO_MIXIN_METHODS[M_BuffInvuln]='buff_tick'
+XO_MIXIN_METHODS[M_BuffHeal]='buff_ok buff_tick'
+XO_MIXIN_METHODS[M_BuffWave]='buff_tick'
+XO_MIXIN_METHODS[M_BuffSlow]=''
+
 
 readonly M_BuffMissileStaticTemplate='
     M_BlinkObj ->

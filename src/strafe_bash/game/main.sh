@@ -46,7 +46,9 @@ main () {
     cursor_hide
     XO_INIT_PROGRESS=1
     XO_INIT_PROGRESS_FD=1
-    xo_init || fatal 'xo_init failed'
+
+    # 暂时开启类/Mixin/模板/类方法校验
+    xo_init 1 || fatal 'xo_init failed'
 
     # 上一次异常退出可能把鼠标上报留在打开状态，进场前先归零一次。
     printf '\033[?1000l\033[?1002l\033[?1003l\033[?1006l'

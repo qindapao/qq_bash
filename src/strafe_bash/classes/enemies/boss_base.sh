@@ -6,6 +6,12 @@ declare -gA _STRAFE_LOADED
 . "$STRAFE_PROJ_DIR/config/const.sh"
 . "$STRAFE_PROJ_DIR/config/globals.sh"
 
+
+# 类变量和方法声明
+declare -gA XO_CLASS_FLAT_OBJ_VARS XO_CLASS_METHODS
+XO_CLASS_FLAT_OBJ_VARS[BossBaseObj]=1
+XO_CLASS_METHODS[BossBase]='born'
+
 # 所有 Boss 的公共字段和公共行为。
 # 具体 Boss 只在自己的模板里覆盖 w/h/hp/art/pcut/death_style。
 declare -gA BossBaseObj=(

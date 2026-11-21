@@ -4,6 +4,11 @@
 declare -gA _STRAFE_LOADED
 (( _STRAFE_LOADED[mixin_long_blink]++ )) && return 0
 
+
+# Mixin 公共方法声明
+declare -gA XO_MIXIN_METHODS
+XO_MIXIN_METHODS[M_LongBlink]='blink_start'
+
 readonly M_LongBlinkStaticTemplate='
     M_LongBlinkObj ->
         {CLS} => M_LongBlink

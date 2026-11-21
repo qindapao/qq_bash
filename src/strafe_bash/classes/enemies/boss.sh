@@ -9,6 +9,11 @@ declare -gA _STRAFE_LOADED
 . "$STRAFE_PROJ_DIR/config/globals.sh"
 . "$STRAFE_PROJ_DIR/classes/projectiles/soa_bullets.sh"
 
+# 类变量和方法声明
+declare -gA XO_CLASS_FLAT_OBJ_VARS XO_CLASS_METHODS
+XO_CLASS_FLAT_OBJ_VARS[BossObj]=1
+XO_CLASS_METHODS[Boss]='born move'
+
 # 标准 Boss 的四段 art。放在类文件里，Boss_move 只认字段，不再写死变量名。
 readonly BOSS_ART_100=$'    _____    \n   /     \\   \n  /  O O  \\  \n  \\_|_|_|_/  \n   \\_____/   '
 readonly BOSS_ART_70=$'    _____    \n   /     \\   \n  /  X O  \\  \n  \\_|_|_._/  \n   \\_____/   '

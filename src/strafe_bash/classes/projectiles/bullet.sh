@@ -4,6 +4,11 @@ declare -gA _STRAFE_LOADED
 . "$STRAFE_LIB_HOME/xo.sh"
 . "$STRAFE_PROJ_DIR/classes/base_types.sh"
 
+# 类变量和方法声明
+declare -gA XO_CLASS_FLAT_OBJ_VARS XO_CLASS_METHODS
+XO_CLASS_FLAT_OBJ_VARS[BulletObj]=1
+XO_CLASS_METHODS[Bullet]='born retire move'
+
 declare -gA BulletObj=(
     [{CLS}$X]='Bullet'
     [{SUP}$X]='Entity'

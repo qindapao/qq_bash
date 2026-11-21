@@ -7,6 +7,12 @@ declare -gA _STRAFE_LOADED
 . "$STRAFE_PROJ_DIR/classes/base_types.sh"
 . "$STRAFE_PROJ_DIR/classes/projectiles/soa_bullets.sh"
 
+
+# 类变量和方法声明
+declare -gA XO_CLASS_FLAT_OBJ_VARS XO_CLASS_METHODS
+XO_CLASS_FLAT_OBJ_VARS[EnemyObj]=1
+XO_CLASS_METHODS[Enemy]='born'
+
 declare -gA EnemyObj=(
     [{CLS}$X]='Enemy'
     [{SUP}$X]='Entity'

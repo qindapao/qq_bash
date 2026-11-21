@@ -48,6 +48,19 @@ declare -gA TestNoFieldObj=(
 
 TestObj_hello () { REPLY='hello' ; }
 
+# 手工注册表契约：类对象、类方法、对象级 Mixin 都必须显式登记。
+XO_CLASS_FLAT_OBJ_VARS[TestObjObj]=1
+XO_CLASS_METHODS[TestObj]='hello'
+XO_CLASS_FLAT_OBJ_VARS[TestNoFieldObj]=1
+XO_CLASS_METHODS[TestNoField]=''
+XO_MIXIN_METHODS[M_T1]='ping solo'
+XO_MIXIN_METHODS[M_T2]='ping extra'
+XO_MIXIN_METHODS[M_T3]='ping'
+XO_MIXIN_METHODS[M_H1]='ping'
+XO_MIXIN_METHODS[M_H2]='ping'
+XO_MIXIN_METHODS[M_H3]=''
+XO_MIXIN_METHODS[M_H4]=''
+
 xo_init
 
 # 每次用例开头都从干净对象开始，避免用例间互相污染

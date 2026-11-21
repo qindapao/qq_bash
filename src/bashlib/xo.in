@@ -388,11 +388,6 @@
 declare -gA XO_CLASS_INHER_TREE=()
 declare -gA XO_METHOD_INHERITED=()
 
-# 类定义扫描结果（lazy，只扫一次；见 _xo_scan_class_vars 的说明）。
-#   树类模板：*StaticTemplate（M_* 是 Mixin 声明，不算类）
-#   扁平类对象：*Obj
-declare -ga XO_CLASS_TREE_TMPL_VARS=()
-declare -ga XO_CLASS_FLAT_OBJ_VARS=()
 declare -gi XO_CLASS_VARS_READY=0
 # 扁平类保留的元键（其余字段一律剥成扁平键）。和 _xo_field_key 的判定保持一致。
 declare -gA XO_FLAT_META=(
@@ -421,13 +416,21 @@ declare -gA XO_RES_COUNT=() XO_RES_MARKET=() XO_RES_LIMIT=()
 declare -gi XO_RES_LIMIT_DEFAULT=512
 declare -gA XO_RESET_FIELDS=() XO_RESET_DEF=() XO_RESET_READY=()
 
-# -------------------对象级Mixin--------------------
-# 缓存：mixin => "方法1 方法2"，首次使用时扫描一次，之后只查表
-declare -gA XO_MIXIN_METHODS=()
 # 分派表："OBJ_x|method" => "M_Mixin_method"
 declare -gA XO_OBJ_METHOD=()
 # 当前持有动态能力的对象集合；xo_obj_bury 靠它做「是否需要清理路由」的廉价门控
 declare -gA XO_OBJ_MIXED=()
+
+# -------------------初始化管理---------------------
+# 类方法管理资源池，只声明不能初始化，因为各个类都会追加
+declare -gA XO_CLASS_METHODS
+# Mixin 方法资源池
+declare -gA XO_MIXIN_METHODS
+# 类模板(树类)和类对象(扁平类)资源池
+declare -gA XO_CLASS_TREE_TMPL_VARS
+declare -gA XO_CLASS_FLAT_OBJ_VARS
+
+
 
 # ---------------- 根类区域 --------------------------------------------------
 # 模板规范：
@@ -441,6 +444,13 @@ declare -gA XO_OBJ_MIXED=()
 #   例（正确）：{CLS} =>             -> "=> " 后无内容，值为空
 #   例（错误）：{CLS} => Base[SP]    -> 尾随空格进值，CLS 变成 "Base "
 #   例（错误）：{CLS} =>[SP][SP]Base -> 第二个空格进值，值为 " Base"
+
+# 注册类方法
+declare -gA XO_CLASS_METHODS
+declare -gA XO_CLASS_FLAT_OBJ_VARS
+XO_CLASS_METHODS[Base]='print born retire'
+XO_CLASS_FLAT_OBJ_VARS[BaseObj]=1
+
 
 declare -gA BaseObj=(
     # 类名（所有类的根，唯一允许 {SUP} 为空的类）
@@ -484,6 +494,13 @@ Base_retire ()
 }
 
 # ----------------------------------------------------------------------------
+
+declare -gA XO_CLASS_METHODS
+XO_CLASS_METHODS[BaseX]='print'
+declare -gA XO_CLASS_TREE_TMPL_VARS
+XO_CLASS_TREE_TMPL_VARS[BaseXStaticTemplate]=1
+
+
 # 所有的 x_tree 类的根，它本身是 Base 子类，Base是所有扁平类的根
 readonly BaseXStaticTemplate='
     BaseXObj -> 
@@ -498,61 +515,15 @@ readonly BaseXStaticTemplate='
 
 BaseX_print () { x_dump "$1" '' 4 2 ; }
 
-# ----------------------------------------------------------------------------
-# 扫描一次全局变量名，把类定义按后缀分桶缓存。
-#
-# 为什么缓存：compgen -A variable 本身 ~1ms，但 bash 5.2 没有 -V，只能走
-# arr=($(compgen ...))，MSYS 上每次命令替换 fork 约 20ms；继承链扫描要用一份、
-# 进度统计原来又要两份，缓存后整个 init 只 fork 一次（5.3+ 的 -V 连这一次都省）。
-#
-# 为什么用 -X 过滤而不是先扫全部再分桶：不过滤时命令替换要回传 450+ 个名字，
-# 赋值/分词就要 ~10ms；用 extglob 的 | 表达式把"两个后缀"一次过滤成 30 多个名字，
-# 实测 22ms vs 33ms。注意 @(...) 必须在 extglob 开启时才有意义（关着会得到空列表，
-# 不报错），所以这里临时打开、结束后恢复原状。
-#
-# 缓存时机：只在 xo_init 内、构建类对象之前调用。此时所有类定义已 source 完，
-# 而 ${cls}Obj 还没被构建出来 —— 缓存代表"定义"，不是"构建产物"。
-# xo_init 只允许跑一次，所以不需要失效逻辑。
-#
-# 注意：compgen 在函数里会看到函数局部变量；过滤只按后缀保留，局部名不以
-# *StaticTemplate / *Obj 结尾就不会误入。
-_xo_scan_class_vars ()
-{
-    (( XO_CLASS_VARS_READY )) && return 0
-    local -a all_vars=()
-    local -i _eg_on=0
-    shopt -q extglob && _eg_on=1
-    shopt -s extglob
-        #@if compgen_v==1
-    compgen -V all_vars -A variable -X '!*@(StaticTemplate|Obj)'
-        #@endif
-        #@if compgen_v==0
-    all_vars=($(compgen -A variable -X '!*@(StaticTemplate|Obj)'))
-        #@endif
-    (( _eg_on )) || shopt -u extglob
-    local v
-    for v in "${all_vars[@]}" ; do
-        case "$v" in
-            # Mixin 声明，不是类
-            M_*StaticTemplate) ;;
-            *StaticTemplate) XO_CLASS_TREE_TMPL_VARS+=("$v") ;;
-            *Obj)            XO_CLASS_FLAT_OBJ_VARS+=("$v") ;;
-        esac
-    done
-    XO_CLASS_VARS_READY=1
-    return 0
-}
 
 _xo_init_get_class_inher_chain ()
 {
-    _xo_scan_class_vars
-
     local var_name super cls
     local -A cls_super=()
     local re='^([ ]+)\{SUP\} => (.*)$'
 
     # ---- 1. 收集 类名 -> 父类名（排除 Mixin 和 Base 自身）----
-    for var_name in "${XO_CLASS_TREE_TMPL_VARS[@]}" ; do
+    for var_name in "${!XO_CLASS_TREE_TMPL_VARS[@]}" ; do
         cls=${var_name%StaticTemplate}
 
             #@if current_shell_process_replace==1
@@ -572,7 +543,7 @@ _xo_init_get_class_inher_chain ()
         cls_super[$cls]=$super
     done
 
-    for var_name in "${XO_CLASS_FLAT_OBJ_VARS[@]}" ; do
+    for var_name in "${!XO_CLASS_FLAT_OBJ_VARS[@]}" ; do
         local -n var_obj=$var_name
         cls=${var_obj["{CLS}$X"]}
         [[ "$cls" == 'Base' ]] && continue
@@ -684,9 +655,6 @@ _xo_check_mixin_to_class_match ()
 
 _xo_progress_count ()
 {
-    # 复用 _xo_scan_class_vars 的分桶结果，不再 compgen（省两次 fork）。
-    # 计数口径 = 类定义数：树类模板 1 个、扁平类对象 1 个（构建出的 ${cls}Obj 不计）。
-    _xo_scan_class_vars
     XO_INIT_TOTAL=$(( ${#XO_CLASS_TREE_TMPL_VARS[@]} + ${#XO_CLASS_FLAT_OBJ_VARS[@]} ))
 }
 
@@ -879,44 +847,24 @@ _xo_init_class ()
 
             if [[ -n "$mix_list" ]] ; then
                 local mix mix_pattern mix_fn mm
-                local -a mix_methods=()
                 for mix in $mix_list ; do
                     # 校验混入的Mixin和当前类的扁平属性是否匹配
                     _xo_check_mixin_to_class_match "$cls" "$mix" || return $?
-                    printf -v mix_pattern '!%s_[!_]*' "$mix"
-                        #@if compgen_v==1
-                    compgen -V mix_methods -A function -X "$mix_pattern"
-                        #@endif
-                        #@if compgen_v==0
-                    mix_methods=($(compgen -A function -X "$mix_pattern"))
-                        #@endif
-                    mix_methods=("${mix_methods[@]#${mix}_}")
 
-                    for mm in "${mix_methods[@]}" ; do
+                    # 这里是轮询列表所以千万不能加双引号
+                    for mm in ${XO_MIXIN_METHODS[$mix]} ; do
                         mix_fn="${cls}_${mm}"
                         # 类自身已有 → 保留（类自身优先）
                         # 前面的 Mixin 已注入 → 保留（列表前面的优先）
                         declare -F "$mix_fn" >/dev/null && continue
                         eval -- "${mix_fn} () { ${mix}_${mm} \"\$@\" ; }"
                         XO_METHOD_INHERITED[$mix_fn]=$mix
+
+                        # 当前类新增加的方法要更新类方法管理资源池
+                        XO_CLASS_METHODS[$cls]+=" $mm"
                     done
                 done
             fi
-
-            # 扩充类实例方法，补充当前子类没有而父类拥有的方法
-            # 首先获取父类所有的实例方法(排除掉_那些私有方法)
-            # 这里一定要使用 compgen 工具重新获取，因为函数一直在动态刷新！
-            # 下一次循环的时候父类的方法集合已经改变！
-            local -a father_methods=()
-            local father_func_pattern=
-            printf -v father_func_pattern '!%s_[!_]*' "$father"
-                #@if compgen_v==1
-            compgen -V father_methods -A function -X "$father_func_pattern"
-                #@endif
-                #@if compgen_v==0
-            father_methods=($(compgen -A function -X "$father_func_pattern"))
-                #@endif
-            father_methods=("${father_methods[@]#${father}_}")
 
             # ---- 路径压缩：直接把子类方法指向「最终实现类」----
             #
@@ -947,7 +895,8 @@ _xo_init_class ()
             #
             #   Mixin 同理：Mixin 注入时记录的是 M_xxx 名，子类查表也一步命中。
             local m
-            for m in "${father_methods[@]}" ; do
+            # 下面这里是遍历列表，一定不能加双引号
+            for m in ${XO_CLASS_METHODS[$father]} ; do
                 local fn="${cls}_${m}"
                 # 子类已有，跳过
                 declare -F "$fn" >/dev/null && continue
@@ -960,6 +909,9 @@ _xo_init_class ()
 
                 eval -- "${fn} () { ${target_cls}_${m} \"\$@\" ; }"
                 XO_METHOD_INHERITED[$fn]=$target_cls
+
+                # 当前类新增加的方法要更新类方法管理资源池
+                XO_CLASS_METHODS[$cls]+=" $m"
             done
         fi
 
@@ -982,7 +934,143 @@ _xo_init_class ()
     _xo_progress_finish
 }
 
+_xo_check_statement_match ()
+{
+    # 默认不校验，开发阶段这里传入1开启校验，初始化速度减慢
+    local is_check=${1:-0}
+    ((is_check)) || return 0
 
+    # 取一个 Mixin/Class 的公共方法列表（去掉 Mixin_/Class_ 前缀），结果放 REPLY。
+    _xo_get_methods ()
+    {
+        local prefix=$1
+
+        local -a found=()
+        local pattern
+        printf -v pattern '!%s_[!_]*' "$prefix"
+            #@if compgen_v==1
+        compgen -V found -A function -X "$pattern"
+            #@endif
+            #@if compgen_v==0
+        found=($(compgen -A function -X "$pattern"))
+            #@endif
+        found=("${found[@]#${prefix}_}")
+
+        REPLY=${found[*]}
+        return 0
+    }
+    # ----------------------------------------------------------------------------
+    # 扫描一次全局变量名，把类定义按后缀分桶缓存。
+    #
+    # 注意：compgen 在函数里会看到函数局部变量；过滤只按后缀保留，局部名不以
+    # *StaticTemplate / *Obj 结尾就不会误入。
+    _xo_scan_class_vars ()
+    {
+        local -a all_vars=()
+        local -i _eg_on=0
+        shopt -q extglob && _eg_on=1
+        shopt -s extglob
+            #@if compgen_v==1
+        compgen -V all_vars -A variable -X '!*@(StaticTemplate|Obj)'
+            #@endif
+            #@if compgen_v==0
+        all_vars=($(compgen -A variable -X '!*@(StaticTemplate|Obj)'))
+            #@endif
+        (( _eg_on )) || shopt -u extglob
+        local v
+        for v in "${all_vars[@]}" ; do
+            case "$v" in
+                # Mixin 声明，不是类
+                # 这里扫描 Mixin 的方法然后记录下来
+                # 剥离掉前缀的
+                M_*StaticTemplate)
+                    _xo_get_methods "${v%StaticTemplate}"
+                    xo_mixin_methods[${v%StaticTemplate}]=$REPLY
+                    ;;
+                *StaticTemplate)
+                    xo_class_tree_tmpl_vars[$v]=1
+                    _xo_get_methods "${v%StaticTemplate}"
+                    xo_class_methods[${v%StaticTemplate}]=$REPLY
+                    ;;
+                *Obj)
+                    xo_class_flat_obj_vars[$v]=1
+                    _xo_get_methods "${v%Obj}"
+                    xo_class_methods[${v%Obj}]=$REPLY
+                    ;;
+            esac
+        done
+        return 0
+    }
+
+    _xo_words_equal () {
+        local -a wa=() wb=()
+        local -A A=() B=()
+
+        read -r -a wa <<< "$1"
+        read -r -a wb <<< "$2"
+
+        local w
+        for w in "${wa[@]}" ; do
+            A["$w"]=1
+        done
+        for w in "${wb[@]}" ; do
+            B["$w"]=1
+        done
+
+        (( ${#A[@]} == ${#B[@]} )) || return 1
+
+        for w in "${!A[@]}" ; do
+            [[ -n "${B[$w]+_}" ]] || return 1
+        done
+        return 0
+    }
+
+    _xo_assoc_equal() {
+        _xo_assoc_equal_err_print ()
+        {
+            die ERR "$1 keys:${!_a[*]} $2 keys:${!_b[*]}"
+        }
+        local -n _a=$1 _b=$2
+        # 数量不同，直接失败
+        (( ${#_a[@]} == ${#_b[@]} )) || {
+            _xo_assoc_equal_err_print "$@"
+            return 1
+        }
+
+        local k
+        for k in "${!_a[@]}" ; do
+            # 先确认 key 存在；+_ 能正确处理空值
+            [[ -n "${_b[$k]+_}" ]] || {
+                _xo_assoc_equal_err_print "$@"
+                return 1
+            }
+
+            # 值必须完全相等，注意引号
+            # 这里的相等不是完全相等
+            # ' a word xx '
+            # 'word xx a'
+            # 上面两个值认为相等，两边 trim 然后出现的单词完全一样
+            # 认为相同，顺序不敏感
+            _xo_words_equal "${_a[$k]}" "${_b[$k]}" || {
+                die ERR "$1 key:$k value:${_a[$k]}, $2 key:$k value:${_b[$k]}"
+                return 1
+            }
+        done
+        return 0
+    }
+
+    local -A xo_class_tree_tmpl_vars=() xo_class_flat_obj_vars=() \
+             xo_mixin_methods=() xo_class_methods=()
+    _xo_scan_class_vars
+    # 首先校验类模板和类对象申明没有遗漏和错误
+    _xo_assoc_equal XO_CLASS_TREE_TMPL_VARS xo_class_tree_tmpl_vars || return $?
+    _xo_assoc_equal XO_CLASS_FLAT_OBJ_VARS xo_class_flat_obj_vars || return $?
+    # 校验声明的 Mixin 方法是否有遗漏
+    _xo_assoc_equal XO_MIXIN_METHODS xo_mixin_methods || return $?
+    # 校验声明的 类 方法是否有遗漏
+    _xo_assoc_equal XO_CLASS_METHODS xo_class_methods || return $?
+    return 0
+}
 
 # -------------------------对象管理部分---------------------------------------
 
@@ -990,6 +1078,11 @@ xo_init ()
 {
     # 确保 xo_init 函数只能被调用一次
     [[ -n "$_XO_INIT_CALLED" ]] && return 0
+
+    # 开发阶段的校验，使用 compgen 来校验用户声明的类/Minxin/类对象/类模板
+    # 和实际是否匹配
+    # $1 传 1表示开启校验，默认不校验走快速路径
+    _xo_check_statement_match "$1" || return $?
 
     # 保存全局的调用关系链
     _xo_init_get_class_inher_chain || return $?
@@ -1397,7 +1490,7 @@ xo_fire_clear ()
     return 0
 }
 
-xo_class_methods ()
+xo_class_methods_print ()
 {    local cls=$1
 
     local -n cls_obj_var="${cls}Obj"
@@ -1406,19 +1499,9 @@ xo_class_methods ()
         return 1
     }
 
-    local pattern
-    printf -v pattern '!%s_[!_]*' "$cls"
-    local -a methods=()
-        #@if compgen_v==1
-    compgen -V methods -A function -X "$pattern"
-        #@endif
-        #@if compgen_v==0
-    methods=($(compgen -A function -X "$pattern"))
-        #@endif
-    methods=("${methods[@]#${cls}_}")
-
     local m fn origin
-    for m in "${methods[@]}" ; do
+    # 下面的双引号一定不能加，这里的是遍历列表
+    for m in ${XO_CLASS_METHODS[$cls]} ; do
         fn="${cls}_${m}"
         if [[ -n "${XO_METHOD_INHERITED[$fn]+_}" ]] ; then
             origin=${XO_METHOD_INHERITED[$fn]}
@@ -1512,31 +1595,6 @@ xo_is_a ()
 #-------------------------------------------------------------------------------
 
 
-# 取一个 Mixin 的公共方法列表（去掉 Mixin_ 前缀），结果放 REPLY。
-# 只扫这一个 Mixin 的函数，不做全局 M_* 分组：Mixin 名带下划线时不会歧义。
-_xo_mixin_methods ()
-{
-    local mixin=$1
-    if [[ -n "${XO_MIXIN_METHODS[$mixin]+_}" ]] ; then
-        REPLY=${XO_MIXIN_METHODS[$mixin]}
-        return 0
-    fi
-
-    local -a found=()
-    local pattern
-    printf -v pattern '!%s_[!_]*' "$mixin"
-        #@if compgen_v==1
-    compgen -V found -A function -X "$pattern"
-        #@endif
-        #@if compgen_v==0
-    found=($(compgen -A function -X "$pattern"))
-        #@endif
-    found=("${found[@]#${mixin}_}")
-
-    REPLY=${found[*]}
-    XO_MIXIN_METHODS[$mixin]=$REPLY
-    return 0
-}
 
 # 内部：只删路由表项，不动 {OBJMIX}。
 # 只允许在「该对象还没有任何动态 Mixin（名单为空）」时用，此时两半本来都是空的；
@@ -1613,8 +1671,7 @@ xo_obj_mixin_add ()
         # 校验混入的Mixin和当前类的扁平属性是否匹配
         _xo_check_mixin_to_class_match "$_cls" "$mixin" || return $?
 
-        _xo_mixin_methods "$mixin"
-        methods=$REPLY
+        methods=${XO_MIXIN_METHODS[$mixin]}
         # 只提供钩子、没有公共方法的能力也允许：它"获得即生效"，不对外提供可调用能力。
         # 但"既无公共方法又无 _init"的 Mixin 必然是名字写错，拒绝注入（否则会静默生效的空壳）。
         if [[ -z "$methods" ]] && ! declare -F "${mixin}__init" >/dev/null ; then
@@ -1693,16 +1750,14 @@ xo_obj_mixin_delete ()
     local m pick k methods_d
     # 被删掉的 Mixin
     for d in "${drop[@]}" ; do
-        _xo_mixin_methods "$d"
-        methods_d=$REPLY
+        methods_d=${XO_MIXIN_METHODS[$d]}
         # 它提供过的每个方法
         for m in $methods_d ; do
             pick=''
             # 剩下的 Mixin，按名单原顺序
             for k in "${keep[@]}" ; do
-                _xo_mixin_methods "$k"
                 # 找到第一个能提供 m 的就接任；keep 的顺序就是优先级
-                [[ " $REPLY " == *" $m "* ]] && { pick=$k ; break ; }
+                [[ " ${XO_MIXIN_METHODS[$k]} " == *" $m "* ]] && { pick=$k ; break ; }
             done
             if [[ -n "$pick" ]] ; then
                 # 有人接任

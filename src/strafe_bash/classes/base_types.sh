@@ -3,6 +3,30 @@ declare -gA _STRAFE_LOADED
 (( _STRAFE_LOADED[base_types]++ )) && return 0
 . "$STRAFE_LIB_HOME/xo.sh"
 
+
+# 类变量和方法声明
+declare -gA XO_CLASS_FLAT_OBJ_VARS XO_CLASS_METHODS
+XO_CLASS_FLAT_OBJ_VARS[EntityObj]=1
+XO_CLASS_METHODS[Entity]='retire'
+
+XO_CLASS_FLAT_OBJ_VARS[BulletTypeObj]=1
+XO_CLASS_METHODS[BulletType]=''
+
+XO_CLASS_FLAT_OBJ_VARS[BulletTypeDefaultObj]=1
+XO_CLASS_METHODS[BulletTypeDefault]=''
+
+XO_CLASS_FLAT_OBJ_VARS[BulletTypeLaserObj]=1
+XO_CLASS_METHODS[BulletTypeLaser]=''
+
+XO_CLASS_FLAT_OBJ_VARS[BulletTypeStarObj]=1
+XO_CLASS_METHODS[BulletTypeStar]=''
+
+XO_CLASS_FLAT_OBJ_VARS[BulletTypeAtObj]=1
+XO_CLASS_METHODS[BulletTypeAt]=''
+
+XO_CLASS_FLAT_OBJ_VARS[BulletTypeDollarObj]=1
+XO_CLASS_METHODS[BulletTypeDollar]=''
+
 # 当前继承树，一旦改变继承层级需要更新这个注释
 # 所有类都是 Base 的后代：Base 及其子类默认扁平（FLT=1），BaseX 是唯一的树类（FLT=0）。
 # XO_CLASS_INHER_TREE(1) -> 

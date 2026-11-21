@@ -92,6 +92,19 @@ declare -gA BossObj=(
     [{SUP}$X]='Mob'
 )
 
+# 手工注册表契约：类对象、类方法、对象级 Mixin 都必须显式登记。
+XO_CLASS_FLAT_OBJ_VARS[EntityObj]=1
+XO_CLASS_METHODS[Entity]=''
+XO_CLASS_FLAT_OBJ_VARS[MobObj]=1
+XO_CLASS_METHODS[Mob]='act health absorb'
+XO_CLASS_FLAT_OBJ_VARS[BossObj]=1
+XO_CLASS_METHODS[Boss]='act'
+XO_MIXIN_METHODS[M_Shield]='absorb'
+XO_MIXIN_METHODS[M_Fire]='act tick'
+XO_MIXIN_METHODS[M_Ice]='tick freeze health'
+XO_MIXIN_METHODS[M_Wind]='tick'
+XO_MIXIN_METHODS[M_Absorb]='absorb'
+
 xo_init
 
 test_case1 ()

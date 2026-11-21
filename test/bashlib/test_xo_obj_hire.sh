@@ -65,6 +65,17 @@ FailObj_retire () { return 1 ; }
 
 M_TX_ping () { REPLY='TX' ; }
 
+# 手工注册表契约：类对象、类方法、对象级 Mixin 都必须显式登记。
+XO_CLASS_FLAT_OBJ_VARS[HireObjObj]=1
+XO_CLASS_METHODS[HireObj]='born retire'
+XO_CLASS_FLAT_OBJ_VARS[PlainObjObj]=1
+XO_CLASS_METHODS[PlainObj]='born'
+XO_CLASS_FLAT_OBJ_VARS[BadObjObj]=1
+XO_CLASS_METHODS[BadObj]=''
+XO_CLASS_FLAT_OBJ_VARS[FailObjObj]=1
+XO_CLASS_METHODS[FailObj]='retire'
+XO_MIXIN_METHODS[M_TX]='ping'
+
 xo_init
 
 reset_market ()
