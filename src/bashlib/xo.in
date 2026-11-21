@@ -566,43 +566,67 @@ _xo_init_get_class_inher_chain ()
     x_init "$X_TYPE_OBJ" ; eval "${_ret_g_A/o/XO_CLASS_INHER_TREE}"
         #@endif
 
-    # ---- 3. 校验继承链；只插入叶子路径 ----
+    # ---- 3. 校验所有类的 SUPER 链 ----
+    #   *. 遍历所有类，沿 SUPER 链向上
+    #   *. 遇到 1 → 环
+    #   *. 遇到缺失的 SUPER → 悬空引用
+    #   *. 到达 Base 或已验证节点 → 整条路径标 2
+    #   *. 校验完所有类后，再只给叶子类拼路径、插入 x_tree
+    # 颜色标记：
+    #   0/未设置 = 未访问
+    #   1        = 当前路径上
+    #   2        = 已验证无环
     #
-    # 先校验所有类的 SUPER 链，再只给叶子类拼路径。
     # 不能先按“有没有子类”跳过：纯环上的每个节点都有子类，
     # 先跳过会把整条环漏掉，永远不会触发环检测。
-    #
-    # 叶子完整路径唯一，x_insert 会自动创建中间容器；
-    # 所以不需要再查路径是否已存在，也不会往已有容器上写叶子值。
-    local cur path
+    local cur cls path
     local -a chain
     local -i _ci
-    local -A _visited=()
+    local -A _state=()
 
     for cls in "${!cls_super[@]}" ; do
-        chain=() cur=$cls _visited=()
-
+        [[ "${_state[$cls]:-0}" == 2 ]] && continue
+        chain=()
+        cur=$cls
         while [[ "$cur" != 'Base' ]] ; do
+            case "${_state[$cur]:-0}" in
+                2) break ;;
+                1) die ERR "Class:$cls SUPER chain circular"\
+                        "at:$cur (path: ${chain[*]} -> $cur)"
+                   return 1
+                   ;;
+            esac
             # 悬空引用：SUPER 指向一个未定义的类
             if [[ -z "${cls_super[$cur]+_}" ]] ; then
                 die ERR "Class:$cls SUPER chain hits undefined"\
                         "class:$cur (path: ${chain[*]} -> $cur)"
                 return 1
             fi
-            # 环检测：路径上重复出现
-            if [[ -n "${_visited[$cur]+_}" ]] ; then
-                die ERR "Class:$cls SUPER chain circular"\
-                        "at:$cur (path: ${chain[*]} -> $cur)"
-                return 1
-            fi
-            _visited[$cur]=1
-            # 尾部追加；下面反向拼路径。
+            _state[$cur]=1
+            # 尾部追加；后面只用于错误路径，叶子路径会在下面重建。
             chain+=("$cur")
             cur=${cls_super[$cur]}
         done
+        # 整条路径已验证；标黑，后续类命中它时不必再走。
+        for cur in "${chain[@]}" ; do
+            _state[$cur]=2
+        done
+    done
 
+    # ---- 4. 只插入叶子完整路径 ----
+    #
+    # 叶子完整路径唯一，x_insert 会自动创建中间容器；
+    # 所以不需要再查路径是否已存在，也不会往已有容器上写叶子值。
+    for cls in "${!cls_super[@]}" ; do
         # 有子类的类是中间容器，x_insert 会从叶子路径自动创建。
         [[ -n "${cls_has_child[$cls]+_}" ]] && continue
+
+        chain=()
+        cur=$cls
+        while [[ "$cur" != 'Base' ]] ; do
+            chain+=("$cur")
+            cur=${cls_super[$cur]}
+        done
 
         # chain 是 leaf→...→A，反向拼成 {Base}$X{A}$X...$X{leaf}$X。
         path="{Base}$X"
