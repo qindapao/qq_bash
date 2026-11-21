@@ -441,6 +441,10 @@ XO_CLASS_METHODS[Division]='born'
 
 - `{FLT} => 0` marks a tree class; flat classes never set it (they inherit
   `FLT=1` from `Base`). `Division` inherits from `BaseX`, the tree root.
+- Nested objects and arrays are allowed in a tree-class template. Array elements
+  use the dump syntax (`o = value`); the framework materializes them per class.
+  Prefer empty containers or fields created in `<Cls>_born` for large mutable
+  defaults, because every instance copies the class object's default tree.
 - Template format: one header line (`DivisionObj ->`) followed by
   `{field} => default` lines, `#` comments allowed. Values are unescaped once
   (`\\` becomes `\`).
@@ -866,6 +870,66 @@ supports objects, arrays, nulls, booleans, ordered children, and path access.
 
 Full parameters and return codes are documented in the function headers of
 `src/bashlib/x.in`.
+
+### Dataclass handles (`data.in`)
+
+`data.in` adds lightweight external containers that are **not** `xo` classes:
+
+```text
+ARR    indexed Bash array
+ASSOC  associative Bash array
+DTREE  x tree with OBJ root
+ATREE  x tree with ARR root
+```
+
+Handles are `ARR_1`, `ASSOC_1`, `DTREE_1`, `ATREE_1`, ... from the global
+`XO_DATA_CLASS_IDX`. One pool records liveness and type:
+
+```text
+XO_DATA_CLASS_POOL[handle] = ARR|ASSOC|DTREE|ATREE
+```
+
+API:
+
+```bash
+. "$STRAFE_LIB_HOME/data.sh"   # data.in is independent of xo
+xo_data_born_arr       # REPLY=ARR_N
+xo_data_born_assoc     # REPLY=ASSOC_N
+xo_data_born_dtree     # REPLY=DTREE_N
+xo_data_born_atree     # REPLY=ATREE_N
+
+xo_data_bury "$handle"
+xo_data_is_live "$handle"
+xo_data_type "$handle" # REPLY=kind
+```
+
+Typical owner:
+
+```bash
+Bag_born () {
+    local -n self=$1
+    xo_data_born_assoc || return 1
+    self[bag]=$REPLY
+}
+
+Bag_retire () {
+    local -n self=$1
+    xo_data_bury "${self[bag]}" || return 1
+    self[bag]=''
+}
+```
+
+Contract:
+
+- A handle has exactly **one owner**; do not share it between objects.
+- Do not store another dataclass handle inside a dataclass container.
+- The owner must call `xo_data_bury`; do not `unset` a handle directly.
+- `fire` runs `retire`, and `hire` runs `born`, so the owner must release in
+  `retire` and recreate in `born` if the data should exist after rehire.
+- `xo_data_clear` removes all live dataclasses; use it only in tests/shutdown.
+
+Dataclasses are for an external bag attached to a flat/tree object, not for
+local temporaries and not for inheritance/method dispatch.
 
 ### Input/output contract
 

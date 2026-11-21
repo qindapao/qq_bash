@@ -10,5 +10,6 @@ src/bashlib/str.sh
 src/bashlib/var.sh
 src/bashlib/x.sh
 src/bashlib/xo.sh
+src/bashlib/data.sh
 test/bashlib/test_x.sh
 

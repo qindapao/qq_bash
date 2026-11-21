@@ -14,10 +14,35 @@ readonly TDNodeStaticTemplate='
         {FLT} => 0
         {name} => unnamed
         {v} => 0
+        {nested}
+            {child} => deep
+            {grand}
+                {leaf} => grand
+        {arr}
+            o = zero
+            o = one
+            o
+                {name} => third
+                {items}
+                    o = nested
 '
 TDNode_born () { REPLY='ok' ; }
 XO_CLASS_TREE_TMPL_VARS[TDNodeStaticTemplate]=1
 XO_CLASS_METHODS[TDNode]='born'
+
+readonly TDebugChildStaticTemplate='
+    TDebugChildObj ->
+        {CLS} => TDebugChild
+        {SUP} => TDNode
+        {MIX} => 
+        {OBJMIX} => 
+        {FLT} => 0
+        {child_only} => child
+        {child_nested}
+            {child_leaf} => child
+'
+XO_CLASS_TREE_TMPL_VARS[TDebugChildStaticTemplate]=1
+XO_CLASS_METHODS[TDebugChild]=''
 
 readonly M_DebugStaticTemplate='
     M_DebugObj ->
@@ -42,12 +67,6 @@ XO_CLASS_FLAT_OBJ_VARS[FlatDebugObj]=1
 XO_CLASS_METHODS[FlatDebug]='hello'
 
 xo_init 1 || { echo 'FAIL: xo_init' ; exit 1 ; }
-
-# 给树类加一个嵌套对象和一个数组，验证 debug 树能保留容器结构。
-x_insert_dict TDNodeObj "{nested}$X" "$X_VALUE_NULL_OBJ" || { echo 'FAIL: add nested' ; exit 1 ; }
-x_insert_dict TDNodeObj "{nested}$X{child}$X" 'deep' || { echo 'FAIL: add nested child' ; exit 1 ; }
-x_insert TDNodeObj "{arr}$X[0]$X" 'zero' >/dev/null 2>&1 || { echo 'FAIL: add array 0' ; exit 1 ; }
-x_insert TDNodeObj "{arr}$X[1]$X" 'one' >/dev/null 2>&1 || { echo 'FAIL: add array 1' ; exit 1 ; }
 
 before=$(x_dump XO_CLASS_INHER_TREE '' 4 2) || { echo 'FAIL: dump before' ; exit 1 ; }
 xo_debug_classes 5 > /tmp/qq_debug_classes_test.txt || { echo 'FAIL: xo_debug_classes' ; exit 1 ; }
@@ -75,6 +94,14 @@ grep -Fq 'o = zero' /tmp/qq_debug_classes_test.txt || { echo 'FAIL: missing nest
 grep -Fq 'o = one' /tmp/qq_debug_classes_test.txt || { echo 'FAIL: missing nested array element 1' ; exit 1 ; }
 grep -Fq '{born} => own' /tmp/qq_debug_classes_test.txt || { echo 'FAIL: missing tree method born' ; exit 1 ; }
 grep -Fq '{print} => BaseX' /tmp/qq_debug_classes_test.txt || { echo 'FAIL: missing tree inherited method source' ; exit 1 ; }
+
+grep -Fq '{TDebugChild}' /tmp/qq_debug_classes_test.txt || { echo 'FAIL: missing TDebugChild' ; exit 1 ; }
+grep -Fq '{child_only} => child' /tmp/qq_debug_classes_test.txt || { echo 'FAIL: missing child-only field' ; exit 1 ; }
+grep -Fq '{child_leaf} => child' /tmp/qq_debug_classes_test.txt || { echo 'FAIL: missing child nested field' ; exit 1 ; }
+if (( $(grep -Fc '{child} => deep' /tmp/qq_debug_classes_test.txt) < 2 )) ; then
+    echo 'FAIL: nested parent field not inherited by child'
+    exit 1
+fi
 
 grep -Fq '{__MIXINS}' /tmp/qq_debug_classes_test.txt || { echo 'FAIL: missing root mixins' ; exit 1 ; }
 grep -Fq '{burn} => own' /tmp/qq_debug_classes_test.txt || { echo 'FAIL: missing mixin method burn' ; exit 1 ; }

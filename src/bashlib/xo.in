@@ -843,14 +843,17 @@ _xo_init_class ()
 
             _xo_init_class_cb_insert_cb ()
             {
-                local type=$1 value=$4 full_key=$6
-                if [[ "$type" != "$X_NODE_KIND_OBJ" &&
-                      "$type" != "$X_NODE_KIND_ARR" ]] ; then
-                    x_insert "${cls}Obj" "$full_key" "$value"
-                    return $?
-                else
-                    return 0
-                fi
+                local type=$1 value=$4 index_key=$3
+                case "$type" in
+                    "$X_NODE_KIND_LEAF"|"$X_NODE_KIND_LEAF_NULL")
+                        x_insert "${cls}Obj" "$index_key" "$value" ;;
+                    "$X_NODE_KIND_OBJ"|"$X_NODE_KIND_OBJ_EMPTY")
+                        x_insert "${cls}Obj" "$index_key" "$X_VALUE_NULL_OBJ" ;;
+                    "$X_NODE_KIND_ARR"|"$X_NODE_KIND_ARR_EMPTY")
+                        x_insert "${cls}Obj" "$index_key" "$X_VALUE_NULL_ARR" ;;
+                    *)
+                        return 0 ;;
+                esac
             }
 
             x_walk temp_obj '' _xo_init_class_cb_insert_cb || {
