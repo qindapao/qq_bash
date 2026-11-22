@@ -372,6 +372,29 @@ new Bosses, weapons, mechanics, or systems. Remaining work is limited to:
 The 30 FPS target is intentional. Bash/MSYS performance limits are accepted;
 the game is a validation showcase, not a performance benchmark.
 
+## Locale requirements
+
+Bash string length (`${#s}`), slicing (`${s:i:1}`), and ordering
+(`[[ a < b ]]`) depend on separate locale categories:
+
+| Need | Category |
+|---|---|
+| UTF-8 character length/slicing | `LC_CTYPE` must be a UTF-8 locale |
+| Deterministic ASCII ordering | `LC_COLLATE=C` |
+| Both of the above | `LC_ALL` must be empty or a suitable UTF-8 locale |
+
+`LC_ALL` overrides every other `LC_*`. On import, `grammar_set_locale`:
+
+- checks that Bash really sees UTF-8 characters, not bytes;
+- sets `LC_COLLATE=C` and a UTF-8 `LC_CTYPE` only when `LC_ALL` is empty;
+- if `LC_ALL` is already set, warns and leaves it untouched rather than
+  silently changing the caller's global environment.
+
+Code that must be byte-oriented (`str_bytes`, ASCII array sorting) uses
+`local LC_ALL=C`. Industrial deployments should either unset `LC_ALL` or set a
+UTF-8 `LC_ALL` before importing the library; pure-ASCII deployments can ignore
+the UTF-8 requirement.
+
 ## Future
 
 If the game is developed further, the likely path is a **Go rewrite**. The Bash

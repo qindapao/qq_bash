@@ -2,6 +2,35 @@
 
 export -A BASH_GRAMMAR=()
 
+# ================================================================================
+# Locale contract for the whole library
+#
+#   LC_CTYPE=UTF-8   → ${#s} and ${s:i:1} work on characters, not bytes.
+#   LC_COLLATE=C     → [[ a < b ]] uses deterministic ASCII byte order.
+#   LC_ALL non-empty → overrides both; the library must not silently overwrite
+#                      the caller's global locale.
+#
+# grammar_set_locale only auto-configures LC_CTYPE/LC_COLLATE when LC_ALL is
+# empty. If LC_ALL is set, it warns and leaves the environment alone. Callers
+# that process UTF-8 text must unset LC_ALL or set a UTF-8 LC_ALL themselves.
+#
+# Some helpers deliberately use a function-local LC_ALL=C (str_bytes, ASCII
+# array sorting) because their semantics are explicitly byte-oriented.
+#
+# Recommended deployment environment (reference only; the library does NOT
+# force these settings and must not overwrite the caller's global environment):
+#
+#     unset LC_ALL
+#     export LC_CTYPE=C.UTF-8        # choose an installed UTF-8 locale
+#     export LC_COLLATE=C
+#     export TERM=xterm-256color
+#     export PATH=/usr/bin:/bin:$PATH
+#     export TMPDIR=/tmp
+#
+# C.UTF-8 is only an example; verify it exists with `locale -a`. On systems
+# without it, use an available UTF-8 locale such as en_US.UTF-8.
+# ================================================================================
+
 #-------------------------------------------------------------------------------
 
 die ()
