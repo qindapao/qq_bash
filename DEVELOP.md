@@ -898,6 +898,17 @@ for example tree-class template merging — must check the target type first and
 reject the direct scalar-to-empty-container conversion. Do not rely on
 `x_insert` to enforce that policy.
 
+The light insert paths do not implement this state machine:
+
+- `x_insert_token_dict` requires an existing container parent and does not
+  perform NULL upgrade. Its `{key}` update path must not target an existing
+  empty-container node; writing a scalar there leaves `.t` in place and
+  corrupts the node.
+- `x_insert_dict` is for trusted OBJ paths and does not upgrade NULL leaves or
+  validate an existing empty container at the full path.
+- `x_qinserts` in single-value mode inherits `x_insert`'s leaf-overwrite
+  semantics; an empty-container sentinel can replace a scalar at that path.
+
 ### Choosing an insert API
 
 | API | Path | Validation | Use when |
