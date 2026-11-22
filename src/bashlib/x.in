@@ -25,6 +25,22 @@
 # All variable names in the library start with tr_.
 # Be careful to avoid external variables.
 # tr_
+#
+# ================================================================================
+# MSYS2 / Git Bash limitation: CR (0x0D) in x data is unsupported.
+#
+# MSYS2's Bash strips raw CR when an assignment string is re-parsed, e.g.
+#     local -A "map=($REPLY)"
+#     eval "map=($REPLY)"
+# A CR inside a key or value is silently lost. The same test on native Linux
+# Bash keeps CR intact. This is an MSYS2 Bash/platform quirk, not an x-tree
+# design rule.
+#
+# Therefore: do not put raw CR into x keys or values on Windows/MSYS2. If you
+# must transport CR, encode it in your own layer and decode after the shell
+# parser has finished. Do not rely on declaration/eval round trips to preserve
+# it. Linux/Bash has no such CR limitation.
+# ================================================================================
 #================================================================================
 
 #-------------------------------------------------------------------------------
@@ -505,22 +521,15 @@ x_qinserts ()
     # leaves or common
     local tr_return_mode=$2 tr_common_prefix=$3
     shift 3
-    # 这里有个坑 ("${@}") 这种接收参数的方式
-    # windows 的 msys2 环境上会把 \r 给吞掉
-    #
-    # \r 并非被 Bash 的语法逻辑丢弃，而是在从 Windows 命令行到内部 POSIX 环境的
-    # 转换阶段，被 MSYS2 的运行时层（msys-2.0.dll）给剥离了。
-    # 这是 MSYS2 的一个历史特性：为了处理 Windows 的 CRLF 换行问题，MSYS2 的运行
-    # 时层会假定出现在参数或输入中的 \r 可能是 Windows 行尾的一部分，从而进行
-    # “自动清理”。不过，真正让 \r 被精准针对的，是2024年7月27日的 MSYS2 版本更
-    # 新，它改变了将 Windows 宽字符命令行参数翻译为内部参数的方式。在这个新的转
-    # 换逻辑中，\r 被当作需要剥离的字符，而 \n 和空格则被视为合法的数据内容被保留了下来。
-    # local -a tr_insert_kv=("${@}")
-    local -a tr_insert_kv=()
-    while (($#)) ; do
-        tr_insert_kv[${#tr_insert_kv[@]}]=$1
-        shift
-    done
+    # MSYS2/Bash 坑：声明命令里的复合数组赋值会吞掉 \r：
+    #     local -a a=("$@")       # CR 丢失
+    # 分开声明和赋值就正常：
+    #     local -a a
+    #     a=("$@")                # CR 保留
+    # 这不是 "$@" 的语义问题，也不是 Windows 命令行转换；是 local/declare
+    # 复合赋值路径的 CR 处理问题。下面保持“先声明、后赋值”。
+    local -a tr_insert_kv
+    tr_insert_kv=("$@")
 
 
     local tr_insert_info
