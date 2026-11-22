@@ -1301,7 +1301,7 @@ play_game () {
         (( _rw_us < _next_us )) && _next_us=$_rw_us
         (( _next_us > 0 )) || return 0
         local -i _iw0=${EPOCHREALTIME/./}
-        while : ; do
+        for((;;)) ; do
             IFS= read -rsn1 -t 0 && return 0
             (( ${EPOCHREALTIME/./} - _iw0 >= _next_us )) && return 0
         done
@@ -1314,7 +1314,7 @@ play_game () {
     draw_hud_line2
     frame_flush
 
-    while : ; do
+    for((;;)) ; do
         # ---- 采样时间，两个累加器独立 ----
         local NOW_US=${EPOCHREALTIME/./}
         local DELTA_US=$(( NOW_US - LAST_US ))
@@ -1327,7 +1327,7 @@ play_game () {
         G_DX=0 ; G_DY=0
         local -i paused_changed=0 _in_n=0 \
                  _mq_pending=0 _mq_x=0 _mq_y=0 _mq_n=0
-        while : ; do
+        for((;;)) ; do
             if (( _poll )) ; then
                 # 先探测再有数据才读：read -t 0 只探测、不消费
                 IFS= read -rsn1 -t 0 || break

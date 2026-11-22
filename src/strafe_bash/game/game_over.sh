@@ -91,7 +91,7 @@ game_over_screen () {
     printf '%s%s%s' "$C_GREEN" "$_prompt" "$C_RESET"
 
     local key
-    while : ; do
+    for((;;)) ; do
         IFS= read -rsn1 key || return 1
         case "$key" in
             ''|$'\r'|$'\n') return 0 ;;

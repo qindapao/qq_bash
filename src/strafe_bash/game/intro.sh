@@ -143,7 +143,7 @@ intro_screen () {
     _INTRO_CLEARED=0
 
     local key
-    while : ; do
+    for((;;)) ; do
         _intro_draw "$_has_save" "$INTRO_PLANE"
         IFS= read -rsn1 key || { INTRO_ACTION=quit ; return 0 ; }
         case "$key" in

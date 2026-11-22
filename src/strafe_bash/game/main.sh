@@ -81,7 +81,7 @@ main () {
     screen_clear
 
     local ret
-    while : ; do
+    for((;;)) ; do
         play_game ; ret=$?
         (( ret != 0 )) && break
         player_death_fx
