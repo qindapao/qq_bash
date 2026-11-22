@@ -1571,7 +1571,7 @@ xo_class_methods_print ()
 
 #-------------------------------------------------------------------------------
 # 调试视图：把继承树、类属性、有效方法、类 Mixin 和 Mixin 公共方法
-# 合并到一棵独立的 XO_CLASS_DEBUG_TREE。性能不重要，禁止修改
+# 合并到一棵独立的调试树。性能不重要，禁止修改
 # XO_CLASS_INHER_TREE 及其 dump 缓存。
 #
 # 结构：
@@ -1585,7 +1585,7 @@ xo_class_methods_print ()
 #       {@FUNCTIONS}
 #
 # @in  $1=x_dump 缩进宽度（默认 4）
-# @out XO_CLASS_DEBUG_TREE
+# @out 无(默认只打印到标准输出)
 xo_debug_classes ()
 {
     [[ -n "$_XO_INIT_CALLED" ]] || {
@@ -1594,18 +1594,15 @@ xo_debug_classes ()
     }
 
     local -i _xd_indent=${1:-4}
-    local _xd_tree=XO_CLASS_DEBUG_TREE
     local _xd_cls _xd_path _xd_prefix _xd_key _xd_val _xd_fn
     local -i _xd_flat
     local -a _xd_cls_order=()
     local -A _xd_cls_path=()
 
-    unset -v "$_xd_tree" 2>/dev/null
-    x_init "$X_TYPE_OBJ" || return $?
-    eval "declare -gA ${_xd_tree}=($REPLY)"
+    x_init "$X_TYPE_OBJ" || return $? ; local -A "_xd_tree=($REPLY)"
 
     _xo_debug_put () {
-        x_insert_dict "$_xd_tree" "$1" "$2" || {
+        x_insert_dict "_xd_tree" "$1" "$2" || {
             die ERR "xo_debug_classes: insert failed: $1"
             return 1
         }
@@ -1613,7 +1610,7 @@ xo_debug_classes ()
 
     # 树类属性可能含数组；必须走支持 [] 的 x_insert，不能用 x_insert_dict。
     _xo_debug_put_any () {
-        x_insert "$_xd_tree" "$1" "$2" || {
+        x_insert "_xd_tree" "$1" "$2" || {
             die ERR "xo_debug_classes: insert failed: $1"
             return 1
         }
@@ -1672,7 +1669,7 @@ xo_debug_classes ()
                 _xd_kv+=("{${_xd_key}}" "${_xd_co[$_xd_key]}")
             done
             if ((${#_xd_kv[@]})) ; then
-                x_insert_token_dict "$_xd_tree" "" "$_xd_prefix" "${_xd_kv[@]}" || return $?
+                x_insert_token_dict "_xd_tree" "" "$_xd_prefix" "${_xd_kv[@]}" || return $?
             fi
         else
             # 树类：只复制用户字段，过滤类元数据。
@@ -1713,7 +1710,8 @@ xo_debug_classes ()
         done
     done
 
-    x_dump "$_xd_tree" '' "$_xd_indent" 2
+    x_dump "_xd_tree" '' "$_xd_indent" 2
+
     return 0
 }
 

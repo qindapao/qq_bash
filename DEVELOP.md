@@ -499,15 +499,12 @@ xo_debug_classes        # indent 4
 xo_debug_classes 2      # indent 2
 ```
 
-It requires `xo_init` to have run. It builds a **separate** global tree:
+It requires `xo_init` to have run. It builds a **temporary local tree** and
+prints it with `x_dump`. The tree is discarded when the function returns; no
+global debug tree remains.
 
-```text
-XO_CLASS_DEBUG_TREE
-```
-
-and prints it with `x_dump`. It does **not** modify
-`XO_CLASS_INHER_TREE`, `XO_INHER_CHAIN_DUMP_CACHE`, class objects or method
-tables.
+It does **not** modify `XO_CLASS_INHER_TREE`, `XO_INHER_CHAIN_DUMP_CACHE`,
+class objects or method tables.
 
 The tree has this shape:
 
