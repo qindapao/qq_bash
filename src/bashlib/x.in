@@ -1915,6 +1915,18 @@ x_get_tree ()
 #
 # 遍历子节点，每行元组："phy_token type index_token value node"。
 # 未请求的字段为空串。
+#
+# 【消费契约】每行一个元组，字段间是空格，但每个字段都是独立的 @Q 引用。
+# 不能用 read -a / awk / 普通空格 split —— 字段内容可能含空格。
+# 必须让 shell 重新解析引用：
+#     if [[ -n "$iter_str" ]] ; then
+#         while IFS= read -r line ; do
+#             local -a "tuple=($line)"
+#         done <<< "$iter_str"
+#     fi
+# 空白 here-string 也会让 read 读到一行空串，所以必须先判空。
+# 换行在字段内已被 @Q 转义，所以按行拆是安全的。
+#
 # @in  $1=树名  $2=物理前缀（默认空=根）  $3=迭代掩码
 #      （bit0=phy_token bit1=type bit2=index_token bit3=value bit4=node）
 #      $4=节点 ID（可选，省略则按前缀解析）
