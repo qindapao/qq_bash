@@ -4,7 +4,8 @@
 > 新会话里的你没有本次对话的上下文。先读完这个文件，再读 `CONSTITUTION.md`、
 > `DEVELOP.md`、`TODO.txt`，就能快速还原成一个"懂这个项目和这位用户"的助手。
 >
-> 最后更新：2026-11-20（周五下班前），HEAD：`12ae7ba`，工作区干净。
+> 最后更新：2026-11-22（周末），HEAD：`53d3932`，工作区干净。
+> 周末新增内容见 §3.4；游戏性能优化尚未开始。
 
 ---
 
@@ -19,7 +20,7 @@ bash --version               # 开发机是 5.2.37 (x86_64-pc-msys)
 
 - 工作目录：`D:\code\qq_bash`（MSYS2 / Git Bash 环境，Windows 11）。
 - 项目目标平台：**Linux 优先**（终端体验），Windows/MSYS 是主要开发环境。
-- 最近三笔提交是：x 树输入契约文档、`x_rebuild_from_dump` 优化、类定义扫描缓存；
+- 最近提交：周末完成 `x` / `xo` 的边界文档、CR 兼容、locale 契约和测试补强；
   再往前是扁平类改数组、闪烁修复、Boss 弹幕 clamp。
 
 ---
@@ -86,7 +87,9 @@ cd test/bashlib && bash test_xo_tree_class.sh
 已知环境性失败（不是回归，别修）：
 
 - `test/bash/test_bash_coproc.sh`：环境缺 `bc`；
-- `test/bashlib/test_x.sh`：需要 bash 5.3 的 `compgen -V`，且 case16 需要外部工具 `gobolt`；
+- `test/bashlib/test_x.sh`：需要 bash 5.3 的 `compgen -V`，且 case16 需要外部工具 `gobolt`。
+  MSYS2 环境有 gobolt 时该用例完整通过；Git Bash 5.2 需要先按对应 shell build，
+  否则会因生成语法差异失败，不是库逻辑回归。
 - `test/bash/test_bash_array.sh`：50k 数组切片 <300ms 的计时断言，机器负载高时会偶发失败，单独跑通常过。
 
 **注意**：`play_game` 主循环需要真实终端（`stty`），用管道喂输入会 `Inappropriate ioctl for device`，
@@ -154,6 +157,68 @@ render          ≈ 8–9 ms
   `git diff --exit-code src/strafe_bash/game/play_game.sh` 必须干净）；
 - 不要为了省 tick 去动 `render` 的层顺序或 `FB_*` 语义；
 - 不要碰 `src/bashlib/x.in` / `xo.in` 的核心语义，除非先和老铁讨论。
+
+### 3.4 2026-11-22 周末进展
+
+周末没有继续游戏性能优化，主要做 `x` / `xo` 基础层的边界收口和测试补强。
+详细提交见 `git log --oneline 12ae7ba..53d3932`。
+
+**新增/调整**
+
+1. **dataclass 容器模块**（`src/bashlib/data.in`）：
+   - `ARR / ASSOC / DTREE / ATREE` 四类；
+   - 统一 `XO_DATA_CLASS_POOL` 和 `XO_DATA_CLASS_IDX`；
+   - `xo_data_born_*`、`xo_data_bury`、`xo_data_is_live`、`xo_data_type`、
+     `xo_data_clear`；
+   - `build.sh` 已注册，生成 `data.sh` 被 `.gitignore` 忽略；
+   - `test/bashlib/test_data_class.sh` 覆盖四类、pool、bury、clear。
+2. **类调试树收口**：`xo_debug_classes` 改为函数内局部树，只打印到 stdout，
+   不再保留全局 `XO_CLASS_DEBUG_TREE`。
+3. **`xo_dcall`**：直接调用最终实现、跳过 `<Cls>_<method>` 透传层；
+   已补注释和 `test_xo_dcall.sh`，覆盖 own / inherited / mixin / 参数透传。
+4. **树类模板合并状态机**：
+   - 非空容器不显式写，交给子节点建/合并；
+   - 空容器先查父类现状，防止空对象覆盖普通标量；
+   - 修正 `continue` 误用，区分模板 `type=UNKNOWN` 与父类 `node_type=UNKNOWN`；
+   - 新增 `test_xo_class_merge.sh`，正向/反向齐全。
+5. **轻量写入口文档**：`x_insert_dict` / `x_insert_token_dict` / `x_qinserts`
+   明确 NULL/空容器前置条件与“调用方负责”的边界，不把它们改成完整校验。
+6. **MSYS2 CR**：
+   - `x_qinserts` 改为先声明、后赋值 `tr_insert_kv=("$@")`；
+   - `x.in` 顶部明确 CR 不支持；
+   - 新增 `test_msys2_cr.sh`，非 MSYS2 静默跳过，MSYS2 验证 workaround 和
+     `x_qinserts` 的 CR 保存。
+7. **`x_iter` 消费契约**：
+   - 每行一个元组、字段独立 `@Q`；
+   - 必须用 `local -a "tuple=($line)"` 重新解析，不能 `read -a` / awk；
+   - `while read <<< ""` 会进入一次空行，已补 `[[ -n "$iter_str" ]]` 判断。
+8. **生僻 x API 用例**：`test_x_rare_apis.sh`
+   覆盖 `x_pop_leaf` / `x_shift_leaf` / `x_pop_tree` / `x_layer_get_flat` /
+   `x_pop_to_flat_assoc` / `x_shift_to_flat_array` / `x_push_leaf_fast` /
+   `x_get_arg_limits`。
+9. **locale / 环境**：
+   - `grammar.sh` 文件头和 `DEVELOP.md` 增加 locale 契约；
+   - `LC_ALL` 已设置时只警告，不强行覆盖；
+   - 记录参考部署环境，但不强制设置。
+10. **宪法 / TODO**：
+    - `for((;;))`、0/1 布尔 `(( flag ))`、多分支优先 `case`、local/unset 合并、
+      参数展开等规则；
+    - TODO 记录“等游戏稳定后统一整理 x/xo 注释”，当前不做。
+
+**验证**
+
+- `test_x.sh` 在 MSYS2（有 gobolt）下完整通过，包括 JSON、graft、flat；
+- `test_x_rare_apis.sh` 通过；
+- `test_xo_class_merge.sh`、`test_xo_tree_class.sh`、`test_xo_debug_classes.sh`、
+  `test_xo_dcall.sh`、`test_data_class.sh`、`test_msys2_cr.sh` 通过。
+
+**未做 / 下一次**
+
+- 游戏 tick/render 性能优化仍未开始；回到游戏优化前先按 §3.3 分段计时。
+- `str_unescape` 的 `${var@E}` 只记录了未来方向，没有替换实现。
+- `gobolt`（独立仓库 `D:\code\common_tool`）的 NUL 限制未处理；
+  NUL 是 Bash 字符串无法表示的数据，不是当前库的阻塞项。
+- 全库注释整理继续延期到架构闭环之后。
 
 ---
 
