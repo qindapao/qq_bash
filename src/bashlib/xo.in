@@ -724,7 +724,7 @@ _xo_init_class ()
         # 模板 *StaticTemplate 只允许树类使用。
         local tmpl_var="${cls}StaticTemplate"
         local _tmpl_src=${!tmpl_var}
-        local -i _direct=0
+        local -i _direct=0 node_type
         # 本类显式声明的 FLT（没有就继承父类）
         local _own_flt='' _has_flt='' _cur
 
@@ -844,15 +844,65 @@ _xo_init_class ()
             _xo_init_class_cb_insert_cb ()
             {
                 local type=$1 value=$4 index_key=$3
+                local expected sentinel
                 case "$type" in
                     "$X_NODE_KIND_LEAF"|"$X_NODE_KIND_LEAF_NULL")
-                        x_insert "${cls}Obj" "$index_key" "$value" ;;
-                    "$X_NODE_KIND_OBJ"|"$X_NODE_KIND_OBJ_EMPTY")
-                        x_insert "${cls}Obj" "$index_key" "$X_VALUE_NULL_OBJ" ;;
-                    "$X_NODE_KIND_ARR"|"$X_NODE_KIND_ARR_EMPTY")
-                        x_insert "${cls}Obj" "$index_key" "$X_VALUE_NULL_ARR" ;;
-                    *)
+                        x_insert "${cls}Obj" "$index_key" "$value"
+                        return $? ;;
+                    "$X_NODE_KIND_OBJ"|"$X_NODE_KIND_ARR")
+                        # 非空容器不显式写：子节点会自动建/合并；类型冲突由子节点报错。
                         return 0 ;;
+                    "$X_NODE_KIND_OBJ_EMPTY")
+                        expected=$X_NODE_KIND_OBJ sentinel=$X_VALUE_NULL_OBJ ;;
+                    "$X_NODE_KIND_ARR_EMPTY")
+                        expected=$X_NODE_KIND_ARR sentinel=$X_VALUE_NULL_ARR ;;
+                    *)
+                        die ERR "class:$cls father:$father key:$index_key has bad template node kind:$type."
+                        return 1 ;;
+                esac
+
+                # 空容器必须查父类现状：x_insert 遇到普通标量会静默覆盖，不能交给它兜底。
+                # 普通叶子，叶子层覆盖，null还有穿透的特权
+                # 状态机如下：
+                #     父类已有节点      当前要写空对象  当前要写空数组
+                #     不存在 UNKNOWN    写入            写入
+                #     LEAF_NULL         升变写入        升变写入
+                #     普通标量 LEAF     报错            报错
+                #     非空对象 OBJ      报错            报错
+                #     空对象 OBJ_EMPTY  跳过            报错
+                #     非空数组 ARR      报错            报错
+                #     空数组 ARR_EMPTY  报错            跳过
+                x_get_node_type "${cls}Obj" "$index_key" 'path'
+                node_type=$?
+                case "$node_type" in
+                    "$X_NODE_KIND_UNKNOWN"|"$X_NODE_KIND_LEAF_NULL")
+                        x_insert "${cls}Obj" "$index_key" "$sentinel" ;;
+                    "$X_NODE_KIND_LEAF")
+                        die ERR "class:$cls father:$father key:$index_key is a normal leaf."
+                        return 1 ;;
+                    "$X_NODE_KIND_OBJ"|"$X_NODE_KIND_OBJ_EMPTY")
+                        if [[ "$expected" != "$X_NODE_KIND_OBJ" ]] ; then
+                            die ERR "class:$cls father:$father key:$index_key is a dict."
+                            return 1
+                        fi
+                        if [[ "$node_type" == "$X_NODE_KIND_OBJ" ]] ; then
+                            die ERR "class:$cls father:$father key:$index_key is not an empty dict."
+                            return 1
+                        fi
+                        return 0 ;;
+                    "$X_NODE_KIND_ARR"|"$X_NODE_KIND_ARR_EMPTY")
+                        if [[ "$expected" != "$X_NODE_KIND_ARR" ]] ; then
+                            die ERR "class:$cls father:$father key:$index_key is an array."
+                            return 1
+                        fi
+                        if [[ "$node_type" == "$X_NODE_KIND_ARR" ]] ; then
+                            die ERR "class:$cls father:$father key:$index_key is not an empty array."
+                            return 1
+                        fi
+                        return 0 ;;
+                    *)
+                        die ERR "class:$cls father:$father key:$index_key has bad existing node type:$node_type."
+                        return 1 ;;
                 esac
             }
 

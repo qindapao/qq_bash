@@ -868,6 +868,36 @@ supports objects, arrays, nulls, booleans, ordered children, and path access.
 Full parameters and return codes are documented in the function headers of
 `src/bashlib/x.in`.
 
+### Node state transitions
+
+A null leaf can be upgraded to an empty container, and an empty container can
+then receive children:
+
+```text
+LEAF --X_VALUE_NULL--> LEAF_NULL
+LEAF_NULL --X_VALUE_NULL_OBJ / X_VALUE_NULL_ARR--> OBJ_EMPTY / ARR_EMPTY
+OBJ_EMPTY / ARR_EMPTY --child insert--> OBJ / ARR
+```
+
+Writing a child under an ordinary scalar leaf is rejected; the caller must
+first write `X_VALUE_NULL`.
+
+Null is the only transparent leaf: when `x_insert` descends through a
+`LEAF_NULL` at any depth, it upgrades that node to the container type required
+by the next path token. Ordinary scalar leaves are terminal; they can be
+overwritten to an empty container at the same path, but cannot be penetrated.
+
+`x_insert` is a leaf writer. `null`, empty objects and empty arrays are all
+leaf values, so replacing an ordinary scalar leaf with `X_VALUE_NULL_OBJ` /
+`X_VALUE_NULL_ARR` is a normal leaf overwrite. Non-empty containers are not
+leaves: writing a child under a scalar is rejected, so scalar-to-non-empty
+still requires the explicit `X_VALUE_NULL` transition.
+
+The strict two-step transition is a schema-level policy. Code that needs it —
+for example tree-class template merging — must check the target type first and
+reject the direct scalar-to-empty-container conversion. Do not rely on
+`x_insert` to enforce that policy.
+
 ### Choosing an insert API
 
 | API | Path | Validation | Use when |
