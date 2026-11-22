@@ -1168,12 +1168,10 @@ xo_dump_inher_chain ()
 xo_obj_born ()
 {
     REPLY=
-    local obj=''
-    local cls
+    local obj='' cls
     if [[ "$1" == '--name' ]] ; then
         # 内部入口：xo_obj_born --name <句柄> <类> [参数...]
-        obj=$2
-        cls=$3
+        obj=$2 cls=$3
         shift 3
 
         # 名字规则：以 OBJ_ 开头，后缀以字母开头（避开纯数字，跟自动分配隔离）
@@ -1248,8 +1246,7 @@ xo_obj_born ()
 
     # 4. 调 born 钩子
     "${cls}_born" "$obj" "$@" || {
-        unset -v "$obj"
-        unset -v 'XO_OBJ_POOL[$obj]'
+        unset -v "$obj" 'XO_OBJ_POOL[$obj]'
         die ERR "xo: ${cls}_born failed for ${obj}"
         return 1
     }
@@ -1305,8 +1302,7 @@ xo_obj_bury ()
     fi
 
     # 3. unset 全局变量 + 从池子移除
-    unset -v "$obj"
-    unset -v 'XO_OBJ_POOL[$obj]'
+    unset -v "$obj" 'XO_OBJ_POOL[$obj]'
     return 0
 }
 
@@ -1409,8 +1405,7 @@ _xo_reset_prepare ()
 # 把对象的易变字段恢复成模板默认值（fire 前调用）
 _xo_obj_reset_fields ()
 {
-    local cls=$1
-    local obj=$2
+    local cls=$1 obj=$2
     (( XO_RESET_READY[$cls] )) || _xo_reset_prepare "$cls" || return 1
     local list=${XO_RESET_FIELDS[$cls]:-}
     if [[ -z "$list" ]] ; then
@@ -1467,8 +1462,7 @@ xo_obj_fire ()
         XO_RES_COUNT[$cls]=$(( n + 1 ))
         unset -v 'XO_OBJ_POOL[$obj]'
     else
-        unset -v "$obj"
-        unset -v 'XO_OBJ_POOL[$obj]'
+        unset -v "$obj" 'XO_OBJ_POOL[$obj]'
     fi
     return 0
 }
@@ -1488,8 +1482,7 @@ xo_obj_hire ()
         # 顺序与 born 一致：先登记回池，再调 born 钩子（钩子可读写自己的字段）
         XO_OBJ_POOL[$obj]=$cls
         "${cls}_born" "$obj" "$@" || {
-            unset -v "$obj"
-            unset -v 'XO_OBJ_POOL[$obj]'
+            unset -v "$obj" 'XO_OBJ_POOL[$obj]'
             die ERR "xo: ${cls}_born failed for ${obj}"
             return 1
         }
@@ -1505,8 +1498,7 @@ xo_obj_hire_n ()
     local -i n=$1
     local cls=$2
     shift 2
-    local out=''
-    local h
+    local out='' h
     local -i i
     for (( i=0 ; i<n ; i++ )) ; do
         xo_obj_hire "$cls" "$@" || { REPLY=$out ; return 1 ; }
@@ -1537,8 +1529,7 @@ xo_fire_stats ()
 xo_fire_clear ()
 {
     unset -v "${XO_RES_MARKET[@]}"
-    XO_RES_MARKET=()
-    XO_RES_COUNT=()
+    XO_RES_MARKET=() XO_RES_COUNT=()
     return 0
 }
 
@@ -1681,8 +1672,7 @@ xo_debug_classes ()
         _xd_prefix="${_xd_path}{@FUNCTIONS}$X"
         _xo_debug_put "$_xd_prefix" "$X_VALUE_NULL_OBJ"
         for _xd_fn in ${XO_CLASS_METHODS[$_xd_cls]:-} ; do
-            _xd_key="${_xd_cls}_${_xd_fn}"
-            _xd_val='own'
+            _xd_key="${_xd_cls}_${_xd_fn}" _xd_val='own'
             if [[ -n "${XO_METHOD_INHERITED[$_xd_key]+_}" ]] ; then
                 _xd_val=${XO_METHOD_INHERITED[$_xd_key]}
             fi
