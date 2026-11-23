@@ -179,7 +179,7 @@ CONSTITUTION.md §3).
 | `XO_RESET_DEF["class\|field"]` | cache: template default of a volatile field, read from the class object |
 | `XO_RESET_READY[class]` | cache: flag, the reset list was preprocessed (lazy, on first fire) |
 
-**Dataclasses (`data.in`)**
+**Dataclasses (`data.sh`)**
 
 | Variable | Purpose |
 |---|---|
@@ -229,7 +229,7 @@ assoc), `_ret_e` (return with the current `$?`), plus global variants
 |---|---|
 | `_BASHLIB_IMPORTED[module]` | one-shot source guard for every library module (`grammar`, `var`, `str`, `array`, `float`, `x`, `xe`, `xj`, `data`, `xo`); the value counts import attempts, a nonzero previous value returns early |
 | `BASH_GRAMMAR[...]` | bash capability switches probed at build time, used by `#@if` |
-| `_STR_BUILT_IN_THRESHOLDS` | `str.in` thresholds for choosing builtin vs external tools |
+| `_STR_BUILT_IN_THRESHOLDS` | `str.sh` thresholds for choosing builtin vs external tools |
 
 The three `XO_RESET_*` tables are one lazy cache per class, filled on the first
 `fire` of that class and never rebuilt:
@@ -966,9 +966,9 @@ It may leave `.k` plus `.t`/children on a NULL leaf; `x_get_node_type` will
 still report a leaf, so the children become invisible. Use `x_insert` for
 upgrade/array cases, and keep `x_insert_dict` on trusted OBJ paths only.
 
-### Dataclass handles (`data.in`)
+### Dataclass handles (`data.sh`)
 
-`data.in` adds lightweight external containers that are **not** `xo` classes:
+`data.sh` adds lightweight external containers that are **not** `xo` classes:
 
 ```text
 ARR    indexed Bash array
@@ -987,7 +987,7 @@ XO_DATA_CLASS_POOL[handle] = ARR|ASSOC|DTREE|ATREE
 API:
 
 ```bash
-. "$STRAFE_LIB_HOME/data.sh"   # data.in is independent of xo
+. "$STRAFE_LIB_HOME/data.sh"   # data.sh is independent of xo
 xo_data_born_arr       # REPLY=ARR_N
 xo_data_born_assoc     # REPLY=ASSOC_N
 xo_data_born_dtree     # REPLY=DTREE_N

@@ -4,8 +4,6 @@
 test_report_*.txt
 
 .bench/
-src/bashlib/array.sh
-src/bashlib/var.sh
 src/bashlib/xe.sh
 src/bashlib/xo.sh
 test/bashlib/test_x.sh

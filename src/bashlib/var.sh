@@ -7,25 +7,6 @@ declare -gA _BASHLIB_IMPORTED
 
 #-------------------------------------------------------------------------------
 
-# Convert the parameter list into a set
-var_params_to_set ()
-{
-    local -A var_set=()
-    local var_head=$1
-    shift
-    while (($#)) ; do
-        var_set["$var_head$1"]=1 ; shift
-    done
-#@if at_k_var_substitution==1
-    REPLY="${var_set[*]@K}"
-#@endif
-#@if at_k_var_substitution==0
-    array_to_kv_q_str var_set ; REPLY=$REPLY
-#@endif
-}
-
-#-------------------------------------------------------------------------------
-
 # var_bitmap_unpack <bitmap> <var:bit> <var:bit> ...
 # ---------------------------------------------------
 # This function is used to decompose a bitmap into multiple Boolean variables.

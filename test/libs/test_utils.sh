@@ -162,9 +162,12 @@ awk '
 # step test one case
 step_test ()
 {
-    local -A "run_case_set=(
-        ${|var_params_to_set "$AS_TESTCASE_FUNC_HEAD" "$@";})"
-    
+    local -A run_case_set=()
+    local _arg
+    for _arg in "$@" ; do
+        run_case_set["$AS_TESTCASE_FUNC_HEAD$_arg"]=1
+    done
+
     local fns=(${ compgen -A function -X '!'"$AS_TESTCASE_FUNC_HEAD"'*' ;})
 
     local fn ; for fn in "${fns[@]}" ; do

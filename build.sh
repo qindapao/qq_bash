@@ -3,8 +3,6 @@
 . ./src/bashlib/grammar.sh
 
 FILES_TO_BE_PROCESSED=(
-    "./src/bashlib/var.in"
-    "./src/bashlib/array.in"
     "./src/bashlib/xe.in"
     "./src/bashlib/xo.in"
     "./test/bashlib/test_x.in"

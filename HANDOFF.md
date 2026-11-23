@@ -51,7 +51,7 @@ HANDOFF.md               本文件
 
 src/bashlib/             基础库（.in 源码，build 生成同名 .sh）
     grammar.sh           bash 能力探测（@K、compgen -V、procsub）
-    var.in  str.in  array.in  float.in   var/字符串/数组/浮点工具
+    var.sh  str.sh  array.sh  float.sh   var/字符串/数组/浮点工具
     x.sh                 x 树核心（节点、插入、删除、遍历、dump、rebuild）
     xe.in                x 扩展 API（graft、leaf/tree push/pop/shift、flat 转换等）
     xj.sh                x 的 JSON 层（x_to_json / x_from_json / gobolt 限流）
@@ -167,7 +167,7 @@ render          ≈ 8–9 ms
 
 **新增/调整**
 
-1. **dataclass 容器模块**（`src/bashlib/data.in`）：
+1. **dataclass 容器模块**（`src/bashlib/data.sh`）：
    - `ARR / ASSOC / DTREE / ATREE` 四类；
    - 统一 `XO_DATA_CLASS_POOL` 和 `XO_DATA_CLASS_IDX`；
    - `xo_data_born_*`、`xo_data_bury`、`xo_data_is_live`、`xo_data_type`、
