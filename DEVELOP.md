@@ -160,7 +160,6 @@ CONSTITUTION.md §3).
 | `XO_CLASS_TREE_TMPL_VARS` | manually registered tree-class template names |
 | `XO_CLASS_FLAT_OBJ_VARS` | manually registered flat-class object names |
 | `XO_CLASS_METHODS[class]` | manually registered public methods owned by each class |
-| `XO_CLASS_VARS_READY` | legacy one-shot scan guard; init no longer depends on it |
 | `XO_FLAT_META` | metakeys kept when a flat class is built (everything else is a user field) |
 | `_XO_INIT_CALLED` | `xo_init` may run only once |
 | `_XO_IMPORTED` | import guard of `xo.sh` |
@@ -180,6 +179,13 @@ CONSTITUTION.md §3).
 | `XO_RESET_FIELDS[class]` | cache: the class reset list, copied from `<cls>ResetFields` |
 | `XO_RESET_DEF["class\|field"]` | cache: template default of a volatile field, read from the class object |
 | `XO_RESET_READY[class]` | cache: flag, the reset list was preprocessed (lazy, on first fire) |
+
+**Dataclasses (`data.in`)**
+
+| Variable | Purpose |
+|---|---|
+| `XO_DATA_CLASS_POOL[handle]` | handle -> `ARR` / `ASSOC` / `DTREE` / `ATREE`; liveness and kind in one lookup |
+| `XO_DATA_CLASS_IDX` | monotonically increasing handle counter (never reset by `xo_data_clear`) |
 
 **Init progress (diagnostics, off by default)**
 
@@ -397,9 +403,11 @@ the UTF-8 requirement.
 
 ## Future
 
-If the game is developed further, the likely path is a **Go rewrite**. The Bash
-version would remain as a behavioral, numeric, and art reference. New gameplay
-and higher performance targets belong in Go, not in this Bash codebase.
+The long-term direction is a **Tcl 9 migration**, tracked in the Tcl 9 section
+of `TODO.txt`. The Bash version remains the behavioral, numeric and art
+reference. Migration starts only after same-workload micro-benchmarks (200-bullet
+tick, 100×30 diff render, input polling) show Tcl 9 can hold the frame budget;
+until that decision is made, new mechanics still land in the Bash version.
 
 ## The `xo` object system
 

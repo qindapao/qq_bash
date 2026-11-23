@@ -15,7 +15,8 @@
 #   变量名后缀：
 #     *StaticTemplate   树类（FLT=0）的模板变量名后缀；扁平类禁止使用
 #     *Obj              类对象数组：扁平类的唯一定义方式（元键带 $X，用户字段裸键）
-#                       用户自定义普通变量不要用这两个后缀，会被 xo_init 扫描
+#                       用户自定义普通变量不要用这两个后缀：`xo_init 1` 的
+#                       注册校验会扫描变量名（正常 init 走手工注册表，不扫描）
 #
 #   类对象变量名（由 ${类名} 推导）：
 #     ${类名}Obj        类对象（扁平类：直接定义；树类：由模板构建）
@@ -388,7 +389,6 @@
 declare -gA XO_CLASS_INHER_TREE=()
 declare -gA XO_METHOD_INHERITED=()
 
-declare -gi XO_CLASS_VARS_READY=0
 # 扁平类保留的元键（其余字段一律剥成扁平键）。和 _xo_field_key 的判定保持一致。
 declare -gA XO_FLAT_META=(
     ["{CLS}$X"]=1

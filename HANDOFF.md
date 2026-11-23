@@ -111,10 +111,10 @@ cd test/bashlib && bash test_xo_tree_class.sh
    - 扁平类只能用 `declare -gA <Cls>Obj=( [{CLS}$X]=... [字段]=... )`，禁止模板；
    - 树类只能用 `<Cls>StaticTemplate`，禁止数组；Mixin 保留模板（省内存）；
    - 初始化从 ~1.75s 降到 ~0.7–1.0s；类对象逐键对账与模板版完全一致。
-3. **类变量扫描缓存**（`48a283b`）：
-   - `_xo_scan_class_vars` 一次 `compgen` + extglob 交替过滤
-     `-X '!*@(StaticTemplate|Obj)'`，结果存 `XO_CLASS_TREE_TMPL_VARS` /
-     `XO_CLASS_FLAT_OBJ_VARS` / `XO_CLASS_VARS_READY`；继承链和进度统计复用。
+3. **类变量扫描缓存（周五的中间步骤，周末已被显式注册取代）**（`48a283b`）：
+   - 周五：一次 `compgen` + extglob 交替过滤 `-X '!*@(StaticTemplate|Obj)'`，
+     结果存两个注册表再由继承链复用；
+   - 周末：改为每个类文件手工注册（见 §3.4）；`compgen` 只在 `xo_init 1` 校验时使用。
 4. **`x_rebuild_from_dump` 优化 + 容错**（`28a091a`）：
    - dict key 用参数展开快路径（key 无 `\` 时直接切第一个 `}`），慢路径只在 key 含 `\` 时；
    - 无转义时跳过 `str_unescape`；
@@ -253,7 +253,10 @@ render          ≈ 8–9 ms
 - **树类**（FLT=0，只有 BaseX）：用 `readonly <Cls>StaticTemplate='...'`，
   模板由 `x_rebuild_from_dump` 解析成 x 树；
 - **Mixin**：`M_XxxStaticTemplate` 只做声明（`{REQUIRES}`），不建对象；
-- 初始化：`xo_init` 扫类变量 → 建继承树 → 按拓扑序建类对象 → 生成转发方法；
+- 初始化：按手工注册表（`XO_CLASS_FLAT_OBJ_VARS` / `XO_CLASS_TREE_TMPL_VARS` /
+  `XO_CLASS_METHODS` / `XO_MIXIN_METHODS`）建继承树 → 按拓扑序建类对象 →
+  生成转发方法；只有 `xo_init 1`（或 `-d`）才用 `compgen` 做反向校验。
+  周末已把"自动扫描类变量"改成显式注册，正常 init 不再扫描变量名；
 - 生命周期：`xo_obj_born` / `xo_obj_born_named`、`hire`/`fire`（复用）、`bury`（销毁）；
   组合对象（`Plane` 持有 `w1..w5`）只能 bury，不能 hire/fire；
 - 派发：热路径 `"${XO_OBJ_POOL[$h]}_method" $h` 直调；事件路径 `xo_call`；
