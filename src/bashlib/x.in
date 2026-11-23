@@ -1,4 +1,5 @@
-((_X_IMPORTED++)) && return 0
+declare -gA _BASHLIB_IMPORTED
+((_BASHLIB_IMPORTED[x]++)) && return 0
 
 . "${BASH_SOURCE[0]%/*}/grammar.sh"
 . "${BASH_SOURCE[0]%/*}/array.sh"
@@ -2203,10 +2204,17 @@ x_rebuild_from_dump ()
     fi
 
     # 多行字符串变单行字符串
-    # extglob 在 [[]] 中从 bash4.1 开始都是默认开启的，不需要显示启用
+    # [[ ]] 中 extglob 自 4.1 起默认可用；但下面的 pattern 在参数替换里，
+    # 参数替换的 extglob 仍需要 shopt -s extglob。
     if [[ $tr_dump_str == *'|'* ]]; then
-        local tr_old_ifs="$IFS"
-        local IFS=$'\n' ; tr_dump_str=${tr_dump_list[*]} ; IFS="$tr_old_ifs"
+        local tr_ifs_was_set=${IFS+x} tr_old_ifs=${IFS-}
+        local IFS=$'\n'
+        tr_dump_str=${tr_dump_list[*]}
+        if [[ -n "$tr_ifs_was_set" ]] ; then
+            IFS=$tr_old_ifs
+        else
+            unset -v IFS
+        fi
         local tr_extglob=0
         shopt -q extglob || { shopt -s extglob ; tr_extglob=1 ; }
         tr_dump_str=${tr_dump_str//$'\n'*( )|/'\n'}

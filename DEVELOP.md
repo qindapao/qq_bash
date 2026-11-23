@@ -139,7 +139,7 @@ Hard constraints:
 
 Framework globals are grouped by owner; the prefix says where they come from:
 `XO_`/`xo_` object system, `X_` tree system, `RES_` resource market, `_ret_*`
-library return snippets, `_*_IMPORTED` import guards. These names are
+library return snippets, `_BASHLIB_IMPORTED` import guard. These names are
 framework-owned: user code must not define variables in these namespaces, and
 the `*Obj` / `*StaticTemplate` suffixes are reserved (see
 CONSTITUTION.md §3).
@@ -162,7 +162,6 @@ CONSTITUTION.md §3).
 | `XO_CLASS_METHODS[class]` | manually registered public methods owned by each class |
 | `XO_FLAT_META` | metakeys kept when a flat class is built (everything else is a user field) |
 | `_XO_INIT_CALLED` | `xo_init` may run only once |
-| `_XO_IMPORTED` | import guard of `xo.sh` |
 
 **Object system (`xo.in`) — instances, mixins, resource market**
 
@@ -228,7 +227,7 @@ assoc), `_ret_e` (return with the current `$?`), plus global variants
 
 | Variable | Purpose |
 |---|---|
-| `_VAR_IMPORTED` `_STR_IMPORTED` `_ARRAY_IMPORTED` `_GRAMMAR_IMPORTED` `_X_IMPORTED` `_XO_IMPORTED` | one-shot source guards (each `.in` returns early on second import) |
+| `_BASHLIB_IMPORTED[module]` | one-shot source guard for every library module (`grammar`, `var`, `str`, `array`, `float`, `x`, `xe`, `xj`, `data`, `xo`); the value counts import attempts, a nonzero previous value returns early |
 | `BASH_GRAMMAR[...]` | bash capability switches probed at build time, used by `#@if` |
 | `_STR_BUILT_IN_THRESHOLDS` | `str.in` thresholds for choosing builtin vs external tools |
 

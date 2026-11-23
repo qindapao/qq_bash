@@ -1,4 +1,5 @@
-((_DATA_IMPORTED++)) && return 0
+declare -gA _BASHLIB_IMPORTED
+((_BASHLIB_IMPORTED[data]++)) && return 0
 
 . "${BASH_SOURCE[0]%/*}/x.sh"
 
@@ -103,3 +104,5 @@ xo_data_clear ()
     XO_DATA_CLASS_POOL=()
     return 0
 }
+
+return 0

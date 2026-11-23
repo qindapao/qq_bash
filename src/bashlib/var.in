@@ -1,4 +1,5 @@
-((_VAR_IMPORTED++)) && return 0
+declare -gA _BASHLIB_IMPORTED
+((_BASHLIB_IMPORTED[var]++)) && return 0
 
 # var_ as a reserved prefix
 

@@ -1,5 +1,5 @@
-((_FLOAT_IMPORTED++)) && return 0
-
+declare -gA _BASHLIB_IMPORTED
+((_BASHLIB_IMPORTED[float]++)) && return 0
 
 #-------------------------------------------------------------------------------
 

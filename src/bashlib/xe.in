@@ -1,4 +1,5 @@
-((_XE_IMPORTED++)) && return 0
+declare -gA _BASHLIB_IMPORTED
+((_BASHLIB_IMPORTED[xe]++)) && return 0
 
 . "${BASH_SOURCE[0]%/*}/x.sh"
 

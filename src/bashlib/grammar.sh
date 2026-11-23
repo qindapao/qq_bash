@@ -1,4 +1,5 @@
-((_GRAMMAR_IMPORTED++)) && return 0
+declare -gA _BASHLIB_IMPORTED
+((_BASHLIB_IMPORTED[grammar]++)) && return 0
 
 export -A BASH_GRAMMAR=()
 

@@ -1,4 +1,5 @@
-((_STR_IMPORTED++)) && return 0
+declare -gA _BASHLIB_IMPORTED
+((_BASHLIB_IMPORTED[str]++)) && return 0
 
 . "${BASH_SOURCE[0]%/*}/grammar.sh"
 
