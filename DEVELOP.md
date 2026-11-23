@@ -1042,6 +1042,10 @@ by defensive code:
 - **Malformed structure fails loudly**: for example `=>` without the trailing
   space makes `x_rebuild_from_dump` return non-zero; it never yields a partial
   tree with silently dropped branches.
+- **Containers are never demoted by `x_insert`**: a non-empty container cannot be
+  overwritten by a leaf or by an empty container of either type (even the same
+  type), and an empty container cannot change type. Clear a subtree with
+  `x_delete` first; the sentinels only initialize or match empty containers.
 
 `str_escape_keep_nl` (values), `str_escape_key` (keys, additionally escapes
 `}`) and `str_unescape` form one inverse pair under these rules.

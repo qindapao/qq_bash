@@ -991,6 +991,25 @@ x_insert_dict ()
 #      $4=起始节点 ID（默认 ROOT）  $5=已遍历物理前缀（默认空）
 # @out REPLY=列表 "node_id physical_key"
 # @ret 0=OK  4=X_RET_ENUM_KEY_IS_INVALID  8=X_RET_ENUM_KEY_UP_LEV_TYPE_MISMATCH
+#
+# 行为状态机:
+#     操作                                          结果
+#     空字典 -> 普通标量                            X rc=8 is null obj,but insert is not.
+#     空字典 -> null 叶子                           X 同上
+#     空字典 -> 空数组                              X 同上
+#     空数组 -> 普通标量/null叶子/空字典            X rc=8 is null array,but insert is not.
+#     空字典 -> 空字典（同类型，空）                OK rc=0（幂等重写）
+#     空数组 -> 空数组（同类型，空）                OK rc=0
+#     空字典 -> 加子节点 {a}{b}=1                   OK 变成非空字典
+#     空数组 -> 加元素 {arr}[0]=1                   OK 变成非空数组
+#     空字典下写 [0]                                X up layer is not array or null.
+#     空数组下写 {k}                                X is not obj or null.
+#     非空容器 -> 普通标量/空容器(哪怕同类型)       X have children.这种情况请先用删除API删除节点，再写空容器
+#     普通叶子 -> 空字典 / 空数组                   OK 两种都行
+#     null 叶子 -> 空字典 / 空数组                  OK 两种都行
+#     普通叶子 <-> null 叶子                        OK 直接覆盖
+#     路径上的 null 叶子 -> 下钻 {p}{c} 或 {p}[0]   OK 按第一个子 token 升变成 OBJ 或 ARR
+#     路径上的普通叶子 -> 下钻                      X 只有 null 有“穿透升变”特权
 x_insert ()
 {
     REPLY=
@@ -1018,13 +1037,25 @@ x_insert ()
         [[ "$tr_value" != "$X_VALUE_NULL_ARR" ]] &&
         [[ "$tr_value" != "$X_VALUE_NULL_OBJ" ]] ; then
         tr_t["$tr_full_key"]=$tr_value
+        # 叶子覆盖只需要 node_id + physical_full_key。含 [i]/() 的路径需要索引
+        # token 的物理解析，仍走完整版本；纯 {} / <> 路径走无 assoc 的快速查找。
+        # 索引 token 的识别用“闭合 ]/)”+ 分隔符：早退路径只处理已存在的值键，
+        # 数组元素的值存在物理 <id>$X 下，[i]/() 正常不会走到这里；这里是防御。
+        local tr_node_id tr_node_phys_key
+        if [[ "$tr_full_key" == *"]$X"* || "$tr_full_key" == *")$X"* ]] ; then
             #@if current_shell_process_replace==1
-        local -A "tr_node_info=(${|_x_token_to_node_id "$1" "$tr_full_key";})"
+            local -A "tr_node_info=(${|_x_token_to_node_id "$1" "$tr_full_key";})"
             #@endif
             #@if current_shell_process_replace==0
-        _x_token_to_node_id "$1" "$tr_full_key" ; eval "${_ret_A/o/tr_node_info}"
+            _x_token_to_node_id "$1" "$tr_full_key" ; eval "${_ret_A/o/tr_node_info}"
             #@endif
-        tr_insert_reply=("${tr_node_info[node_id]}" "${tr_node_info[physical_full_key]}")
+            tr_node_id=${tr_node_info[node_id]}
+            tr_node_phys_key=${tr_node_info[physical_full_key]}
+        else
+            _x_token_to_node_id_fast "$1" "$tr_full_key" \
+                    tr_node_id tr_node_phys_key || return $?
+        fi
+        tr_insert_reply=("$tr_node_id" "$tr_node_phys_key")
         REPLY=${tr_insert_reply[*]@Q}
         return ${X_RET_ENUM_OK}
     fi
@@ -1181,21 +1212,20 @@ x_insert ()
             fi
             tr_tmp_node_ids_map[$tr_child_id]=1
 
-            local -a "tr_children=(${tr_t[$tr_node.s]})"
-            
             if ((tr_array_index!=-1)) ; then
+                local -a "tr_children=(${tr_t[$tr_node.s]})"
                 if [[ "$tr_token_pack" == '()' ]] ; then
                     tr_children=("${tr_children[@]:0:tr_array_index}" "$tr_token" "${tr_children[@]:tr_array_index}")
                 else
                     tr_children[$tr_array_index]="$tr_token"
                 fi
+                tr_t[$tr_node.s]=${tr_children[*]@Q}
             else
-                # Descending ASCII lexicographic order
-                # array_sorted_insert tr_children "$tr_token" '<'
-                tr_children+=("$tr_token")
+                # 字典/<id> 的新子节点只追加到末尾：.c 已确认不存在，直接拼到 .s。
+                # 用 += 保留旧 .s；:+ 只在旧值非空时补空格（判空，不是判“是否设置”），
+                # 这样 .s 未设置或被置空都不会产生前导空格。
+                tr_t[$tr_node.s]+=${tr_t[$tr_node.s]:+ }${tr_token@Q}
             fi
-
-            tr_t[$tr_node.s]=${tr_children[*]@Q}
         fi
 
         tr_node=$tr_child_id
@@ -1603,6 +1633,47 @@ _x_token_to_node_id ()
 #@if at_k_var_substitution==0
     array_to_kv_q_str tr_node_info ; REPLY=$REPLY
 #@endif
+    return ${X_RET_ENUM_OK}
+}
+
+#-------------------------------------------------------------------------------
+# 内部快速查节点：只接受“已校验、且只含 {} / <> token”的物理路径。
+#
+# x_insert 的叶子覆盖路径只需要 node_id + physical_full_key，不需要 type /
+# value / child_cnt，也不需要索引 token 的物理解析；因此这里跳过 key 校验、
+# assoc 拼装和 @K/array_to_kv_q_str 序列化。含 [i]/() 的路径必须由调用方
+# 回退到 _x_token_to_node_id（数组索引要做物理 token 解析）。
+#
+# @in  $1=树名  $2=物理路径  $3=node_id 输出变量名  $4=physical key 输出变量名
+# @ret 0=OK  3=X_RET_ENUM_KEY_IS_NOTFOUND
+_x_token_to_node_id_fast ()
+{
+    local -n _xtf_t=$1
+    local -n _xtf_id=$3
+    local -n _xtf_phys=$4
+    local _xtf_key=$2
+    local _xtf_tokens_str _xtf_token _xtf_child _xtf_path=''
+
+    _split_tokens_fast "$_xtf_key" || return $?
+    local -a "_xtf_tokens=($REPLY)"
+    local _xtf_node=$X_ROOT_ID
+
+    for _xtf_token in "${_xtf_tokens[@]}" ; do
+        if [[ "$_xtf_token" == '<'*'>' ]] ; then
+            _xtf_child=${_xtf_token:1:-1}
+        else
+            _xtf_child=${_xtf_t[$_xtf_node.c.$_xtf_token]}
+        fi
+        [[ -z "$_xtf_child" ]] && {
+            die ERR "node:${_xtf_node}(token:${_xtf_token@Q}) key is not found!"
+            return "$X_RET_ENUM_KEY_IS_NOTFOUND"
+        }
+        _xtf_node=$_xtf_child
+        _xtf_path+="$_xtf_token$X"
+    done
+
+    _xtf_id=$_xtf_node
+    _xtf_phys=$_xtf_path
     return ${X_RET_ENUM_OK}
 }
 
