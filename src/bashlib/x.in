@@ -168,13 +168,10 @@ tr_resolve_index_token ()
     local tr_token=$2 tr_node=$3
     if [[ "${tr_token:0:1}${tr_token: -1}" == '[]' ]] ; then
         local -a "tr_child_ids=(${tr_t[$tr_node.s]})"
-            #@if current_shell_process_replace==1
-        tr_token=${|_negative_token_to_positive "$tr_token" "${#tr_child_ids[@]}" "$tr_node";} || return $?
-            #@endif
-            #@if current_shell_process_replace==0
-        _negative_token_to_positive "$tr_token" "${#tr_child_ids[@]}" "$tr_node" || eval "$_ret_e"
-        eval "${_ret_s_/o/tr_token}"
-            #@endif
+        _negative_token_to_positive "$tr_token" "${#tr_child_ids[@]}" "$tr_node" || {
+            return $?
+        }
+        tr_token=$REPLY REPLY=
         tr_token=${tr_child_ids[${tr_token:1:-1}]}
     fi
     REPLY="$tr_token"
@@ -914,18 +911,9 @@ x_insert ()
             local -a "tr_array=(${tr_t[$tr_node.s]})"
             local -i tr_i tr_array_len=${#tr_array[@]}
             local -a tr_add_token=()
-            
-            local tr_token_ret
-                #@if current_shell_process_replace==1
-            tr_token=${|_negative_token_to_positive "$tr_token" "$tr_array_len" "$tr_node";} ; tr_token_ret=$?
-                #@endif
-                #@if current_shell_process_replace==0
-            _negative_token_to_positive "$tr_token" "$tr_array_len" "$tr_node" ; tr_token_ret=$?
-            eval "${_ret_s_/o/tr_token}"
-                #@endif
-            ((tr_token_ret)) && {
-                return $tr_token_ret
-            }
+
+            _negative_token_to_positive "$tr_token" "$tr_array_len" "$tr_node" || return $?
+            tr_token=$REPLY REPLY=
 
             for((tr_i=tr_array_len;tr_i<${tr_token:1:-1};tr_i++)) ; do
                 local tr_new_id=${tr_t[max_index]} ; ((tr_t[max_index]++))
