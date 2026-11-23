@@ -245,21 +245,12 @@ _negative_token_to_positive ()
 # @ret 0
 x_init ()
 {
-    REPLY=
-    local -A t=()
-    # t[$X_ROOT_ID]=1
-    t[$X_ROOT_ID.t]=${1:-"$X_TYPE_OBJ"}
-    # t[$X_ROOT_ID.s]=''
-    # t[$X_ROOT_ID.k]=''
-
+    # t[$X_ROOT_ID.t]=${1:-"$X_TYPE_OBJ"}
     # Next available node ID
-    t[max_index]=2
-#@if at_k_var_substitution==1
-    REPLY=${t[*]@K}
-#@endif
-#@if at_k_var_substitution==0
-    array_to_kv_q_str t ; REPLY=$REPLY
-#@endif
+    # t[max_index]=2
+
+    # 字符串是明确的，我们可以直接返回
+    REPLY="[$X_ROOT_ID.t]=${1:-$X_TYPE_OBJ} [max_index]=2"
 }
 
 #-------------------------------------------------------------------------------
