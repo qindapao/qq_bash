@@ -405,7 +405,8 @@ x_qinserts ()
 
     _tokens_insert_to_overwrite "$tr_common_prefix" ; tr_common_prefix=$REPLY REPLY=
     local -A w_x_qinserts__prefix_token_info=()
-    _x_token_to_node_id w_x_qinserts__prefix_token_info "$tr_t_name" "$tr_common_prefix" || return $?
+    _x_token_to_node_id w_x_qinserts__prefix_token_info \
+                        "$tr_t_name" "$tr_common_prefix" || return $?
 
     tr_common_prefix=${w_x_qinserts__prefix_token_info[physical_full_key]}
     local tr_common_id=${w_x_qinserts__prefix_token_info[node_id]}
@@ -791,11 +792,11 @@ x_insert ()
         # 数组元素的值存在物理 <id>$X 下，[i]/() 正常不会走到这里；这里是防御。
         local tr_node_id tr_node_phys_key
         if [[ "$tr_full_key" == *"]$X"* || "$tr_full_key" == *")$X"* ]] ; then
-            local -A w_x_insert__node_info=()
-            _x_token_to_node_id w_x_insert__node_info "$1" "$tr_full_key" || return $?
+            local -A w_x_insert__ninfo=()
+            _x_token_to_node_id w_x_insert__ninfo "$1" "$tr_full_key" || return $?
 
-            tr_node_id=${w_x_insert__node_info[node_id]}
-            tr_node_phys_key=${w_x_insert__node_info[physical_full_key]}
+            tr_node_id=${w_x_insert__ninfo[node_id]}
+            tr_node_phys_key=${w_x_insert__ninfo[physical_full_key]}
         else
             _x_token_to_node_id_fast "$1" "$tr_full_key" \
                     tr_node_id tr_node_phys_key || return $?
@@ -1036,10 +1037,10 @@ x_dump ()
                         "tr_print_array_index:2"
 
     local tr_node
-    local -A w_x_dump__node_info=()
-    _x_token_to_node_id w_x_dump__node_info "$tr_t_name" "$tr_full_key" || return $?
+    local -A w_x_dump__ninfo=()
+    _x_token_to_node_id w_x_dump__ninfo "$tr_t_name" "$tr_full_key" || return $?
 
-    tr_node=${w_x_dump__node_info[node_id]}
+    tr_node=${w_x_dump__ninfo[node_id]}
 
         #@if current_shell_process_replace==1
     local tr_indent=${|str_repeat ' ' "$tr_indent_cnt";}
@@ -1048,7 +1049,7 @@ x_dump ()
     str_repeat ' ' "$tr_indent_cnt" ; eval "${_ret_s/o/tr_indent}"
         #@endif
 
-    printf '%s(%s) -> %s\n' "$tr_t_name" "$tr_node" "${w_x_dump__node_info[physical_full_key]}"
+    printf '%s(%s) -> %s\n' "$tr_t_name" "$tr_node" "${w_x_dump__ninfo[physical_full_key]}"
 
     [[ "${tr_t[$tr_node.t]}" == "$X_TYPE_OBJ" ]] &&
     [[ -z "${tr_t[$tr_node.s]}" ]] && {
@@ -1522,11 +1523,11 @@ x_get_node_type ()
     local tr_key
 
     if [[ "$tr_input_kind" == 'path' ]] ; then
-        local -A w_x_get_node_type__node_info=()
-        _x_token_to_node_id w_x_get_node_type__node_info \
+        local -A w_x_get_node_type__ninfo=()
+        _x_token_to_node_id w_x_get_node_type__ninfo \
                            "$1" "$tr_node" 0 0 0 2>/dev/null
         (( $? )) && return $X_NODE_KIND_UNKNOWN
-        tr_node=${w_x_get_node_type__node_info[node_id]}
+        tr_node=${w_x_get_node_type__ninfo[node_id]}
     fi
 
     if [[ ${tr_t[$tr_node.k]+_} ]] ; then
@@ -1581,12 +1582,12 @@ x_walk ()
 
     local tr_root_id tr_physical_full_key tr_index_full_key
     local tr_node_kind
-    local -A w_x_walk__node_info=()
-    _x_token_to_node_id w_x_walk__node_info \
+    local -A w_x_walk__ninfo=()
+    _x_token_to_node_id w_x_walk__ninfo \
                         "$1" "$tr_prefix" 1 || return $?
-    tr_root_id=${w_x_walk__node_info[node_id]}
-    tr_physical_full_key=${w_x_walk__node_info[physical_full_key]}
-    tr_index_full_key=${w_x_walk__node_info[index_full_key]}
+    tr_root_id=${w_x_walk__ninfo[node_id]}
+    tr_physical_full_key=${w_x_walk__ninfo[physical_full_key]}
+    tr_index_full_key=${w_x_walk__ninfo[index_full_key]}
 
     local -a tr_stack=()
     tr_stack+=("$tr_physical_full_key" "$tr_index_full_key" "$tr_root_id")
@@ -1660,11 +1661,11 @@ x_walk_dict_tree ()
 
     local tr_root_id=$X_ROOT_ID tr_root_path=''
     if [[ -n "$tr_prefix" ]] ; then
-        local -A w_x_walk_dict_tree__node_info=()
-        _x_token_to_node_id w_x_walk_dict_tree__node_info \
+        local -A w_x_walk_dict_tree__ninfo=()
+        _x_token_to_node_id w_x_walk_dict_tree__ninfo \
                             "$1" "$tr_prefix" 1 || return $?
-        tr_root_id=${w_x_walk_dict_tree__node_info[node_id]}
-        tr_root_path=${w_x_walk_dict_tree__node_info[physical_full_key]}
+        tr_root_id=${w_x_walk_dict_tree__ninfo[node_id]}
+        tr_root_path=${w_x_walk_dict_tree__ninfo[physical_full_key]}
     fi
 
     local -a tr_stack_ids=("$tr_root_id")

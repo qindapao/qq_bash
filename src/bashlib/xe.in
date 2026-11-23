@@ -53,11 +53,11 @@ x_graft ()
             if ((tr_graft_is_first_insert)) ; then
                 tr_graft_is_first_insert=0
                 _tokens_insert_to_overwrite "$tr_graft_prefix" ; tr_graft_prefix=$REPLY REPLY=
-                local -A w_x_graft__node_info=()
-                _x_token_to_node_id w_x_graft__node_info \
+                local -A w_x_graft__ninfo=()
+                _x_token_to_node_id w_x_graft__ninfo \
                                     "$tr_target_name" "$tr_graft_prefix" || return $?
-                tr_graft_start_token_id=${w_x_graft__node_info[node_id]}
-                tr_graft_start_path_token=${w_x_graft__node_info[physical_full_key]}
+                tr_graft_start_token_id=${w_x_graft__ninfo[node_id]}
+                tr_graft_start_path_token=${w_x_graft__ninfo[physical_full_key]}
                 tr_graft_prefix=$tr_graft_start_path_token
             fi
             ;;
@@ -89,10 +89,10 @@ x_push_leaf_fast ()
     local -a tr_ret=()
 
     [[ -z "$tr_node" ]] && {
-        local -A w_x_push_leaf_fast__node_info=()
-        _x_token_to_node_id w_x_push_leaf_fast__node_info \
+        local -A w_x_push_leaf_fast__ninfo=()
+        _x_token_to_node_id w_x_push_leaf_fast__ninfo \
                             "$1" "$tr_prefix" || return $?
-        tr_node=${w_x_push_leaf_fast__node_info[node_id]}
+        tr_node=${w_x_push_leaf_fast__ninfo[node_id]}
     }
 
     local -a "tr_children=(${tr_t[$tr_node.s]})"
@@ -140,9 +140,9 @@ x_get_leaf ()
         die ERR "key is null."
         return $X_RET_ENUM_KEY_IS_NULL
     }
-    local -A w_x_get_leaf__node_info=()
-    _x_token_to_node_id w_x_get_leaf__node_info "$1" "$tr_full_key" || return $?
-    local tr_physical_full_key=${w_x_get_leaf__node_info[physical_full_key]}
+    local -A w_x_get_leaf__ninfo=()
+    _x_token_to_node_id w_x_get_leaf__ninfo "$1" "$tr_full_key" || return $?
+    local tr_physical_full_key=${w_x_get_leaf__ninfo[physical_full_key]}
     if [[ ${tr_t["$tr_physical_full_key"]+_} ]] ; then
         REPLY=${tr_t["$tr_physical_full_key"]}
         return $X_RET_ENUM_OK
@@ -187,11 +187,11 @@ x_get_tree ()
         x_key_is_invalid "$tr_full_key" || return $?
 
         # 4. Find the node ID corresponding to tr_full_key
-        local -A w_x_get_tree__node_info=()
-        _x_token_to_node_id w_x_get_tree__node_info \
+        local -A w_x_get_tree__ninfo=()
+        _x_token_to_node_id w_x_get_tree__ninfo \
                             "$tr_t_name" "$tr_full_key" || return $?
-        tr_node=${w_x_get_tree__node_info[node_id]}
-        tr_real_full_key=${w_x_get_tree__node_info[physical_full_key]}
+        tr_node=${w_x_get_tree__ninfo[node_id]}
+        tr_real_full_key=${w_x_get_tree__ninfo[physical_full_key]}
     fi
 
     [[ ${tr_t[$tr_real_full_key]+_} ]] && {
@@ -329,10 +329,10 @@ x_iter ()
         [[ -n "$tr_prefix" ]] && {
             x_key_is_invalid "$tr_prefix" || return $?
         }
-        local -A w_x_iter__node_info=()
-        _x_token_to_node_id w_x_iter__node_info \
+        local -A w_x_iter__ninfo=()
+        _x_token_to_node_id w_x_iter__ninfo \
                             "$1" "$tr_prefix" || return $?
-        tr_node_id=${w_x_iter__node_info[node_id]}
+        tr_node_id=${w_x_iter__ninfo[node_id]}
     }
 
     # If tr_node_id is empty, traverse the root node
@@ -631,8 +631,8 @@ _x_array_next_key ()
     # Get the up node type, if it exists, it must be an array or null
     # If it does not exist create an array and write position 0
     local tr_node_info_ret
-    local -A w__x_array_next_key__node_info=()
-    _x_token_to_node_id w__x_array_next_key__node_info \
+    local -A w__x_array_next_key__ninfo=()
+    _x_token_to_node_id w__x_array_next_key__ninfo \
                         "$tr_name" "$tr_up_key" 0 1 1 2>/dev/null
     tr_node_info_ret=$?
 
@@ -648,25 +648,25 @@ _x_array_next_key ()
         ;;
     $X_RET_ENUM_OK)
         # Get the up node type
-        if  [[ "${w__x_array_next_key__node_info[type]}" == "$X_TYPE_ARR" ]] ||
-            [[ "${w__x_array_next_key__node_info[value]}" == "$X_VALUE_NULL" ]] ; then
-            tr_child_cnt=${w__x_array_next_key__node_info[child_cnt]}
+        if  [[ "${w__x_array_next_key__ninfo[type]}" == "$X_TYPE_ARR" ]] ||
+            [[ "${w__x_array_next_key__ninfo[value]}" == "$X_VALUE_NULL" ]] ; then
+            tr_child_cnt=${w__x_array_next_key__ninfo[child_cnt]}
             case "$tr_mode" in
-            push)   REPLY="${w__x_array_next_key__node_info[physical_full_key]}[$tr_child_cnt]$X" ;;
+            push)   REPLY="${w__x_array_next_key__ninfo[physical_full_key]}[$tr_child_cnt]$X" ;;
             unshift)
-                    REPLY="${w__x_array_next_key__node_info[physical_full_key]}(0)$X" ;;
+                    REPLY="${w__x_array_next_key__ninfo[physical_full_key]}(0)$X" ;;
             pop|shift)
                 # First check if the child is empty
                 ((tr_child_cnt)) || {
-                    die ERR "node:${w__x_array_next_key__node_info[node_id]} child cnt is 0."
+                    die ERR "node:${w__x_array_next_key__ninfo[node_id]} child cnt is 0."
                     return $X_RET_ENUM_KEY_CHILD_CNT_IS_ZERO
                 }
                 ;;&
-            pop)    REPLY="${w__x_array_next_key__node_info[physical_full_key]}[$((tr_child_cnt-1))]$X" ;;
-            shift)  REPLY="${w__x_array_next_key__node_info[physical_full_key]}[0]$X" ;;
+            pop)    REPLY="${w__x_array_next_key__ninfo[physical_full_key]}[$((tr_child_cnt-1))]$X" ;;
+            shift)  REPLY="${w__x_array_next_key__ninfo[physical_full_key]}[0]$X" ;;
             esac
         else
-            die ERR "node:${w__x_array_next_key__node_info[node_id]} type is not array or null."
+            die ERR "node:${w__x_array_next_key__ninfo[node_id]} type is not array or null."
             return $X_RET_ENUM_KEY_UP_LEV_TYPE_MISMATCH
         fi
         ;;
