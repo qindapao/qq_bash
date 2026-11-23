@@ -53,9 +53,11 @@ x_graft ()
             if ((tr_graft_is_first_insert)) ; then
                 tr_graft_is_first_insert=0
                 _tokens_insert_to_overwrite "$tr_graft_prefix" ; tr_graft_prefix=$REPLY REPLY=
-                _x_token_to_node_id "$tr_target_name" "$tr_graft_prefix" ; eval "${_ret_A/o/tr_prefix_token_info}"
-                tr_graft_start_token_id=${tr_prefix_token_info[node_id]}
-                tr_graft_start_path_token=${tr_prefix_token_info[physical_full_key]}
+                local -A w_x_graft__node_info=()
+                _x_token_to_node_id w_x_graft__node_info \
+                                    "$tr_target_name" "$tr_graft_prefix" || return $?
+                tr_graft_start_token_id=${w_x_graft__node_info[node_id]}
+                tr_graft_start_path_token=${w_x_graft__node_info[physical_full_key]}
                 tr_graft_prefix=$tr_graft_start_path_token
             fi
             ;;
@@ -87,13 +89,10 @@ x_push_leaf_fast ()
     local -a tr_ret=()
 
     [[ -z "$tr_node" ]] && {
-            #@if current_shell_process_replace==1
-        local -A "tr_node_info=(${|_x_token_to_node_id "$1" "$tr_prefix";})"
-            #@endif
-            #@if current_shell_process_replace==0
-        _x_token_to_node_id "$1" "$tr_prefix" ; eval "${_ret_A/o/tr_node_info}"
-            #@endif
-        tr_node=${tr_node_info[node_id]}
+        local -A w_x_push_leaf_fast__node_info=()
+        _x_token_to_node_id w_x_push_leaf_fast__node_info \
+                            "$1" "$tr_prefix" || return $?
+        tr_node=${w_x_push_leaf_fast__node_info[node_id]}
     }
 
     local -a "tr_children=(${tr_t[$tr_node.s]})"
@@ -141,16 +140,9 @@ x_get_leaf ()
         die ERR "key is null."
         return $X_RET_ENUM_KEY_IS_NULL
     }
-    local tr_node_info
-#@if current_shell_process_replace==1
-    tr_node_info=${|_x_token_to_node_id "$1" "$tr_full_key";} || return $?
-#@endif
-#@if current_shell_process_replace==0
-    _x_token_to_node_id "$1" "$tr_full_key" || eval "$_ret_e"
-    eval "${_ret_s_/o/tr_node_info}"
-#@endif
-    local -A "tr_node_info=($tr_node_info)"
-    local tr_physical_full_key=${tr_node_info[physical_full_key]}
+    local -A w_x_get_leaf__node_info=()
+    _x_token_to_node_id w_x_get_leaf__node_info "$1" "$tr_full_key" || return $?
+    local tr_physical_full_key=${w_x_get_leaf__node_info[physical_full_key]}
     if [[ ${tr_t["$tr_physical_full_key"]+_} ]] ; then
         REPLY=${tr_t["$tr_physical_full_key"]}
         return $X_RET_ENUM_OK
@@ -195,17 +187,11 @@ x_get_tree ()
         x_key_is_invalid "$tr_full_key" || return $?
 
         # 4. Find the node ID corresponding to tr_full_key
-        local tr_node_info
-            #@if current_shell_process_replace==1
-        tr_node_info=${|_x_token_to_node_id "$tr_t_name" "$tr_full_key";} || return $?
-            #@endif
-            #@if current_shell_process_replace==0
-        _x_token_to_node_id "$tr_t_name" "$tr_full_key" || eval "$_ret_e"
-        eval "${_ret_s_/o/tr_node_info}"
-            #@endif
-        local -A "tr_node_info=($tr_node_info)"
-        tr_node=${tr_node_info[node_id]}
-        tr_real_full_key=${tr_node_info[physical_full_key]}
+        local -A w_x_get_tree__node_info=()
+        _x_token_to_node_id w_x_get_tree__node_info \
+                            "$tr_t_name" "$tr_full_key" || return $?
+        tr_node=${w_x_get_tree__node_info[node_id]}
+        tr_real_full_key=${w_x_get_tree__node_info[physical_full_key]}
     fi
 
     [[ ${tr_t[$tr_real_full_key]+_} ]] && {
@@ -343,16 +329,10 @@ x_iter ()
         [[ -n "$tr_prefix" ]] && {
             x_key_is_invalid "$tr_prefix" || return $?
         }
-        local tr_node_info
-            #@if current_shell_process_replace==1
-        tr_node_info=${|_x_token_to_node_id "$1" "$tr_prefix";} || return $?
-            #@endif
-            #@if current_shell_process_replace==0
-        _x_token_to_node_id "$1" "$tr_prefix" || eval "$_ret_e"
-        eval "${_ret_s_/o/tr_node_info}"
-            #@endif
-        local -A "tr_node_info=($tr_node_info)"
-        tr_node_id=${tr_node_info[node_id]}
+        local -A w_x_iter__node_info=()
+        _x_token_to_node_id w_x_iter__node_info \
+                            "$1" "$tr_prefix" || return $?
+        tr_node_id=${w_x_iter__node_info[node_id]}
     }
 
     # If tr_node_id is empty, traverse the root node
@@ -650,16 +630,11 @@ _x_array_next_key ()
 
     # Get the up node type, if it exists, it must be an array or null
     # If it does not exist create an array and write position 0
-    local tr_node_info tr_node_info_ret
-        #@if current_shell_process_replace==1
-    tr_node_info=${|_x_token_to_node_id "$tr_name" "$tr_up_key" 0 1 1 2>/dev/null;}
+    local tr_node_info_ret
+    local -A w__x_array_next_key__node_info=()
+    _x_token_to_node_id w__x_array_next_key__node_info \
+                        "$tr_name" "$tr_up_key" 0 1 1 2>/dev/null
     tr_node_info_ret=$?
-        #@endif
-        #@if current_shell_process_replace==0
-    _x_token_to_node_id "$tr_name" "$tr_up_key" 0 1 1 2>/dev/null
-    tr_node_info_ret=$?
-    eval "${_ret_s_/o/tr_node_info}"
-        #@endif
 
     case "$tr_node_info_ret" in
     $X_RET_ENUM_KEY_IS_NOTFOUND)
@@ -673,26 +648,25 @@ _x_array_next_key ()
         ;;
     $X_RET_ENUM_OK)
         # Get the up node type
-        local -A "tr_node_info=($tr_node_info)"
-        if  [[ "${tr_node_info[type]}" == "$X_TYPE_ARR" ]] ||
-            [[ "${tr_node_info[value]}" == "$X_VALUE_NULL" ]] ; then
-            tr_child_cnt=${tr_node_info[child_cnt]}
+        if  [[ "${w__x_array_next_key__node_info[type]}" == "$X_TYPE_ARR" ]] ||
+            [[ "${w__x_array_next_key__node_info[value]}" == "$X_VALUE_NULL" ]] ; then
+            tr_child_cnt=${w__x_array_next_key__node_info[child_cnt]}
             case "$tr_mode" in
-            push)   REPLY="${tr_node_info[physical_full_key]}[$tr_child_cnt]$X" ;;
+            push)   REPLY="${w__x_array_next_key__node_info[physical_full_key]}[$tr_child_cnt]$X" ;;
             unshift)
-                    REPLY="${tr_node_info[physical_full_key]}(0)$X" ;;
+                    REPLY="${w__x_array_next_key__node_info[physical_full_key]}(0)$X" ;;
             pop|shift)
                 # First check if the child is empty
                 ((tr_child_cnt)) || {
-                    die ERR "node:${tr_node_info[node_id]} child cnt is 0."
+                    die ERR "node:${w__x_array_next_key__node_info[node_id]} child cnt is 0."
                     return $X_RET_ENUM_KEY_CHILD_CNT_IS_ZERO
                 }
                 ;;&
-            pop)    REPLY="${tr_node_info[physical_full_key]}[$((tr_child_cnt-1))]$X" ;;
-            shift)  REPLY="${tr_node_info[physical_full_key]}[0]$X" ;;
+            pop)    REPLY="${w__x_array_next_key__node_info[physical_full_key]}[$((tr_child_cnt-1))]$X" ;;
+            shift)  REPLY="${w__x_array_next_key__node_info[physical_full_key]}[0]$X" ;;
             esac
         else
-            die ERR "node:${tr_node_info[node_id]} type is not array or null."
+            die ERR "node:${w__x_array_next_key__node_info[node_id]} type is not array or null."
             return $X_RET_ENUM_KEY_UP_LEV_TYPE_MISMATCH
         fi
         ;;
@@ -881,16 +855,10 @@ x_layer_get_flat ()
         [[ -n "$tr_full_key" ]] && {
             x_key_is_invalid "$tr_full_key" || return $?
         }
-        local tr_node_info
-            #@if current_shell_process_replace==1
-        tr_node_info=${|_x_token_to_node_id "$2" "$tr_full_key";} || return $?
-            #@endif
-            #@if current_shell_process_replace==0
-        _x_token_to_node_id "$2" "$tr_full_key" || eval "$_ret_e"
-        eval "${_ret_s_/o/tr_node_info}"
-            #@endif
-        local -A "tr_node_info=($tr_node_info)"
-        tr_node_id=${tr_node_info[node_id]}
+        local -A w_x_layer_get_flat__ninfo=()
+        _x_token_to_node_id w_x_layer_get_flat__ninfo \
+                            "$2" "$tr_full_key" || return $?
+        tr_node_id=${w_x_layer_get_flat__ninfo[node_id]}
     fi
 
     # If tr_node_id is empty, determine the root node

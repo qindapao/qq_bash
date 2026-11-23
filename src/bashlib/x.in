@@ -404,10 +404,11 @@ x_qinserts ()
 
 
     _tokens_insert_to_overwrite "$tr_common_prefix" ; tr_common_prefix=$REPLY REPLY=
-    _x_token_to_node_id "$tr_t_name" "$tr_common_prefix" ; eval "${_ret_A/o/tr_prefix_token_info}"
+    local -A w_x_qinserts__prefix_token_info=()
+    _x_token_to_node_id w_x_qinserts__prefix_token_info "$tr_t_name" "$tr_common_prefix" || return $?
 
-    tr_common_prefix=${tr_prefix_token_info[physical_full_key]}
-    local tr_common_id=${tr_prefix_token_info[node_id]}
+    tr_common_prefix=${w_x_qinserts__prefix_token_info[physical_full_key]}
+    local tr_common_id=${w_x_qinserts__prefix_token_info[node_id]}
     [[ "$tr_return_mode" == 'common' ]] && {
         tr_qinserts_reply=("$tr_common_id" "$tr_common_prefix")
 
@@ -790,14 +791,11 @@ x_insert ()
         # 数组元素的值存在物理 <id>$X 下，[i]/() 正常不会走到这里；这里是防御。
         local tr_node_id tr_node_phys_key
         if [[ "$tr_full_key" == *"]$X"* || "$tr_full_key" == *")$X"* ]] ; then
-            #@if current_shell_process_replace==1
-            local -A "tr_node_info=(${|_x_token_to_node_id "$1" "$tr_full_key";})"
-            #@endif
-            #@if current_shell_process_replace==0
-            _x_token_to_node_id "$1" "$tr_full_key" ; eval "${_ret_A/o/tr_node_info}"
-            #@endif
-            tr_node_id=${tr_node_info[node_id]}
-            tr_node_phys_key=${tr_node_info[physical_full_key]}
+            local -A w_x_insert__node_info=()
+            _x_token_to_node_id w_x_insert__node_info "$1" "$tr_full_key" || return $?
+
+            tr_node_id=${w_x_insert__node_info[node_id]}
+            tr_node_phys_key=${w_x_insert__node_info[physical_full_key]}
         else
             _x_token_to_node_id_fast "$1" "$tr_full_key" \
                     tr_node_id tr_node_phys_key || return $?
@@ -1037,16 +1035,11 @@ x_dump ()
                         "tr_value_need_print:1" \
                         "tr_print_array_index:2"
 
-    local tr_node tr_node_info
-        #@if current_shell_process_replace==1
-    tr_node_info=${|_x_token_to_node_id "$tr_t_name" "$tr_full_key";} || return $?
-        #@endif
-        #@if current_shell_process_replace==0
-    _x_token_to_node_id "$tr_t_name" "$tr_full_key" || eval "$_ret_e"
-    eval "${_ret_s_/o/tr_node_info}"
-        #@endif
-    local -A "tr_node_info=($tr_node_info)"
-    tr_node=${tr_node_info[node_id]}
+    local tr_node
+    local -A w_x_dump__node_info=()
+    _x_token_to_node_id w_x_dump__node_info "$tr_t_name" "$tr_full_key" || return $?
+
+    tr_node=${w_x_dump__node_info[node_id]}
 
         #@if current_shell_process_replace==1
     local tr_indent=${|str_repeat ' ' "$tr_indent_cnt";}
@@ -1055,7 +1048,7 @@ x_dump ()
     str_repeat ' ' "$tr_indent_cnt" ; eval "${_ret_s/o/tr_indent}"
         #@endif
 
-    printf '%s(%s) -> %s\n' "$tr_t_name" "$tr_node" "${tr_node_info[physical_full_key]}"
+    printf '%s(%s) -> %s\n' "$tr_t_name" "$tr_node" "${w_x_dump__node_info[physical_full_key]}"
 
     [[ "${tr_t[$tr_node.t]}" == "$X_TYPE_OBJ" ]] &&
     [[ -z "${tr_t[$tr_node.s]}" ]] && {
@@ -1217,70 +1210,43 @@ _x_dump ()
 
 #-------------------------------------------------------------------------------
 
-# If we need to rearrange an array, it is very simple. We can use this function to
-# get the node ID, then get the children through the node ID, and then rearrange
-# the children and write them back to the original associative array. Because
-# there is no addition or subtraction of elements, there is no deletion or addition
-# of elements involved, only children need to be updated.
-#
-# 物理/索引 token 解析为节点 ID，可选返回子节点数或值。
-# @in  $1=树名  $2=物理全 key  $3=需要 index_full_key(0/1)
-#      $4=需要 child_cnt(0/1)  $5=需要 value(0/1)
-# @out REPLY=关联数组 KV：node_id physical_full_key index_full_key type
+# 物理/索引 token 解析为节点 ID，结果直接写入调用方关联数组。
+# 调用方先声明 local -A，函数直接写，不使用 REPLY / @K / 反序列化。
+# @in  $1=输出关联数组变量名
+#      $2=树名  $3=物理全 key
+#      $4=需要 index_full_key(0/1)  $5=需要 child_cnt(0/1)  $6=需要 value(0/1)
+# @out $1=关联数组 KV：node_id physical_full_key index_full_key type
 #             child_cnt(可选) value(可选)
 # @ret 0=OK  3=X_RET_ENUM_KEY_IS_NOTFOUND  4=X_RET_ENUM_KEY_IS_INVALID
 #
-# :TODO: 性能优化（当前不做的原因 + 将来怎么改）
-#
-# 【为什么现在不优化】
-#   - 本函数只在初始化/低频场景调用，单次 60-100 微秒开销完全可接受。
-#   - 改造会牵动 11 处调用点，维护成本 > 收益。
-#
-# 【将来如果非要优化，采用“隐式作用域契约”极速版】
-#   1. 约定死一个变量名，比如 `x_tk_info_mps`。
-#   2. 调用方必须先声明：local -A x_tk_info_mps=()
-#   3. 本函数内部直接写 `x_tk_info_mps[node_id]=...`，
-#      连 local -n 都不用，利用 Bash 动态作用域直接命中调用方变量。
-#
-# 【绝对红线警告】
-#   此方案严禁任何形式的嵌套/递归调用！必须保证任意时刻调用栈里
-#   只有一个函数在使用 `x_tk_info_mps`，否则内层调用会直接覆盖外层数据。
-#   如非遇到真正的性能瓶颈，不要启用此方案。
-#
 _x_token_to_node_id ()
 {
-    REPLY=
-    local -n tr_t=$1
-    local tr_full_key=$2
-    local -i    tr_need_index_full_key=${3:-0} \
-                tr_need_child_cnt=${4:-0} \
-                tr_need_value=${5:-0}
-    local -A tr_node_info=()
+    # 返回上层的关联数组
+    local -n w_tr_node_info=$1 ; w_tr_node_info=()
+    local -n tr_t=$2
+    local tr_full_key=$3
+    local -i    tr_need_index_full_key=${4:-0} \
+                tr_need_child_cnt=${5:-0} \
+                tr_need_value=${6:-0}
 
     [[ -z "$tr_full_key" ]] && {
         # ROOT
         if ((tr_need_child_cnt)) ; then
             if [[ -n "${tr_t[$X_ROOT_ID.s]}" ]] ; then
                 local -a "tr_children_tmp=(${tr_t[$X_ROOT_ID.s]})"
-                tr_node_info[child_cnt]=${#tr_children_tmp[@]}
+                w_tr_node_info[child_cnt]=${#tr_children_tmp[@]}
             else
-                tr_node_info[child_cnt]=0
+                w_tr_node_info[child_cnt]=0
             fi
         fi
 
-        tr_node_info+=(
+        w_tr_node_info+=(
             [node_id]="$X_ROOT_ID"
             [physical_full_key]=""
             [index_full_key]=""
             [type]=${tr_t[$X_ROOT_ID.t]}
             [value]=""
             )
-            #@if at_k_var_substitution==1
-        REPLY=${tr_node_info[*]@K}
-            #@endif
-            #@if at_k_var_substitution==0
-        array_to_kv_q_str tr_node_info ; REPLY=$REPLY
-            #@endif
         return ${X_RET_ENUM_OK}
     }
 
@@ -1294,7 +1260,7 @@ _x_token_to_node_id ()
     for tr_token in "${w__x_token_to_node_id__tr_tokens[@]}" ; do
         tr_token_raw=$tr_token
 
-        tr_resolve_index_token "$1" "$tr_token" "$tr_node" || return $?
+        tr_resolve_index_token "$2" "$tr_token" "$tr_node" || return $?
         tr_token=$REPLY REPLY=
         [[ -z "$tr_token" ]] && {
             die ERR "node:${tr_node}(token:${tr_token_raw@Q}) is not found physical token!"
@@ -1304,7 +1270,7 @@ _x_token_to_node_id ()
 
         ((tr_need_index_full_key)) && {
             # 树默认合法：<id> 不应缺失；这里不接 4=KEY_IS_INVALID，统一按空值返回 3=NOTFOUND。
-            tr_resolve_physical_token "$1" "$tr_token" "$tr_node" ; tr_token_index=$REPLY REPLY=
+            tr_resolve_physical_token "$2" "$tr_token" "$tr_node" ; tr_token_index=$REPLY REPLY=
             [[ -z "$tr_token_index" ]] && {
                 die ERR "node:${tr_node}(token:${tr_token_raw@Q}) is not found index token!"
                 return $X_RET_ENUM_KEY_IS_NOTFOUND
@@ -1324,34 +1290,28 @@ _x_token_to_node_id ()
         tr_node=$tr_child_id
     done
 
-    ((tr_need_index_full_key)) && tr_node_info[index_full_key]=$tr_index_full_key
+    ((tr_need_index_full_key)) && w_tr_node_info[index_full_key]=$tr_index_full_key
 
     if ((tr_need_child_cnt)) ; then
         if [[ -n "${tr_t[$tr_node.s]}" ]] ; then
             local -a "tr_children_tmp=(${tr_t[$tr_node.s]})"
-            tr_node_info[child_cnt]=${#tr_children_tmp[@]}
+            w_tr_node_info[child_cnt]=${#tr_children_tmp[@]}
         else
-            tr_node_info[child_cnt]=0
+            w_tr_node_info[child_cnt]=0
         fi
     fi
 
     ((tr_need_value)) && {
         local tr_key=${tr_t[$tr_node.k]} tr_value=
         [[ -n "$tr_key" ]] && tr_value=${tr_t["$tr_key"]}
-        tr_node_info[value]=$tr_value
+        w_tr_node_info[value]=$tr_value
     }
 
-    tr_node_info+=(
+    w_tr_node_info+=(
         [node_id]="$tr_node"
         [physical_full_key]="$tr_real_full_key"
         [type]=${tr_t[$tr_node.t]}
         )
-#@if at_k_var_substitution==1
-    REPLY=${tr_node_info[*]@K}
-#@endif
-#@if at_k_var_substitution==0
-    array_to_kv_q_str tr_node_info ; REPLY=$REPLY
-#@endif
     return ${X_RET_ENUM_OK}
 }
 
@@ -1562,10 +1522,11 @@ x_get_node_type ()
     local tr_key
 
     if [[ "$tr_input_kind" == 'path' ]] ; then
-        _x_token_to_node_id "$1" "$tr_node" 0 0 0 2>/dev/null
+        local -A w_x_get_node_type__node_info=()
+        _x_token_to_node_id w_x_get_node_type__node_info \
+                           "$1" "$tr_node" 0 0 0 2>/dev/null
         (( $? )) && return $X_NODE_KIND_UNKNOWN
-        local -A "tr_node_info=($REPLY)" ; REPLY=
-        tr_node=${tr_node_info[node_id]}
+        tr_node=${w_x_get_node_type__node_info[node_id]}
     fi
 
     if [[ ${tr_t[$tr_node.k]+_} ]] ; then
@@ -1619,18 +1580,13 @@ x_walk ()
     local tr_cb=${3:-x_cb_print}
 
     local tr_root_id tr_physical_full_key tr_index_full_key
-    local tr_node_info tr_node_kind
-        #@if current_shell_process_replace==1
-    tr_node_info=${|_x_token_to_node_id "$1" "$tr_prefix" 1;} || return $?
-        #@endif
-        #@if current_shell_process_replace==0
-    _x_token_to_node_id "$1" "$tr_prefix" 1 || eval "$_ret_e"
-    eval "${_ret_s_/o/tr_node_info}"
-        #@endif
-    local -A "tr_node_info=($tr_node_info)"
-    tr_root_id=${tr_node_info[node_id]}
-    tr_physical_full_key=${tr_node_info[physical_full_key]}
-    tr_index_full_key=${tr_node_info[index_full_key]}
+    local tr_node_kind
+    local -A w_x_walk__node_info=()
+    _x_token_to_node_id w_x_walk__node_info \
+                        "$1" "$tr_prefix" 1 || return $?
+    tr_root_id=${w_x_walk__node_info[node_id]}
+    tr_physical_full_key=${w_x_walk__node_info[physical_full_key]}
+    tr_index_full_key=${w_x_walk__node_info[index_full_key]}
 
     local -a tr_stack=()
     tr_stack+=("$tr_physical_full_key" "$tr_index_full_key" "$tr_root_id")
@@ -1704,12 +1660,11 @@ x_walk_dict_tree ()
 
     local tr_root_id=$X_ROOT_ID tr_root_path=''
     if [[ -n "$tr_prefix" ]] ; then
-        local tr_node_info
-        _x_token_to_node_id "$1" "$tr_prefix" 1 || eval "${_ret_e}"
-        eval "${_ret_s_/o/tr_node_info}"
-        local -A "tr_node_info=($tr_node_info)"
-        tr_root_id=${tr_node_info[node_id]}
-        tr_root_path=${tr_node_info[physical_full_key]}
+        local -A w_x_walk_dict_tree__node_info=()
+        _x_token_to_node_id w_x_walk_dict_tree__node_info \
+                            "$1" "$tr_prefix" 1 || return $?
+        tr_root_id=${w_x_walk_dict_tree__node_info[node_id]}
+        tr_root_path=${w_x_walk_dict_tree__node_info[physical_full_key]}
     fi
 
     local -a tr_stack_ids=("$tr_root_id")
