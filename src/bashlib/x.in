@@ -171,8 +171,7 @@ tr_resolve_index_token ()
         _negative_token_to_positive "$tr_token" "${#tr_child_ids[@]}" "$tr_node" || {
             return $?
         }
-        tr_token=$REPLY REPLY=
-        tr_token=${tr_child_ids[${tr_token:1:-1}]}
+        tr_token=${tr_child_ids[${REPLY:1:-1}]} REPLY=
     fi
     REPLY="$tr_token"
 }
@@ -1298,12 +1297,9 @@ _x_token_to_node_id ()
     local tr_token_index= tr_index_full_key=
     for tr_token in "${w__x_token_to_node_id__tr_tokens[@]}" ; do
         tr_token_raw=$tr_token
-            #@if current_shell_process_replace==1
-        tr_token=${|tr_resolve_index_token "$1" "$tr_token" "$tr_node";}
-            #@endif
-            #@if current_shell_process_replace==0
-        tr_resolve_index_token "$1" "$tr_token" "$tr_node" ; eval "${_ret_s_/o/tr_token}"
-            #@endif
+
+        tr_resolve_index_token "$1" "$tr_token" "$tr_node" || return $?
+        tr_token=$REPLY REPLY=
         [[ -z "$tr_token" ]] && {
             die ERR "node:${tr_node}(token:${tr_token_raw@Q}) is not found physical token!"
             return $X_RET_ENUM_KEY_IS_NOTFOUND
@@ -1448,12 +1444,8 @@ x_delete ()
 
     local tr_token tr_child_id tr_index
     for tr_token in "${w_x_delete__tr_tokens[@]}"; do
-            #@if current_shell_process_replace==1
-        tr_token=${|tr_resolve_index_token "$1" "$tr_token" "$tr_node";}
-            #@endif
-            #@if current_shell_process_replace==0
-        tr_resolve_index_token "$1" "$tr_token" "$tr_node" ; eval "${_ret_s_/o/tr_token}"
-            #@endif
+        tr_resolve_index_token "$1" "$tr_token" "$tr_node" || return $?
+        tr_token=$REPLY REPLY=
         [[ -z "$tr_token" ]] && return $X_RET_ENUM_OK
 
         if [[ "$tr_token" == '<'*'>' ]] ;then
