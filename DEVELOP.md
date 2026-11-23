@@ -894,10 +894,12 @@ supports objects, arrays, nulls, booleans, ordered children, and path access.
 - `x_walk` / `x_iter` / `x_to_flat_array` / `x_flat_to_tree`
 - `x_walk_dict_tree` — fast walker for **pure `{}` trees**; it rejects arrays
   and physical-id nodes. Use `x_walk` for mixed trees.
-- `x_to_json` / `x_from_json` / `x_dump` / `x_equals` / `x_graft`
+- `x_dump` / `x_equals` / `x_graft`
+- `x_to_json` / `x_from_json` live in `src/bashlib/xj.in` (source `xj.sh`);
+  `x.in` itself stays JSON-free
 
 Full parameters and return codes are documented in the function headers of
-`src/bashlib/x.in`.
+`src/bashlib/x.in` and `src/bashlib/xj.in`.
 
 ### Node state transitions
 

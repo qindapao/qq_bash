@@ -1,0 +1,388 @@
+((_XJ_IMPORTED++)) && return 0
+
+. "${BASH_SOURCE[0]%/*}/x.sh"
+
+#-------------------------------------------------------------------------------
+
+# $1: The value of the string that needs to be converted
+# $2: Variable name saved after conversion
+#
+# JSON 路径键转义：转义 [ ] . * ? | @ # { } ! 为带反斜杠的形态。
+# @in  $1=原始字符串  $2=输出变量名（nameref）
+# @ret 0（始终成功）
+x_bjson_key_escape ()
+{
+    local -n bjsonKeyEscapeR_ekey="$2"
+
+    bjsonKeyEscapeR_ekey="$1"
+
+    if ((${#bjsonKeyEscapeR_ekey}>6666)) ; then
+        bjsonKeyEscapeR_ekey=$(printf '%s' "$bjsonKeyEscapeR_ekey" | gobolt json -m e -k stdin)
+        bjsonKeyEscapeR_ekey=${bjsonKeyEscapeR_ekey%?}
+    else
+    #@if patsub_replacement==1
+        local bjsonKeyEscapeR_is_patsub_replacement_on=0
+        shopt -q patsub_replacement || {
+            shopt -s patsub_replacement
+            bjsonKeyEscapeR_is_patsub_replacement_on=1
+        }
+
+        # 5.2 patsub_replacement
+        bjsonKeyEscapeR_ekey=${bjsonKeyEscapeR_ekey//[$'][\\.*?|@#{}!']/\\&}
+        ((bjsonKeyEscapeR_is_patsub_replacement_on)) && shopt -u patsub_replacement
+    #@endif
+    #@if patsub_replacement==0
+        # Backslashes must be handle first
+        bjsonKeyEscapeR_ekey=${bjsonKeyEscapeR_ekey//'\'/'\\'}
+        bjsonKeyEscapeR_ekey=${bjsonKeyEscapeR_ekey//']'/'\]'}
+        bjsonKeyEscapeR_ekey=${bjsonKeyEscapeR_ekey//'['/'\['}
+        bjsonKeyEscapeR_ekey=${bjsonKeyEscapeR_ekey//'.'/'\.'}
+        bjsonKeyEscapeR_ekey=${bjsonKeyEscapeR_ekey//'*'/'\*'}
+        bjsonKeyEscapeR_ekey=${bjsonKeyEscapeR_ekey//'?'/'\?'}
+        bjsonKeyEscapeR_ekey=${bjsonKeyEscapeR_ekey//'|'/'\|'}
+        bjsonKeyEscapeR_ekey=${bjsonKeyEscapeR_ekey//'@'/'\@'}
+        bjsonKeyEscapeR_ekey=${bjsonKeyEscapeR_ekey//'#'/'\#'}
+        bjsonKeyEscapeR_ekey=${bjsonKeyEscapeR_ekey//'{'/'\{'}
+        bjsonKeyEscapeR_ekey=${bjsonKeyEscapeR_ekey//'}'/'\}'}
+        bjsonKeyEscapeR_ekey=${bjsonKeyEscapeR_ekey//'!'/'\!'}
+    #@endif
+    fi
+}
+
+#-------------------------------------------------------------------------------
+
+# This function is very slow and is only used for verification.
+#
+# 慢速 JSON 序列化（每条边 fork 一次 gobolt，仅作验证用）。
+# @in  $1=树名  $2=物理全 key（空=整棵树）
+# @out REPLY=JSON 字符串
+# @ret 0=OK  10=X_RET_ENUM_KEY_OTHER_TOOL_NOT_INSTALLED
+#      52=X_RET_ENUM_TREE_NOT_HAVE_ROOT
+x_to_json_slow ()
+{
+    REPLY=
+    # local - ; set +x
+    local tr_name=$1
+    local -n tr_t=$1
+    local tr_full_key=$2
+    local tr_jstr
+    local tr_temp_file=$(mktemp)
+
+    command -v gobolt &>/dev/null || {
+        die ERR "gobolt tool is not installed."
+        rm -f -- "$tr_temp_file"
+        return $X_RET_ENUM_KEY_OTHER_TOOL_NOT_INSTALLED
+    }
+
+    [[ -z "${tr_t[$X_ROOT_ID.s]}" ]] && {
+        rm -f -- "$tr_temp_file"
+        case "${tr_t[$X_ROOT_ID.t]}" in
+        $X_TYPE_OBJ)   REPLY='{}' ; return $X_RET_ENUM_OK ;;
+        $X_TYPE_ARR)   REPLY='[]' ; return $X_RET_ENUM_OK ;;
+        *)  return $X_RET_ENUM_TREE_NOT_HAVE_ROOT  ;;
+        esac
+    }
+
+    x_to_json_slow_cb ()
+    {
+        local node_kind=$1
+        local index_full_key=$3 value=$4
+    #@if current_shell_process_replace==1
+        local -a "tokens=(${|_split_tokens "$index_full_key";})"
+    #@endif
+    #@if current_shell_process_replace==0
+        _split_tokens "$index_full_key" ; eval "${_ret_a/o/tokens}"
+    #@endif
+        local -a bjson_params=()
+        local token
+        local write_jstr_param='-f'
+
+        case "$node_kind" in
+        $X_NODE_KIND_LEAF)
+            case "$value" in
+            $X_VALUE_TRUE) value='true'   ;;
+            $X_VALUE_FALSE) value='false' ;;
+            *"$X")  value=${value%"$X"}    ;;
+            *) write_jstr_param='-o'       ;;
+            esac
+            ;;
+        $X_NODE_KIND_LEAF_NULL) value='null' ;;
+        $X_NODE_KIND_ARR_EMPTY) value='[]'   ;;
+        $X_NODE_KIND_OBJ_EMPTY) value='{}'   ;;
+        *)  return $X_RET_ENUM_OK            ;;
+        esac
+
+        for token in "${tokens[@]}" ; do
+            case "$token" in
+            '{'*'}') bjson_params+=(":${token:1:-1}")   ;;
+            '['*']') bjson_params+=("${token:1:-1}")    ;;
+            esac
+        done
+
+        printf '%s' "$value" >"$tr_temp_file"
+        
+            #@if current_shell_process_replace==1
+        tr_jstr=${ printf '%s' "$tr_jstr" | \
+            gobolt json -m w -k stdin "$write_jstr_param" "$tr_temp_file" \
+            -P -- "${bjson_params[@]}";} || return $?
+            #@endif
+            #@if current_shell_process_replace==0
+        tr_jstr=$( printf '%s' "$tr_jstr" | \
+            gobolt json -m w -k stdin "$write_jstr_param" "$tr_temp_file" \
+            -P -- "${bjson_params[@]}" ) || return $?
+            #@endif
+
+        return $X_RET_ENUM_OK
+    }
+
+    x_walk "$tr_name" "$tr_full_key" x_to_json_slow_cb ; local tr_rc=$?
+    rm -f -- "$tr_temp_file"
+    (( tr_rc )) && return $tr_rc
+    REPLY=$tr_jstr
+}
+
+#-------------------------------------------------------------------------------
+
+# 快速 JSON 序列化（一次性 fork gobolt，超长参数自动降级到 slow）。
+# @in  $1=树名  $2=物理全 key（空=整棵树）
+# @out REPLY=JSON 字符串
+# @ret 0=OK  10=OTHER_TOOL_NOT_INSTALLED
+#      14=PARAMETER_LENGTH_EXCEEDS_LIMIT  52=TREE_NOT_HAVE_ROOT
+x_to_json ()
+{
+    REPLY=
+    # local - ; set +x
+    local tr_name=$1
+    local -n tr_t=$1
+    local tr_full_key=$2
+    local -a tr_gobolt_params=()
+
+    command -v gobolt &>/dev/null || {
+        die ERR "gobolt tool is not installed."
+        return $X_RET_ENUM_KEY_OTHER_TOOL_NOT_INSTALLED
+    }
+
+    [[ -z "${tr_t[$X_ROOT_ID.s]}" ]] && {
+        case "${tr_t[$X_ROOT_ID.t]}" in
+        $X_TYPE_OBJ)   REPLY='{}' ; return $X_RET_ENUM_OK ;;
+        $X_TYPE_ARR)   REPLY='[]' ; return $X_RET_ENUM_OK ;;
+        *)  return $X_RET_ENUM_TREE_NOT_HAVE_ROOT  ;;
+        esac
+    }
+
+    x_to_json_cb ()
+    {
+        local node_kind=$1
+        local index_full_key=$3 value=$4
+            #@if current_shell_process_replace==1
+        local -a "tokens=(${|_split_tokens "$index_full_key";})"
+            #@endif
+            #@if current_shell_process_replace==0
+        _split_tokens "$index_full_key" ; eval "${_ret_a/o/tokens}"
+            #@endif
+        local -a bjson_params=()
+        local token
+
+        case "$node_kind" in
+        $X_NODE_KIND_LEAF)
+            case "$value" in
+            $X_VALUE_TRUE)     value='j:true'        ;;
+            $X_VALUE_FALSE)    value='j:false'       ;;
+            *"$X")              value=j:${value%"$X"} ;;
+            *)                  value=s:${value}      ;;
+            esac
+            ;;
+        $X_NODE_KIND_LEAF_NULL) value='j:null' ;;
+        $X_NODE_KIND_ARR_EMPTY) value='j:[]'   ;;
+        $X_NODE_KIND_OBJ_EMPTY) value='j:{}'   ;;
+        *)  return $X_RET_ENUM_OK            ;;
+        esac
+
+        for token in "${tokens[@]}" ; do
+            case "$token" in
+            '{'*'}')
+                x_bjson_key_escape "${token:1:-1}" token
+                if ((${#bjson_params[@]})) ; then
+                    bjson_params+=(".:$token")
+                else
+                    bjson_params+=(":$token")
+                fi
+                ;;
+            '['*']')
+                if ((${#bjson_params[@]})) ; then
+                    bjson_params+=(".${token:1:-1}")
+                else
+                    bjson_params+=("${token:1:-1}")
+                fi
+                ;;
+            esac
+        done
+
+        printf -v 'tr_gobolt_params[${#tr_gobolt_params[@]}]' "%s" "${bjson_params[@]}"
+        tr_gobolt_params+=("$value")
+
+        return $X_RET_ENUM_OK
+    }
+
+    x_walk "$tr_name" "$tr_full_key" x_to_json_cb || return $?
+
+    # printf '%s\n' "${tr_gobolt_params[@]}"
+
+    local tr_i
+        #@if current_shell_process_replace==1
+    local -A "tr_system_limits=(${|x_get_arg_limits "${#tr_gobolt_params[@]}";})"
+        #@endif
+        #@if current_shell_process_replace==0
+    x_get_arg_limits "${#tr_gobolt_params[@]}" ; eval "${_ret_A/o/tr_system_limits}"
+        #@endif
+
+    # Check if each parameter exceeds
+    # If it is found to be exceeded, the report will fail.
+
+    for((tr_i=0;tr_i<${#tr_gobolt_params[@]};tr_i+=2)) ; do
+            #@if current_shell_process_replace==1
+        local -i tr_key_len=${|str_bytes "${tr_gobolt_params[tr_i]}";}
+            #@endif
+            #@if current_shell_process_replace==0
+        str_bytes "${tr_gobolt_params[tr_i]}" ; eval "${_ret_i/o/tr_key_len}"
+            #@endif
+
+        ((  tr_key_len>=${tr_system_limits[MAX_ARG_STRLEN]} )) && {
+            die ERR "Command line parameters exceed limit"
+            return $X_RET_ENUM_KEY_PARAMETER_LENGTH_EXCEEDS_LIMIT
+        }
+    done
+
+        #@if current_shell_process_replace==1
+    local -i tr_all_param_byte_len=${|str_bytes "${tr_gobolt_params[*]}";}
+        #@endif
+        #@if current_shell_process_replace==0
+    str_bytes "${tr_gobolt_params[*]}" ; eval "${_ret_i/o/tr_all_param_byte_len}"
+        #@endif
+
+    if ((tr_all_param_byte_len>=${tr_system_limits[AVAILABLE]})) ; then
+        x_to_json_slow "$tr_name" "$tr_full_key" ; return $?
+    else
+            #@if current_shell_process_replace==1
+        REPLY=${ printf '' | gobolt json -m w -k stdin -s '' -M -- "${tr_gobolt_params[@]}";}
+            #@endif
+            #@if current_shell_process_replace==0
+        REPLY=$( printf '' | gobolt json -m w -k stdin -s '' -M -- "${tr_gobolt_params[@]}" )
+            #@endif
+    fi
+}
+
+#-------------------------------------------------------------------------------
+
+# JSON 反序列化为树。
+# @in  $1=JSON 字符串  $2..=go 侧需要的 bjson 路径（可选）
+# @out REPLY=新树（关联数组 KV 格式）
+# @ret 0=OK  10=OTHER_TOOL_NOT_INSTALLED  11=BJSON_TYPE_INVALID
+x_from_json ()
+{
+    REPLY=
+    # local - ; set +x
+    local tr_json_str=$1
+    local tr_bjson_keys="${@:2}"
+
+    command -v gobolt &>/dev/null || {
+        die ERR "gobolt tool is not installed."
+        return $X_RET_ENUM_KEY_OTHER_TOOL_NOT_INSTALLED
+    }
+
+    local tr_assoc
+        #@if current_shell_process_replace==1
+    tr_assoc=${ printf '%s' "$tr_json_str" | \
+        gobolt json -m r -t txt -k stdin -F trie -x "$X" -P -- "${tr_bjson_keys[@]}";}
+        #@endif
+        #@if current_shell_process_replace==0
+    tr_assoc=$( printf '%s' "$tr_json_str" | \
+        gobolt json -m r -t txt -k stdin -F trie -x "$X" -P -- "${tr_bjson_keys[@]}" )
+        #@endif
+    case "$?" in
+    $X_GOBOLT_JSONTYPEARRAY|$X_GOBOLT_JSONTYPEOBJECT)
+        local -A "tr_assoc=($tr_assoc)" ;;&
+    $X_GOBOLT_JSONTYPEARRAY)
+            #@if current_shell_process_replace==1
+        local -A "tr_init_tree=(${|x_init "$X_TYPE_ARR";})" ;;
+            #@endif
+            #@if current_shell_process_replace==0
+        x_init "$X_TYPE_ARR" ; eval "${_ret_A/o/tr_init_tree}" ;;
+            #@endif
+    $X_GOBOLT_JSONTYPEOBJECT)
+            #@if current_shell_process_replace==1
+        local -A "tr_init_tree=(${|x_init "$X_TYPE_OBJ";})" ;;
+            #@endif
+            #@if current_shell_process_replace==0
+        x_init "$X_TYPE_OBJ" ; eval "${_ret_A/o/tr_init_tree}" ;;
+            #@endif
+    *)
+        die ERR "bjson key:${tr_bjson_keys[*]} type is known."
+        return $X_RET_ENUM_KEY_BJSON_TYPE_INVALID
+        ;;
+    esac
+
+    local tr_key
+    for tr_key in "${!tr_assoc[@]}" ; do
+        x_insert tr_init_tree "$tr_key" "${tr_assoc[$tr_key]}"
+    done
+    
+    # x_dump tr_init_tree
+
+        #@if at_k_var_substitution==1
+    REPLY=${tr_init_tree[*]@K}
+        #@endif
+        #@if at_k_var_substitution==0
+    array_to_kv_q_str tr_init_tree ; REPLY=$REPLY
+        #@endif
+}
+
+#-------------------------------------------------------------------------------
+
+# 探测系统命令行参数限制，用于 x_to_json 决定是否降级。
+# @in  $1=参数数量（默认 0）
+# @out REPLY=关联数组 KV：MAX_ARG_STRLEN AVAILABLE
+# @ret 0
+x_get_arg_limits ()
+{
+    REPLY=
+    # Linux: getconf ARG_MAX
+    # Windows/MSYS2: fallback to 8191
+    local -i argc_cnt=${1:-0}
+    local -A args=()
+    local argmax=$( getconf ARG_MAX 2>/dev/null )
+
+    if [[ -z "$argmax" || "$argmax" == "undefined" ]] ; then
+        # Windows hard limits
+        # x=${|str_repeat 'a' 32708;}
+        # printf '' | gobolt json -m w -k stdin -s "$x" -P -- :key1
+        local -i safety=1024
+        # 32KB
+        args[MAX_ARG_STRLEN]=$((32768-safety))
+        local -i msys_overhead=$(( argc_cnt * 2 ))
+        # 预扣空格和引号的开销（每个参数至少 1~2 个字符）
+        args[AVAILABLE]=$((32768-safety-msys_overhead))
+    else
+        # Linux Kernel constants MAX_ARG_STRLEN = 131072(128KB)
+        local -i safety=4096
+            #@if current_shell_process_replace==1
+        local -i env_bytes=${|str_bytes "${ export -p;}";}
+            #@endif
+            #@if current_shell_process_replace==0
+        str_bytes "$( export -p )" ; eval "${_ret_i/o/env_bytes}"
+            #@endif
+        # 扣除指针数组开销, 64位系统每个指针 8 字节
+        local -i ptr_overhead=$((argc_cnt * 8))
+        # 128k MAX_ARG_STRLEN 内核头文件中
+        args[MAX_ARG_STRLEN]=$((131072-safety))
+        args[AVAILABLE]=$((argmax-env_bytes-safety-ptr_overhead))
+    fi
+
+        #@if at_k_var_substitution==1
+    REPLY=${args[*]@K}
+        #@endif
+        #@if at_k_var_substitution==0
+    array_to_kv_q_str args ; REPLY=$REPLY
+        #@endif
+}
+
