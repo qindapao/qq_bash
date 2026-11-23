@@ -1939,12 +1939,7 @@ _x_rebuild_from_dump_get_dict_kv ()
     fi
 
     if [[ "$tr_out" == *\\* ]] ; then
-            #@if current_shell_process_replace==1
-        tr_out=${|str_unescape "$tr_out";}
-            #@endif
-            #@if current_shell_process_replace==0
-        str_unescape "$tr_out" ; eval "${_ret_s/o/tr_out}"
-            #@endif
+        str_unescape "$tr_out" ; tr_out=$REPLY REPLY=
     fi
 
     tr_key[tr_i]="{$tr_out}$X"
@@ -1962,12 +1957,7 @@ _x_rebuild_from_dump_get_dict_kv ()
         # 把值写了
         tr_out=${tr_rest_after#*'=> '}
         if [[ "$tr_out" == *\\* ]] ; then
-                #@if current_shell_process_replace==1
-            tr_out=${|str_unescape "$tr_out";}
-                #@endif
-                #@if current_shell_process_replace==0
-            str_unescape "$tr_out" ; eval "${_ret_s/o/tr_out}"
-                #@endif
+            str_unescape "$tr_out" ; tr_out=$REPLY REPLY=
         fi
         tr_value[tr_i]=$tr_out
         return 0
@@ -1986,12 +1976,7 @@ _x_rebuild_from_dump_get_array ()
     if [[ "$tr_out" == *'='* ]] ; then
         tr_out=${tr_out#*'= '}
         if [[ "$tr_out" == *\\* ]] ; then
-                #@if current_shell_process_replace==1
-            tr_out=${|str_unescape "$tr_out";}
-                #@endif
-                #@if current_shell_process_replace==0
-            str_unescape "$tr_out" ; eval "${_ret_s/o/tr_out}"
-                #@endif
+            str_unescape "$tr_out" ; tr_out=$REPLY REPLY=
         fi
         tr_value[tr_i]=$tr_out
         return 0

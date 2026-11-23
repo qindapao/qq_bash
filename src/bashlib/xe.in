@@ -699,13 +699,8 @@ _x_array_write ()
     local tr_value=$5
 
     local tr_next_key
-        #@if current_shell_process_replace==1
-    tr_next_key=${|_x_array_next_key "$tr_name" "$tr_up_key" "$tr_mode";} || return $?
-        #@endif
-        #@if current_shell_process_replace==0
-    _x_array_next_key "$tr_name" "$tr_up_key" "$tr_mode" || eval "$_ret_e"
-    eval "${_ret_s_/o/tr_next_key}"
-        #@endif
+    _x_array_next_key "$tr_name" "$tr_up_key" "$tr_mode" || return $?
+    tr_next_key=$REPLY REPLY=
 
     case "$tr_write" in
     leaf)   x_insert "$tr_name" "$tr_next_key" "$tr_value" ;;
@@ -742,13 +737,8 @@ _x_array_get ()
     local tr_read=$4
 
     local tr_next_key
-        #@if current_shell_process_replace==1
-    tr_next_key=${|_x_array_next_key "$tr_name" "$tr_up_key" "$tr_mode";} || return $?
-        #@endif
-        #@if current_shell_process_replace==0
-    _x_array_next_key "$tr_name" "$tr_up_key" "$tr_mode" || eval "$_ret_e"
-    eval "${_ret_s_/o/tr_next_key}"
-        #@endif
+    _x_array_next_key "$tr_name" "$tr_up_key" "$tr_mode" || return $?
+    tr_next_key=$REPLY REPLY=
 
     case "$tr_read" in
     leaf)   x_get_leaf "$tr_name" "$tr_next_key" ;;
@@ -1077,13 +1067,8 @@ _x_flat_insert ()
 {
     # local - ; set +x
     local tr_next_key
-        #@if current_shell_process_replace==1
-    tr_next_key=${|_x_array_next_key "$1" "$2" "$3";} || return $?
-        #@endif
-        #@if current_shell_process_replace==0
-    _x_array_next_key "$1" "$2" "$3" || eval "$_ret_e"
-    eval "${_ret_s_/o/tr_next_key}"
-        #@endif
+    _x_array_next_key "$1" "$2" "$3" || return $?
+    tr_next_key=$REPLY REPLY=
 
     local -a tr_params=()
     local tr_index tr_token
