@@ -155,18 +155,21 @@ x_get_leaf ()
 #-------------------------------------------------------------------------------
 
 # 获取子树（返回一棵新树）。空 key 返回整棵树。
-# @in  $1=树名  $2=物理全 key（空=整棵树）
-# @out REPLY=新树（关联数组 KV 格式）
+# @in  $1=输出关联数组名（调用方先声明 local -A）
+#      $2=树名  $3=物理全 key（空=整棵树）
+#      $4=起始 node_id（可选）  $5=物理全 key（可选）
+# @out $1=新树（关联数组 KV 格式）
 # @ret 0=OK  2=X_RET_ENUM_KEY_IS_LEAF  3=KEY_IS_NOTFOUND  4=KEY_IS_INVALID
 x_get_tree ()
 {
-    REPLY=
     # local - ; set +x
-    local tr_t_name=$1
-    local -n tr_t=$1
-    local tr_full_key=$2
-    local tr_node=$3
-    local tr_real_full_key=$4
+    local -n tr_w_tree=$1 ; tr_w_tree=()
+    local tr_t_name=$2
+    local -n tr_t=$2
+    local tr_full_key=$3
+    local tr_node=$4
+    local tr_real_full_key=$5
+    local tr_k
 
     if [[ -n "$tr_node" && -n "$tr_real_full_key" ]] ; then
         # 2. Determine whether tr_full_key is legal
@@ -174,12 +177,9 @@ x_get_tree ()
     else
         # 1. If tr_full_key is empty, return the entire tree directly
         [[ -z "$tr_full_key" ]] && {
-        #@if at_k_var_substitution==1
-            REPLY="${tr_t[*]@K}"
-        #@endif
-        #@if at_k_var_substitution==0
-            array_to_kv_q_str tr_t ; REPLY=$REPLY
-        #@endif
+            for tr_k in "${!tr_t[@]}" ; do
+                tr_w_tree[$tr_k]=${tr_t[$tr_k]}
+            done
             return ${X_RET_ENUM_OK}
         }
 
@@ -203,22 +203,13 @@ x_get_tree ()
     local -a "tr_root_children=(${tr_t[$tr_node.s]})"
 
     # 6. Create a new tree
-    local -A tr_new=()
-    x_init tr_new "${tr_t[$tr_node.t]}"
+    x_init "$1" "${tr_t[$tr_node.t]}"
 
     # If the subtree root is empty, it is returned directly.
-    ((${#tr_root_children[@]})) || {
-    #@if at_k_var_substitution==1
-        REPLY=${tr_new[*]@K} ; return ${X_RET_ENUM_OK}
-    #@endif
-    #@if at_k_var_substitution==0
-        array_to_kv_q_str tr_new ; REPLY=$REPLY
-        return $X_RET_ENUM_OK
-    #@endif
-    }
+    ((${#tr_root_children[@]})) || return $X_RET_ENUM_OK
 
     # 7. The children of the new tree are reset to the current tr_root_children
-    tr_new[$X_ROOT_ID.s]=${tr_root_children[*]@Q}
+    tr_w_tree[$X_ROOT_ID.s]=${tr_root_children[*]@Q}
 
     # 8. Mount all root children
     local tr_tk tr_cid
@@ -228,7 +219,7 @@ x_get_tree ()
             tr_cid=${tr_tk:1:-1}
         else
             tr_cid=${tr_t[$tr_node.c.$tr_tk]}
-            tr_new["$X_ROOT_ID.c.$tr_tk"]="$tr_cid"
+            tr_w_tree["$X_ROOT_ID.c.$tr_tk"]="$tr_cid"
         fi
         tr_stack+=("$tr_cid")
     done
@@ -240,18 +231,18 @@ x_get_tree ()
         unset -v 'tr_stack[-1]'
         ((tr_max_id=(tr_cur>tr_max_id)?tr_cur:tr_max_id))
 
-        # tr_new[$tr_cur]=1
-        [[ -n "${tr_t[$tr_cur.s]}" ]] && tr_new[$tr_cur.s]=${tr_t[$tr_cur.s]}
-        [[ -n "${tr_t[$tr_cur.t]}" ]] && tr_new[$tr_cur.t]=${tr_t[$tr_cur.t]}
+        # tr_w_tree[$tr_cur]=1
+        [[ -n "${tr_t[$tr_cur.s]}" ]] && tr_w_tree[$tr_cur.s]=${tr_t[$tr_cur.s]}
+        [[ -n "${tr_t[$tr_cur.t]}" ]] && tr_w_tree[$tr_cur.t]=${tr_t[$tr_cur.t]}
 
         # The key here cannot be copied directly from the old tree, and
         # the prefix needs to be cut off.
         local tr_key=${tr_t["$tr_cur.k"]}
 
         if [[ -n "$tr_key" ]] ; then
-            tr_new[$tr_cur.k]=${tr_key#"$tr_real_full_key"}
-            local tr_new_key=${tr_new["$tr_cur.k"]}
-            tr_new["$tr_new_key"]=${tr_t["$tr_key"]}
+            tr_w_tree[$tr_cur.k]=${tr_key#"$tr_real_full_key"}
+            local tr_new_key=${tr_w_tree["$tr_cur.k"]}
+            tr_w_tree["$tr_new_key"]=${tr_t["$tr_key"]}
         fi
 
         local -a "tr_children=(${tr_t[$tr_cur.s]})"
@@ -261,20 +252,14 @@ x_get_tree ()
                 tr_cid="${tr_tk:1:-1}"
             else
                 tr_cid="${tr_t["$tr_cur.c.$tr_tk"]}"
-                tr_new["$tr_cur.c.$tr_tk"]="$tr_cid"
+                tr_w_tree["$tr_cur.c.$tr_tk"]="$tr_cid"
             fi
             tr_stack+=("$tr_cid")
         done
     done
 
-    tr_new[max_index]=$((tr_max_id+1))
+    tr_w_tree[max_index]=$((tr_max_id+1))
 
-#@if at_k_var_substitution==1
-    REPLY=${tr_new[*]@K}
-#@endif
-#@if at_k_var_substitution==0
-    array_to_kv_q_str tr_new ; REPLY=$REPLY
-#@endif
     return ${X_RET_ENUM_OK}
 }
 
@@ -731,7 +716,16 @@ _x_array_get ()
 
     case "$tr_read" in
     leaf)   x_get_leaf "$tr_name" "$tr_next_key" ;;
-    tree)   x_get_tree "$tr_name" "$tr_next_key" ;;
+    tree)
+        local -A tr_tree=()
+        x_get_tree tr_tree "$tr_name" "$tr_next_key" || return $?
+        #@if at_k_var_substitution==1
+        REPLY=${tr_tree[*]@K}
+        #@endif
+        #@if at_k_var_substitution==0
+        array_to_kv_q_str tr_tree ; REPLY=$REPLY
+        #@endif
+        ;;
     esac
 }
 
