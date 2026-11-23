@@ -193,12 +193,9 @@ tr_resolve_physical_token ()
 
     if [[ "${tr_token:0:1}${tr_token: -1}" == '<>' ]] ; then
         local -a "tr_child_ids=(${tr_t[$tr_node.s]})"
-        #@if current_shell_process_replace==1
-        local -i tr_index=${|array_index "${tr_token}" ${tr_child_ids[@]};}
-        #@endif
-        #@if current_shell_process_replace==0
+
         array_index "${tr_token}" ${tr_child_ids[@]} ; local -i tr_index=$REPLY
-        #@endif
+
         ((tr_index==-1)) && {
             die ERR "node:${tr_node}(token:${tr_token@Q}) can not find index."
             return $X_RET_ENUM_KEY_IS_INVALID
