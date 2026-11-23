@@ -49,7 +49,7 @@ stay aligned in any editor, terminal or diff viewer.
 |   mixins      {OBJMIX} field + XO_OBJ_METHOD routing (boss abilities)      |
 |   market      where fired objects wait; hire reuses them first             |
 |----------------------------------------------------------------------------|
-| DATA STRUCTURE  src/bashlib/x.in                                           |
+| DATA STRUCTURE  src/bashlib/x.sh                                           |
 |   x tree: node ids, .c child table, .s order, <id>.k key, <id> value       |
 |   x_walk / x_dump / XO_CLASS_INHER_TREE (class inheritance)                |
 +----------------------------------------------------------------------------+
@@ -195,7 +195,7 @@ CONSTITUTION.md §3).
 | `XO_INIT_TOTAL` / `XO_INIT_DONE` | class definitions to build / classes built so far |
 | `XO_PROGRESS_BAR_MAX` | max bar width in cells |
 
-**Tree system (`x.in`)**
+**Tree system (`x.sh`)**
 
 | Variable | Purpose |
 |---|---|
@@ -211,7 +211,7 @@ CONSTITUTION.md §3).
 | `X_RET_ENUM_TREE_IS_INVALID` `X_RET_ENUM_TREE_IS_EMPTY` `X_RET_ENUM_TREE_NOT_HAVE_ROOT` `X_RET_ENUM_TREE_IS_NOT_SAME` | whole-tree failures 50..53 |
 
 `X_FLAT_*` are declared in `xe.in`; `X_GOBOLT_*` and the BJSON/parameter
-return codes are declared in `xj.in`. Source the module that owns the constant.
+return codes are declared in `xj.sh`. Source the module that owns the constant.
 `X_RET_ENUM_KEY_IS_TREE` is currently unused but kept as a reserved return
 code; do not reuse its value.
 
@@ -892,19 +892,19 @@ test reads slots through `eb_field`.
 `x` is an in-memory tree with JSON semantics, implemented in pure Bash. It
 supports objects, arrays, nulls, booleans, ordered children, and path access.
 
-- **Core (`x.in`)** — `x_init`, `x_insert`, `x_delete`, `x_walk`,
+- **Core (`x.sh`)** — `x_init`, `x_insert`, `x_delete`, `x_walk`,
   `x_walk_dict_tree`, `x_dump`, `x_rebuild_from_dump`, node/type queries
 - **Extension (`xe.in`)** — `x_get_leaf` / `x_get_tree`, leaf/tree push/pop/shift,
   `x_iter`, flat/layer conversion, `x_equals`, `x_graft`, `x_id_rebuild`
 - `x_walk_dict_tree` — fast walker for **pure `{}` trees**; it rejects arrays
   and physical-id nodes. Use `x_walk` for mixed trees.
-- **JSON (`xj.in`)** — `x_to_json` / `x_from_json`; source `xj.sh`
-- Dependency direction: `xe.in` and `xj.in` both source `x.sh` only, and are
-  independent of each other; `x.in` must not source or call into `xe.sh` /
+- **JSON (`xj.sh`)** — `x_to_json` / `x_from_json`; source `xj.sh`
+- Dependency direction: `xe.in` and `xj.sh` both source `x.sh` only, and are
+  independent of each other; `x.sh` must not source or call into `xe.sh` /
   `xj.sh`. Tests source the layer they use.
 
 Full parameters and return codes are documented in the function headers of
-`src/bashlib/x.in`, `src/bashlib/xe.in` and `src/bashlib/xj.in`.
+`src/bashlib/x.sh`, `src/bashlib/xe.in` and `src/bashlib/xj.sh`.
 
 ### Node state transitions
 

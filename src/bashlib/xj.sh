@@ -22,6 +22,49 @@ readonly X_RET_ENUM_KEY_PARAMETER_LENGTH_EXCEEDS_LIMIT=14
 
 #-------------------------------------------------------------------------------
 
+# 在支持 ${ cmd;} 的 shell 上用当前进程捕获 stdout，避免命令替换的 fork；
+# 否则回退到 $(...)。命令和参数分开放，eval 只承载语法，不拼接数据。
+_xj_capture_stdout ()
+{
+    local _xj_fn=$1
+    shift
+
+    # 5.3 的 ${ cmd;} 旧版解析器不认识；放进 eval 字符串延迟解析，
+    # 这样 4.4/5.2 读文件时不会语法报错，只有 5.3 才真正执行。
+    if ((BASH_GRAMMAR[current_shell_process_replace])) ; then
+        eval 'REPLY=${ "$_xj_fn" "$@";}'
+    else
+        # $(...) 是通用语法，直接写即可，不需要 eval。
+        REPLY=$("$_xj_fn" "$@")
+    fi
+}
+
+_xj_gobolt_escape_key ()
+{
+    printf '%s' "$1" | gobolt json -m e -k stdin
+}
+
+_xj_gobolt_write_slow ()
+{
+    local jstr=$1 param=$2 temp=$3
+    shift 3
+    printf '%s' "$jstr" | gobolt json -m w -k stdin "$param" "$temp" \
+        -P -- "$@"
+}
+
+_xj_gobolt_read_trie ()
+{
+    local jstr=$1
+    shift
+    printf '%s' "$jstr" | gobolt json -m r -t txt -k stdin -F trie \
+        -x "$X" -P -- "$@"
+}
+
+_xj_gobolt_write_fast ()
+{
+    printf '' | gobolt json -m w -k stdin -s '' -M -- "$@"
+}
+
 # $1: The value of the string that needs to be converted
 # $2: Variable name saved after conversion
 #
@@ -35,35 +78,35 @@ x_bjson_key_escape ()
     bjsonKeyEscapeR_ekey="$1"
 
     if ((${#bjsonKeyEscapeR_ekey}>6666)) ; then
-        bjsonKeyEscapeR_ekey=$(printf '%s' "$bjsonKeyEscapeR_ekey" | gobolt json -m e -k stdin)
+        _xj_capture_stdout _xj_gobolt_escape_key "$bjsonKeyEscapeR_ekey" || return $?
+        bjsonKeyEscapeR_ekey=$REPLY REPLY=
         bjsonKeyEscapeR_ekey=${bjsonKeyEscapeR_ekey%?}
     else
-    #@if patsub_replacement==1
-        local bjsonKeyEscapeR_is_patsub_replacement_on=0
-        shopt -q patsub_replacement || {
-            shopt -s patsub_replacement
-            bjsonKeyEscapeR_is_patsub_replacement_on=1
-        }
+        if ((BASH_GRAMMAR[patsub_replacement])) ; then
+            local bjsonKeyEscapeR_is_patsub_replacement_on=0
+            shopt -q patsub_replacement || {
+                shopt -s patsub_replacement
+                bjsonKeyEscapeR_is_patsub_replacement_on=1
+            }
 
-        # 5.2 patsub_replacement
-        bjsonKeyEscapeR_ekey=${bjsonKeyEscapeR_ekey//[$'][\\.*?|@#{}!']/\\&}
-        ((bjsonKeyEscapeR_is_patsub_replacement_on)) && shopt -u patsub_replacement
-    #@endif
-    #@if patsub_replacement==0
-        # Backslashes must be handle first
-        bjsonKeyEscapeR_ekey=${bjsonKeyEscapeR_ekey//'\'/'\\'}
-        bjsonKeyEscapeR_ekey=${bjsonKeyEscapeR_ekey//']'/'\]'}
-        bjsonKeyEscapeR_ekey=${bjsonKeyEscapeR_ekey//'['/'\['}
-        bjsonKeyEscapeR_ekey=${bjsonKeyEscapeR_ekey//'.'/'\.'}
-        bjsonKeyEscapeR_ekey=${bjsonKeyEscapeR_ekey//'*'/'\*'}
-        bjsonKeyEscapeR_ekey=${bjsonKeyEscapeR_ekey//'?'/'\?'}
-        bjsonKeyEscapeR_ekey=${bjsonKeyEscapeR_ekey//'|'/'\|'}
-        bjsonKeyEscapeR_ekey=${bjsonKeyEscapeR_ekey//'@'/'\@'}
-        bjsonKeyEscapeR_ekey=${bjsonKeyEscapeR_ekey//'#'/'\#'}
-        bjsonKeyEscapeR_ekey=${bjsonKeyEscapeR_ekey//'{'/'\{'}
-        bjsonKeyEscapeR_ekey=${bjsonKeyEscapeR_ekey//'}'/'\}'}
-        bjsonKeyEscapeR_ekey=${bjsonKeyEscapeR_ekey//'!'/'\!'}
-    #@endif
+            # 5.2 patsub_replacement
+            bjsonKeyEscapeR_ekey=${bjsonKeyEscapeR_ekey//[$'][\\.*?|@#{}!']/\\&}
+            ((bjsonKeyEscapeR_is_patsub_replacement_on)) && shopt -u patsub_replacement
+        else
+            # Backslashes must be handle first
+            bjsonKeyEscapeR_ekey=${bjsonKeyEscapeR_ekey//'\'/'\\'}
+            bjsonKeyEscapeR_ekey=${bjsonKeyEscapeR_ekey//']'/'\]'}
+            bjsonKeyEscapeR_ekey=${bjsonKeyEscapeR_ekey//'['/'\['}
+            bjsonKeyEscapeR_ekey=${bjsonKeyEscapeR_ekey//'.'/'\.'}
+            bjsonKeyEscapeR_ekey=${bjsonKeyEscapeR_ekey//'*'/'\*'}
+            bjsonKeyEscapeR_ekey=${bjsonKeyEscapeR_ekey//'?'/'\?'}
+            bjsonKeyEscapeR_ekey=${bjsonKeyEscapeR_ekey//'|'/'\|'}
+            bjsonKeyEscapeR_ekey=${bjsonKeyEscapeR_ekey//'@'/'\@'}
+            bjsonKeyEscapeR_ekey=${bjsonKeyEscapeR_ekey//'#'/'\#'}
+            bjsonKeyEscapeR_ekey=${bjsonKeyEscapeR_ekey//'{'/'\{'}
+            bjsonKeyEscapeR_ekey=${bjsonKeyEscapeR_ekey//'}'/'\}'}
+            bjsonKeyEscapeR_ekey=${bjsonKeyEscapeR_ekey//'!'/'\!'}
+        fi
     fi
 }
 
@@ -135,17 +178,11 @@ x_to_json_slow ()
         done
 
         printf '%s' "$value" >"$tr_temp_file"
-        
-            #@if current_shell_process_replace==1
-        tr_jstr=${ printf '%s' "$tr_jstr" | \
-            gobolt json -m w -k stdin "$write_jstr_param" "$tr_temp_file" \
-            -P -- "${bjson_params[@]}";} || return $?
-            #@endif
-            #@if current_shell_process_replace==0
-        tr_jstr=$( printf '%s' "$tr_jstr" | \
-            gobolt json -m w -k stdin "$write_jstr_param" "$tr_temp_file" \
-            -P -- "${bjson_params[@]}" ) || return $?
-            #@endif
+
+        _xj_capture_stdout _xj_gobolt_write_slow \
+            "$tr_jstr" "$write_jstr_param" "$tr_temp_file" \
+            "${bjson_params[@]}" || return $?
+        tr_jstr=$REPLY REPLY=
 
         return $X_RET_ENUM_OK
     }
@@ -240,61 +277,47 @@ x_to_json ()
     # printf '%s\n' "${tr_gobolt_params[@]}"
 
     local tr_i
-        #@if current_shell_process_replace==1
-    local -A "tr_system_limits=(${|x_get_arg_limits "${#tr_gobolt_params[@]}";})"
-        #@endif
-        #@if current_shell_process_replace==0
-    x_get_arg_limits "${#tr_gobolt_params[@]}" ; eval "${_ret_A/o/tr_system_limits}"
-        #@endif
+    local -A w_x_to_json__system_limits=()
+    x_get_arg_limits w_x_to_json__system_limits "${#tr_gobolt_params[@]}"
 
     # Check if each parameter exceeds
     # If it is found to be exceeded, the report will fail.
 
     for((tr_i=0;tr_i<${#tr_gobolt_params[@]};tr_i+=2)) ; do
-            #@if current_shell_process_replace==1
-        local -i tr_key_len=${|str_bytes "${tr_gobolt_params[tr_i]}";}
-            #@endif
-            #@if current_shell_process_replace==0
-        str_bytes "${tr_gobolt_params[tr_i]}" ; eval "${_ret_i/o/tr_key_len}"
-            #@endif
+        str_bytes "${tr_gobolt_params[tr_i]}"
+        local -i tr_key_len=$REPLY ; REPLY=
 
-        ((  tr_key_len>=${tr_system_limits[MAX_ARG_STRLEN]} )) && {
+        ((  tr_key_len>=${w_x_to_json__system_limits[MAX_ARG_STRLEN]} )) && {
             die ERR "Command line parameters exceed limit"
             return $X_RET_ENUM_KEY_PARAMETER_LENGTH_EXCEEDS_LIMIT
         }
     done
 
-        #@if current_shell_process_replace==1
-    local -i tr_all_param_byte_len=${|str_bytes "${tr_gobolt_params[*]}";}
-        #@endif
-        #@if current_shell_process_replace==0
-    str_bytes "${tr_gobolt_params[*]}" ; eval "${_ret_i/o/tr_all_param_byte_len}"
-        #@endif
+    str_bytes "${tr_gobolt_params[*]}"
+    local -i tr_all_param_byte_len=$REPLY ; REPLY=
 
-    if ((tr_all_param_byte_len>=${tr_system_limits[AVAILABLE]})) ; then
+    if ((tr_all_param_byte_len>=${w_x_to_json__system_limits[AVAILABLE]})) ; then
         x_to_json_slow "$tr_name" "$tr_full_key" ; return $?
     else
-            #@if current_shell_process_replace==1
-        REPLY=${ printf '' | gobolt json -m w -k stdin -s '' -M -- "${tr_gobolt_params[@]}";}
-            #@endif
-            #@if current_shell_process_replace==0
-        REPLY=$( printf '' | gobolt json -m w -k stdin -s '' -M -- "${tr_gobolt_params[@]}" )
-            #@endif
+        _xj_capture_stdout _xj_gobolt_write_fast \
+            "${tr_gobolt_params[@]}" || return $?
     fi
 }
 
 #-------------------------------------------------------------------------------
 
-# JSON 反序列化为树。
-# @in  $1=JSON 字符串  $2..=go 侧需要的 bjson 路径（可选）
-# @out REPLY=新树（关联数组 KV 格式）
+# JSON 反序列化为树，结果直接写入调用方关联数组。
+# @in  $1=输出关联数组名（调用方先声明 local -A）
+#      $2=JSON 字符串  $3..=go 侧需要的 bjson 路径（可选）
+# @out $1=新树（关联数组 KV 格式）
 # @ret 0=OK  10=OTHER_TOOL_NOT_INSTALLED  11=BJSON_TYPE_INVALID
 x_from_json ()
 {
     REPLY=
     # local - ; set +x
-    local tr_json_str=$1
-    local tr_bjson_keys="${@:2}"
+    local -n w_tree=$1 ; w_tree=()
+    local tr_json_str=$2
+    local tr_bjson_keys="${@:3}"
 
     command -v gobolt &>/dev/null || {
         die ERR "gobolt tool is not installed."
@@ -302,23 +325,18 @@ x_from_json ()
     }
 
     local tr_assoc
-        #@if current_shell_process_replace==1
-    tr_assoc=${ printf '%s' "$tr_json_str" | \
-        gobolt json -m r -t txt -k stdin -F trie -x "$X" -P -- "${tr_bjson_keys[@]}";}
-        #@endif
-        #@if current_shell_process_replace==0
-    tr_assoc=$( printf '%s' "$tr_json_str" | \
-        gobolt json -m r -t txt -k stdin -F trie -x "$X" -P -- "${tr_bjson_keys[@]}" )
-        #@endif
-    case "$?" in
+    local -i tr_json_ret
+    _xj_capture_stdout _xj_gobolt_read_trie \
+        "$tr_json_str" "${tr_bjson_keys[@]}"
+    tr_json_ret=$?
+    tr_assoc=$REPLY REPLY=
+    case "$tr_json_ret" in
     $X_GOBOLT_JSONTYPEARRAY|$X_GOBOLT_JSONTYPEOBJECT)
         local -A "tr_assoc=($tr_assoc)" ;;&
     $X_GOBOLT_JSONTYPEARRAY)
-        local -A tr_init_tree=()
-        x_init tr_init_tree "$X_TYPE_ARR" ;;
+        x_init "$1" "$X_TYPE_ARR" ;;
     $X_GOBOLT_JSONTYPEOBJECT)
-        local -A tr_init_tree=()
-        x_init tr_init_tree "$X_TYPE_OBJ" ;;
+        x_init "$1" "$X_TYPE_OBJ" ;;
     *)
         die ERR "bjson key:${tr_bjson_keys[*]} type is known."
         return $X_RET_ENUM_KEY_BJSON_TYPE_INVALID
@@ -327,32 +345,25 @@ x_from_json ()
 
     local tr_key
     for tr_key in "${!tr_assoc[@]}" ; do
-        x_insert tr_init_tree "$tr_key" "${tr_assoc[$tr_key]}"
+        x_insert "$1" "$tr_key" "${tr_assoc[$tr_key]}"
     done
     
-    # x_dump tr_init_tree
-
-        #@if at_k_var_substitution==1
-    REPLY=${tr_init_tree[*]@K}
-        #@endif
-        #@if at_k_var_substitution==0
-    array_to_kv_q_str tr_init_tree ; REPLY=$REPLY
-        #@endif
+    # x_dump "$1"
 }
 
 #-------------------------------------------------------------------------------
 
 # 探测系统命令行参数限制，用于 x_to_json 决定是否降级。
-# @in  $1=参数数量（默认 0）
-# @out REPLY=关联数组 KV：MAX_ARG_STRLEN AVAILABLE
+# @in  $1=输出关联数组名（调用方先声明 local -A）  $2=参数数量（默认 0）
+# @out $1=关联数组 KV：MAX_ARG_STRLEN AVAILABLE
 # @ret 0
 x_get_arg_limits ()
 {
     REPLY=
     # Linux: getconf ARG_MAX
     # Windows/MSYS2: fallback to 8191
-    local -i argc_cnt=${1:-0}
-    local -A args=()
+    local -n w_args=$1 ; w_args=()
+    local -i argc_cnt=${2:-0}
     local argmax=$( getconf ARG_MAX 2>/dev/null )
 
     if [[ -z "$argmax" || "$argmax" == "undefined" ]] ; then
@@ -361,32 +372,23 @@ x_get_arg_limits ()
         # printf '' | gobolt json -m w -k stdin -s "$x" -P -- :key1
         local -i safety=1024
         # 32KB
-        args[MAX_ARG_STRLEN]=$((32768-safety))
+        w_args[MAX_ARG_STRLEN]=$((32768-safety))
         local -i msys_overhead=$(( argc_cnt * 2 ))
         # 预扣空格和引号的开销（每个参数至少 1~2 个字符）
-        args[AVAILABLE]=$((32768-safety-msys_overhead))
+        w_args[AVAILABLE]=$((32768-safety-msys_overhead))
     else
         # Linux Kernel constants MAX_ARG_STRLEN = 131072(128KB)
         local -i safety=4096
-            #@if current_shell_process_replace==1
-        local -i env_bytes=${|str_bytes "${ export -p;}";}
-            #@endif
-            #@if current_shell_process_replace==0
-        str_bytes "$( export -p )" ; eval "${_ret_i/o/env_bytes}"
-            #@endif
+        local -i env_bytes
+        _xj_capture_stdout export -p || return $?
+        str_bytes "$REPLY"
+        env_bytes=$REPLY REPLY=
         # 扣除指针数组开销, 64位系统每个指针 8 字节
         local -i ptr_overhead=$((argc_cnt * 8))
         # 128k MAX_ARG_STRLEN 内核头文件中
-        args[MAX_ARG_STRLEN]=$((131072-safety))
-        args[AVAILABLE]=$((argmax-env_bytes-safety-ptr_overhead))
+        w_args[MAX_ARG_STRLEN]=$((131072-safety))
+        w_args[AVAILABLE]=$((argmax-env_bytes-safety-ptr_overhead))
     fi
-
-        #@if at_k_var_substitution==1
-    REPLY=${args[*]@K}
-        #@endif
-        #@if at_k_var_substitution==0
-    array_to_kv_q_str args ; REPLY=$REPLY
-        #@endif
 }
 
 return 0

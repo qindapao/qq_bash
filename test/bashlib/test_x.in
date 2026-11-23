@@ -1078,14 +1078,10 @@ test_case16 ()
         log_test 0 1 ; return 1
     fi
 
-#@if current_shell_process_replace==1
-    local -A "my_recover_tree1=(${|x_from_json "$json_spec";})"
-    local -A "my_recover_tree2=(${|x_from_json "$json_spec" 0;})"
-#@endif
-#@if current_shell_process_replace==0
-    x_from_json "$json_spec" ; local -A "my_recover_tree1=($REPLY)"
-    x_from_json "$json_spec" 0 ; local -A "my_recover_tree2=($REPLY)"
-#@endif
+    local -A my_recover_tree1=()
+    local -A my_recover_tree2=()
+    x_from_json my_recover_tree1 "$json_spec"
+    x_from_json my_recover_tree2 "$json_spec" 0
 
     # cat -A <(x_dump my_recover_tree1)
 

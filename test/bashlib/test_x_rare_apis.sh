@@ -72,8 +72,8 @@ x_get_leaf Y "{arr}$X[1]$X"
 check 'push_leaf_fast second' 'b' "$REPLY"
 
 # arg limits
-x_get_arg_limits 3 || { echo 'FAIL get_arg_limits rc' ; exit 1 ; }
-declare -A "LIMITS=($REPLY)"
+declare -A LIMITS=()
+x_get_arg_limits LIMITS 3 || { echo 'FAIL get_arg_limits rc' ; exit 1 ; }
 check 'arg_limits MAX_ARG_STRLEN > 0' '1' "$(( LIMITS[MAX_ARG_STRLEN] > 0 ))"
 check 'arg_limits AVAILABLE > 0' '1' "$(( LIMITS[AVAILABLE] > 0 ))"
 

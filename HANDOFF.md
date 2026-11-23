@@ -52,9 +52,9 @@ HANDOFF.md               本文件
 src/bashlib/             基础库（.in 源码，build 生成同名 .sh）
     grammar.sh           bash 能力探测（@K、compgen -V、procsub）
     var.in  str.in  array.in  float.in   var/字符串/数组/浮点工具
-    x.in                 x 树核心（节点、插入、删除、遍历、dump、rebuild）
+    x.sh                 x 树核心（节点、插入、删除、遍历、dump、rebuild）
     xe.in                x 扩展 API（graft、leaf/tree push/pop/shift、flat 转换等）
-    xj.in                x 的 JSON 层（x_to_json / x_from_json / gobolt 限流）
+    xj.sh                x 的 JSON 层（x_to_json / x_from_json / gobolt 限流）
     xo.in                xo 对象系统（类、实例、Mixin、对象池、资源市场）
 
 src/strafe_bash/         游戏本体
@@ -158,7 +158,7 @@ render          ≈ 8–9 ms
 - 不要把探针留进代码（上一轮 `play_game.sh` 的 `STRAFE_MOUSE_PROBE` 已经全部拆掉，
   `git diff --exit-code src/strafe_bash/game/play_game.sh` 必须干净）；
 - 不要为了省 tick 去动 `render` 的层顺序或 `FB_*` 语义；
-- 不要碰 `src/bashlib/x.in` / `xo.in` 的核心语义，除非先和老铁讨论。
+- 不要碰 `src/bashlib/x.sh` / `xo.in` 的核心语义，除非先和老铁讨论。
 
 ### 3.4 2026-11-22 周末进展
 
@@ -187,7 +187,7 @@ render          ≈ 8–9 ms
    明确 NULL/空容器前置条件与“调用方负责”的边界，不把它们改成完整校验。
 6. **MSYS2 CR**：
    - `x_qinserts` 改为先声明、后赋值 `tr_insert_kv=("$@")`；
-   - `x.in` 顶部明确 CR 不支持；
+   - `x.sh` 顶部明确 CR 不支持；
    - 新增 `test_msys2_cr.sh`，非 MSYS2 静默跳过，MSYS2 验证 workaround 和
      `x_qinserts` 的 CR 保存。
 7. **`x_iter` 消费契约**：
@@ -264,11 +264,11 @@ render          ≈ 8–9 ms
 - 派发：热路径 `"${XO_OBJ_POOL[$h]}_method" $h` 直调；事件路径 `xo_call`；
 - 字段重置：`<Cls>ResetFields='prev_x prev_y color'`，fire 时只重置这些（`XO_RESET_*` 缓存）。
 
-### 4.4 x 树（`src/bashlib/x.in` / `xe.in` / `xj.in`）
+### 4.4 x 树（`src/bashlib/x.sh` / `xe.in` / `xj.sh`）
 
-- 模块拆分：`x.in` 是核心树；`xe.in` 是扩展 API（graft、leaf/tree push/pop/shift、
-  flat 转换等）；`xj.in` 是 JSON 层（`x_to_json` / `x_from_json` / gobolt 限流）；
-- 依赖方向单向：`xe.in` / `xj.in` 都只 `source x.sh`，彼此不依赖；`x.in`
+- 模块拆分：`x.sh` 是核心树；`xe.in` 是扩展 API（graft、leaf/tree push/pop/shift、
+  flat 转换等）；`xj.sh` 是 JSON 层（`x_to_json` / `x_from_json` / gobolt 限流）；
+- 依赖方向单向：`xe.in` / `xj.sh` 都只 `source x.sh`，彼此不依赖；`x.sh`
   **不 source、不调用** `xe.sh` / `xj.sh`，核心树不依赖扩展和 JSON；
 - 测试按需 source：用 JSON 的测试 source `xj.sh`，用 graft/pop/flat 的测试 source
   `xe.sh`；

@@ -378,13 +378,8 @@ str_cuts ()
     local i sep cnt
     for((i=2;i<$#;i++)) ; do
         sep=${!i} ; ((i++)) ; cnt=${!i}
-            #@if current_shell_process_replace==1
-        str=${|str_cut "$str" "$sep" "$cnt";} || return $?
-            #@endif
-            #@if current_shell_process_replace==0
         str_cut "$str" "$sep" "$cnt" || return $?
-        str=$REPLY
-            #@endif
+        str=$REPLY REPLY=
     done
     REPLY=$str
 }

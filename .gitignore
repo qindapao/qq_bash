@@ -5,13 +5,8 @@ test_report_*.txt
 
 .bench/
 src/bashlib/array.sh
-src/bashlib/float.sh
-src/bashlib/str.sh
 src/bashlib/var.sh
-src/bashlib/x.sh
-src/bashlib/xj.sh
 src/bashlib/xe.sh
 src/bashlib/xo.sh
-src/bashlib/data.sh
 test/bashlib/test_x.sh
 

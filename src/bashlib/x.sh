@@ -10,11 +10,11 @@ declare -gA _BASHLIB_IMPORTED
 # Importantly, if you want to save x data, there are two recommended ways:
 #
 #   1. Serialize it into JSON standard format (x_to_json in xj.sh), and convert
-#      the JSON back into x (x_from_json in xj.sh) before use. x.in itself is
+#      the JSON back into x (x_from_json in xj.sh) before use. x.sh itself is
 #      JSON-free; source xj.sh when you need the JSON layer.
 #
 #   Extension APIs (graft, leaf/tree push/pop/shift, flat/layer conversion,
-#   x_equals, ...) live in xe.sh. x.in must not depend on xe.sh or xj.sh.
+#   x_equals, ...) live in xe.sh. x.sh must not depend on xe.sh or xj.sh.
 #
 #   2. Use the native dump format: dump the tree (which yields a stable,
 #      human-readable text representation), and rebuild the tree from that
