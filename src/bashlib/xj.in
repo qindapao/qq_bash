@@ -105,12 +105,8 @@ x_to_json_slow ()
     {
         local node_kind=$1
         local index_full_key=$3 value=$4
-    #@if current_shell_process_replace==1
-        local -a "tokens=(${|_split_tokens "$index_full_key";})"
-    #@endif
-    #@if current_shell_process_replace==0
-        _split_tokens "$index_full_key" ; eval "${_ret_a/o/tokens}"
-    #@endif
+        local -a w_x_to_json_slow_cb__tokens=()
+        _split_tokens w_x_to_json_slow_cb__tokens "$index_full_key" || return $?
         local -a bjson_params=()
         local token
         local write_jstr_param='-f'
@@ -130,7 +126,7 @@ x_to_json_slow ()
         *)  return $X_RET_ENUM_OK            ;;
         esac
 
-        for token in "${tokens[@]}" ; do
+        for token in "${w_x_to_json_slow_cb__tokens[@]}" ; do
             case "$token" in
             '{'*'}') bjson_params+=(":${token:1:-1}")   ;;
             '['*']') bjson_params+=("${token:1:-1}")    ;;
@@ -192,12 +188,8 @@ x_to_json ()
     {
         local node_kind=$1
         local index_full_key=$3 value=$4
-            #@if current_shell_process_replace==1
-        local -a "tokens=(${|_split_tokens "$index_full_key";})"
-            #@endif
-            #@if current_shell_process_replace==0
-        _split_tokens "$index_full_key" ; eval "${_ret_a/o/tokens}"
-            #@endif
+        local w_x_to_json_cb__tokens=()
+        _split_tokens w_x_to_json_cb__tokens "$index_full_key" || return $?
         local -a bjson_params=()
         local token
 
@@ -216,7 +208,7 @@ x_to_json ()
         *)  return $X_RET_ENUM_OK            ;;
         esac
 
-        for token in "${tokens[@]}" ; do
+        for token in "${w_x_to_json_cb__tokens[@]}" ; do
             case "$token" in
             '{'*'}')
                 x_bjson_key_escape "${token:1:-1}" token

@@ -488,18 +488,13 @@ x_id_rebuild ()
         local old_key=$1
         local new_key=''
         local tk
-        local -a tokens=()
+        local -a w__x_id_rebuild_key__tokens=()
 
         if [[ -n "$old_key" ]] ; then
-            #@if current_shell_process_replace==1
-            local -a "tokens=(${|_split_tokens "$old_key";})"
-            #@endif
-            #@if current_shell_process_replace==0
-            _split_tokens "$old_key" ; eval "${_ret_a/o/tokens}"
-            #@endif
+            _split_tokens w__x_id_rebuild_key__tokens "$old_key"
         fi
 
-        for tk in "${tokens[@]}" ; do
+        for tk in "${w__x_id_rebuild_key__tokens[@]}" ; do
             if [[ "$tk" == '<'*'>' ]] ; then
                 local old_id=${tk:1:-1}
                 local new_id=${tr_id_map[$old_id]:-$old_id}

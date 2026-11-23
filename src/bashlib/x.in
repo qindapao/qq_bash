@@ -99,22 +99,10 @@ readonly X_VALUE_NULL_ARR="[]$X"
 # 不做 tokens 合法性检查；调用方必须保证路径/键已校验。
 _split_tokens_fast ()
 {
-    local _ifs_was_set=${IFS+x} _ifs_save=${IFS-}
     if ((${#X}==1)) ; then
-        local IFS=$X
-        local -a tokens=()
-        local -i _noglob=0
-        [[ -o noglob ]] && _noglob=1
-        set -f
-        tokens=($1)
-        (( _noglob )) || set +f
-        # ${tokens[*]} 用当前 IFS 的第一字符连接，必须恢复调用方的 IFS。
-        if [[ -n "$_ifs_was_set" ]] ; then
-            IFS=$_ifs_save
-        else
-            unset -v IFS
-        fi
-        REPLY="${tokens[*]@Q}"
+        local -n w_tokens=$1
+        local - IFS=$X
+        set -f ; w_tokens=($2)
         return 0
     fi
     _split_tokens "$@"
@@ -122,16 +110,14 @@ _split_tokens_fast ()
 
 #-------------------------------------------------------------------------------
 
-# 拆分 "$X" 分隔的 token 串为数组，校验每个 token 是否合法（'{k}'/'[]'/'()'/'<>'）。
-# @in  $1=token 串  $2=插入语义标志(1=允许 '()' 主键)
-# @out REPLY=token 数组（@Q 格式）
+# 拆分 "$X" 分隔的 token 串为数组，校验每个 token 是否合法（'{k}'/'[i]'/'()'/'<>'）。
+# @in  $1=输出数组变量名  $2=token 串  $3=插入语义标志(1=允许 '()' 主键)
+# @out $1=token 数组
 # @ret 0=OK  4=X_RET_ENUM_KEY_IS_INVALID
 _split_tokens ()
 {
-    REPLY=
-    local tokens_str=$1 is_insertion_semantics=${2:-0}
-    local -a tokens=()
-    local token
+    local -n w_tokens=$1 ; w_tokens=()
+    local tokens_str=$2 is_insertion_semantics=${3:-0} token
 
     while [[ -n "$tokens_str" ]] ; do
         token=${tokens_str%%"$X"*}
@@ -140,31 +126,30 @@ _split_tokens ()
         '()')
             # Must have insertion semantics and must be a positive integer
             ((is_insertion_semantics)) || {
-                die ERR "now are not in insertion semantics. key:${1@Q} is invalid!"
+                die ERR "now are not in insertion semantics. key:${2@Q} is invalid!"
                 return $X_RET_ENUM_KEY_IS_INVALID
             }
             str_is_decimal_positive_int "${token:1:-1}" || {
-                die ERR "key:${1@Q} is invalid!"
+                die ERR "key:${2@Q} is invalid!"
                 return $X_RET_ENUM_KEY_IS_INVALID
             }
             ;;
         '[]')
             str_is_decimal_int "${token:1:-1}" || {
-                die ERR "key:${1@Q} is invalid!"
+                die ERR "key:${2@Q} is invalid!"
                 return $X_RET_ENUM_KEY_IS_INVALID
             }
             ;;
         '{}'|'<>')  : ;;
-        *)  die ERR "key:${1@Q} is invalid!"
+        *)  die ERR "key:${2@Q} is invalid!"
             return $X_RET_ENUM_KEY_IS_INVALID
             ;;
         esac
-        tokens+=("$token")
+        w_tokens+=("$token")
 
         tokens_str="${tokens_str#*"$X"}"
     done
-    
-    REPLY="${tokens[*]@Q}"
+
     return $X_RET_ENUM_OK
 }
 
@@ -599,18 +584,12 @@ x_insert_token_dict ()
         else
             x_key_is_invalid "$tr_prefix" || return $?
 
-            local tk_str node tk cid
-                #@if current_shell_process_replace==1
-            tk_str=${|_split_tokens_fast "$tr_prefix" 0;} || return $?
-                #@endif
-                #@if current_shell_process_replace==0
-            _split_tokens_fast "$tr_prefix" 0 || eval "$_ret_e"
-            eval "${_ret_s_/o/tk_str}"
-                #@endif
-            local -a "tks=($tk_str)"
-
+            local node tk cid
+            local -a w_x_insert_token_dict__tks=()
+            _split_tokens_fast w_x_insert_token_dict__tks \
+                               "$tr_prefix" 0 || return $?
             node=$X_ROOT_ID
-            for tk in "${tks[@]}" ; do
+            for tk in "${w_x_insert_token_dict__tks[@]}" ; do
                 if [[ "$tk" == '<'*'>' ]] ; then
                     cid=${tk:1:-1}
                 else
@@ -733,21 +712,15 @@ x_insert_dict ()
         return ${X_RET_ENUM_OK}
     }
 
-    local tr_token tr_child_key tr_child_id tr_tokens_str
+    local tr_token tr_child_key tr_child_id
 
     # Here tr_full_key needs to remove the tr_path_key prefix and start traversing
-        #@if current_shell_process_replace==1
-    tr_tokens_str=${|_split_tokens_fast "${tr_full_key#"$tr_path_key"}" 1;} || return $?
-        #@endif
-        #@if current_shell_process_replace==0
-    _split_tokens_fast "${tr_full_key#"$tr_path_key"}" 1 || eval "${_ret_e}"
-    eval "${_ret_s_/o/tr_tokens_str}"
-        #@endif
-    local -a "tr_tokens=($tr_tokens_str)"
-
+    local -a w_x_insert_dict__tr_tokens=()
+    _split_tokens_fast w_x_insert_dict__tr_tokens \
+                       "${tr_full_key#"$tr_path_key"}" 0 || return $?
     local tr_node=${tr_start_node_id}
 
-    for tr_token in "${tr_tokens[@]}" ; do
+    for tr_token in "${w_x_insert_dict__tr_tokens[@]}" ; do
         local tr_token_pack="${tr_token:0:1}${tr_token: -1}"
         case "$tr_token_pack" in
         '<>')
@@ -887,21 +860,15 @@ x_insert ()
         die ERR "path_key:${tr_path_key@Q} is not part of full key:${tr_full_key@Q}."
         return $X_RET_ENUM_KEY_IS_INVALID
     }
-        #@if current_shell_process_replace==1
-    tr_tokens_str=${|_split_tokens "$tr_tokens_str" 1;} || return $?
-        #@endif
-        #@if current_shell_process_replace==0
-    _split_tokens "$tr_tokens_str" 1 || eval "$_ret_e"
-    eval "${_ret_s_/o/tr_tokens_str}"
-        #@endif
-    local -a "tr_tokens=($tr_tokens_str)"
 
+    local -a w_x_insert__tr_tokens=()
+    _split_tokens w_x_insert__tr_tokens "$tr_tokens_str" 1 || return $?
     local tr_node=${tr_start_node_id}
 
     # Record the ID key of the created intermediate node, all need to be deleted
     local -A tr_tmp_node_ids_map=()
 
-    for tr_token in "${tr_tokens[@]}" ; do
+    for tr_token in "${w_x_insert__tr_tokens[@]}" ; do
         local tr_key="${tr_t[$tr_node.k]}"
         local -i tr_array_index=-1
         local tr_token_pack="${tr_token:0:1}${tr_token: -1}"
@@ -1373,18 +1340,12 @@ _x_token_to_node_id ()
 
     x_key_is_invalid "$tr_full_key" || return $?
 
-    local tr_tokens_str
-        #@if current_shell_process_replace==1
-    tr_tokens_str=${|_split_tokens "$tr_full_key";} || return $?
-        #@endif
-        #@if current_shell_process_replace==0
-    _split_tokens "$tr_full_key" || eval "$_ret_e"
-    eval "${_ret_s_/o/tr_tokens_str}"
-        #@endif
-    local -a "tr_tokens=($tr_tokens_str)"
+    local -a w__x_token_to_node_id__tr_tokens=()
+    _split_tokens w__x_token_to_node_id__tr_tokens \
+                  "$tr_full_key" || return $?
     local tr_node=$X_ROOT_ID tr_token tr_child_id tr_token_raw tr_real_full_key=''
     local tr_token_index= tr_index_full_key=
-    for tr_token in "${tr_tokens[@]}" ; do
+    for tr_token in "${w__x_token_to_node_id__tr_tokens[@]}" ; do
         tr_token_raw=$tr_token
             #@if current_shell_process_replace==1
         tr_token=${|tr_resolve_index_token "$1" "$tr_token" "$tr_node";}
@@ -1473,11 +1434,12 @@ _x_token_to_node_id_fast ()
     local _xtf_key=$2
     local _xtf_tokens_str _xtf_token _xtf_child _xtf_path=''
 
-    _split_tokens_fast "$_xtf_key" || return $?
-    local -a "_xtf_tokens=($REPLY)"
+    local -a w__x_token_to_node_id_fast__tokens=()
+    _split_tokens_fast w__x_token_to_node_id_fast__tokens \
+                       "$_xtf_key" || return $?
     local _xtf_node=$X_ROOT_ID
 
-    for _xtf_token in "${_xtf_tokens[@]}" ; do
+    for _xtf_token in "${w__x_token_to_node_id_fast__tokens[@]}" ; do
         if [[ "$_xtf_token" == '<'*'>' ]] ; then
             _xtf_child=${_xtf_token:1:-1}
         else
@@ -1525,15 +1487,8 @@ x_delete ()
 
     x_key_is_invalid "$tr_full_key" || return $?
     
-    local tr_tokens_str
-#@if current_shell_process_replace==1
-    tr_tokens_str=${|_split_tokens "$tr_full_key";} || return $?
-#@endif
-#@if current_shell_process_replace==0
-    _split_tokens "$tr_full_key" || eval "$_ret_e"
-    eval "${_ret_s_/o/tr_tokens_str}"
-#@endif
-    local -a "tr_tokens=($tr_tokens_str)"
+    local -a w_x_delete__tr_tokens=()
+    _split_tokens w_x_delete__tr_tokens "$tr_full_key" || return $?
 
     # 2. Path search: go all the way from root to the node to be deleted
     local tr_node=$X_ROOT_ID
@@ -1541,7 +1496,7 @@ x_delete ()
     local -a tr_path_tokens=("")
 
     local tr_token tr_child_id tr_index
-    for tr_token in "${tr_tokens[@]}"; do
+    for tr_token in "${w_x_delete__tr_tokens[@]}"; do
             #@if current_shell_process_replace==1
         tr_token=${|tr_resolve_index_token "$1" "$tr_token" "$tr_node";}
             #@endif
