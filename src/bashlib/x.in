@@ -355,8 +355,14 @@ x_key_is_invalid ()
 #       "[1]$X" "array_value2" \
 #       "[2]$X" "array_value3"
 #
-# @in  $1=树名  $2=返回模式(leaves/common)  $3=公共前缀 token 串
-#      $4..=成对的 {key value}
+# 【约束】
+#   只有 $3 公共前缀允许出现 '()' 插入语义（第一次插入需要它）。
+#   $4.. 的配对 key 不得含 '()'：本函数不拦截，x_insert 会把它当数组插入
+#   语义处理，结果不可预期。
+#
+# @in  $1=树名  $2=返回模式(leaves/common)
+#      $3=公共前缀 token 串（可含 '()' 插入语义）
+#      $4..=成对的 {key value}；key 不得含 '()' 插入语义
 #      单值模式：$4 直接写到 $3；如果 $4 是空容器 sentinel，按 x_insert 的
 #      叶子覆盖语义处理（普通标量会被覆盖成空容器）。
 # @out REPLY=按返回模式拼接的 "node_id physical_key ..." 列表
@@ -1042,13 +1048,7 @@ x_dump ()
     _x_token_to_node_id w_x_dump__ninfo "$tr_t_name" "$tr_full_key" || return $?
 
     tr_node=${w_x_dump__ninfo[node_id]}
-
-        #@if current_shell_process_replace==1
-    local tr_indent=${|str_repeat ' ' "$tr_indent_cnt";}
-        #@endif
-        #@if current_shell_process_replace==0
-    str_repeat ' ' "$tr_indent_cnt" ; eval "${_ret_s/o/tr_indent}"
-        #@endif
+    str_repeat ' ' "$tr_indent_cnt" ; local tr_indent=$REPLY ; REPLY=
 
     printf '%s(%s) -> %s\n' "$tr_t_name" "$tr_node" "${w_x_dump__ninfo[physical_full_key]}"
 
@@ -1085,12 +1085,8 @@ _x_dump ()
     local tr_node=$2 tr_indent_cnt=$3 tr_indent=$4 \
           tr_id_need_print=$5 tr_value_need_print=$6
     local tr_print_array_index=$7
-        #@if current_shell_process_replace==1
-    local tr_indent_new=${|str_repeat ' ' "$tr_indent_cnt";}
-        #@endif
-        #@if current_shell_process_replace==0
-    str_repeat ' ' "$tr_indent_cnt" ; eval "${_ret_s/o/tr_indent_new}"
-        #@endif
+    
+    str_repeat ' ' "$tr_indent_cnt" ; local tr_indent_new=$REPLY ; REPLY=
     tr_indent_new+="$tr_indent"
 
     # Traverse children

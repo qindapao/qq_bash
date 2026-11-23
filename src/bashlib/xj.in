@@ -116,6 +116,7 @@ x_to_json_slow ()
             case "$value" in
             $X_VALUE_TRUE) value='true'   ;;
             $X_VALUE_FALSE) value='false' ;;
+            # 默认是正常浮点，不拦截；去掉尾部 $X 后直接写入
             *"$X")  value=${value%"$X"}    ;;
             *) write_jstr_param='-o'       ;;
             esac
@@ -364,7 +365,7 @@ x_get_arg_limits ()
 
     if [[ -z "$argmax" || "$argmax" == "undefined" ]] ; then
         # Windows hard limits
-        # x=${|str_repeat 'a' 32708;}
+        # str_repeat 'a' 32708 ; x=REPLY REPLY=
         # printf '' | gobolt json -m w -k stdin -s "$x" -P -- :key1
         local -i safety=1024
         # 32KB
