@@ -9,6 +9,7 @@
 #
 # 只依赖 x.sh（x 树库），不需要 xo_init。
 . ../../src/bashlib/x.sh
+. ../../src/bashlib/xe.sh
 . ../libs/test_utils.sh
 
 CHECKS=0 FAILS=0

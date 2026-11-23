@@ -2,6 +2,7 @@
 
 . ../../src/bashlib/x.sh
 . ../../src/bashlib/xj.sh
+. ../../src/bashlib/xe.sh
 . ../libs/test_utils.sh
 
 # x_insert

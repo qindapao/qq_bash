@@ -52,7 +52,9 @@ HANDOFF.md               本文件
 src/bashlib/             基础库（.in 源码，build 生成同名 .sh）
     grammar.sh           bash 能力探测（@K、compgen -V、procsub）
     var.in  str.in  array.in  float.in   var/字符串/数组/浮点工具
-    x.in                 x 树（JSON 语义的树）
+    x.in                 x 树核心（节点、插入、删除、遍历、dump、rebuild）
+    xe.in                x 扩展 API（graft、leaf/tree push/pop/shift、flat 转换等）
+    xj.in                x 的 JSON 层（x_to_json / x_from_json / gobolt 限流）
     xo.in                xo 对象系统（类、实例、Mixin、对象池、资源市场）
 
 src/strafe_bash/         游戏本体
@@ -262,8 +264,14 @@ render          ≈ 8–9 ms
 - 派发：热路径 `"${XO_OBJ_POOL[$h]}_method" $h` 直调；事件路径 `xo_call`；
 - 字段重置：`<Cls>ResetFields='prev_x prev_y color'`，fire 时只重置这些（`XO_RESET_*` 缓存）。
 
-### 4.4 x 树（`src/bashlib/x.in`）
+### 4.4 x 树（`src/bashlib/x.in` / `xe.in` / `xj.in`）
 
+- 模块拆分：`x.in` 是核心树；`xe.in` 是扩展 API（graft、leaf/tree push/pop/shift、
+  flat 转换等）；`xj.in` 是 JSON 层（`x_to_json` / `x_from_json` / gobolt 限流）；
+- 依赖方向单向：`xe.in` / `xj.in` 都只 `source x.sh`，彼此不依赖；`x.in`
+  **不 source、不调用** `xe.sh` / `xj.sh`，核心树不依赖扩展和 JSON；
+- 测试按需 source：用 JSON 的测试 source `xj.sh`，用 graft/pop/flat 的测试 source
+  `xe.sh`；
 - 一张 assoc 存整棵树：键是路径（token 用 `$X` 分隔），值是叶子或节点元数据；
 - token：`{key}$X`（字典）、`[i]$X`（数组）、`<id>$X`（物理 token）；
 - 节点类型：`OBJ/ARR/OBJ_EMPTY/ARR_EMPTY/LEAF/LEAF_NULL/UNKNOWN`；

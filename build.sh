@@ -9,6 +9,7 @@ FILES_TO_BE_PROCESSED=(
     "./src/bashlib/array.in"
     "./src/bashlib/x.in"
     "./src/bashlib/xj.in"
+    "./src/bashlib/xe.in"
     "./src/bashlib/data.in"
     "./src/bashlib/xo.in"
     "./test/bashlib/test_x.in"

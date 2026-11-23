@@ -5,6 +5,7 @@
 # 不要在模板里裸写控制字符。
 
 . ../../src/bashlib/xo.sh
+. ../../src/bashlib/xe.sh
 
 readonly MPStaticTemplate='
     MPObj ->

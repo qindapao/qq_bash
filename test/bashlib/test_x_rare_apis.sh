@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 . ../../src/bashlib/x.sh
 . ../../src/bashlib/xj.sh
+. ../../src/bashlib/xe.sh
 
 FAILS=0
 check () {

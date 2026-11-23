@@ -2,6 +2,23 @@
 
 . "${BASH_SOURCE[0]%/*}/x.sh"
 
+# gobolt JSON Object type return value
+readonly X_GOBOLT_JSONTYPENULL=1
+readonly X_GOBOLT_JSONTYPETRUE=2
+readonly X_GOBOLT_JSONTYPEFALSE=3
+readonly X_GOBOLT_JSONTYPENUMBER=4
+readonly X_GOBOLT_JSONTYPESTRING=5
+readonly X_GOBOLT_JSONTYPEARRAY=6
+readonly X_GOBOLT_JSONTYPEOBJECT=7
+readonly X_GOBOLT_JSONTYPEUNKNOWN=8
+
+readonly X_RET_ENUM_KEY_OTHER_TOOL_NOT_INSTALLED=10
+readonly X_RET_ENUM_KEY_BJSON_TYPE_INVALID=11
+readonly X_RET_ENUM_KEY_BJSON_TYPE_OBJ=12
+# 暂时没有使用，但是建议保留
+readonly X_RET_ENUM_KEY_BJSON_TYPE_ARR=13
+readonly X_RET_ENUM_KEY_PARAMETER_LENGTH_EXCEEDS_LIMIT=14
+
 #-------------------------------------------------------------------------------
 
 # $1: The value of the string that needs to be converted
@@ -385,4 +402,6 @@ x_get_arg_limits ()
     array_to_kv_q_str args ; REPLY=$REPLY
         #@endif
 }
+
+return 0
 

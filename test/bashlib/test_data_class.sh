@@ -3,6 +3,7 @@
 # dataclass: four lightweight container kinds + unified pool.
 
 . ../../src/bashlib/data.sh
+. ../../src/bashlib/xe.sh
 
 FAILS=0
 check () {

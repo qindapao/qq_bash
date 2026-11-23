@@ -16,6 +16,7 @@ esac
 (( is_msys2 )) || exit 0
 
 . ../../src/bashlib/x.sh
+. ../../src/bashlib/xe.sh
 
 cr=$'\r'
 FAILS=0

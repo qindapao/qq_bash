@@ -211,6 +211,11 @@ CONSTITUTION.md §3).
 | `X_RET_ENUM_KEY_IS_TREE` `X_RET_ENUM_KEY_IS_LEAF` `X_RET_ENUM_KEY_IS_NOTFOUND` `X_RET_ENUM_KEY_IS_INVALID` `X_RET_ENUM_KEY_OUT_OF_INDEX` `X_RET_ENUM_KEY_IS_NOT_LEAF` `X_RET_ENUM_KEY_IS_NULL` `X_RET_ENUM_KEY_UP_LEV_TYPE_MISMATCH` `X_RET_ENUM_KEY_CHILD_CNT_IS_ZERO` `X_RET_ENUM_KEY_OTHER_TOOL_NOT_INSTALLED` `X_RET_ENUM_KEY_BJSON_TYPE_INVALID` `X_RET_ENUM_KEY_BJSON_TYPE_OBJ` `X_RET_ENUM_KEY_BJSON_TYPE_ARR` `X_RET_ENUM_KEY_PARAMETER_LENGTH_EXCEEDS_LIMIT` | per-key status codes 1..14 |
 | `X_RET_ENUM_TREE_IS_INVALID` `X_RET_ENUM_TREE_IS_EMPTY` `X_RET_ENUM_TREE_NOT_HAVE_ROOT` `X_RET_ENUM_TREE_IS_NOT_SAME` | whole-tree failures 50..53 |
 
+`X_FLAT_*` are declared in `xe.in`; `X_GOBOLT_*` and the BJSON/parameter
+return codes are declared in `xj.in`. Source the module that owns the constant.
+`X_RET_ENUM_KEY_IS_TREE` is currently unused but kept as a reserved return
+code; do not reuse its value.
+
 **Library return snippets (`grammar.sh`)**
 
 `_ret_*` are `eval` snippets that move `REPLY` into a caller-named variable
@@ -888,18 +893,19 @@ test reads slots through `eb_field`.
 `x` is an in-memory tree with JSON semantics, implemented in pure Bash. It
 supports objects, arrays, nulls, booleans, ordered children, and path access.
 
-- `x_init [OBJ|ARR]` — create an empty tree
-- `x_insert` / `x_delete` / `x_get_leaf` / `x_get_tree`
-- `x_push_leaf` / `x_pop_leaf` / `x_shift_leaf` / `x_unshift_leaf`
-- `x_walk` / `x_iter` / `x_to_flat_array` / `x_flat_to_tree`
+- **Core (`x.in`)** — `x_init`, `x_insert`, `x_delete`, `x_walk`,
+  `x_walk_dict_tree`, `x_dump`, `x_rebuild_from_dump`, node/type queries
+- **Extension (`xe.in`)** — `x_get_leaf` / `x_get_tree`, leaf/tree push/pop/shift,
+  `x_iter`, flat/layer conversion, `x_equals`, `x_graft`, `x_id_rebuild`
 - `x_walk_dict_tree` — fast walker for **pure `{}` trees**; it rejects arrays
   and physical-id nodes. Use `x_walk` for mixed trees.
-- `x_dump` / `x_equals` / `x_graft`
-- `x_to_json` / `x_from_json` live in `src/bashlib/xj.in` (source `xj.sh`);
-  `x.in` itself stays JSON-free
+- **JSON (`xj.in`)** — `x_to_json` / `x_from_json`; source `xj.sh`
+- Dependency direction: `xe.in` and `xj.in` both source `x.sh` only, and are
+  independent of each other; `x.in` must not source or call into `xe.sh` /
+  `xj.sh`. Tests source the layer they use.
 
 Full parameters and return codes are documented in the function headers of
-`src/bashlib/x.in` and `src/bashlib/xj.in`.
+`src/bashlib/x.in`, `src/bashlib/xe.in` and `src/bashlib/xj.in`.
 
 ### Node state transitions
 
