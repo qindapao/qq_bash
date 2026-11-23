@@ -52,14 +52,8 @@ x_graft ()
 
             if ((tr_graft_is_first_insert)) ; then
                 tr_graft_is_first_insert=0
-                    #@if current_shell_process_replace==1
-                tr_graft_prefix=${|_tokens_insert_to_overwrite "$tr_graft_prefix";}
-                local -A "tr_prefix_token_info=(${|_x_token_to_node_id "$tr_target_name" "$tr_graft_prefix";})"
-                    #@endif
-                    #@if current_shell_process_replace==0
-                _tokens_insert_to_overwrite "$tr_graft_prefix" ; eval "${_ret_s_/o/tr_graft_prefix}"
+                _tokens_insert_to_overwrite "$tr_graft_prefix" ; tr_graft_prefix=$REPLY REPLY=
                 _x_token_to_node_id "$tr_target_name" "$tr_graft_prefix" ; eval "${_ret_A/o/tr_prefix_token_info}"
-                    #@endif
                 tr_graft_start_token_id=${tr_prefix_token_info[node_id]}
                 tr_graft_start_path_token=${tr_prefix_token_info[physical_full_key]}
                 tr_graft_prefix=$tr_graft_start_path_token

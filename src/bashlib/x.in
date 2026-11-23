@@ -402,14 +402,10 @@ x_qinserts ()
     # The subsequent insertion prefix uses the physical key and brings the node id for acceleration.
     local tr_k_index=2 tr_v_index=3
 
-        #@if current_shell_process_replace==1
-    tr_common_prefix=${|_tokens_insert_to_overwrite "$tr_common_prefix";}
-    local -A "tr_prefix_token_info=(${|_x_token_to_node_id "$tr_t_name" "$tr_common_prefix";})"
-        #@endif
-        #@if current_shell_process_replace==0
-    _tokens_insert_to_overwrite "$tr_common_prefix" ; eval "${_ret_s_/o/tr_common_prefix}"
+
+    _tokens_insert_to_overwrite "$tr_common_prefix" ; tr_common_prefix=$REPLY REPLY=
     _x_token_to_node_id "$tr_t_name" "$tr_common_prefix" ; eval "${_ret_A/o/tr_prefix_token_info}"
-        #@endif
+
     tr_common_prefix=${tr_prefix_token_info[physical_full_key]}
     local tr_common_id=${tr_prefix_token_info[node_id]}
     [[ "$tr_return_mode" == 'common' ]] && {
@@ -1307,12 +1303,8 @@ _x_token_to_node_id ()
         tr_real_full_key+="$tr_token$X"
 
         ((tr_need_index_full_key)) && {
-                #@if current_shell_process_replace==1
-            tr_token_index=${|tr_resolve_physical_token "$1" "$tr_token" "$tr_node";}
-                #@endif
-                #@if current_shell_process_replace==0
-            tr_resolve_physical_token "$1" "$tr_token" "$tr_node" ; eval "${_ret_s_/o/tr_token_index}"
-                #@endif
+            # 树默认合法：<id> 不应缺失；这里不接 4=KEY_IS_INVALID，统一按空值返回 3=NOTFOUND。
+            tr_resolve_physical_token "$1" "$tr_token" "$tr_node" ; tr_token_index=$REPLY REPLY=
             [[ -z "$tr_token_index" ]] && {
                 die ERR "node:${tr_node}(token:${tr_token_raw@Q}) is not found index token!"
                 return $X_RET_ENUM_KEY_IS_NOTFOUND
