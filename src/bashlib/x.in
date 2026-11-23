@@ -238,18 +238,18 @@ _negative_token_to_positive ()
 # child    -> c
 # key      -> k
 # type     -> t
-# 初始化一棵空树。
-# @in  $1=根类型（X_TYPE_OBJ=1 或 X_TYPE_ARR=2，默认 OBJ）
-# @out REPLY=新树（关联数组 KV 格式，含根节点和 max_index=2）
+# 初始化一棵空树，直接写入调用方关联数组。
+# @in  $1=树保存到的关联数组名（调用方先声明 local -A / declare -gA）
+#      $2=根类型（X_TYPE_OBJ=1 或 X_TYPE_ARR=2，默认 OBJ）
+# @out $1=新树（关联数组 KV 格式，含根节点和 max_index=2）
 # @ret 0
 x_init ()
 {
-    # t[$X_ROOT_ID.t]=${1:-"$X_TYPE_OBJ"}
-    # Next available node ID
-    # t[max_index]=2
-
-    # 字符串是明确的，我们可以直接返回
-    REPLY="[$X_ROOT_ID.t]=${1:-$X_TYPE_OBJ} [max_index]=2"
+    local -n w_x=$1
+    w_x=(
+        [$X_ROOT_ID.t]=${2:-$X_TYPE_OBJ}
+        [max_index]=2
+    )
 }
 
 #-------------------------------------------------------------------------------
@@ -1371,12 +1371,7 @@ x_delete ()
 
     # Empty key is legal. Only ROOT nodes are reserved.
     [[ -z "$tr_full_key" ]] && {
-            #@if current_shell_process_replace==1
-        eval -- "tr_t=(${|x_init "${tr_t[$X_ROOT_ID.t]}";})"
-            #@endif
-            #@if current_shell_process_replace==0
-        x_init "${tr_t[$X_ROOT_ID.t]}" ; eval -- "tr_t=($REPLY)"
-            #@endif
+        x_init "$1" "${tr_t[$X_ROOT_ID.t]}"
         tr_delete_reply=("$X_ROOT_ID" "")
         REPLY=${tr_delete_reply[*]@Q}
         return ${X_RET_ENUM_OK}
@@ -1985,9 +1980,15 @@ _x_rebuild_from_dump_get_array ()
     fi
 }
 
+# 从 dump 重建树，结果直接写入调用方关联数组。
+# @in  $1=输出关联数组名（调用方先声明 local -A / declare -gA）
+#      $2=dump 字符串
+# @out $1=重建后的树
+# @ret 0=OK  其他=透传内部错误
 x_rebuild_from_dump ()
 {
-    local tr_dump_str=$1
+    local -n tr_w_tree=$1 ; tr_w_tree=()
+    local tr_dump_str=$2
     local tr_line
     local tr_line1_indent=
     local tr_line1_enter=0
@@ -2023,10 +2024,10 @@ x_rebuild_from_dump ()
     if ((${#tr_dump_list[@]}==2)) ; then
         case "${tr_dump_list[1]}" in
         *${X_VALUE_NULL_OBJ})
-            x_init "$X_TYPE_OBJ" ; REPLY=$REPLY ; return ${X_RET_ENUM_OK}
+            x_init "$1" "$X_TYPE_OBJ" ; return ${X_RET_ENUM_OK}
         ;;
         *${X_VALUE_NULL_ARR})
-            x_init "$X_TYPE_ARR" ; REPLY=$REPLY ; return ${X_RET_ENUM_OK}
+            x_init "$1" "$X_TYPE_ARR" ; return ${X_RET_ENUM_OK}
         ;;
         esac
     fi
@@ -2086,19 +2087,9 @@ x_rebuild_from_dump ()
     # 先创建根节点
     if [[   "${tr_type[1]}" == a_leaf ||
             "${tr_type[1]}" == a_tree ]] ; then
-            #@if current_shell_process_replace==1
-        local -A "tr_out_r_tree=(${|x_init "$X_TYPE_ARR";})"
-            #@endif
-            #@if current_shell_process_replace==0
-        x_init "$X_TYPE_ARR" ; eval "${_ret_A/o/tr_out_r_tree}"
-            #@endif
+        x_init "$1" "$X_TYPE_ARR"
     else
-            #@if current_shell_process_replace==1
-        local -A "tr_out_r_tree=(${|x_init "$X_TYPE_OBJ";})"
-            #@endif
-            #@if current_shell_process_replace==0
-        x_init "$X_TYPE_OBJ" ; eval "${_ret_A/o/tr_out_r_tree}"
-            #@endif
+        x_init "$1" "$X_TYPE_OBJ"
     fi
 
     # local i
@@ -2123,7 +2114,7 @@ x_rebuild_from_dump ()
             if ((tr_i+1==${#tr_dump_list[@]})) ||
                 [[ "$tr_n_lev" != "${tr_lev[tr_i+1]}" ]] ||
                 [[ "${tr_type[tr_i+1]}" == [ad]_tree ]] ; then
-                x_qinserts tr_out_r_tree common \
+                x_qinserts "$1" common \
                     "${tr_idx_key#$X}" "${tr_leafs[@]}" || eval "$_ret_e"
                 # 清空叶子缓存
                 tr_leafs=()
@@ -2153,7 +2144,7 @@ x_rebuild_from_dump ()
             if ((tr_i+1==${#tr_dump_list[@]})) ||
                 [[ "$tr_n_lev" != "${tr_lev[tr_i+1]}" ]] ||
                 [[ "${tr_type[tr_i+1]}" == [ad]_tree ]] ; then
-                x_qinserts tr_out_r_tree common \
+                x_qinserts "$1" common \
                     "${tr_idx_key#$X}" "${tr_leafs[@]}" || eval "$_ret_e"
                 # 清空叶子缓存
                 tr_leafs=()
@@ -2170,12 +2161,7 @@ x_rebuild_from_dump ()
         ;;
         esac
     done
-        #@if at_k_var_substitution==1
-    REPLY=${tr_out_r_tree[*]@K}
-        #@endif
-        #@if at_k_var_substitution==0
-    array_to_kv_q_str tr_out_r_tree ; REPLY=$REPLY
-        #@endif
+
     return $X_RET_ENUM_OK
 }
 

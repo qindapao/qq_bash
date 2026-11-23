@@ -46,8 +46,8 @@ fi
 copy_separate "v${cr}"
 check_equal 'declare-then-assign keeps CR' "v${cr}" "$COPY_REPLY"
 
-x_init "$X_TYPE_OBJ"
-declare -gA "T=($REPLY)"
+declare -gA T=()
+x_init T "$X_TYPE_OBJ"
 x_qinserts T common '' "{k}$X" "v${cr}" || {
     echo 'FAIL: x_qinserts'
     exit 1

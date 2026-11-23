@@ -40,9 +40,9 @@ t1(1) ->
     {ea} => []\u001c
     max_index => 6
 '
-x_rebuild_from_dump "$simple_dump" >/dev/null 2>&1
+declare -A t_simple=()
+x_rebuild_from_dump t_simple "$simple_dump" >/dev/null 2>&1
 check '简单树：重建返回 0' '0' "$?"
-eval "declare -A t_simple=($REPLY)"
 
 x_get_leaf t_simple "{a}$X" ; check '简单树：字典叶子 {a}' '1' "$REPLY"
 x_get_leaf t_simple "{b}$X" ; check '简单树：字典叶子 {b}' '2' "$REPLY"
@@ -112,10 +112,10 @@ t1(1) ->
             {keeeeeeeey2} => valueX
     max_index => 37
 '
-x_rebuild_from_dump "$complex_dump" >/dev/null 2>/tmp/test_x_rebuild.err
+declare -A t_complex=()
+x_rebuild_from_dump t_complex "$complex_dump" >/dev/null 2>/tmp/test_x_rebuild.err
 check '复杂树：重建返回 0' '0' "$?"
 check '复杂树：无 stderr 报错' '' "$(cat /tmp/test_x_rebuild.err)"
-eval "declare -A t_complex=($REPLY)"
 
 complex_dump_out=$(x_dump t_complex '' 4 2)
 check '复杂树：含 value2'  '1' "$(grep -c '{aa ge} => value2' <<<"$complex_dump_out")"
@@ -132,10 +132,10 @@ check '复杂树：转义键 \}' '1' "$(grep -c 'c5\*\[\]@!{\\}' <<<"$complex_du
 
 # 二次重建：dump 出来的文本再喂回去，仍应成功且保留关键内容。
 # 不比较整段 dump 文本：x_dump 对"首行为空的多行值"的排版本身不是稳定格式。
-x_rebuild_from_dump "$complex_dump_out" >/dev/null 2>/tmp/test_x_rebuild2.err
+declare -A t_complex2=()
+x_rebuild_from_dump t_complex2 "$complex_dump_out" >/dev/null 2>/tmp/test_x_rebuild2.err
 check '复杂树：二次重建返回 0' '0' "$?"
 check '复杂树：二次重建无报错' '' "$(cat /tmp/test_x_rebuild2.err)"
-eval "declare -A t_complex2=($REPLY)"
 complex_dump_out2=$(x_dump t_complex2 '' 4 2)
 check '复杂树：二次 dump 含 响铃' '1' "$(grep -c '响铃 geg' <<<"$complex_dump_out2")"
 check '复杂树：二次 dump 含 valueX' '1' "$(grep -c 'valueX' <<<"$complex_dump_out2")"
@@ -149,7 +149,8 @@ bad_dump='
 t1 ->
     {a} =>bad
 '
-x_rebuild_from_dump "$bad_dump" >/dev/null 2>/tmp/test_x_rebuild_bad.err
+declare -A t_bad=()
+x_rebuild_from_dump t_bad "$bad_dump" >/dev/null 2>/tmp/test_x_rebuild_bad.err
 check '格式错误：重建返回非 0' '1' "$(( $? != 0 ))"
 check '格式错误：有明确报错' '1' "$(grep -c 'without trailing space' /tmp/test_x_rebuild_bad.err)"
 

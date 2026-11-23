@@ -51,12 +51,12 @@ xo_data_born ()
         ARR)   declare -ga "$h" ;;
         ASSOC) declare -gA "$h" ;;
         DTREE)
-            x_init "$X_TYPE_OBJ" || return $?
-            declare -gA "${h}=($REPLY)"
+            declare -gA "$h"
+            x_init "$h" "$X_TYPE_OBJ" || return $?
             ;;
         ATREE)
-            x_init "$X_TYPE_ARR" || return $?
-            declare -gA "${h}=($REPLY)"
+            declare -gA "$h"
+            x_init "$h" "$X_TYPE_ARR" || return $?
             ;;
     esac
 

@@ -560,12 +560,8 @@ _xo_init_get_class_inher_chain ()
     done
 
     # ---- 2. 初始化继承树 ----
-        #@if current_shell_process_replace==1
-    declare -gA "XO_CLASS_INHER_TREE=(${|x_init "$X_TYPE_OBJ";})"
-        #@endif
-        #@if current_shell_process_replace==0
-    x_init "$X_TYPE_OBJ" ; eval "${_ret_g_A/o/XO_CLASS_INHER_TREE}"
-        #@endif
+    declare -gA XO_CLASS_INHER_TREE=()
+    x_init XO_CLASS_INHER_TREE "$X_TYPE_OBJ"
 
     # ---- 3. 校验所有类的 SUPER 链 ----
     #   *. 遍历所有类，沿 SUPER 链向上
@@ -730,22 +726,11 @@ _xo_init_class ()
         local _own_flt='' _has_flt='' _cur
 
         if [[ -n "$_tmpl_src" ]] ; then
-                #@if current_shell_process_replace==1
-            local obj_kv ; obj_kv=${|
-                x_rebuild_from_dump "$_tmpl_src";}
-            if (($?)) ; then
-                die ERR "Class Template:${cls}StaticTemplate is invalid!"
-                return 1
-            fi
-            local -A "temp_obj=($obj_kv)"
-                #@endif
-                #@if current_shell_process_replace==0
-            x_rebuild_from_dump "$_tmpl_src" || {
+            local -A temp_obj=()
+            x_rebuild_from_dump temp_obj "$_tmpl_src" || {
                 die ERR "Class Template:${cls}StaticTemplate is invalid!"
                 return 1
             }
-            eval "${_ret_A/o/temp_obj}"
-                #@endif
             _own_flt=${temp_obj[{FLT}$X]:-}
             [[ -n "${temp_obj[{FLT}$X]+_}" ]] && _has_flt=1
         else
@@ -1641,7 +1626,8 @@ xo_debug_classes ()
     local -a _xd_cls_order=()
     local -A _xd_cls_path=()
 
-    x_init "$X_TYPE_OBJ" || return $? ; local -A "_xd_tree=($REPLY)"
+    local -A _xd_tree=()
+    x_init _xd_tree "$X_TYPE_OBJ" || return $?
 
     _xo_debug_put () {
         x_insert_dict "_xd_tree" "$1" "$2" || {

@@ -15,8 +15,8 @@ check () {
 }
 
 # pop/shift leaf
-x_init "$X_TYPE_OBJ"
-declare -gA "T=($REPLY)"
+declare -gA T=()
+x_init T "$X_TYPE_OBJ"
 x_insert T "{arr}$X[0]$X" a
 x_insert T "{arr}$X[1]$X" b
 x_pop_leaf T "{arr}$X" || { echo 'FAIL pop_leaf rc' ; exit 1 ; }
@@ -29,16 +29,16 @@ x_shift_leaf T "{arr}$X" >/dev/null 2>&1
 check 'empty array shift fails' '1' "$(( $? != 0 ))"
 
 # pop tree
-x_init "$X_TYPE_OBJ"
-declare -gA "U=($REPLY)"
+declare -gA U=()
+x_init U "$X_TYPE_OBJ"
 x_insert U "{arr}$X[0]$X{k}$X" v
 x_pop_tree U "{arr}$X" || { echo 'FAIL pop_tree rc' ; exit 1 ; }
 x_get_node_type U "{arr}$X" path
 check 'pop_tree leaves empty array' "$X_NODE_KIND_ARR_EMPTY" "$?"
 
 # layer flat
-x_init "$X_TYPE_OBJ"
-declare -gA "V=($REPLY)"
+declare -gA V=()
+x_init V "$X_TYPE_OBJ"
 x_insert V "{obj}$X{a}$X" 1
 x_insert V "{obj}$X{b}$X" 2
 x_layer_get_flat obj V "{obj}$X"
@@ -50,20 +50,20 @@ x_layer_get_flat arr V "{arr}$X"
 check 'layer_get_flat arr rc' '0' "$?"
 
 # pop flat assoc / shift flat array
-x_init "$X_TYPE_OBJ"
-declare -gA "W=($REPLY)"
+declare -gA W=()
+x_init W "$X_TYPE_OBJ"
 x_insert W "{arr}$X[0]$X{k}$X" v
 x_pop_to_flat_assoc W "{arr}$X" || { echo 'FAIL pop_flat_assoc rc' ; exit 1 ; }
 check 'pop_flat_assoc has k' '1' "$([[ "$REPLY" == *k* ]] && echo 1 || echo 0)"
-x_init "$X_TYPE_OBJ"
-declare -gA "X2=($REPLY)"
+declare -gA X2=()
+x_init X2 "$X_TYPE_OBJ"
 x_insert X2 "{arr}$X[0]$X[0]$X" z
 x_shift_to_flat_array X2 "{arr}$X" || { echo 'FAIL shift_flat_array rc' ; exit 1 ; }
 check 'shift_flat_array has z' '1' "$([[ "$REPLY" == *z* ]] && echo 1 || echo 0)"
 
 # push_leaf_fast
-x_init "$X_TYPE_OBJ"
-declare -gA "Y=($REPLY)"
+declare -gA Y=()
+x_init Y "$X_TYPE_OBJ"
 x_insert Y "{arr}$X" "$X_VALUE_NULL_ARR"
 x_push_leaf_fast Y "" "{arr}$X" a b || { echo 'FAIL push_leaf_fast rc' ; exit 1 ; }
 x_get_leaf Y "{arr}$X[0]$X"

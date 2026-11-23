@@ -8,8 +8,8 @@
 
 . ../../src/bashlib/x.sh
 
-x_init "$X_TYPE_OBJ"
-eval "declare -A DW=($REPLY)"
+declare -A DW=()
+x_init DW "$X_TYPE_OBJ"
 
 leaves=(
     "{a}$X{b}$X{c}$X"

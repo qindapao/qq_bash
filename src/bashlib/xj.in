@@ -314,19 +314,11 @@ x_from_json ()
     $X_GOBOLT_JSONTYPEARRAY|$X_GOBOLT_JSONTYPEOBJECT)
         local -A "tr_assoc=($tr_assoc)" ;;&
     $X_GOBOLT_JSONTYPEARRAY)
-            #@if current_shell_process_replace==1
-        local -A "tr_init_tree=(${|x_init "$X_TYPE_ARR";})" ;;
-            #@endif
-            #@if current_shell_process_replace==0
-        x_init "$X_TYPE_ARR" ; eval "${_ret_A/o/tr_init_tree}" ;;
-            #@endif
+        local -A tr_init_tree=()
+        x_init tr_init_tree "$X_TYPE_ARR" ;;
     $X_GOBOLT_JSONTYPEOBJECT)
-            #@if current_shell_process_replace==1
-        local -A "tr_init_tree=(${|x_init "$X_TYPE_OBJ";})" ;;
-            #@endif
-            #@if current_shell_process_replace==0
-        x_init "$X_TYPE_OBJ" ; eval "${_ret_A/o/tr_init_tree}" ;;
-            #@endif
+        local -A tr_init_tree=()
+        x_init tr_init_tree "$X_TYPE_OBJ" ;;
     *)
         die ERR "bjson key:${tr_bjson_keys[*]} type is known."
         return $X_RET_ENUM_KEY_BJSON_TYPE_INVALID

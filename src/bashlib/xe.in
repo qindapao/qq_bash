@@ -203,12 +203,8 @@ x_get_tree ()
     local -a "tr_root_children=(${tr_t[$tr_node.s]})"
 
     # 6. Create a new tree
-        #@if current_shell_process_replace==1
-    local -A "tr_new=(${|x_init "${tr_t[$tr_node.t]}";})"
-        #@endif
-        #@if current_shell_process_replace==0
-    x_init "${tr_t[$tr_node.t]}" ; eval "${_ret_A/o/tr_new}"
-        #@endif
+    local -A tr_new=()
+    x_init tr_new "${tr_t[$tr_node.t]}"
 
     # If the subtree root is empty, it is returned directly.
     ((${#tr_root_children[@]})) || {
@@ -449,16 +445,14 @@ x_id_rebuild ()
 
     tr_id_map[$X_ROOT_ID]=1
 
-        #@if current_shell_process_replace==1
-    local -A "tr_new=(${|x_init "${tr_old[$X_ROOT_ID.t]}";})"
-        #@endif
-        #@if current_shell_process_replace==0
-    x_init "${tr_old[$X_ROOT_ID.t]}" ; eval "${_ret_A/o/tr_new}"
-        #@endif
+    # Create a new tree
+    local -A tr_new=()
+    x_init tr_new "${tr_old[$X_ROOT_ID.t]}"
 
     # 辅助函数：用 tr_id_map 重建物理全 key（把 <old_id> 换成 <new_id>）
     _x_id_rebuild_key ()
     {
+        REPLY=
         local old_key=$1
         local new_key=''
         local tk
@@ -489,12 +483,7 @@ x_id_rebuild ()
         local new_parent_id=${tr_id_map[$parent_old_id]}
 
         # 重建 full_key（内部 <old_id> 换成 <new_id>）
-            #@if current_shell_process_replace==1
-        local new_full_key=${|_x_id_rebuild_key "$full_key";}
-            #@endif
-            #@if current_shell_process_replace==0
-        _x_id_rebuild_key "$full_key" ; eval "${_ret_s/o/new_full_key}"
-            #@endif
+        _x_id_rebuild_key "$full_key" ; local new_full_key=$REPLY ; REPLY=
 
         # 重建 token（数组是 <old_id> 换成 <new_id>，对象是 {key} 不变）
         local new_token
@@ -759,13 +748,8 @@ x_pop_leaf ()
     # REPLY It will be rewritten directly in the sub-function. The explicit
     # assignment here is just for higher readability.
     local tr_pop_leaf_reply=
-        #@if current_shell_process_replace==1
-    tr_pop_leaf_reply=${|_x_array_get "$1" "$2" pop leaf;} || return $?
-        #@endif
-        #@if current_shell_process_replace==0
-    _x_array_get "$1" "$2" pop leaf || eval "$_ret_e"
-    eval "${_ret_s_/o/tr_pop_leaf_reply}"
-        #@endif
+    _x_array_get "$1" "$2" pop leaf || return $?
+    tr_pop_leaf_reply=$REPLY REPLY=
     x_delete "$1" "$2[-1]$X" || return $?
     REPLY=$tr_pop_leaf_reply
 }
@@ -777,13 +761,8 @@ x_pop_tree ()
 {
     REPLY=
     local tr_pop_tree_reply=
-        #@if current_shell_process_replace==1
-    tr_pop_tree_reply=${|_x_array_get "$1" "$2" pop tree;} || return $?
-        #@endif
-        #@if current_shell_process_replace==0
-    _x_array_get "$1" "$2" pop tree || eval "$_ret_e"
-    eval "${_ret_s_/o/tr_pop_tree_reply}"
-        #@endif
+    _x_array_get "$1" "$2" pop tree || return $?
+    tr_pop_tree_reply=$REPLY REPLY=
     x_delete "$1" "$2[-1]$X" || return $?
     REPLY=$tr_pop_tree_reply
 }
@@ -795,13 +774,8 @@ x_shift_leaf ()
 {
     REPLY=
     local tr_shift_leaf_reply=
-        #@if current_shell_process_replace==1
-    tr_shift_leaf_reply=${|_x_array_get "$1" "$2" shift leaf;} || return $?
-        #@endif
-        #@if current_shell_process_replace==0
-    _x_array_get "$1" "$2" shift leaf || eval "$_ret_e"
-    eval "${_ret_s_/o/tr_shift_leaf_reply}"
-        #@endif
+    _x_array_get "$1" "$2" shift leaf || return $?
+    tr_shift_leaf_reply=$REPLY REPLY=
     x_delete "$1" "$2[0]$X" || return $?
     REPLY=$tr_shift_leaf_reply
 }
@@ -813,13 +787,8 @@ x_shift_tree ()
 {
     REPLY=
     local tr_shift_tree_reply=
-        #@if current_shell_process_replace==1
-    tr_shift_tree_reply=${|_x_array_get "$1" "$2" shift tree;} || return $?
-        #@endif
-        #@if current_shell_process_replace==0
-    _x_array_get "$1" "$2" shift tree || eval "$_ret_e"
-    eval "${_ret_s_/o/tr_shift_tree_reply}"
-        #@endif
+    _x_array_get "$1" "$2" shift tree || return $?
+    tr_shift_tree_reply=$REPLY REPLY=
     x_delete "$1" "$2[0]$X" || return $?
     REPLY=$tr_shift_tree_reply
 }
