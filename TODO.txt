@@ -424,6 +424,11 @@ strafe_bash
           TclOO 负责对象/行为/继承/mixin，普通 proc 负责函数，
           AoS/SoA + list/dict 负责热数据；xo 只保留对象池、批量 tick、
           模板/重置字段这些“模式”，不再保留一整套框架。
+        * 具体选型（2026-11-24）：
+          - Plane / Enemy / Boss / 巨型子弹：TclOO；
+          - 单发子弹、粒子、掉落物：AoS（list of dict）+ proc + 对象池；
+          - 只有 profiler 证明批量扫描是瓶颈时，才对局部数据 SoA 化；
+          - 不再为 Tcl 9 实现通用 xo 对象系统。
         * 不预设“不用 TclOO”。2026-11-24 在 Tcl 9.1.0 实测：
           - TclOO 方法里 `variable a` 会被编译成局部槽（`loadScalar`），
             字段读写比手搓 dict/upvar 更快；
