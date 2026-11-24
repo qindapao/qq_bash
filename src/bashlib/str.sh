@@ -427,10 +427,7 @@ _str_escape_impl ()
 
     s=${s//'\'/'\\'}
     ((escape_rbrace)) && s=${s//'}'/'\}'}
-    s=${s//$'\b'/'\b'}
-    s=${s//$'\f'/'\f'}
-    s=${s//$'\r'/'\r'}
-    s=${s//$'\t'/'\t'}
+    s=${s//$'\b'/'\b'} s=${s//$'\f'/'\f'} s=${s//$'\r'/'\r'} s=${s//$'\t'/'\t'}
 
     # 如果替换后只剩可打印 ASCII和回车,直接返回
     [[ $s != *[!$'\n'[:print:]]* ]] && { out=$s ; return ; }
@@ -507,8 +504,7 @@ str_escape_key ()     { _str_escape_impl "$1" "$2" 1 ; }
 str_unescape ()
 {
     REPLY=
-    local s=$1
-    local out=''
+    local s=$1 out=''
 
     # 快速路径：无反斜杠直接原样返回
     [[ $s != *\\* ]] && { REPLY=$s ; return 0 ; }
@@ -541,7 +537,7 @@ str_unescape ()
             *) out+="\\$ch" ; rest=${rest:1} ;;
         esac
     done
-    out+=$rest ; REPLY=$out ; return 0
+    out+=$rest REPLY=$out ; return 0
 }
 
 #-------------------------------------------------------------------------------
@@ -564,9 +560,8 @@ str_unescape ()
 #     会造成终端显示混乱，属用法错误。建议先过 str_escape_keep_nl 再传。
 str_display_width ()
 {
-    local s=$1
+    local s=$1 total=0 i ch cp
     local -n out_w=$2
-    local total=0 i ch cp
 
     # 快速路径：纯 ASCII（0x00-0x7F），宽度 = 字符数
     # 用 [[:ascii:]] 而非 [ -~] 或 [[:print:]]：后两者在多字节 locale 下
