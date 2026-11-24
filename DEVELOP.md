@@ -36,7 +36,7 @@ stay aligned in any editor, terminal or diff viewer.
 |   plane/          Plane -> PlaneIl2, owns OBJ_wpn1..5 (composite object)   |
 |   pickups/        Drop, Word                                               |
 |----------------------------------------------------------------------------|
-| OBJECT SYSTEM  src/bashlib/xo.in                                           |
+| OBJECT SYSTEM  src/bashlib/xo.sh                                           |
 |   flat class: <Cls>Obj array (direct, the only flat definition)            |
 |   tree class: template --xo_init--> ${cls}Obj (x tree); templates are      |
 |               allowed only for tree classes (FLT=0)                        |
@@ -144,7 +144,7 @@ framework-owned: user code must not define variables in these namespaces, and
 the `*Obj` / `*StaticTemplate` suffixes are reserved (see
 CONSTITUTION.md §3).
 
-**Object system (`xo.in`) — class definitions and inheritance**
+**Object system (`xo.sh`) — class definitions and inheritance**
 
 | Variable | Purpose |
 |---|---|
@@ -163,7 +163,7 @@ CONSTITUTION.md §3).
 | `XO_FLAT_META` | metakeys kept when a flat class is built (everything else is a user field) |
 | `_XO_INIT_CALLED` | `xo_init` may run only once |
 
-**Object system (`xo.in`) — instances, mixins, resource market**
+**Object system (`xo.sh`) — instances, mixins, resource market**
 
 | Variable | Purpose |
 |---|---|
@@ -210,7 +210,7 @@ CONSTITUTION.md §3).
 | `X_RET_ENUM_KEY_IS_TREE` `X_RET_ENUM_KEY_IS_LEAF` `X_RET_ENUM_KEY_IS_NOTFOUND` `X_RET_ENUM_KEY_IS_INVALID` `X_RET_ENUM_KEY_OUT_OF_INDEX` `X_RET_ENUM_KEY_IS_NOT_LEAF` `X_RET_ENUM_KEY_IS_NULL` `X_RET_ENUM_KEY_UP_LEV_TYPE_MISMATCH` `X_RET_ENUM_KEY_CHILD_CNT_IS_ZERO` `X_RET_ENUM_KEY_OTHER_TOOL_NOT_INSTALLED` `X_RET_ENUM_KEY_BJSON_TYPE_INVALID` `X_RET_ENUM_KEY_BJSON_TYPE_OBJ` `X_RET_ENUM_KEY_BJSON_TYPE_ARR` `X_RET_ENUM_KEY_PARAMETER_LENGTH_EXCEEDS_LIMIT` | per-key status codes 1..14 |
 | `X_RET_ENUM_TREE_IS_INVALID` `X_RET_ENUM_TREE_IS_EMPTY` `X_RET_ENUM_TREE_NOT_HAVE_ROOT` `X_RET_ENUM_TREE_IS_NOT_SAME` | whole-tree failures 50..53 |
 
-`X_FLAT_*` are declared in `xe.in`; `X_GOBOLT_*` and the BJSON/parameter
+`X_FLAT_*` are declared in `xe.sh`; `X_GOBOLT_*` and the BJSON/parameter
 return codes are declared in `xj.sh`. Source the module that owns the constant.
 `X_RET_ENUM_KEY_IS_TREE` is currently unused but kept as a reserved return
 code; do not reuse its value.
@@ -748,7 +748,7 @@ to it. `Base_print` dumps it as a plain array; `BaseX_print` keeps `x_dump`.
 **No ad-hoc fields.** The flat shape makes it *possible* to write any key into an
 object, but it is forbidden: every field a method touches must be declared in the
 class template (with a comment, as the constitution requires), and an undeclared
-key is a bug. Field names follow the table at the top of `xo.in`: public fields
+key is a bug. Field names follow the table at the top of `xo.sh`: public fields
 are lower snake case (`hp`, `prev_x`), private ones are `_ClassName_field`
 (`_Boss_phase`), and `_kind{...}` temporary containers are framework-internal and
 never used for game data.
@@ -894,17 +894,17 @@ supports objects, arrays, nulls, booleans, ordered children, and path access.
 
 - **Core (`x.sh`)** — `x_init`, `x_insert`, `x_delete`, `x_walk`,
   `x_walk_dict_tree`, `x_dump`, `x_rebuild_from_dump`, node/type queries
-- **Extension (`xe.in`)** — `x_get_leaf` / `x_get_tree`, leaf/tree push/pop/shift,
+- **Extension (`xe.sh`)** — `x_get_leaf` / `x_get_tree`, leaf/tree push/pop/shift,
   `x_iter`, flat/layer conversion, `x_equals`, `x_graft`, `x_id_rebuild`
 - `x_walk_dict_tree` — fast walker for **pure `{}` trees**; it rejects arrays
   and physical-id nodes. Use `x_walk` for mixed trees.
 - **JSON (`xj.sh`)** — `x_to_json` / `x_from_json`; source `xj.sh`
-- Dependency direction: `xe.in` and `xj.sh` both source `x.sh` only, and are
+- Dependency direction: `xe.sh` and `xj.sh` both source `x.sh` only, and are
   independent of each other; `x.sh` must not source or call into `xe.sh` /
   `xj.sh`. Tests source the layer they use.
 
 Full parameters and return codes are documented in the function headers of
-`src/bashlib/x.sh`, `src/bashlib/xe.in` and `src/bashlib/xj.sh`.
+`src/bashlib/x.sh`, `src/bashlib/xe.sh` and `src/bashlib/xj.sh`.
 
 ### Node state transitions
 

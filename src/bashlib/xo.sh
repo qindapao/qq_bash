@@ -409,7 +409,6 @@ declare -gA XO_OBJ_POOL=()
 # 预留 OBJ_1 ~ OBJ_10 给系统特殊对象（如全局单例、框架内部对象），
 # 用户对象从 OBJ_11 开始。修改此值时同步更新预留范围。
 declare -gi XO_OBJ_SEQ=10
-declare -g XO_INHER_CHAIN_DUMP_CACHE=''
 
 # -------------------资源回收-----------------------
 declare -gA XO_RES_COUNT=() XO_RES_MARKET=() XO_RES_LIMIT=()
@@ -527,13 +526,8 @@ _xo_init_get_class_inher_chain ()
     for var_name in "${!XO_CLASS_TREE_TMPL_VARS[@]}" ; do
         cls=${var_name%StaticTemplate}
 
-            #@if current_shell_process_replace==1
-        super=${|str_grep_first_line "${!var_name}" "$re" 2;}
-            #@endif
-            #@if current_shell_process_replace==0
         str_grep_first_line "${!var_name}" "$re" 2
-        eval "${_ret_s/o/super}"
-            #@endif
+        super=$REPLY REPLY=
 
         # 契约：除 Base 外，所有类的 SUPER 非空
         if [[ -z "$super" ]] ; then
@@ -776,30 +770,30 @@ _xo_init_class ()
             # 相邻，内部顺序是哈希序），两段展开按文本先后拼进同一个词链表；declare
             # 按词序逐对 assoc_insert，同键后写覆盖先写 —— 所以本类字段一定覆盖父类
             # 同名字段。同时省掉"先拷到 temp_obj"的一步（~300µs/类）。
-                #@if at_k_var_substitution==1
-            if [[ "$cls" == 'Base' ]] ; then
-                declare -gA "BaseObj=(${cur_obj[*]@K})"
+            if ((BASH_GRAMMAR[at_k_var_substitution])) ; then
+                if [[ "$cls" == 'Base' ]] ; then
+                    # 低版本的 bash 上必须用 eval 保护起来，不然会报语法错误
+                    eval -- 'declare -gA "BaseObj=(${cur_obj[*]@K})"'
+                else
+                    eval -- 'declare -gA "${cls}Obj=(${father_obj0[*]@K} ${cur_obj[*]@K})"'
+                fi
             else
-                declare -gA "${cls}Obj=(${father_obj0[*]@K} ${cur_obj[*]@K})"
+                # 4.x 没有 @K：先把本类字段存进 temp_obj，再覆盖成父类，最后合并回来。
+                local -A temp_obj=()
+                local _k
+                for _k in "${!cur_obj[@]}" ; do
+                    temp_obj[$_k]=${cur_obj[$_k]}
+                done
+                if [[ "$cls" == 'Base' ]] ; then
+                    declare -gA "BaseObj=()"
+                else
+                    array_to_kv_q_str ${father}Obj ; eval "${_ret_g_A/o/${cls}Obj}"
+                fi
+                local -n _flat_obj="${cls}Obj"
+                for _k in "${!temp_obj[@]}" ; do
+                    _flat_obj[$_k]=${temp_obj[$_k]}
+                done
             fi
-                #@endif
-                #@if at_k_var_substitution==0
-            # 4.x 没有 @K：先把本类字段存进 temp_obj，再覆盖成父类，最后合并回来。
-            local -A temp_obj=()
-            local _k
-            for _k in "${!cur_obj[@]}" ; do
-                temp_obj[$_k]=${cur_obj[$_k]}
-            done
-            if [[ "$cls" == 'Base' ]] ; then
-                declare -gA "BaseObj=()"
-            else
-                array_to_kv_q_str ${father}Obj ; eval "${_ret_g_A/o/${cls}Obj}"
-            fi
-            local -n _flat_obj="${cls}Obj"
-            for _k in "${!temp_obj[@]}" ; do
-                _flat_obj[$_k]=${temp_obj[$_k]}
-            done
-                #@endif
             # Base 是根：没有父类，也不需要更新/透传实例方法
         elif (( is_flat_father )) ; then
             # ---- 树类，但父类是扁平类（当前只有 Base -> BaseX 这一种） ----
@@ -812,20 +806,19 @@ _xo_init_class ()
                 }
             done
             # 父类只有元键，自己的模板里已经包含这些元键，直接从模板建树。
-                #@if at_k_var_substitution==1
-            declare -gA "${cls}Obj=(${temp_obj[*]@K})"
-                #@endif
-                #@if at_k_var_substitution==0
-            array_to_kv_q_str temp_obj ; eval "${_ret_g_A/o/${cls}Obj}"
-                #@endif
+            if ((BASH_GRAMMAR[at_k_var_substitution])) ; then
+                # 低版本 bash 的语法保护
+                eval -- 'declare -gA "${cls}Obj=(${temp_obj[*]@K})"'
+            else
+                array_to_kv_q_str temp_obj ; eval "${_ret_g_A/o/${cls}Obj}"
+            fi
         else
             # 树类 + 树父类：复制父类树，再把当前类的叶子 x_insert 上去
-                #@if at_k_var_substitution==1
-            declare -gA "${cls}Obj=(${father_obj0[*]@K})"
-                #@endif
-                #@if at_k_var_substitution==0
-            array_to_kv_q_str ${father}Obj ; eval "${_ret_g_A/o/${cls}Obj}"
-                #@endif
+            if ((BASH_GRAMMAR[at_k_var_substitution])) ; then
+                eval -- 'declare -gA "${cls}Obj=(${father_obj0[*]@K})"'
+            else
+                array_to_kv_q_str ${father}Obj ; eval "${_ret_g_A/o/${cls}Obj}"
+            fi
 
             _xo_init_class_cb_insert_cb ()
             {
@@ -981,12 +974,11 @@ _xo_init_class ()
 
         # 类对象保存一份字符串缓存，用于创建实例对象的时候加速
         local -n c_obj="${cls}Obj"
-            #@if at_k_var_substitution==1
-        declare -g ${cls}ObjStr="${c_obj[*]@K}"
-            #@endif
-            #@if at_k_var_substitution==0
-        array_to_kv_q_str "${cls}Obj" ; eval "${_ret_g_s/o/${cls}ObjStr}"
-            #@endif
+        if ((BASH_GRAMMAR[at_k_var_substitution])) ; then
+            eval -- 'declare -g ${cls}ObjStr="${c_obj[*]@K}"'
+        else
+            array_to_kv_q_str "${cls}Obj" ; eval "${_ret_g_s/o/${cls}ObjStr}"
+        fi
 
         XO_INIT_DONE=$(( XO_INIT_DONE + 1 ))
         _xo_progress_draw
@@ -1012,12 +1004,11 @@ _xo_check_statement_match ()
         local -a found=()
         local pattern
         printf -v pattern '!%s_[!_]*' "$prefix"
-            #@if compgen_v==1
-        compgen -V found -A function -X "$pattern"
-            #@endif
-            #@if compgen_v==0
-        found=($(compgen -A function -X "$pattern"))
-            #@endif
+        if ((BASH_GRAMMAR[compgen_v])) ; then
+            compgen -V found -A function -X "$pattern"
+        else
+            found=($(compgen -A function -X "$pattern"))
+        fi
         found=("${found[@]#${prefix}_}")
 
         REPLY=${found[*]}
@@ -1034,12 +1025,11 @@ _xo_check_statement_match ()
         local -i _eg_on=0
         shopt -q extglob && _eg_on=1
         shopt -s extglob
-            #@if compgen_v==1
-        compgen -V all_vars -A variable -X '!*@(StaticTemplate|Obj)'
-            #@endif
-            #@if compgen_v==0
-        all_vars=($(compgen -A variable -X '!*@(StaticTemplate|Obj)'))
-            #@endif
+        if ((BASH_GRAMMAR[compgen_v])) ; then
+            compgen -V all_vars -A variable -X '!*@(StaticTemplate|Obj)'
+        else
+            all_vars=($(compgen -A variable -X '!*@(StaticTemplate|Obj)'))
+        fi
         (( _eg_on )) || shopt -u extglob
         local v
         for v in "${all_vars[@]}" ; do
@@ -1184,15 +1174,7 @@ xo_dump_inher_chain ()
         die ERR "xo: xo_init not called yet, XO_CLASS_INHER_TREE is empty"
         return 1
     }
-    if [[ -z "$XO_INHER_CHAIN_DUMP_CACHE" ]] ; then
-            #@if current_shell_process_replace==1
-        XO_INHER_CHAIN_DUMP_CACHE=${ x_dump XO_CLASS_INHER_TREE '' 4 2 ;}
-            #@endif
-            #@if current_shell_process_replace==0
-        XO_INHER_CHAIN_DUMP_CACHE=$(x_dump XO_CLASS_INHER_TREE '' 4 2)
-            #@endif
-    fi
-    printf "%s\n" "$XO_INHER_CHAIN_DUMP_CACHE"
+    x_dump XO_CLASS_INHER_TREE '' 4 2
 }
 
 # new

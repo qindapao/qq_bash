@@ -53,9 +53,9 @@ src/bashlib/             基础库（.in 源码，build 生成同名 .sh）
     grammar.sh           bash 能力探测（@K、compgen -V、procsub）
     var.sh  str.sh  array.sh  float.sh   var/字符串/数组/浮点工具
     x.sh                 x 树核心（节点、插入、删除、遍历、dump、rebuild）
-    xe.in                x 扩展 API（graft、leaf/tree push/pop/shift、flat 转换等）
+    xe.sh                x 扩展 API（graft、leaf/tree push/pop/shift、flat 转换等）
     xj.sh                x 的 JSON 层（x_to_json / x_from_json / gobolt 限流）
-    xo.in                xo 对象系统（类、实例、Mixin、对象池、资源市场）
+    xo.sh                xo 对象系统（类、实例、Mixin、对象池、资源市场）
 
 src/strafe_bash/         游戏本体
     strafe_bash.sh       入口
@@ -158,7 +158,7 @@ render          ≈ 8–9 ms
 - 不要把探针留进代码（上一轮 `play_game.sh` 的 `STRAFE_MOUSE_PROBE` 已经全部拆掉，
   `git diff --exit-code src/strafe_bash/game/play_game.sh` 必须干净）；
 - 不要为了省 tick 去动 `render` 的层顺序或 `FB_*` 语义；
-- 不要碰 `src/bashlib/x.sh` / `xo.in` 的核心语义，除非先和老铁讨论。
+- 不要碰 `src/bashlib/x.sh` / `xo.sh` 的核心语义，除非先和老铁讨论。
 
 ### 3.4 2026-11-22 周末进展
 
@@ -247,7 +247,7 @@ render          ≈ 8–9 ms
 - 掉落物只在移动时标脏，所以 art 每帧重画会盖住它 → 场景里每帧重画存活掉落物；
 - 擦除/补脏有批量成本模型（`_ER_*`），重 art 帧自动选批量路径，轻帧走逐格。
 
-### 4.3 xo 对象系统（`src/bashlib/xo.in`）
+### 4.3 xo 对象系统（`src/bashlib/xo.sh`）
 
 - 每个实例是一个 assoc（`OBJ_n` / `OBJ_名字`），类由类对象 `{cls}Obj` 复制字段；
 - **扁平类**：`declare -gA <Cls>Obj=( [{CLS}$X]=... [{SUP}$X]=... [字段]=... )`，
@@ -264,11 +264,11 @@ render          ≈ 8–9 ms
 - 派发：热路径 `"${XO_OBJ_POOL[$h]}_method" $h` 直调；事件路径 `xo_call`；
 - 字段重置：`<Cls>ResetFields='prev_x prev_y color'`，fire 时只重置这些（`XO_RESET_*` 缓存）。
 
-### 4.4 x 树（`src/bashlib/x.sh` / `xe.in` / `xj.sh`）
+### 4.4 x 树（`src/bashlib/x.sh` / `xe.sh` / `xj.sh`）
 
-- 模块拆分：`x.sh` 是核心树；`xe.in` 是扩展 API（graft、leaf/tree push/pop/shift、
+- 模块拆分：`x.sh` 是核心树；`xe.sh` 是扩展 API（graft、leaf/tree push/pop/shift、
   flat 转换等）；`xj.sh` 是 JSON 层（`x_to_json` / `x_from_json` / gobolt 限流）；
-- 依赖方向单向：`xe.in` / `xj.sh` 都只 `source x.sh`，彼此不依赖；`x.sh`
+- 依赖方向单向：`xe.sh` / `xj.sh` 都只 `source x.sh`，彼此不依赖；`x.sh`
   **不 source、不调用** `xe.sh` / `xj.sh`，核心树不依赖扩展和 JSON；
 - 测试按需 source：用 JSON 的测试 source `xj.sh`，用 graft/pop/flat 的测试 source
   `xe.sh`；
