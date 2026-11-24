@@ -15,7 +15,13 @@ chmod +x ./src/strafe_bash/strafe_bash.sh
 
 All library and test sources are tracked `.sh` files; there is no build step.
 
-Requires Bash 5+, a UTF-8 locale, and a 256-color terminal.
+**Recommended:** Bash 5.0 or newer, a UTF-8 locale, and a 256-color terminal.
+
+**Compatibility floor:** Bash 4.4.23. The game starts and is playable there, but
+4.4 lacks `EPOCHREALTIME`, so it falls back to `/proc/uptime` (10 ms
+granularity) and slower string paths; expect visibly lower FPS. A UTF-8 locale
+is still recommended: if the host locale is not UTF-8, non-ASCII output and
+UTF-8-sensitive helpers degrade. Bash 5+ is the supported performance target.
 
 > The Bash version is **feature-frozen**: bug fixes, balance tuning, and cleanup
 > only — no new Bosses, weapons, or mechanics. Architecture, the `xo` object
@@ -144,6 +150,10 @@ not cover it.
   platforms therefore default to a probe-based loop (`read -t 0` + poll until the
   next tick); Linux keeps the exact 2 ms timeout. Set `STRAFE_INPUT_POLL=1` or
   `STRAFE_INPUT_POLL=0` to override the default.
+- Timing: Bash 5+ uses the built-in microsecond `EPOCHREALTIME`. Bash 4.4 has no
+  such variable; it falls back to `/proc/uptime` (10 ms granularity), then
+  `date`/`SECONDS`. That is why 4.4 is playable but noticeably slower and less
+  smooth than 5.x.
 
 Protocols, synchronized output and the alternate-screen rationale are in
 [DEVELOP.md](DEVELOP.md#terminal-and-input-notes).

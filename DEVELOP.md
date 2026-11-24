@@ -1,7 +1,7 @@
 # DEVELOP — qq_bash internals
 
 Development notes for `qq_bash`: what the project is for, how `xo` and `x` work,
-the game's class tree, build/test flow, and the rules that keep the Bash version
+the game's class tree, test/run flow, and the rules that keep the Bash version
 frozen. Player-facing documentation lives in [README.md](README.md); project
 conventions live in [CONSTITUTION.md](CONSTITUTION.md).
 
@@ -220,12 +220,12 @@ The old `_ret_*` compatibility snippets are disabled and no longer exported.
 Move `REPLY` with an explicit assignment, or use a nameref/output variable at
 the function boundary; do not reintroduce `eval "${_ret_*/...}"` usage.
 
-**Import guards and build metadata**
+**Import guards and runtime metadata**
 
 | Variable | Purpose |
 |---|---|
 | `_BASHLIB_IMPORTED[module]` | one-shot source guard for every library module (`grammar`, `var`, `str`, `array`, `float`, `x`, `xe`, `xj`, `data`, `xo`); the value counts import attempts, a nonzero previous value returns early |
-| `BASH_GRAMMAR[...]` | bash capability switches probed at build time, used by `#@if` |
+| `BASH_GRAMMAR[...]` | runtime bash capability switches probed by `grammar.sh`; there is no build-time `#@if` step |
 | `_STR_BUILT_IN_THRESHOLDS` | `str.sh` thresholds for choosing builtin vs external tools |
 
 The three `XO_RESET_*` tables are one lazy cache per class, filled on the first
@@ -345,8 +345,8 @@ Live-object handle lists, rebuilt every tick (collect first, then clean up once)
       ...): it appends at the end and desynchronises the columns;
     - do not build a compound assignment from dynamic keys: that needs string
       building or `eval` and is both slower and unsafe. Use the plain loop instead.
-    (Associative compound `+=` needs bash 4.3+; the project floor is 5+, so it is
-    always available.)
+    (Associative compound `+=` needs bash 4.3+; the compatibility floor is
+    bash 4.4.23, so it is available there; bash 5+ is the recommended target.)
 
 ---
 
@@ -378,6 +378,13 @@ new Bosses, weapons, mechanics, or systems. Remaining work is limited to:
 
 The 30 FPS target is intentional. Bash/MSYS performance limits are accepted;
 the game is a validation showcase, not a performance benchmark.
+
+The compatibility floor is **Bash 4.4.23**. It is expected to start and play,
+but not to hit the 5.x frame rate: 4.4 lacks `EPOCHREALTIME`, so the game uses
+`/proc/uptime` (10 ms granularity) and falls back to `date`/`SECONDS` when that
+file is unavailable. A UTF-8 locale is still recommended; without one, non-ASCII
+output and UTF-8-sensitive helpers degrade. Bash 5.0+ is the recommended and
+performance-tested target.
 
 ## Locale requirements
 

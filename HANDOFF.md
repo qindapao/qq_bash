@@ -4,8 +4,9 @@
 > 新会话里的你没有本次对话的上下文。先读完这个文件，再读 `CONSTITUTION.md`、
 > `DEVELOP.md`、`TODO.txt`，就能快速还原成一个"懂这个项目和这位用户"的助手。
 >
-> 最后更新：2026-11-22（周末），HEAD：`53d3932`，工作区干净。
-> 周末新增内容见 §3.4；游戏性能优化尚未开始。
+> 最后更新：2026-11-24。HEAD 以 `git log -1` 为准。
+> 近期内容：Tcl 9 / Bash / Go / C 基准、4.4 `/proc/uptime` 回退、
+> gobolt JSON 边界测试；更早的历史见 §3。
 
 ---
 
@@ -15,13 +16,13 @@
 pwd                          # 应该是 D:\code\qq_bash
 git log --oneline -8         # 最近提交
 git status --short           # 应该是空的
-bash --version               # 开发机是 5.2.37 (x86_64-pc-msys)
+bash --version               # 开发机常用 5.2/5.3；4.4.23 仅做兼容验证
 ```
 
 - 工作目录：`D:\code\qq_bash`（MSYS2 / Git Bash 环境，Windows 11）。
 - 项目目标平台：**Linux 优先**（终端体验），Windows/MSYS 是主要开发环境。
-- 最近提交：周末完成 `x` / `xo` 的边界文档、CR 兼容、locale 契约和测试补强；
-  再往前是扁平类改数组、闪烁修复、Boss 弹幕 clamp。
+- 近期提交：Tcl 9/Bash/Go/C 基准、4.4 `/proc/uptime` 回退、gobolt JSON 边界测试；
+  更早的 `x` / `xo` 边界收口见三、四节。
 
 ---
 
@@ -89,8 +90,8 @@ cd test/bashlib && bash test_xo_tree_class.sh
 
 - `test/bash/test_bash_coproc.sh`：环境缺 `bc`；
 - `test/bashlib/test_x.sh`：需要 bash 5.3 的 `compgen -V`，且 case16 需要外部工具 `gobolt`。
-  MSYS2 环境有 gobolt 时该用例完整通过；Git Bash 5.2 需要先按对应 shell build，
-  否则会因生成语法差异失败，不是库逻辑回归。
+  MSYS2 环境有 gobolt 时该用例完整通过；Git Bash 5.2 需要按对应 shell 直接运行，
+  没有额外 build 步骤，不是库逻辑回归。
 - `test/bash/test_bash_array.sh`：50k 数组切片 <300ms 的计时断言，机器负载高时会偶发失败，单独跑通常过。
 
 **注意**：`play_game` 主循环需要真实终端（`stty`），用管道喂输入会 `Inappropriate ioctl for device`，
@@ -98,7 +99,7 @@ cd test/bashlib && bash test_xo_tree_class.sh
 
 ---
 
-## 3. 当前状态（2026-11-20）
+## 3. 历史状态（2026-11-20）
 
 ### 3.1 本周做完的事
 
@@ -215,7 +216,7 @@ render          ≈ 8–9 ms
 
 **未做 / 下一次**
 
-- 游戏 tick/render 性能优化仍未开始；回到游戏优化前先按 §3.3 分段计时。
+- 截至该日期，游戏 tick/render 性能优化尚未开始；后续已完成分桶、批量补脏等优化。
 - `str_unescape` 的 `${var@E}` 只记录了未来方向，没有替换实现。
 - `gobolt`（独立仓库 `D:\code\common_tool`）的 NUL 限制未处理；
   NUL 是 Bash 字符串无法表示的数据，不是当前库的阻塞项。
@@ -341,7 +342,7 @@ render          ≈ 8–9 ms
 - [ ] 60fps 只在新 CPU（单核 ~2×）上现实，机器 A 上不作为目标；
 - [ ] `TODO.txt` 里还有渲染/弹幕的递减收益项（P2 之后），按数据决定做不做；
 - [ ] Tcl 9 迁移是**独立项目**（`D:\code\tcl_fun` 是工具库 `tutils`，不是游戏框架）；
-  已看过，未开始；老铁说以后可能迁，但近期先完成 Bash 这边。
+  已看过并做了 Tcl 9.1 / Bash / Go / C 基准；架构决策见 `TODO.txt` 的 Tcl 9 章节。
 - 文档状态：`DEVELOP.md`、`TODO.txt`、`CONSTITUTION.md` 都是最新，且已提交。
 
 ---
