@@ -444,7 +444,7 @@ test_case12 ()
     local str_normal='hello 中文 a => b'
     local TestCase12_str1
     str_escape_keep_nl "$str_normal" TestCase12_str1
-    str_unescape "$TestCase12_str1" ; eval "${_ret_s/o/str_after1}"
+    str_unescape "$TestCase12_str1" ; str_after1=$REPLY REPLY=
 
     if [[ "$str_normal" == "$str_after1" ]] ; then
         log_test 1 1
@@ -455,7 +455,7 @@ test_case12 ()
     local str_special=$'A\\B\n不对\t\r是对\b\f中\034中文\u0080gegeg\u009f\\x\\u12\\n\\u4e2d tail\\'
     local TestCase12_str
     str_escape_keep_nl "$str_special" TestCase12_str
-    str_unescape "$TestCase12_str" ; eval "${_ret_s/o/str_after}"
+    str_unescape "$TestCase12_str" ; str_after=$REPLY REPLY=
 
     if [[ "$str_special" == "$str_after" ]] ; then
         log_test 1 2

@@ -786,10 +786,15 @@ _xo_init_class ()
                 done
                 if [[ "$cls" == 'Base' ]] ; then
                     declare -gA "BaseObj=()"
+                    local -n _flat_obj="BaseObj"
                 else
-                    array_to_kv_q_str ${father}Obj ; eval "${_ret_g_A/o/${cls}Obj}"
+                    declare -gA "${cls}Obj=()"
+                    local -n _father_obj="${father}Obj"
+                    local -n _flat_obj="${cls}Obj"
+                    for _k in "${!_father_obj[@]}" ; do
+                        _flat_obj[$_k]=${_father_obj[$_k]}
+                    done
                 fi
-                local -n _flat_obj="${cls}Obj"
                 for _k in "${!temp_obj[@]}" ; do
                     _flat_obj[$_k]=${temp_obj[$_k]}
                 done
@@ -810,14 +815,25 @@ _xo_init_class ()
                 # 低版本 bash 的语法保护
                 eval -- 'declare -gA "${cls}Obj=(${temp_obj[*]@K})"'
             else
-                array_to_kv_q_str temp_obj ; eval "${_ret_g_A/o/${cls}Obj}"
+                declare -gA "${cls}Obj=()"
+                local -n _flat_obj="${cls}Obj"
+                local _k
+                for _k in "${!temp_obj[@]}" ; do
+                    _flat_obj[$_k]=${temp_obj[$_k]}
+                done
             fi
         else
             # 树类 + 树父类：复制父类树，再把当前类的叶子 x_insert 上去
             if ((BASH_GRAMMAR[at_k_var_substitution])) ; then
                 eval -- 'declare -gA "${cls}Obj=(${father_obj0[*]@K})"'
             else
-                array_to_kv_q_str ${father}Obj ; eval "${_ret_g_A/o/${cls}Obj}"
+                declare -gA "${cls}Obj=()"
+                local -n _father_obj="${father}Obj"
+                local -n _flat_obj="${cls}Obj"
+                local _k
+                for _k in "${!_father_obj[@]}" ; do
+                    _flat_obj[$_k]=${_father_obj[$_k]}
+                done
             fi
 
             _xo_init_class_cb_insert_cb ()
@@ -977,7 +993,8 @@ _xo_init_class ()
         if ((BASH_GRAMMAR[at_k_var_substitution])) ; then
             eval -- 'declare -g ${cls}ObjStr="${c_obj[*]@K}"'
         else
-            array_to_kv_q_str "${cls}Obj" ; eval "${_ret_g_s/o/${cls}ObjStr}"
+            array_to_kv_q_str "${cls}Obj"
+            declare -g "${cls}ObjStr=$REPLY" ; REPLY=
         fi
 
         XO_INIT_DONE=$(( XO_INIT_DONE + 1 ))

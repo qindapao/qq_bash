@@ -218,19 +218,19 @@ readonly BASH_GRAMMAR
 
 #-------------------------------------------------------------------------------
 
-# 兼容性宏
-_ret_s='declare o=$REPLY ; REPLY='
-_ret_s_='o=$REPLY ; REPLY='
-_ret_i='declare -i o=$REPLY ; REPLY='
+# 兼容性宏(暂时不对外提供使用，请直接手写)
+# _ret_s='declare o=$REPLY ; REPLY='
+# _ret_s_='o=$REPLY ; REPLY='
+# _ret_i='declare -i o=$REPLY ; REPLY='
 
-_ret_a='declare -a "o=($REPLY)" ; REPLY='
-_ret_A='declare -A "o=($REPLY)" ; REPLY='
-_ret_e='set -- "$?" ; REPLY= ; return $1'
+# _ret_a='declare -a "o=($REPLY)" ; REPLY='
+# _ret_A='declare -A "o=($REPLY)" ; REPLY='
+# _ret_e='set -- "$?" ; REPLY= ; return $1'
 
-_ret_g_s='declare -g o=$REPLY ; REPLY='
-_ret_g_i='declare -gi o=$REPLY ; REPLY='
-_ret_g_a='declare -ga "o=($REPLY)" ; REPLY='
-_ret_g_A='declare -gA "o=($REPLY)" ; REPLY='
+# _ret_g_s='declare -g o=$REPLY ; REPLY='
+# _ret_g_i='declare -gi o=$REPLY ; REPLY='
+# _ret_g_a='declare -ga "o=($REPLY)" ; REPLY='
+# _ret_g_A='declare -gA "o=($REPLY)" ; REPLY='
 #-------------------------------------------------------------------------------
 
 return 0

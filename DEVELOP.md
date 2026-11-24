@@ -138,9 +138,8 @@ Hard constraints:
 ### 1.5 Global variables
 
 Framework globals are grouped by owner; the prefix says where they come from:
-`XO_`/`xo_` object system, `X_` tree system, `RES_` resource market, `_ret_*`
-library return snippets, `_BASHLIB_IMPORTED` import guard. These names are
-framework-owned: user code must not define variables in these namespaces, and
+`XO_`/`xo_` object system, `X_` tree system, `RES_` resource market,
+`_BASHLIB_IMPORTED` import guard. These names are framework-owned: user code must not define variables in these namespaces, and
 the `*Obj` / `*StaticTemplate` suffixes are reserved (see
 CONSTITUTION.md §3).
 
@@ -217,11 +216,9 @@ code; do not reuse its value.
 
 **Library return snippets (`grammar.sh`)**
 
-`_ret_*` are `eval` snippets that move `REPLY` into a caller-named variable
-(`eval "${_ret_A/o/name}"`): `_ret_s` (declare local scalar), `_ret_s_` (assign
-existing `o`), `_ret_i` (local int), `_ret_a` (local array), `_ret_A` (local
-assoc), `_ret_e` (return with the current `$?`), plus global variants
-`_ret_g_s`, `_ret_g_i`, `_ret_g_a`, `_ret_g_A`.
+The old `_ret_*` compatibility snippets are disabled and no longer exported.
+Move `REPLY` with an explicit assignment, or use a nameref/output variable at
+the function boundary; do not reintroduce `eval "${_ret_*/...}"` usage.
 
 **Import guards and build metadata**
 

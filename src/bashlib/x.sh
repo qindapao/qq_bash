@@ -2119,7 +2119,7 @@ x_rebuild_from_dump ()
                 [[ "$tr_n_lev" != "${tr_lev[tr_i+1]}" ]] ||
                 [[ "${tr_type[tr_i+1]}" == [ad]_tree ]] ; then
                 x_qinserts "$1" common:tr_qinfo \
-                    "${tr_idx_key#$X}" "${tr_leafs[@]}" || eval "$_ret_e"
+                    "${tr_idx_key#$X}" "${tr_leafs[@]}" || return $?
                 # 清空叶子缓存
                 tr_leafs=()
             fi
@@ -2149,7 +2149,7 @@ x_rebuild_from_dump ()
                 [[ "$tr_n_lev" != "${tr_lev[tr_i+1]}" ]] ||
                 [[ "${tr_type[tr_i+1]}" == [ad]_tree ]] ; then
                 x_qinserts "$1" common:tr_qinfo \
-                    "${tr_idx_key#$X}" "${tr_leafs[@]}" || eval "$_ret_e"
+                    "${tr_idx_key#$X}" "${tr_leafs[@]}" || return $?
                 # 清空叶子缓存
                 tr_leafs=()
             fi
