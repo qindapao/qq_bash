@@ -1005,7 +1005,7 @@ x_flat_to_tree ()
     }
 
     local tr_index
-    local -a tr_params=()
+    local -a tr_params=() tr_qinfo=()
     for tr_index in "${!tr_array[@]}" ; do
         if ((tr_array_is_assoc)) ; then
             tr_params+=("{$tr_index}$X" "${tr_array[$tr_index]}")
@@ -1022,7 +1022,8 @@ x_flat_to_tree ()
         fi
     }
 
-    x_qinserts "$1" common "$tr_prefix" "${tr_params[@]}"
+    x_qinserts "$1" common:tr_qinfo "$tr_prefix" "${tr_params[@]}" || return $?
+    REPLY=${tr_qinfo[*]@Q}
 }
 
 #-------------------------------------------------------------------------------
@@ -1042,7 +1043,7 @@ _x_flat_insert ()
     _x_array_next_key "$1" "$2" "$3" || return $?
     tr_next_key=$REPLY REPLY=
 
-    local -a tr_params=()
+    local -a tr_params=() tr_qinfo=()
     local tr_index tr_token
     local -i tr_is_assoc=0
     local -n tr_array=$4
@@ -1062,7 +1063,8 @@ _x_flat_insert ()
         fi
     }
 
-    x_qinserts "$1" common "$tr_next_key" "${tr_params[@]}"
+    x_qinserts "$1" common:tr_qinfo "$tr_next_key" "${tr_params[@]}" || return $?
+    REPLY=${tr_qinfo[*]@Q}
 }
 
 #-------------------------------------------------------------------------------

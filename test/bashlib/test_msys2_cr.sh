@@ -48,7 +48,8 @@ check_equal 'declare-then-assign keeps CR' "v${cr}" "$COPY_REPLY"
 
 declare -gA T=()
 x_init T "$X_TYPE_OBJ"
-x_qinserts T common '' "{k}$X" "v${cr}" || {
+declare -a w_test_msys2_cr__qinfo=()
+x_qinserts T common:w_test_msys2_cr__qinfo '' "{k}$X" "v${cr}" || {
     echo 'FAIL: x_qinserts'
     exit 1
 }

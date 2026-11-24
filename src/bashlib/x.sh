@@ -335,11 +335,10 @@ x_key_is_invalid ()
 #   调用方无需操心，函数内部自动完成。
 #
 # 【返回模式（$2）】
-#   leaves  — 返回每个叶子的 "node_id physical_key" 元组
-#             REPLY="(id1 path1 id2 path2 ...)"（@Q 格式）
-#   common  — 只返回公共前缀节点的 "node_id physical_key"
-#             REPLY="(prefix_id prefix_path)"（@Q 格式）
-#             适合后续用这个前缀继续批量写
+#   leaves:<数组>  — 每个叶子的 "node_id physical_key" 元组全部写入数组
+#   common:<数组>  — 只把公共前缀节点的 "node_id physical_key" 写入数组
+#                    适合后续用这个前缀继续批量写
+#   数组由调用方先声明 local -a；函数直接写，不再用 REPLY。
 #
 # 【Windows/MSYS2 坑：声明复合赋值会吞 \r】
 #   不是 "$@" 的语义问题，也不是 Windows 命令行转换；是 local/declare
@@ -351,7 +350,8 @@ x_key_is_invalid ()
 #   不要改回一行式复合赋值。
 #
 # 用法：
-#   x_qinserts t1 common "{prefix1}$X{prefix2}$X" \
+#   local -a w_x_caller__rows=()   # 前缀用调用方自己的函数名
+#   x_qinserts t1 leaves:w_x_caller__rows "{prefix1}$X{prefix2}$X" \
 #       "[0]$X" "array_value1" \
 #       "[1]$X" "array_value2" \
 #       "[2]$X" "array_value3"
@@ -361,20 +361,30 @@ x_key_is_invalid ()
 #   $4.. 的配对 key 不得含 '()'：本函数不拦截，x_insert 会把它当数组插入
 #   语义处理，结果不可预期。
 #
-# @in  $1=树名  $2=返回模式(leaves/common)
+# @in  $1=树名  $2=<leaves|common>:输出数组名
 #      $3=公共前缀 token 串（可含 '()' 插入语义）
 #      $4..=成对的 {key value}；key 不得含 '()' 插入语义
 #      单值模式：$4 直接写到 $3；如果 $4 是空容器 sentinel，按 x_insert 的
 #      叶子覆盖语义处理（普通标量会被覆盖成空容器）。
-# @out REPLY=按返回模式拼接的 "node_id physical_key ..." 列表
+# @out $2 冒号后的数组=按模式写入的 "node_id physical_key ..." 列表
 # @ret 0=OK  其他=透传 x_insert 的返回码
 #-------------------------------------------------------------------------------
 x_qinserts ()
 {
-    REPLY=
     # local - ; set +x
-    local tr_t_name=$1 tr_return_mode=$2 tr_common_prefix=$3
+    # $2 = leaves:<输出数组名> / common:<输出数组名>
+    local tr_t_name=$1 tr_return_spec=$2 tr_common_prefix=$3
     shift 3
+
+    local tr_return_mode=${tr_return_spec%%:*}
+    local tr_var=${tr_return_spec#*:}
+    [[ -n "$tr_var" ]] || {
+        die ERR "x_qinserts: return spec must be <leaves|common>:<array>"
+        return $X_RET_ENUM_KEY_IS_INVALID
+    }
+    local -n tr_w_out=$tr_var
+    tr_w_out=()
+
     # MSYS2/Bash 坑：声明命令里的复合数组赋值会吞掉 \r：
     #     local -a a=("$@")       # CR 丢失
     # 分开声明和赋值就正常：
@@ -382,35 +392,35 @@ x_qinserts ()
     #     a=("$@")                # CR 保留
     # 这不是 "$@" 的语义问题，也不是 Windows 命令行转换；是 local/declare
     # 复合赋值路径的 CR 处理问题。下面保持“先声明、后赋值”。
-    local -a tr_insert_kv
-    tr_insert_kv=("$@")
-
-
-    local -a tr_qinserts_reply=()
+    local -a tr_insert_kv ; tr_insert_kv=("$@")
 
     # If the number of parameters is 1, it means only writing a single value, not a key
     ((${#tr_insert_kv[@]}==1)) && {
-        local -a tr_insert_info=()
         x_insert "$tr_t_name" "$tr_common_prefix" "${tr_insert_kv[0]}" \
-                 "" "" tr_insert_info
-        local tr_x_qinserts_ret=$?
-        REPLY=${tr_insert_info[*]@Q}
-        return $tr_x_qinserts_ret
+                 "" "" "$tr_var"
+        return $?
     }
 
     ((${#tr_insert_kv[@]}<2)) && return $X_RET_ENUM_OK
 
+    case "$tr_return_mode" in
+    leaves|common) : ;;
+    *)  die ERR "x_qinserts: unknown return mode:${tr_return_mode@Q}"
+        return $X_RET_ENUM_KEY_IS_INVALID
+        ;;
+    esac
+
     # The first insertion uses the original KEY
-    local -a tr_insert_info=()
-    x_insert "$tr_t_name" "$tr_common_prefix${tr_insert_kv[0]}" "${tr_insert_kv[1]}" \
-             "" "" tr_insert_info || {
-        local tr_e=$? ; REPLY= ; return $tr_e
-    }
-    [[ "$tr_return_mode" == 'leaves' ]] && tr_qinserts_reply+=("${tr_insert_info[@]}")
+    if [[ "$tr_return_mode" == 'leaves' ]] ; then
+        x_insert "$tr_t_name" "$tr_common_prefix${tr_insert_kv[0]}" "${tr_insert_kv[1]}" \
+                 "" "" "$tr_var" || return $?
+    else
+        x_insert "$tr_t_name" "$tr_common_prefix${tr_insert_kv[0]}" "${tr_insert_kv[1]}" \
+                 || return $?
+    fi
 
     # The subsequent insertion prefix uses the physical key and brings the node id for acceleration.
     local tr_k_index=2 tr_v_index=3
-
 
     _tokens_insert_to_overwrite "$tr_common_prefix" ; tr_common_prefix=$REPLY REPLY=
     local -A w_x_qinserts__prefix_token_info=()
@@ -419,27 +429,22 @@ x_qinserts ()
 
     tr_common_prefix=${w_x_qinserts__prefix_token_info[physical_full_key]}
     local tr_common_id=${w_x_qinserts__prefix_token_info[node_id]}
-    [[ "$tr_return_mode" == 'common' ]] && {
-        tr_qinserts_reply=("$tr_common_id" "$tr_common_prefix")
-
-        REPLY=${tr_qinserts_reply[*]@Q}
-    }
+    local tr_out_name=''
+    if [[ "$tr_return_mode" == 'common' ]] ; then
+        tr_w_out=("$tr_common_id" "$tr_common_prefix")
+    else
+        tr_out_name=$tr_var
+    fi
 
     for((tr_k_index=2,tr_v_index=3;tr_v_index<${#tr_insert_kv[@]};tr_k_index+=2,tr_v_index+=2)) ; do
-        local -a tr_insert_info=()
         x_insert "$tr_t_name" \
                     "${tr_common_prefix}${tr_insert_kv[tr_k_index]}" \
                     "${tr_insert_kv[tr_v_index]}" \
                     "$tr_common_id" \
                     "$tr_common_prefix" \
-                    tr_insert_info || {
-            local tr_e=$? ; REPLY= ; return $tr_e
-        }
-
-        [[ "$tr_return_mode" == 'leaves' ]] && tr_qinserts_reply+=("${tr_insert_info[@]}")
+                    "$tr_out_name" || return $?
     done
 
-    REPLY=${tr_qinserts_reply[*]@Q}
     return $X_RET_ENUM_OK
 }
 
@@ -457,13 +462,11 @@ x_inserts ()
     set -- "${@:2}" "$1"
     local -a tr_inserts_reply=()
     while (($#>1)) ; do
-        local -a tr_insert_info=()
-        x_insert "${!#}" "$1" "$2" "" "" tr_insert_info || {
+        x_insert "${!#}" "$1" "$2" "" "" tr_inserts_reply || {
             local tr_e=$? ; REPLY= ; return $tr_e
         }
 
         shift 2
-        tr_inserts_reply+=("${tr_insert_info[@]}")
     done
     REPLY=${tr_inserts_reply[*]@Q}
     return $X_RET_ENUM_OK
@@ -745,8 +748,8 @@ x_insert_dict ()
 # 核心插入：把 $3 插入到 $1 的 $2 位置，支持自动创建路径节点。
 # @in  $1=树名  $2=物理全 key  $3=值（X_VALUE_NULL_OBJ/ARR 或叶值）
 #      $4=起始节点 ID（默认 ROOT）  $5=已遍历物理前缀（默认空）
-#      $6=可选输出数组名（调用方先声明 local -a；不传则不返回列表）
-# @out $6=列表 "node_id physical_key"（可选）
+#      $6=可选输出数组名（调用方先声明 local -a；函数只追加，不清理；不传则不返回列表）
+# @out $6=追加 "node_id physical_key"（可选）
 # @ret 0=OK  4=X_RET_ENUM_KEY_IS_INVALID  8=X_RET_ENUM_KEY_UP_LEV_TYPE_MISMATCH
 #
 # 行为状态机:
@@ -780,7 +783,8 @@ x_insert ()
     # local tr_start_node_id=${4:-"$X_ROOT_ID"}
     local tr_path_key=${5:-""}
     if [[ -n "$6" ]] ; then
-        local -n tr_w_k_id_key_list=$6 ; tr_w_k_id_key_list=()
+        # 这里是追加的语义，上层要负责清理
+        local -n tr_w_k_id_key_list=$6
         tr_has_id_key_list=1
     fi
 
@@ -814,7 +818,7 @@ x_insert ()
                     tr_node_id tr_node_phys_key || return $?
         fi
         if ((tr_has_id_key_list)) ; then
-            tr_w_k_id_key_list=("$tr_node_id" "$tr_node_phys_key")
+            tr_w_k_id_key_list+=("$tr_node_id" "$tr_node_phys_key")
         fi
         return ${X_RET_ENUM_OK}
     fi
@@ -1013,7 +1017,7 @@ x_insert ()
             tr_t["$tr_path_key"]=$3
             # 返回节点 ID
             if ((tr_has_id_key_list)) ; then
-                tr_w_k_id_key_list=("$tr_node" "$tr_path_key")
+                tr_w_k_id_key_list+=("$tr_node" "$tr_path_key")
             fi
             return $X_RET_ENUM_OK
     esac
@@ -1026,7 +1030,7 @@ x_insert ()
     [[ -n "$tr_key" ]] && unset -v 'tr_t[$tr_key]'
     tr_t[$tr_node.t]="$tr_new_type"
     if ((tr_has_id_key_list)) ; then
-        tr_w_k_id_key_list=("$tr_node" "$tr_path_key")
+        tr_w_k_id_key_list+=("$tr_node" "$tr_path_key")
     fi
     return $X_RET_ENUM_OK
 }
@@ -2048,7 +2052,7 @@ x_rebuild_from_dump ()
         mapfile -t tr_dump_list <<<"$tr_dump_str"
     fi
 
-    local -a tr_path_stack=("$X") tr_leafs=()
+    local -a tr_path_stack=("$X") tr_leafs=() tr_qinfo=()
     local -A tr_array_indexs=()
     # tr_type
     #   a_tree 数组树
@@ -2111,7 +2115,7 @@ x_rebuild_from_dump ()
             if ((tr_i+1==${#tr_dump_list[@]})) ||
                 [[ "$tr_n_lev" != "${tr_lev[tr_i+1]}" ]] ||
                 [[ "${tr_type[tr_i+1]}" == [ad]_tree ]] ; then
-                x_qinserts "$1" common \
+                x_qinserts "$1" common:tr_qinfo \
                     "${tr_idx_key#$X}" "${tr_leafs[@]}" || eval "$_ret_e"
                 # 清空叶子缓存
                 tr_leafs=()
@@ -2141,7 +2145,7 @@ x_rebuild_from_dump ()
             if ((tr_i+1==${#tr_dump_list[@]})) ||
                 [[ "$tr_n_lev" != "${tr_lev[tr_i+1]}" ]] ||
                 [[ "${tr_type[tr_i+1]}" == [ad]_tree ]] ; then
-                x_qinserts "$1" common \
+                x_qinserts "$1" common:tr_qinfo \
                     "${tr_idx_key#$X}" "${tr_leafs[@]}" || eval "$_ret_e"
                 # 清空叶子缓存
                 tr_leafs=()

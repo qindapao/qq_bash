@@ -557,20 +557,12 @@ test_case8 ()
     local xxk=$REPLY
 #@endif
 
-#@if current_shell_process_replace==1
-    local xxy=${|x_qinserts t1 leaves "[0]$X" \
+    local -a xxy=()
+    x_qinserts t1 leaves:xxy "[0]$X" \
                 "[10]$X" "1"                     \
-                "[14]$X" "101.3$X" ;}
-#@endif
-#@if current_shell_process_replace==0
-    x_qinserts t1 leaves "[0]$X" \
-            "[10]$X" "1"            \
-            "[14]$X" "101.3$X"
-    local xxy=$REPLY
-#@endif
+                "[14]$X" "101.3$X"
 
-    local -a "xxy=($xxy)" 
-    local -a "xxk=($xxk)"
+    eval "xxk=($xxk)"
     
     declare -a xxy_spec=(
         [0]="13" [1]="<2>$X<13>$X"
@@ -595,19 +587,8 @@ test_case8 ()
         log_test 0 1 ; return 1
     fi
 
-#@if current_shell_process_replace==1
-    local xxy=${|x_qinserts t1 leaves "[1]$X" \
-                "[16]$X" "101.3"                 \
-                "[17]$X" "${X_VALUE_TRUE}"      \
-                "[18]$X" "${X_VALUE_FALSE}"     \
-                "[19]$X" "${X_VALUE_NULL_ARR}"  \
-                "[20]$X" "${X_VALUE_NULL_OBJ}"  \
-                "[21]$X" "${X_VALUE_NULL}"      \
-                "[22]$X" "null"                  \
-                "[23]$X" "xxx" ;}
-#@endif
-#@if current_shell_process_replace==0
-     x_qinserts t1 leaves "[1]$X" \
+    local -a xxy=()
+    x_qinserts t1 leaves:xxy "[1]$X" \
         "[16]$X" "101.3"                 \
         "[17]$X" "${X_VALUE_TRUE}"      \
         "[18]$X" "${X_VALUE_FALSE}"     \
@@ -616,10 +597,6 @@ test_case8 ()
         "[21]$X" "${X_VALUE_NULL}"      \
         "[22]$X" "null"                  \
         "[23]$X" "xxx"
-    local xxy=$REPLY
-#@endif
-
-    local -a "xxy=($xxy)"
 
     local -a xxy_spec=(
         [0]="35" [1]="<18>$X<35>$X"
@@ -799,7 +776,8 @@ test_case12 ()
     x_init t1 "$X_TYPE_OBJ"
 
     local sp=$'\ngeg geg\n ge\ng  ge  '
-    x_qinserts   t1 leaves '' \
+    local -a w_test_case12__qinfo=()
+    x_qinserts   t1 leaves:w_test_case12__qinfo '' \
                     "{a}$X" $'geg\ngee\n  gg\n ' \
                     "{$sp}$X" $'2333\n geg\ngge  '
     local old_ifs=$IFS tuple
@@ -868,7 +846,8 @@ test_case13 ()
     x_push_flat t1 "[2]$X{key1}$X{key2}$X" arr1
     x_push_flat t1 "[2]$X{key1}$X{key2}$X" arr1
 
-    x_qinserts t1 common "[2]$X{key2}$X{key3}$X" \
+    local -a w_test_case14__qinfo=()
+    x_qinserts t1 common:w_test_case14__qinfo "[2]$X{key2}$X{key3}$X" \
                 "{key1}$X" "vgege" \
                 "{key2}$X" "vgege" \
                 "{key3}$X" "vgege" \
@@ -1398,7 +1377,8 @@ test_case_hardware_tree_perfect ()
     x_dump t1 '' 4 2
     # declare -p t1
     x_delete t1 "[2]$X"
-    time x_qinserts t1 leaves "(2)$X" \
+    local -a w_hw__qinfo=()
+    time x_qinserts t1 leaves:w_hw__qinfo "(2)$X" \
                             "{type}$X" "sys disk" \
                             "{mode}$X" "high speed" \
                             "{yy}$X"   "$X_VALUE_NULL_ARR" \
