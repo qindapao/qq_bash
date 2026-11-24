@@ -938,12 +938,15 @@ x_shift_to_flat_assoc ()
 #
 # 把扁平结构（数组/关联数组）写入为子树。
 # @in  $1=树名  $2=目标物理全 key  $3=扁平数组名
+#      $4=输出数组名（可空；空=不收集）
+# @out $4=插入节点 "node_id physical_key"（$4 非空时）
 # @ret 0=OK
 x_flat_to_tree ()
 {
     # local - ; set +x
     local tr_prefix=$2
     local -n tr_array=$3
+    local tr_out_name=${4:-""}
     local -i tr_array_is_assoc=0
 
     [[ "${tr_array@a}" == *A* ]] && tr_array_is_assoc=1
@@ -953,7 +956,7 @@ x_flat_to_tree ()
     }
 
     local tr_index
-    local -a tr_params=() tr_qinfo=()
+    local -a tr_params=()
     for tr_index in "${!tr_array[@]}" ; do
         if ((tr_array_is_assoc)) ; then
             tr_params+=("{$tr_index}$X" "${tr_array[$tr_index]}")
@@ -970,8 +973,12 @@ x_flat_to_tree ()
         fi
     }
 
-    x_qinserts "$1" common:tr_qinfo "$tr_prefix" "${tr_params[@]}" || return $?
-    REPLY=${tr_qinfo[*]@Q}
+    if [[ -n "$tr_out_name" ]] ; then
+        x_qinserts "$1" "common:$tr_out_name" "$tr_prefix" "${tr_params[@]}" || return $?
+    else
+        local -a tr_qinfo=()
+        x_qinserts "$1" common:tr_qinfo "$tr_prefix" "${tr_params[@]}" || return $?
+    fi
 }
 
 #-------------------------------------------------------------------------------
@@ -984,6 +991,9 @@ x_search () { : ; }
 #-------------------------------------------------------------------------------
 
 # 内部：把扁平数组 push/unshift 到数组节点。
+# @in  $1=树名  $2=父路径物理全 key  $3=push|unshift
+#      $4=扁平数组名  $5=输出数组名（可空；空=不收集）
+# @out $5=插入节点 "node_id physical_key"（$5 非空时）
 _x_flat_insert ()
 {
     # local - ; set +x
@@ -991,10 +1001,11 @@ _x_flat_insert ()
     _x_array_next_key "$1" "$2" "$3" || return $?
     tr_next_key=$REPLY REPLY=
 
-    local -a tr_params=() tr_qinfo=()
+    local -a tr_params=()
     local tr_index tr_token
     local -i tr_is_assoc=0
     local -n tr_array=$4
+    local tr_out_name=${5:-""}
 
     [[ "${tr_array@a}" == *A* ]] && tr_is_assoc=1
 
@@ -1011,17 +1022,22 @@ _x_flat_insert ()
         fi
     }
 
-    x_qinserts "$1" common:tr_qinfo "$tr_next_key" "${tr_params[@]}" || return $?
-    REPLY=${tr_qinfo[*]@Q}
+    if [[ -n "$tr_out_name" ]] ; then
+        x_qinserts "$1" "common:$tr_out_name" "$tr_next_key" "${tr_params[@]}" || return $?
+    else
+        local -a tr_qinfo=()
+        x_qinserts "$1" common:tr_qinfo "$tr_next_key" "${tr_params[@]}" || return $?
+    fi
 }
 
 #-------------------------------------------------------------------------------
 
 # push/unshift 扁平结构到数组：
 # x_push_flat / x_unshift_flat
-# @in  $1=树名  $2=父路径物理全 key  $3=扁平数组名
+# @in  $1=树名  $2=父路径物理全 key  $3=扁平数组名  $4=输出数组名（可空）
+# @out $4=插入节点 "node_id physical_key"（$4 非空时）
 # @ret 0=OK
-x_push_flat () { _x_flat_insert "$1" "$2" push "$3" ; }
-x_unshift_flat () { _x_flat_insert "$1" "$2" unshift "$3" ; }
+x_push_flat () { _x_flat_insert "$1" "$2" push "$3" "${4:-}" ; }
+x_unshift_flat () { _x_flat_insert "$1" "$2" unshift "$3" "${4:-}" ; }
 
 return 0

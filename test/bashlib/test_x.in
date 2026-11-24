@@ -612,8 +612,7 @@ test_case9 ()
     local -a my_arr=("a 1" "b 2" "$X_VALUE_NULL" "$X_VALUE_NULL_OBJ" "$X_VALUE_NULL_ARR")
     my_arr[10]=5
     local -a node_info=()
-    x_flat_to_tree t1 "[0]$X{b}$X" my_arr
-    eval "node_info=($REPLY)" ; REPLY=
+    x_flat_to_tree t1 "[0]$X{b}$X" my_arr node_info
     local -A t2=()
     x_init t2 "$X_TYPE_ARR"
 
@@ -644,13 +643,8 @@ test_case10 ()
     x_insert t1 "[1]$X{c}$X" "yy"
 
     local -A my_arr=(['key 1']='value 1' [key2]="$X_VALUE_NULL_ARR")
-#@if current_shell_process_replace==1
-    local node_info=${|x_flat_to_tree t1 "(0)$X{b}$X" my_arr;}
-#@endif
-#@if current_shell_process_replace==0
-    x_flat_to_tree t1 "(0)$X{b}$X" my_arr ; local node_info=$REPLY
-#@endif
-    local -a "node_info=($node_info)"
+    local -a node_info=()
+    x_flat_to_tree t1 "(0)$X{b}$X" my_arr node_info
 
     local -A t2=()
     x_init t2 "$X_TYPE_ARR"
