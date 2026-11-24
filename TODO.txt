@@ -223,6 +223,8 @@
   * born vs hire/fire 比值重测：born 变轻后小类约 1.18x；大类场景未验证。
     建议造一个 60 字段的测试类，验证"born 随字段数线性增长、hire 基本不变"。
   * 资源市场 XO_RES_LIMIT_DEFAULT=512 是否合适（按类观察峰值再调）。
+  * `_str_escape_impl` 返回的是标量字符串，却用 `local -n out=$2` 的引用输出；
+    按返回值规范应改成 `REPLY`。内部 wrappers 也要跟着调整；暂不修，先记录。
 
 [发布前必删（临时桩）]
   * hud.sh 的 draw_hud_line1：格式串里的 "  MKT:%d" 和 `local _mkt=${#XO_RES_MARKET[@]}`
