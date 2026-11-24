@@ -515,21 +515,26 @@ TUI 工作台（待立项，2026-11-23 记）
               具体架构和宪法等正式立项后再写。
 
 ===============================================================================
-gobolt gjson / sjson 升级评估（2026-11-23，明天处理）
+gobolt gjson / sjson 升级记录（2026-11-24 已完成）
 
-    当前：
+    升级前：
         gjson  v1.18.0
         sjson  v1.2.5
         pretty v1.2.0
-    上游最新：
+    已升级到：
         gjson  v1.20.6
         sjson  v1.2.11
         pretty v1.3.0
 
     结论：
-        * 当前版本正常读写删够用，不升级不会立刻坏；
-        * 建议升级 sjson 到 v1.2.11，并连带升 gjson、pretty；
-        * 不要为了 modifier / iterator / Path 这些无关功能单独升级。
+        * sjson v1.2.11 是正式 tag，已包含 #100 的引号 key 删除修复；
+        * 不再等待 sjson master / 伪版本；
+        * gobolt 已重新编译，版本 v1.0.3+20261124；
+        * 新二进制已放入 D:\msys64\usr\bin 和 bash44 环境。
+
+    回归：
+        * qq_bash 的 test/bashlib/test_gobolt_xj.sh 已覆盖引号 key、
+          嵌套 JSON、bool/null/浮点/空容器，以及 xj JSON/x_tree 互转。
 
     相关修复：
         * sjson #100：删除以双引号开头的 key；gojson 的 qJsonEscape
