@@ -89,7 +89,7 @@ exec_all_test_case ()
             if [[ -n "${failed_fns_by_file[$f]:-}" ]] ; then
                 printf '    failed: %s\n' "${failed_fns_by_file[$f]}"
             fi
-            printf '    run: (cd test/%s && %s %s)\n' "${f%/*}" "$BASH_BIN" "${f##*/}"
+            printf '    run: cd test/%s && %s %s; cd "$OLDPWD"\n' "${f%/*}" "$BASH_BIN" "${f##*/}"
         done
         echo '============================================================='
     fi
