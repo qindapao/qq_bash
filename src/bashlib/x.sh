@@ -390,18 +390,22 @@ x_qinserts ()
 
     # If the number of parameters is 1, it means only writing a single value, not a key
     ((${#tr_insert_kv[@]}==1)) && {
-        x_insert "$tr_t_name" "$tr_common_prefix" "${tr_insert_kv[0]}"
-        local tr_x_qinserts_ret=$? ; REPLY=$REPLY
+        local -a tr_insert_info=()
+        x_insert "$tr_t_name" "$tr_common_prefix" "${tr_insert_kv[0]}" \
+                 "" "" tr_insert_info
+        local tr_x_qinserts_ret=$?
+        REPLY=${tr_insert_info[*]@Q}
         return $tr_x_qinserts_ret
     }
 
     ((${#tr_insert_kv[@]}<2)) && return $X_RET_ENUM_OK
 
     # The first insertion uses the original KEY
-    x_insert "$tr_t_name" "$tr_common_prefix${tr_insert_kv[0]}" "${tr_insert_kv[1]}" || {
+    local -a tr_insert_info=()
+    x_insert "$tr_t_name" "$tr_common_prefix${tr_insert_kv[0]}" "${tr_insert_kv[1]}" \
+             "" "" tr_insert_info || {
         local tr_e=$? ; REPLY= ; return $tr_e
     }
-    local -a "tr_insert_info=($REPLY)" ; REPLY=
     [[ "$tr_return_mode" == 'leaves' ]] && tr_qinserts_reply+=("${tr_insert_info[@]}")
 
     # The subsequent insertion prefix uses the physical key and brings the node id for acceleration.
@@ -422,15 +426,16 @@ x_qinserts ()
     }
 
     for((tr_k_index=2,tr_v_index=3;tr_v_index<${#tr_insert_kv[@]};tr_k_index+=2,tr_v_index+=2)) ; do
+        local -a tr_insert_info=()
         x_insert "$tr_t_name" \
                     "${tr_common_prefix}${tr_insert_kv[tr_k_index]}" \
                     "${tr_insert_kv[tr_v_index]}" \
                     "$tr_common_id" \
-                    "$tr_common_prefix" || {
+                    "$tr_common_prefix" \
+                    tr_insert_info || {
             local tr_e=$? ; REPLY= ; return $tr_e
         }
 
-        local -a "tr_insert_info=($REPLY)" ; REPLY=
         [[ "$tr_return_mode" == 'leaves' ]] && tr_qinserts_reply+=("${tr_insert_info[@]}")
     done
 
@@ -452,13 +457,12 @@ x_inserts ()
     set -- "${@:2}" "$1"
     local -a tr_inserts_reply=()
     while (($#>1)) ; do
-        x_insert "${!#}" "$1" "$2" || {
+        local -a tr_insert_info=()
+        x_insert "${!#}" "$1" "$2" "" "" tr_insert_info || {
             local tr_e=$? ; REPLY= ; return $tr_e
         }
 
         shift 2
-        local -a "tr_insert_info=($REPLY)" ; REPLY=
-
         tr_inserts_reply+=("${tr_insert_info[@]}")
     done
     REPLY=${tr_inserts_reply[*]@Q}
@@ -741,7 +745,8 @@ x_insert_dict ()
 # 核心插入：把 $3 插入到 $1 的 $2 位置，支持自动创建路径节点。
 # @in  $1=树名  $2=物理全 key  $3=值（X_VALUE_NULL_OBJ/ARR 或叶值）
 #      $4=起始节点 ID（默认 ROOT）  $5=已遍历物理前缀（默认空）
-# @out REPLY=列表 "node_id physical_key"
+#      $6=可选输出数组名（调用方先声明 local -a；不传则不返回列表）
+# @out $6=列表 "node_id physical_key"（可选）
 # @ret 0=OK  4=X_RET_ENUM_KEY_IS_INVALID  8=X_RET_ENUM_KEY_UP_LEV_TYPE_MISMATCH
 #
 # 行为状态机:
@@ -764,18 +769,20 @@ x_insert_dict ()
 #     路径上的普通叶子 -> 下钻                      X 只有 null 有“穿透升变”特权
 x_insert ()
 {
-    REPLY=
     # local - ; set +x
     local -n tr_t=$1
     # local tr_full_key=$2
-    local -i tr_array_index=-1
-    local -a tr_insert_reply=()
+    local -i tr_array_index=-1 tr_has_id_key_list=0
 
     x_key_is_invalid "$2" || return $?
 
     # local tr_value=$3
     # local tr_start_node_id=${4:-"$X_ROOT_ID"}
     local tr_path_key=${5:-""}
+    if [[ -n "$6" ]] ; then
+        local -n tr_w_k_id_key_list=$6 ; tr_w_k_id_key_list=()
+        tr_has_id_key_list=1
+    fi
 
     if [[ -n "$tr_path_key" ]] ; then
         x_key_is_invalid "$tr_path_key" || return $?
@@ -806,8 +813,9 @@ x_insert ()
             _x_token_to_node_id_fast "$1" "$2" \
                     tr_node_id tr_node_phys_key || return $?
         fi
-        tr_insert_reply=("$tr_node_id" "$tr_node_phys_key")
-        REPLY=${tr_insert_reply[*]@Q}
+        if ((tr_has_id_key_list)) ; then
+            tr_w_k_id_key_list=("$tr_node_id" "$tr_node_phys_key")
+        fi
         return ${X_RET_ENUM_OK}
     fi
 
@@ -923,7 +931,7 @@ x_insert ()
             fi
             ;;
         esac
-            
+
         if [[ "$tr_token" == '<'*'>' ]] ; then
             tr_child_id=${tr_token:1:-1}
         else
@@ -1004,8 +1012,9 @@ x_insert ()
             tr_t[$tr_node.k]=$tr_path_key
             tr_t["$tr_path_key"]=$3
             # 返回节点 ID
-            tr_insert_reply=("$tr_node" "$tr_path_key")
-            REPLY=${tr_insert_reply[*]@Q}
+            if ((tr_has_id_key_list)) ; then
+                tr_w_k_id_key_list=("$tr_node" "$tr_path_key")
+            fi
             return $X_RET_ENUM_OK
     esac
 
@@ -1016,8 +1025,9 @@ x_insert ()
     unset -v 'tr_t[$tr_node.k]'
     [[ -n "$tr_key" ]] && unset -v 'tr_t[$tr_key]'
     tr_t[$tr_node.t]="$tr_new_type"
-    tr_insert_reply=("$tr_node" "$tr_path_key")
-    REPLY=${tr_insert_reply[*]@Q}
+    if ((tr_has_id_key_list)) ; then
+        tr_w_k_id_key_list=("$tr_node" "$tr_path_key")
+    fi
     return $X_RET_ENUM_OK
 }
 

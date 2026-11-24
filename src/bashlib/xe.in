@@ -678,7 +678,15 @@ _x_array_write ()
     tr_next_key=$REPLY REPLY=
 
     case "$tr_write" in
-    leaf)   x_insert "$tr_name" "$tr_next_key" "$tr_value" ;;
+    leaf)
+        local -a tr_write_info=()
+        x_insert "$tr_name" "$tr_next_key" "$tr_value" \
+                 "" "" tr_write_info || {
+            REPLY=
+            return $?
+        }
+        REPLY=${tr_write_info[*]@Q}
+        ;;
     tree)   x_graft "$tr_name" "$tr_next_key" "$tr_value" ;;
     esac
 }
