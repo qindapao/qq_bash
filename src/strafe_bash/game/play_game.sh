@@ -1268,7 +1268,26 @@ play_game () {
     # 转义字符串，integer 属性会让 bash 把字符串当算术表达式求值并报错。
     local _t
 
-    local LAST_US=${EPOCHREALTIME/./}
+    # Bash 4.4 没有 EPOCHREALTIME；没有它时 NOW/LAST 恒为 0，
+    # 逻辑和渲染累加器永远不增长，画面就会静止。
+    # 4.4 回退到 date +%s%N，再退到 SECONDS 秒级。
+    _game_now_us ()
+    {
+        if [[ -n "${EPOCHREALTIME:-}" ]] ; then
+            REPLY=${EPOCHREALTIME/./}
+            return 0
+        fi
+        local _ns
+        _ns=$(date +%s%N 2>/dev/null)
+        if [[ -n "$_ns" ]] ; then
+            REPLY=$((_ns / 1000))
+        else
+            REPLY=$((SECONDS * 1000000))
+        fi
+    }
+
+    _game_now_us
+    local LAST_US=$REPLY
     local -i LOGIC_ACC_US=0 RENDER_ACC_US=$RENDER_US
     # 只有逻辑 tick 会改变场景；两个 tick 之间的重复渲染是纯浪费。
     # 需要重画时置 1（首次 / 每次 tick / load 后）。
@@ -1300,10 +1319,12 @@ play_game () {
         local -i _rw_us=$(( RENDER_US - RENDER_ACC_US ))
         (( _rw_us < _next_us )) && _next_us=$_rw_us
         (( _next_us > 0 )) || return 0
-        local -i _iw0=${EPOCHREALTIME/./}
+        _game_now_us
+        local -i _iw0=$REPLY
         for((;;)) ; do
             IFS= read -rsn1 -t 0 && return 0
-            (( ${EPOCHREALTIME/./} - _iw0 >= _next_us )) && return 0
+            _game_now_us
+            (( REPLY - _iw0 >= _next_us )) && return 0
         done
     }
 
@@ -1316,7 +1337,8 @@ play_game () {
 
     for((;;)) ; do
         # ---- 采样时间，两个累加器独立 ----
-        local NOW_US=${EPOCHREALTIME/./}
+        _game_now_us
+        local NOW_US=$REPLY
         local DELTA_US=$(( NOW_US - LAST_US ))
         LAST_US=$NOW_US
         (( DELTA_US > TICK_US * 5 )) && DELTA_US=$(( TICK_US * 5 ))
