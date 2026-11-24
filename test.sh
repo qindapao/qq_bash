@@ -20,6 +20,8 @@ exec_all_test_case ()
     local start_time=$(date_print)
 
     local test_report="${PWD}/test_report_$(date_log).txt"
+    FAILED_FN_FILE="${test_report}.fns"
+    trap 'rm -f "$FAILED_FN_FILE"' EXIT
     local -a test_case_files=() 
 
     local is_globstar_set=0 is_nullglob_set=0 is_dotglob_unset=0
@@ -49,7 +51,7 @@ exec_all_test_case ()
     local -a failed_files=()
     local -A failed_fns_by_file=()
     for file_name in "${all_files[@]}" ; do
-        local failed_fn_file="${test_report}.fns"
+        local failed_fn_file="$FAILED_FN_FILE"
         : > "$failed_fn_file"
 
         cd ${file_name%/*}

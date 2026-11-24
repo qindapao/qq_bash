@@ -35,13 +35,13 @@ bash --version               # 开发机是 5.2.37 (x86_64-pc-msys)
 - 全部逻辑、渲染、对象系统、树结构都用 Bash 写，没有任何外部运行时依赖
   （除了少数测试用的工具）。
 
-代码规模：`src/` 61 个文件、约 19.4k 行（含生成前的 `.in` 和手写 `.sh`）；
+代码规模：`src/` 61 个文件、约 19.4k 行（全部为手写 `.sh`）；
 `test/` 43 个用例脚本。
 
 ### 目录结构
 
 ```
-build.sh                 把 *.in 里 #@if 块展开成 *.sh（生成物不进 git）
+build.sh                 兼容性空操作；源码全部为已跟踪的 .sh
 test.sh                  跑 test/ 下所有用例
 clear.sh                 清生成物
 CONSTITUTION.md          项目"宪法"：铁律、行为边界、注释规范
@@ -49,7 +49,7 @@ DEVELOP.md               开发手册：架构、对象系统、x 树、渲染�
 TODO.txt                 性能 backlog、待办、Tcl 迁移计划
 HANDOFF.md               本文件
 
-src/bashlib/             基础库（.in 源码，build 生成同名 .sh）
+src/bashlib/             基础库（全部为手写 .sh）
     grammar.sh           bash 能力探测（@K、compgen -V、procsub）
     var.sh  str.sh  array.sh  float.sh   var/字符串/数组/浮点工具
     x.sh                 x 树核心（节点、插入、删除、遍历、dump、rebuild）
@@ -74,7 +74,6 @@ test/                    43 个用例；bashlib 测试库、strafe_bash 游戏�
 ## 2. 怎么跑
 
 ```bash
-./build.sh                 # 必须先跑；生成 src/bashlib/*.sh 和 test/bashlib/test_x.sh
 ./test.sh                  # 全量测试（约 1–2 分钟）
 bash src/strafe_bash/strafe_bash.sh    # 跑游戏（需要真实终端）
 ```
@@ -172,7 +171,7 @@ render          ≈ 8–9 ms
    - 统一 `XO_DATA_CLASS_POOL` 和 `XO_DATA_CLASS_IDX`；
    - `xo_data_born_*`、`xo_data_bury`、`xo_data_is_live`、`xo_data_type`、
      `xo_data_clear`；
-   - `build.sh` 已注册，生成 `data.sh` 被 `.gitignore` 忽略；
+   - `data.sh` 是已跟踪源码，不再由 build 生成，也不在 `.gitignore` 中；
    - `test/bashlib/test_data_class.sh` 覆盖四类、pool、bury、clear。
 2. **类调试树收口**：`xo_debug_classes` 改为函数内局部树，只打印到 stdout，
    不再保留全局 `XO_CLASS_DEBUG_TREE`。
@@ -328,9 +327,8 @@ render          ≈ 8–9 ms
   `declare -A "X=(${a[*]@K} ${b[*]@K})"` 后者覆盖前者——已验证；
   `@K` 的引号只在 `declare` / `eval` 重新解析时生效，不能拿去裸展开。
 - **关联数组顺序随机**，别把 dump 当规范化文本逐字节比；比较结构/键值。
-- **Python 写文件默认会转 CRLF**（Windows），改 `.in` 时用 `newline='\n'`；
-  CRLF 会让 `build.sh` 的 `#@endif` 匹配不上，生成半成品。
-- **生成物 `.sh` 不进 git**；`build.sh -d` 清理；改 `.in` 后必须重新 build。
+- **Python 写文件默认会转 CRLF**（Windows），写 Bash 源码时用 `newline='\n'`；
+- **没有 `.in` 源文件，也没有生成物**：所有 `.sh` 都直接进 git；`build.sh` 只保留为空操作兼容入口。
 - **`test_bash_array.sh` 计时断言在负载下会假失败**；`test_x.sh` 需要 bash 5.3 + gobolt。
 - **终端游戏不能管道跑**：`stty` 需要真 tty；交互验证只能让老铁跑。
 - 之前为了 A/B 用 `git stash` 把用户的暂存区弄丢过一次——**绝对不要再这么干**。
