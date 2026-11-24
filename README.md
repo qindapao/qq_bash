@@ -7,18 +7,19 @@ tree (`x`), an object system (`xo`), and **strafe_bash**: a playable ASCII
 shooter that runs entirely in Bash. No Node, Python, or game engine.
 
 ```bash
-chmod +x ./build.sh ./src/strafe_bash/strafe_bash.sh
-./build.sh
+chmod +x ./src/strafe_bash/strafe_bash.sh
 ./src/strafe_bash/strafe_bash.sh              # play
 ./src/strafe_bash/strafe_bash.sh -t light     # light-background terminal
 ./src/strafe_bash/strafe_bash.sh -h           # controls, options, author
 ```
 
+All library and test sources are tracked `.sh` files; there is no build step.
+
 Requires Bash 5+, a UTF-8 locale, and a 256-color terminal.
 
 > The Bash version is **feature-frozen**: bug fixes, balance tuning, and cleanup
 > only — no new Bosses, weapons, or mechanics. Architecture, the `xo` object
-> system, the `x` tree, and the build/test flow are documented in
+> system, the `x` tree, and the test flow are documented in
 > [DEVELOP.md](DEVELOP.md). Project conventions: [CONSTITUTION.md](CONSTITUTION.md).
 
 ## What's inside

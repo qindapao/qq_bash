@@ -138,22 +138,10 @@ test_case1 ()
         fi
 
         local abc
-    #@if current_shell_process_replace==1
-        abc=${|x_get_leaf t1 "{a}$X{c}$X[4]$X[0]$X[2]$X{c1}$X";}
-    #@endif
-    #@if current_shell_process_replace==0
-        x_get_leaf t1 "{a}$X{c}$X[4]$X[0]$X[2]$X{c1}$X"
-        abc=$REPLY
-    #@endif
+        x_get_leaf t1 "{a}$X{c}$X[4]$X[0]$X[2]$X{c1}$X" ; abc=$REPLY
         x_insert t1 "{a}$X{c}$X[4]$X[0]$X[2]$X{c1}$X" "18.2"
         local ab
-    #@if current_shell_process_replace==1
-        abc=${|x_get_leaf t1 "{a}$X{c}$X[4]$X[0]$X[2]$X{c1}$X";}
-    #@endif
-    #@if current_shell_process_replace==0
-        x_get_leaf t1 "{a}$X{c}$X[4]$X[0]$X[2]$X{c1}$X"
-        abc=$REPLY
-    #@endif
+        x_get_leaf t1 "{a}$X{c}$X[4]$X[0]$X[2]$X{c1}$X" ; abc=$REPLY
         x_insert t1 "{a}$X{c}$X[4]$X[0]$X[0]$X" "18.2"
         x_insert t1 "{a}$X{c}$X[5]$X" "$X_VALUE_NULL_ARR"
         x_insert t1 "{a}$X{c}$X[5]$X[0]$X" "xx_1"
@@ -192,12 +180,7 @@ test_case1 ()
         local -a get_info=()
         local iter_str
 
-    #@if current_shell_process_replace==1
-        iter_str=${|x_iter t1 "{a 1}$X{c}$X" $((2#11111));}
-    #@endif
-    #@if current_shell_process_replace==0
         x_iter t1 "{a 1}$X{c}$X" $((2#11111)) ; iter_str=$REPLY
-    #@endif
         local IFS=$'\n'
         for tuple in $iter_str ; do
             IFS=$old_ifs
@@ -717,12 +700,7 @@ test_case12 ()
     local -a get_params=()
     local iter_str
 
-#@if current_shell_process_replace==1
-    iter_str=${|x_iter t1 '' $((2#11111));}
-#@endif
-#@if current_shell_process_replace==0
     x_iter t1 '' $((2#11111)) ; iter_str=$REPLY
-#@endif
 
     local IFS=$'\n'
     for tuple in $iter_str ; do
@@ -918,20 +896,10 @@ test_case16 ()
     # echo "${t1[5.s]}"
 
     local t1_json
-#@if current_shell_process_replace==1
-    t1_json=${|x_to_json t1;}
-#@endif
-#@if current_shell_process_replace==0
     x_to_json t1 ; t1_json=$REPLY
-#@endif
 
     local t1_json_slow
-#@if current_shell_process_replace==1
-    t1_json_slow=${|x_to_json_slow t1;}
-#@endif
-#@if current_shell_process_replace==0
     x_to_json_slow t1 ; t1_json_slow=$REPLY
-#@endif
 
     # cat -A <(printf '%s' "$t1_json_slow")
     # cat -A <(printf '%s' "$t1_json")

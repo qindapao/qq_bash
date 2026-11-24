@@ -1060,14 +1060,12 @@ by defensive code:
 ## Build and test
 
 ```bash
-./build.sh        # generate .sh files from .in sources
+./build.sh        # no-op compatibility shim; all sources are tracked .sh files
 ./test.sh         # run the test suite
 ```
 
-`build.sh` compiles the `#@if` blocks in `src/bashlib/*.in` (and
-`test/bashlib/test_x.in`) into the `.sh` files that the game and tests source.
-The generated `.sh` files are not tracked by git; run `./build.sh` after a fresh
-clone or a clean, and `./build.sh -d` to remove them again.
+All library and test modules are now tracked `.sh` sources; no `.in` files remain.
+`build.sh` is kept only so existing scripts such as `clear.sh` keep working.
 
 ## Terminal and input notes
 

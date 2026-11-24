@@ -2,9 +2,7 @@
 
 . ./src/bashlib/grammar.sh
 
-FILES_TO_BE_PROCESSED=(
-    "./test/bashlib/test_x.in"
-)
+FILES_TO_BE_PROCESSED=()
 
 clear_build_dir ()
 {
