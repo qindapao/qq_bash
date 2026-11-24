@@ -417,8 +417,19 @@ strafe_bash
         * 后面博客的首页中可以展示下这个项目和这个游戏的游玩视频，但是视频最好是重新录制一个，不要用以前那个老的。
         * 以后发布的脚本中要把所有的注释行删除掉。然后还要检查下有没有行内注释，记得这种注释需要全部换成行注释。处理完对比下，而且不能伤害到真正的多行文本。如果是库函数，要考虑怎么优雅的只注入游戏需要的库函数，其它的不要注入。
     * Tcl 9 迁移（远期，待评估）
-        * 不用 TclOO：xo 系统整体平移。
-          - 对象句柄：`upvar #0 ::xo::obj_$h` 起别名，等价于 bash 的 `local -n`；
+        * 结论（2026-11-24）：Tcl 9 新项目不整体移植 xo 对象系统。
+          TclOO 负责对象/行为/继承/mixin，普通 proc 负责函数，
+          AoS/SoA + list/dict 负责热数据；xo 只保留对象池、批量 tick、
+          模板/重置字段这些“模式”，不再保留一整套框架。
+        * 不预设“不用 TclOO”。2026-11-24 在 Tcl 9.1.0 实测：
+          - TclOO 方法里 `variable a` 会被编译成局部槽（`loadScalar`），
+            字段读写比手搓 dict/upvar 更快；
+          - 但 TclOO 创建/销毁明显更贵，方法调用也比普通 proc 慢。
+          - 结论：长期对象/字段访问用 TclOO，海量短命实体/批量 tick 用
+            dict/array 数据层；不要为了“纯 OO”给每个实体建 TclOO 对象。
+          - `upvar #0` 绑定不是零成本：每次字段访问仍要解析别名；
+            只在修改边界绑定，内层尽量批量/局部处理。
+        * 对象句柄：`upvar #0 ::xo::obj_$h` 起别名，等价于 bash 的 `local -n`；
           - 方法扫描：`info procs` 替代 `compgen -A function`（无 fork，结果可直接进 list）；
           - 类模板：注册时直接存进 dict（`::xo::templates`），不再靠变量名扫描，
             连 `compgen -A variable` 那一类开销都不存在。
@@ -426,6 +437,51 @@ strafe_bash
             `__sup` `__mix`），字段名禁止 `__` 开头；模板继承用 `dict merge`。
           - 扁平/树的区别只保留为语义：扁平 = 没有 `children` 键；有 `children`
             就是树。游戏对象字段仍放顶层，热路径 `dict get $o hp` 不做多一层间接。
+        * 2026-11-24 Tcl 9.1.0 / Bash 5.3.15 同机微基准（10 万次，5 次取最好）：
+          - Bash assoc get       1105 ms
+          - Bash assoc bump      1209 ms
+          - Bash array get       1122 ms
+          - Bash array bump      1150 ms
+          - Bash function call   1762 ms
+          - Tcl dict get upvar      8.9 ms
+          - Tcl dict get local      6.7 ms
+          - Tcl dict bump upvar    12.5 ms
+          - Tcl array get           7.2 ms
+          - Tcl array bump         10.0 ms
+          - TclOO variable get      5.1 ms
+          - TclOO variable bump     4.6 ms
+          - Tcl proc call          35.3 ms
+          - TclOO method call      46.5 ms
+          - TclOO create/destroy 2000 个 9.0 ms；dict create 2000 个 0.5 ms。
+          - 结论：纯热循环 Tcl 9 约比 Bash 5.3 快 50–200 倍；但真实 TUI
+            还受终端写屏、JSON、进程启动限制，不能把微基准倍数直接套到帧时间。
+          - ksh 比 Bash 快是事实，但仍是 shell；不会改变“Tcl 9 强在字节码/
+            原生数据结构，Bash 强在系统胶水/启动/无依赖”这个分工。
+        * 2026-11-24 Go 1.26 / Tcl 9.1 同机微基准（同一 UCRT64 shell，
+          Go 单核，Tcl 取代表性 ns/op）：
+          - Go 空函数调用        2.19 ns/op
+          - Go 结构体字段自增    0.87 ns/op
+          - Go map 字符串查找   15.6 ns/op
+          - Go slice 求和        0.73 ns/op（每元素）
+          - Go 堆分配一个结构体 86.2 ns/op
+          - Tcl proc 调用       355 ns/op
+          - TclOO 字段自增       45.5 ns/op（copy 版）/ 57.9（直接版）
+          - Tcl dict 查找        84.6 ns/op
+          - Tcl list 求和        30.8 ns/op（每元素）
+          - TclOO 创建/销毁      约 4300 ns/个
+          - 结论：Go 比 Tcl 9 快约 5.4×（map/dict）到 162×（函数调用）；
+            字段/循环约 42–66×；TclOO 对象创建比 Go 堆分配慢约 50×。
+            微基准不代表真实 TUI，终端 I/O 会吃掉大部分差距。
+        * 2026-11-24 同环境补 C（GCC 15.2.0 -O2）：
+          - C 空函数调用        1.22 ns/op
+          - C 结构体字段自增    0.72 ns/op
+          - C 数组求和          0.30 ns/op（每元素）
+          - C 批量分配/初始化   6.0 ns/op
+          - C malloc/free      156 ns/op
+          - 对照 Go：函数调用约为 C 的 56%，字段约 83%，数组约 42%；
+            批量分配差距大，但 malloc/free 与 Go GC 分配不是同一生命周期模型。
+          - 结论：Go 不是稳定“C 的 80%”；标量/对象代码接近 50–85%，
+            紧凑数值循环 C 可快 2× 以上，分配模型差异更大。
         * 先写"同工作量微基准"：200 发弹的 tick、100×30 差分渲染、输入轮询，
           用真实数据判断 Tcl 9 能不能稳定 60 帧，再决定是否迁移。
         * xo vs TclOO 分派微基准（迁移前必跑，三方对比）：
