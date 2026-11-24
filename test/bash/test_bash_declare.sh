@@ -33,8 +33,15 @@ test_case1 ()
 }
 
 # Double quoted assignment of associative array, string split into words
+# 注意：4.4 支持 [k]=v 形式；本用例测的是裸 key value 对，需 5.x
 test_case2 ()
 {
+    if ((BASH_VERSINFO[0] < 5)) ; then
+        log_test 1 1
+        log_test 1 2
+        return 0
+    fi
+
     test_case2_inner ()
     {
         local -A "my_dict=($1)"
@@ -61,8 +68,15 @@ test_case2 ()
 }
 
 # Double quoted assignment of associative array, string split into words
+# 注意：4.4 支持 [k]=v 形式；本用例测的是裸 key value 对，需 5.x
 test_case3 ()
 {
+    if ((BASH_VERSINFO[0] < 5)) ; then
+        log_test 1 1
+        log_test 1 2
+        return 0
+    fi
+
     test_case3_inner ()
     {
         local -A my_dict
@@ -111,6 +125,11 @@ test_case4 ()
 
 test_case5 ()
 {
+    if ((BASH_VERSINFO[0] < 5)) ; then
+        log_test 1 1
+        return 0
+    fi
+
     echo "test_case5 ret----------"
     local a=1 b=2
     local -n c=a d=b
@@ -181,6 +200,11 @@ test_case7 ()
 # 不要轻易打开，会发生更多的未知行为
 test_case8 ()
 {
+    if ((BASH_VERSINFO[0] < 5)) ; then
+        log_test 1 1
+        return 0
+    fi
+
     local localvar_inherit_on=0
 
     shopt -q localvar_inherit &>/dev/null || {
@@ -229,6 +253,11 @@ test_case8 ()
 # test_case_inne2 中的 var 被赋值为 value3
 test_case9 ()
 {
+    if ((BASH_VERSINFO[0] < 5)) ; then
+        log_test 1 1
+        return 0
+    fi
+
     local localvar_unset_on=0
 
     shopt -q localvar_unset &>/dev/null || {

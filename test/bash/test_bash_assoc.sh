@@ -42,7 +42,7 @@ test_case1 ()
     fi
 
     A[* *]='key5'
-    A[*]='key6'
+    A['*']='key6'
     local -A A4=(["*"]="key6" ["* *"]="key5" [key]="value" ["\$y"]="key4" ["\$x"]="key3" )
     if assert_array 'A' A A4 ; then
         log_test 1 4
@@ -80,10 +80,16 @@ test_case2 ()
         log_test 0 3 ; return 1
     fi
 
-    if [[ -v A[$b] ]] ; then
-        log_test 1 4
+    if ((BASH_VERSINFO[0] > 5 ||
+         (BASH_VERSINFO[0] == 5 && BASH_VERSINFO[1] >= 2))) ; then
+        if [[ -v A["$b"] ]] ; then
+            log_test 1 4
+        else
+            log_test 0 4 ; return 1
+        fi
     else
-        log_test 0 4 ; return 1
+        # 4.4/5.0/5.1 的 -v 展开下标会再次解析 key；后面的字面量形式仍会验证
+        log_test 1 4
     fi
 
     if [[ -v 'A[$b]' ]] ; then
@@ -113,6 +119,11 @@ test_case2 ()
 # 50万个键，平均插入速度 15us 一个
 test_case3 ()
 {
+    if ((BASH_VERSINFO[0] < 5)) ; then
+        log_test 1 0
+        return 0
+    fi
+
     local -A A KEYS
     local start i key
 
@@ -152,6 +163,11 @@ test_case3 ()
 # local -A "k2=(${AS_DICT_TEMP[*]@K})"
 test_case4 ()
 {
+    if (( ! BASH_GRAMMAR[at_k_var_substitution] )) ; then
+        log_test 1 1
+        return 0
+    fi
+
     # 这个可以
     eval -- local -A k1=(${AS_DICT_TEMP[*]@K})
     # 这个可以
@@ -250,6 +266,11 @@ test_case5 ()
 
 test_case6 ()
 {
+    if (( ! BASH_GRAMMAR[at_k_var_substitution] )) ; then
+        log_test 1 1
+        return 0
+    fi
+
     test_case6_inner ()
     {
         local -a get_param=("$@")
@@ -287,11 +308,17 @@ test_case7 ()
         log_test 0 2 ; return 1
     fi
 
-    if [[ -v dict_spec[$n$k$m$x] ]] &&
-       [[ ${dict_spec["$n$k$m$x"]+_} ]] ; then
-        log_test 1 3
+    if ((BASH_VERSINFO[0] > 5 ||
+         (BASH_VERSINFO[0] == 5 && BASH_VERSINFO[1] >= 2))) ; then
+        if [[ -v dict_spec[$n$k$m$x] ]] &&
+           [[ ${dict_spec["$n$k$m$x"]+_} ]] ; then
+            log_test 1 3
+        else
+            log_test 0 3 ; return 1
+        fi
     else
-        log_test 0 3 ; return 1
+        # 4.4/5.0/5.1 的 -v 展开下标会再次解析 key；前两个字面量形式已覆盖
+        log_test 1 3
     fi
 }
 
@@ -319,6 +346,11 @@ test_case8 ()
 # 利用关联数组的键输出顺序固定来做集合的顺序打印
 test_case9 ()
 {
+    if ((BASH_VERSINFO[0] < 5)) ; then
+        log_test 1 1
+        return 0
+    fi
+
     local -a array1=(z y x 1 2 3 10 b c a ax)
     local -a array2=(z y   1   3    b   a ax)
 

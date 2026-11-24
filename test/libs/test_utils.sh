@@ -181,10 +181,24 @@ AS_RUN_TEST_CASES ()
 echo "=================== Running tests from script: $0 ========================="
 echo "=== Start time: $(date "+%Y-%m-%d %H:%M:%S") ==="
 
+as_failed_fns=()
 for fn in $(compgen -A function -X '!'"$AS_TESTCASE_FUNC_HEAD"'*' | sort); do
     echo "-------- Running $fn ----------"
-    "$fn" || exit 1
+    if ! "$fn"; then
+        echo "FAILED: $fn" >&2
+        as_failed_fns+=("$fn")
+    fi
 done
+
+if ((${#as_failed_fns[@]})) ; then
+    echo "failed functions: ${as_failed_fns[*]}" >&2
+
+    if [[ -n "${AS_FAILED_FN_FILE:-}" ]] ; then
+        printf "%s\n" "${as_failed_fns[@]}" > "$AS_FAILED_FN_FILE"
+    fi
+
+    exit 1
+fi
 '
 }
 

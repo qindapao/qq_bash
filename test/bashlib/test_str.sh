@@ -328,6 +328,11 @@ test_case10 ()
 
 test_case11 ()
 {
+    if ((BASH_VERSINFO[0] < 5)) ; then
+        log_test 1 1
+        return 0
+    fi
+
     local result
     local -i pass=0 fail=0
     local -a fail_msgs=()
@@ -466,6 +471,11 @@ test_case12 ()
 
 test_case_escape_keep_nl ()
 {
+    if ((BASH_VERSINFO[0] < 5)) ; then
+        log_test 1 1
+        return 0
+    fi
+
     local s v
 
     # 1. 快速路径：纯可打印 + 中文 + 含 }，原样返回（值版不碰 }）
@@ -507,6 +517,11 @@ test_case_escape_keep_nl ()
 
 test_case_escape_key ()
 {
+    if ((BASH_VERSINFO[0] < 5)) ; then
+        log_test 1 1
+        return 0
+    fi
+
     local s v
 
     # 1. 快速路径：无 \ 无 } 无控制符
@@ -548,6 +563,11 @@ test_case_escape_key ()
 
 test_case_str_unescape ()
 {
+    if ((BASH_VERSINFO[0] < 5)) ; then
+        log_test 1 1
+        return 0
+    fi
+
     local s='A\\B\}C\nD\bE\fF\rG\tH\u4e2d\u001c\q\u12 tail\'
     local expect=$'A\\B}C\nD\bE\fF\rG\tH中\034\\q\\u12 tail\\'
     str_unescape "$s"

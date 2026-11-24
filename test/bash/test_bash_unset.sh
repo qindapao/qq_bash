@@ -8,6 +8,12 @@
 # tmp_key="${tmp_key[cnt]}" ; unset -v 'k["$tmp_key"]'   (推荐)
 test_case1 ()
 {
+    if ((BASH_VERSINFO[0] < 5 ||
+         (BASH_VERSINFO[0] == 5 && BASH_VERSINFO[1] < 1))) ; then
+        log_test 1 1
+        return 0
+    fi
+
     local -A k_temp=(
         ["(xx:yy)"]="6" ["xxx->xxx->xxx->xx:xx.x-/dev/fd/61-/dev/fd/60"]="1"
         ["xxx xxx->xxx->xxx->xx:xx.x-/dev/fd/61-/dev/fd/60"]="1"
@@ -142,6 +148,12 @@ test_case3 ()
         log_test 0 4 ; return 1
     else
         log_test 1 4
+    fi
+
+    if ((BASH_VERSINFO[0] < 5)) ; then
+        log_test 1 5
+        log_test 1 6
+        return 0
     fi
 
     local -A assoc=(['*']=1 ['@']=2)

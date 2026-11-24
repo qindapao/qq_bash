@@ -2,6 +2,13 @@
 
 . ../libs/test_utils.sh
 
+# patsub_replacement 是 Bash 5.2+ 的特性
+if ((BASH_VERSINFO[0] < 5 ||
+     (BASH_VERSINFO[0] == 5 && BASH_VERSINFO[1] < 2))) ; then
+    echo "SKIP: patsub_replacement requires Bash 5.2+ (running $BASH_VERSION)"
+    exit 0
+fi
+
 # patsub_replacement 是匹配一个模式
 test_case1 ()
 {

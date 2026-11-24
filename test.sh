@@ -47,16 +47,29 @@ exec_all_test_case ()
     local cur_dir=$PWD
     local is_test_fail=0 state
     local -a failed_files=()
+    local -A failed_fns_by_file=()
     for file_name in "${all_files[@]}" ; do
+        local failed_fn_file="${test_report}.fns"
+        : > "$failed_fn_file"
+
         cd ${file_name%/*}
-        "$BASH_BIN" ${file_name##*/} > >(tee -a "$test_report")
-        if (($?)) ; then
+        AS_FAILED_FN_FILE="$failed_fn_file" \
+            "$BASH_BIN" ${file_name##*/} > >(tee -a "$test_report")
+        local rc=$?
+        if (($rc)) ; then
             echo "~~~~~~~~${file_name}~~~~~~~~ test fail!" | tee -a "$test_report"
             failed_files+=("$file_name")
             is_test_fail=1
         else
             echo "~~~~~~~~${file_name}~~~~~~~~ test pass!" | tee -a "$test_report"
         fi
+
+        local -a failed_fns=()
+        mapfile -t failed_fns < "$failed_fn_file"
+        rm -f "$failed_fn_file"
+        ((${#failed_fns[@]})) &&
+            failed_fns_by_file["$file_name"]="${failed_fns[*]}"
+
         cd "$cur_dir"
     done
     
@@ -73,6 +86,9 @@ exec_all_test_case ()
         echo '==================== failed test scripts ===================='
         for f in "${failed_files[@]}" ; do
             printf '  test/%s\n' "$f"
+            if [[ -n "${failed_fns_by_file[$f]:-}" ]] ; then
+                printf '    failed: %s\n' "${failed_fns_by_file[$f]}"
+            fi
             printf '    run: (cd test/%s && %s %s)\n' "${f%/*}" "$BASH_BIN" "${f##*/}"
         done
         echo '============================================================='

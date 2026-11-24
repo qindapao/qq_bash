@@ -2,7 +2,8 @@
 
 . ../libs/test_utils.sh
 
-if [[ "${BASH_GRAMMAR[current_shell_process_replace]}" == 1 ]] ; then
+if ((BASH_VERSINFO[0] > 5 ||
+     (BASH_VERSINFO[0] == 5 && BASH_VERSINFO[1] >= 3))) ; then
 test_case1 ()
 {
     local arr=()
@@ -21,7 +22,9 @@ test_case1 ()
         arr=()
     }
 
-    local get_str=${ mapfile -t -C flush -c 5 arr < <(printf '%s\n' {0..20});}
+    # ${ cmd;} 语法本身是 5.3+，4.4/5.2 的解析器不能直接看到，故放进 eval
+    local get_str
+    eval 'get_str=${ mapfile -t -C flush -c 5 arr < <(printf "%s\n" {0..20});}'
 
     local get_str_spec='line_num:4
 len:4

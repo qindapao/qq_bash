@@ -2,6 +2,12 @@
 
 . ../libs/test_utils.sh
 
+# coproc 的行为在 Bash 5.0 以下不稳定；整个脚本在旧版本上跳过
+if ((BASH_VERSINFO[0] < 5)) ; then
+    echo "SKIP: coproc tests require Bash 5.0+ (running $BASH_VERSION)"
+    exit 0
+fi
+
 # 命令管道退出时候需要清除,但是协程不用
 cleanup() {
     rm -f /tmp/fifo_in /tmp/fifo_out

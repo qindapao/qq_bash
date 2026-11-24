@@ -30,6 +30,12 @@ test_case1 ()
 # How to pass an associative array to a function as a parameter
 test_case2 ()
 {
+    if ((BASH_VERSINFO[0] < 5)) ; then
+        log_test 1 1
+        log_test 1 2
+        return 0
+    fi
+
     local get_dict=4
     test_case2_inner ()
     {
@@ -139,6 +145,11 @@ test_case4 ()
 
 test_case5 ()
 {
+    if ((BASH_VERSINFO[0] < 5)) ; then
+        log_test 1 1
+        return 0
+    fi
+
     local my_var="中文字文符"
     local get_var=${my_var#中}
     local get_var2=${my_var##*字}

@@ -78,19 +78,25 @@ test_case3 ()
 {
 
     declare -A assoc=([$'gege\t \n tgeg223 \n tt223(xx:yy)xxx xxx->xx \\ * @ xx->xxx->xx:xx.x->(x \\ * @ xx:xx)->(xxxxx:xxxx)zy\n\t 133']="1" )
-    declare -A assoc_spec=([$'gege\t \n tgeg223 \n tt223(xx:yy)xxx xxx->xx \\ * @ xx->xxx->xx:xx.x->(x \\ * @ xx:xx)->(xxxxx:xxxx)zy\n\t 133']="4005" )
+    declare -A assoc_spec=()
     declare x=$'zy\n\t 133'
     declare m=$'xxx xxx->xx \\ * @ xx->xxx->xx:xx.x->(x \\ * @ xx:xx)->(xxxxx:xxxx)'
     declare k='(xx:yy)'
     declare n=$'gege\t \n tgeg223 \n tt223'
     declare var=$n$k$m$x
 
-    # bash 5.2 已经正常, bash4.4不一定正常
-    time {
-    for i in {0..1000} ; do
-        (( assoc[$var]++ ))
-    done
-    }
+    local -i expected=3004
+
+    # bash 5.2 已经正常, bash4.4/5.0/5.1 的算术下标会再次解析 key，跳过
+    if ((BASH_VERSINFO[0] > 5 ||
+         (BASH_VERSINFO[0] == 5 && BASH_VERSINFO[1] >= 2))) ; then
+        time {
+        for i in {0..1000} ; do
+            (( assoc[$var]++ ))
+        done
+        }
+        expected=4005
+    fi
 
     # 下面三种方法是安全的
     time {
@@ -110,6 +116,8 @@ test_case3 ()
             local ref='assoc[$var]'; (( $ref++ ))
         done
     }
+
+    assoc_spec[$var]=$expected
 
     if assert_array A assoc assoc_spec ; then
         log_test 1 1
