@@ -451,24 +451,25 @@ x_qinserts ()
 #-------------------------------------------------------------------------------
 
 # Returns an array of node IDs
-# 批量插入叶（参数顺序：{k v} 成对在前，树名在最后）。
-# @in  $1=第一个键  $2=第一个值  ...  最后一个参数=树名
-# @out REPLY=叶节点 "node_id physical_key" 列表
+# 批量插入叶：树名在前，输出数组名可选（空=不收集返回列表）。
+# @in  $1=树名  $2=输出数组名（可空）  $3..=成对的 {key value}
+# @out $2=叶节点 "node_id physical_key" 列表（$2 非空时）
 # @ret 0=OK  其他=透传 x_insert 的返回码
 x_inserts ()
 {
-    REPLY=
     # local - ; set +x
-    set -- "${@:2}" "$1"
-    local -a tr_inserts_reply=()
-    while (($#>1)) ; do
-        x_insert "${!#}" "$1" "$2" "" "" tr_inserts_reply || {
-            local tr_e=$? ; REPLY= ; return $tr_e
-        }
+    local tr_t_name=$1 tr_var=$2
+    shift 2
 
+    if [[ -n "$tr_var" ]] ; then
+        local -n tr_w_out=$tr_var
+        tr_w_out=()
+    fi
+
+    while (($#>1)) ; do
+        x_insert "$tr_t_name" "$1" "$2" "" "" "$tr_var" || return $?
         shift 2
     done
-    REPLY=${tr_inserts_reply[*]@Q}
     return $X_RET_ENUM_OK
 }
 

@@ -48,7 +48,7 @@ test_case1 ()
     {
         local -A t1=()
         x_init t1 "$X_TYPE_OBJ"
-        x_inserts t1 "{key1}$X[2]$X[2]$X" "key1_2_2"                \
+        x_inserts t1 "" "{key1}$X[2]$X[2]$X" "key1_2_2"                \
                         "{key1}$X[1]$X[1]$X" "null0_change"            \
                         "{key1}$X[3]$X[2]$X" "new_value"               \
                         "{key1}$X[3]$X[0]$X" "$X_VALUE_NULL_OBJ"      \
@@ -79,7 +79,7 @@ test_case1 ()
         local -A t2=()
         x_init t2 "$X_TYPE_OBJ"
 
-        x_inserts t2 "{key1}$X[1]$X[1]$X" "null0_change"            \
+        x_inserts t2 "" "{key1}$X[1]$X[1]$X" "null0_change"            \
                         "{key1}$X[2]$X[2]$X" "new_value"               \
                         "{key1}$X[2]$X[0]$X" "$X_VALUE_NULL_OBJ"      \
                         "{key1}$X[2]$X[0]$X{x3}$X" "1.11"              \
@@ -116,7 +116,7 @@ test_case1 ()
         local -A t1=()
         x_init t1 "$X_TYPE_OBJ"
 
-        x_inserts t1 "{a}$X{b}$X{c}$X" "1" \
+        x_inserts t1 "" "{a}$X{b}$X{c}$X" "1" \
                         "{a}$X{b}$X{c1}$X" "2" \
                         "{a}$X{b}$X{c2}$X" "$X_VALUE_NULL_OBJ" \
                         "{a}$X{b}$X{c3}$X" "$X_VALUE_NULL_ARR" \
@@ -125,7 +125,7 @@ test_case1 ()
         local -A t2=()
         x_init t2 "$X_TYPE_ARR"
 
-        x_inserts t2 "[0]$X(4)$X{c}$X" "t2_1" \
+        x_inserts t2 "" "[0]$X(4)$X{c}$X" "t2_1" \
                         "[0]$X(2)$X{c1}$X" "t2_2"
 
     #@if current_shell_process_replace==1
@@ -189,7 +189,7 @@ test_case1 ()
         local -A t1=()
         x_init t1 "$X_TYPE_OBJ"
 
-        x_inserts t1 "{a 1}$X{b}$X{c}$X" "1" \
+        x_inserts t1 "" "{a 1}$X{b}$X{c}$X" "1" \
                         "{a 1}$X{b}$X{c1}$X" "2" \
                         "{a 1}$X{b}$X{c2}$X" "$X_VALUE_NULL_OBJ" \
                         "{a 1}$X{b}$X{c3}$X" "$X_VALUE_NULL_ARR" \
@@ -242,15 +242,15 @@ test_case2 ()
     local -A t1_spec=()
     x_init t1_spec "$X_TYPE_OBJ"
     
-    x_inserts t1 "{a}$X{b}$X{c}$X" "1" \
+    x_inserts t1 "" "{a}$X{b}$X{c}$X" "1" \
                     "{a}$X{m}$X" "$X_VALUE_NULL"
 
-    x_inserts t2 "{a1}$X{b}$X{c}$X" "1" \
+    x_inserts t2 "" "{a1}$X{b}$X{c}$X" "1" \
                     "{b}$X{m}$X[5]$X" "$X_VALUE_NULL"
 
     x_graft t1 "{x}$X" t2
 
-    x_inserts t1_spec    "{a}$X{b}$X{c}$X" "1" \
+    x_inserts t1_spec ""    "{a}$X{b}$X{c}$X" "1" \
                             "{a}$X{m}$X" "$X_VALUE_NULL" \
                             "{x}$X{a1}$X{b}$X{c}$X" "1" \
                             "{x}$X{b}$X{m}$X[5]$X" "$X_VALUE_NULL"
@@ -268,7 +268,7 @@ test_case3 ()
 {
     local -A t1=()
     x_init t1 "$X_TYPE_OBJ"
-    x_inserts t1     "{a}$X{b}$X{c}$X" "1" \
+    x_inserts t1 ""     "{a}$X{b}$X{c}$X" "1" \
                         "{a}$X{m}$X" "$X_VALUE_NULL" \
                         "{x}$X{a1}$X{b}$X{c}$X" "1" \
                         "{x}$X{b}$X{m}$X[5]$X" "$X_VALUE_NULL"
@@ -285,7 +285,7 @@ test_case3 ()
 
     local -A t1_spec=()
     x_init t1_spec "$X_TYPE_OBJ"
-    x_inserts t1_spec "{a}$X{b}$X{c}$X" 1 \
+    x_inserts t1_spec "" "{a}$X{b}$X{c}$X" 1 \
                         "{a}$X{beee}$X[0]$X" x \
                         "{a}$X{beee}$X[1]$X" y \
                         "{a}$X{beee}$X[2]$X" "$X_VALUE_NULL_ARR" \
@@ -323,19 +323,19 @@ test_case4 ()
     x_init t1_spec "$X_TYPE_OBJ"
     local -A t3=()
     x_init t3 "$X_TYPE_OBJ"
-    x_inserts t1     "{a}$X{b}$X{c}$X" "1" \
+    x_inserts t1 ""     "{a}$X{b}$X{c}$X" "1" \
                         "{a}$X{m}$X" "$X_VALUE_NULL" \
                         "{x}$X{a1}$X{b}$X{c}$X" "1" \
                         "{x}$X{b}$X{m}$X[5]$X" "$X_VALUE_NULL"
 
-    x_inserts t2     "{a}$X{b}$X{c}$X" "1" \
+    x_inserts t2 ""     "{a}$X{b}$X{c}$X" "1" \
                         "{a}$X{m}$X" "$X_VALUE_NULL" \
                         "{mxx}$X{a1}$X{b}$X{c}$X" "1" \
                         "{x}$X{b}$X{m}$X[5]$X" "$X_VALUE_NULL"
 
     x_push_tree t1 "{a}$X{x}$X{b}$X{m}$X" t2
     
-    x_inserts t1_spec "{a}$X{b}$X{c}$X" "1" \
+    x_inserts t1_spec "" "{a}$X{b}$X{c}$X" "1" \
                         "{a}$X{m}$X" "$X_VALUE_NULL" \
                         "{x}$X{a1}$X{b}$X{c}$X" "1" \
                         "{x}$X{b}$X{m}$X[5]$X" "$X_VALUE_NULL" \
@@ -362,7 +362,7 @@ test_case5 ()
 {
     local -A t1=()
     x_init t1 "$X_TYPE_OBJ"
-    x_inserts t1     "{a}$X" "1"                    \
+    x_inserts t1 ""     "{a}$X" "1"                    \
                         "{b}$X" "101.3$X"              \
                         "{c}$X" "101.3"                \
                         "{d}$X" "${X_VALUE_TRUE}"     \
@@ -415,7 +415,7 @@ test_case6 ()
 {
     local -A t1=()
     x_init t1 "$X_TYPE_ARR"
-    x_inserts t1     "[10]$X" "1"                    \
+    x_inserts t1 ""     "[10]$X" "1"                    \
                         "[14]$X" "101.3$X"              \
                         "[16]$X" "101.3"                \
                         "[17]$X" "${X_VALUE_TRUE}"     \
@@ -481,7 +481,7 @@ test_case7 ()
 {
     local -A t1=()
     x_init t1 "$X_TYPE_OBJ"
-    x_inserts t1     "{x}$X{a}$X" "1"                    \
+    x_inserts t1 ""     "{x}$X{a}$X" "1"                    \
                         "{x}$X{b}$X" "101.3$X"              \
                         "{x}$X{c}$X" "101.3"                \
                         "{x}$X{d}$X" "${X_VALUE_TRUE}"     \
@@ -531,20 +531,8 @@ test_case8 ()
     local -A t2=()
     x_init t2 "$X_TYPE_ARR"
 
-#@if current_shell_process_replace==1
-    local xxk=${|x_inserts t2     "[0]$X[10]$X" "1"   \
-                    "[0]$X[14]$X" "101.3$X"              \
-                    "[1]$X[16]$X" "101.3"                \
-                    "[1]$X[17]$X" "${X_VALUE_TRUE}"     \
-                    "[1]$X[18]$X" "${X_VALUE_FALSE}"    \
-                    "[1]$X[19]$X" "${X_VALUE_NULL_ARR}" \
-                    "[1]$X[20]$X" "${X_VALUE_NULL_OBJ}" \
-                    "[1]$X[21]$X" "${X_VALUE_NULL}"     \
-                    "[1]$X[22]$X" "null"                 \
-                    "[1]$X[23]$X" "xxx";}
-#@endif
-#@if current_shell_process_replace==0
-    x_inserts t2     "[0]$X[10]$X" "1"   \
+    local -a xxk=()
+    x_inserts t2 xxk     "[0]$X[10]$X" "1"   \
                     "[0]$X[14]$X" "101.3$X"              \
                     "[1]$X[16]$X" "101.3"                \
                     "[1]$X[17]$X" "${X_VALUE_TRUE}"     \
@@ -554,16 +542,12 @@ test_case8 ()
                     "[1]$X[21]$X" "${X_VALUE_NULL}"     \
                     "[1]$X[22]$X" "null"                 \
                     "[1]$X[23]$X" "xxx"
-    local xxk=$REPLY
-#@endif
 
     local -a xxy=()
     x_qinserts t1 leaves:xxy "[0]$X" \
                 "[10]$X" "1"                     \
                 "[14]$X" "101.3$X"
 
-    eval "xxk=($xxk)"
-    
     declare -a xxy_spec=(
         [0]="13" [1]="<2>$X<13>$X"
         [2]="17" [3]="<2>$X<17>$X")
@@ -735,7 +719,7 @@ test_case11 ()
 {
     local -A t1=()
     x_init t1 "$X_TYPE_OBJ"
-    x_inserts t1 "{a}$X{b}$X" "1" \
+    x_inserts t1 "" "{a}$X{b}$X" "1" \
                     "{a}$X{c}$X" "2" \
                     "{a}$X{m}$X[0]$X[2]$X" "2" \
                     "{a}$X{k}$X{key2}$X[2]$X" "4" \
@@ -746,7 +730,7 @@ test_case11 ()
     x_get_tree t2 t1 "{a}$X"
     local -A t2_spec=()
     x_init t2_spec "$X_TYPE_OBJ"
-    x_inserts t2_spec    "{b}$X" "1" \
+    x_inserts t2_spec ""    "{b}$X" "1" \
                             "{c}$X" "2" \
                             "{m}$X[0]$X[2]$X" "2" \
                             "{k}$X{key2}$X[2]$X" "4"
@@ -884,7 +868,7 @@ test_case14 ()
     local -A t1=()
     x_init t1 "$X_TYPE_ARR"
 
-    x_inserts t1 "[0]$X{b}$X" "value1" \
+    x_inserts t1 "" "[0]$X{b}$X" "value1" \
                     "[1]$X{c}$X" "value2" \
                     "[2]$X{x}$X" "value3" \
                     "[3]$X{y}$X" "value4" \
@@ -901,7 +885,7 @@ test_case14 ()
 
     x_insert get_tree_spec "{b}$X" 'value1'
 
-    x_inserts t1_spec \
+    x_inserts t1_spec "" \
                 "[0]$X{c}$X" "value2" \
                 "[1]$X{x}$X" "value3" \
                 "[2]$X{y}$X" "value4" \
@@ -923,7 +907,7 @@ test_case15 ()
     local -A t1=()
     x_init t1 "$X_TYPE_ARR"
 
-    x_inserts t1 "[0]$X{b}$X" "value1" \
+    x_inserts t1 "" "[0]$X{b}$X" "value1" \
                     "[0]$X{aage}$X" "value2" \
                     "[1]$X{c}$X" "value2" \
                     "[1]$X{c1}$X" "value1" \
@@ -963,7 +947,7 @@ test_case16 ()
     local special_str1=$'gge\ngege g\n \t gegge'
     local special_str2=$'\ngege geg\ngg  ee'
 
-    x_inserts t1 "[0]$X{b}$X" "value1" \
+    x_inserts t1 "" "[0]$X{b}$X" "value1" \
                     "[0]$X{aage}$X" "value2" \
                     "[1]$X{$special_str1}$X" "$special_str2" \
                     "[1]$X{c1}$X" "$X_VALUE_NULL_OBJ" \
@@ -987,7 +971,7 @@ test_case16 ()
 
     local -A t2=()
     x_init t2 "$X_TYPE_OBJ"
-    x_inserts t2 "{b}$X" "value1" \
+    x_inserts t2 "" "{b}$X" "value1" \
                     "{aage}$X" "value2"
 
 
@@ -1097,7 +1081,7 @@ test_case17 ()
     local key_nl=$'\nkey\n'
     local val_nl=$'value_line1\nvalue_line2'
 
-    x_inserts t1 "[0]$X{b}$X" "value1" \
+    x_inserts t1 "" "[0]$X{b}$X" "value1" \
                     "[0]$X{aa ge}$X" "value2" \
                     "[1]$X{$special_str1}$X" "$special_str2" \
                     "[1]$X{c1}$X" "$X_VALUE_NULL_OBJ" \
@@ -1129,7 +1113,7 @@ test_case18 ()
     local -A t1=()
     x_init t1 "$X_TYPE_ARR"
 
-    x_inserts t1    "[0]$X" "value1" \
+    x_inserts t1 ""    "[0]$X" "value1" \
                     "[1]$X" "value2" \
                     "[2]$X" "value3" \
                     "[3]$X" "value4" \
@@ -1160,7 +1144,7 @@ test_case19 ()
         x_insert_dict t1 "{a}$X{b}$X" "v1" || ret1=$?
         x_insert_dict t1 "{a}$X{c}$X" "v2" || ret2=$?
 
-        x_inserts t1_spec   "{a}$X{b}$X" "v1" \
+        x_inserts t1_spec ""   "{a}$X{b}$X" "v1" \
                             "{a}$X{c}$X" "v2"
 
         if ((ret1==0 && ret2==0)) && x_equals t1 t1_spec ; then
@@ -1228,7 +1212,7 @@ test_case19 ()
         local ret=0
         x_insert_dict t1 "<$elem_id>$X{c}$X" "v2" || ret=$?
 
-        x_inserts t1_spec   "[0]$X{b}$X" "v1" \
+        x_inserts t1_spec ""   "[0]$X{b}$X" "v1" \
                             "[0]$X{c}$X" "v2"
 
         if ((ret==0)) && x_equals t1 t1_spec ; then
@@ -1298,7 +1282,7 @@ test_case19 ()
         x_insert_dict t1 "{y}$X" "$X_VALUE_NULL_ARR"
         x_insert_dict t1 "{z}$X{w}$X{v}$X" "$X_VALUE_NULL"
 
-        x_inserts t2   "{a}$X{b}$X" "1" \
+        x_inserts t2 ""   "{a}$X{b}$X" "1" \
                        "{a}$X{c}$X" "2" \
                        "{x}$X" "$X_VALUE_NULL_OBJ" \
                        "{x}$X{k}$X" "3" \
@@ -1334,7 +1318,7 @@ test_case_hardware_tree_perfect ()
     x_init t1 "$X_TYPE_ARR"
     local -A tx=()
     x_init tx "$X_TYPE_ARR"
-    x_inserts tx "[0]$X{type}$X"                             "CPU" \
+    x_inserts tx "" "[0]$X{type}$X"                             "CPU" \
                  "[0]$X{model}$X"                            "Kunpeng-920" \
                  "[0]$X{status}$X"                           "Healthy" \
                  \
@@ -1352,7 +1336,7 @@ test_case_hardware_tree_perfect ()
     # [5] -> 重构为 USB_Hub 对象 -> 级联下钻到它的物理多端口 {ports} -> 
     #        再下钻到具体的通道故障 (第4层深度级联！)
     # =========================================================================
-    x_inserts t1 "[0]$X{type}$X"                             "CPU" \
+    x_inserts t1 "" "[0]$X{type}$X"                             "CPU" \
                  "[0]$X{model}$X"                            "Kunpeng-920" \
                  "[0]$X{status}$X"                           "Healthy" \
                  \
