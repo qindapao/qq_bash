@@ -402,14 +402,15 @@ x_layer_child_is_flat ()
 #-------------------------------------------------------------------------------
 
 # 重建节点 ID（紧凑化），默认 DFS 序重新编号。
-# @in  $1=树名
-# @out REPLY=新树（关联数组 KV 格式）
+# @in  $1=树名  $2=输出关联数组名（调用方先声明 local -A）
+# @out $2=新树（关联数组 KV 格式）
 # @ret 0=OK
 x_id_rebuild ()
 {
-    REPLY=
     # local - ; set +x
     local -n tr_old=$1
+    local -n tr_w_new=$2
+    tr_w_new=()
     local -a tr_id_list=()
 
     x_id_rebuild_collect_ids_cb ()
@@ -432,8 +433,7 @@ x_id_rebuild ()
     tr_id_map[$X_ROOT_ID]=1
 
     # Create a new tree
-    local -A tr_new=()
-    x_init tr_new "${tr_old[$X_ROOT_ID.t]}"
+    x_init "$2" "${tr_old[$X_ROOT_ID.t]}"
 
     # 辅助函数：用 tr_id_map 重建物理全 key（把 <old_id> 换成 <new_id>）
     _x_id_rebuild_key ()
@@ -482,31 +482,25 @@ x_id_rebuild ()
         # write type tag
         case "$type" in
         $X_NODE_KIND_OBJ|$X_NODE_KIND_OBJ_EMPTY)
-            tr_new[$new_id.t]=$X_TYPE_OBJ   ;;
+            tr_w_new[$new_id.t]=$X_TYPE_OBJ   ;;
         $X_NODE_KIND_ARR|$X_NODE_KIND_ARR_EMPTY)
-            tr_new[$new_id.t]=$X_TYPE_ARR   ;;
+            tr_w_new[$new_id.t]=$X_TYPE_ARR   ;;
         # Other leaf keys need to write values
-        *)  tr_new[$new_id.k]="$new_full_key"
-            tr_new["$new_full_key"]="$value"
+        *)  tr_w_new[$new_id.k]="$new_full_key"
+            tr_w_new["$new_full_key"]="$value"
             ;;
         esac
 
         # 父节点的 children 和 child 映射，统一使用新 token
         if [[ "$new_token" != '<'*'>' ]] ; then
-            tr_new["$new_parent_id.c.$new_token"]="$new_id"
+            tr_w_new["$new_parent_id.c.$new_token"]="$new_id"
         fi
-        tr_new[$new_parent_id.s]+=" ${new_token@Q}"
+        tr_w_new[$new_parent_id.s]+=" ${new_token@Q}"
     }
     x_walk $1 '' x_id_rebuild_cb
 
-    tr_new[max_index]=$tr_new_id
+    tr_w_new[max_index]=$tr_new_id
 
-        #@if at_k_var_substitution==1
-    REPLY=${tr_new[*]@K}
-        #@endif
-        #@if at_k_var_substitution==0
-    array_to_kv_q_str tr_new ; REPLY=$REPLY
-        #@endif
     return ${X_RET_ENUM_OK}
 }
 

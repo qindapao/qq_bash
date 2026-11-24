@@ -164,12 +164,8 @@ test_case1 ()
 
         x_delete t1 "{a}$X{b}$X"
 
-    #@if current_shell_process_replace==1
-        local -A "t1_rebuild=(${|x_id_rebuild t1;})"
-    #@endif
-    #@if current_shell_process_replace==0
-        x_id_rebuild t1 ; local -A "t1_rebuild=($REPLY)"
-    #@endif
+        local -A t1_rebuild=()
+        x_id_rebuild t1 t1_rebuild
 
 
         x_insert t1 "{a}$X{m}$X" "$X_VALUE_NULL_OBJ"
@@ -809,12 +805,8 @@ test_case13 ()
 
     x_delete t1 "[2]$X{key2}$X"
 
-#@if current_shell_process_replace==1
-    local -A "t1_rebuild=(${|x_id_rebuild t1;})"
-#@endif
-#@if current_shell_process_replace==0
-    x_id_rebuild t1 ; local -A "t1_rebuild=($REPLY)"
-#@endif
+    local -A t1_rebuild=()
+    x_id_rebuild t1 t1_rebuild
 
     if x_equals t1 t1_rebuild ; then
         log_test 1 1
@@ -1082,7 +1074,8 @@ test_case18 ()
     x_delete t1 "[2]$X"
     x_dump t1
     declare -p t1
-    x_id_rebuild t1 ; eval "${_ret_A/o/t2}"
+    local -A t2=()
+    x_id_rebuild t1 t2
     x_dump t2
     declare -p t2
 
@@ -1338,7 +1331,8 @@ test_case_hardware_tree_perfect ()
     x_dump t1 '' 4 2
     # declare -p t1
 
-    x_id_rebuild t1 ; local -A "t2=($REPLY)"
+    local -A t2=()
+    x_id_rebuild t1 t2
     x_dump t2 '' 4 2
     # declare -p t2
 
