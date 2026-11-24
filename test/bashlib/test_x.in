@@ -830,9 +830,8 @@ test_case14 ()
                     "[4]$X{z}$X" "value5" \
                     "[5]$X[3]$X" "value5"
 
-    local -A get_tree=()
-    x_shift_tree t1 ''
-    eval "get_tree=($REPLY)" ; REPLY=
+    local -A shift_tree=()
+    x_shift_tree t1 '' shift_tree
     local -A get_tree_spec=()
     x_init get_tree_spec "$X_TYPE_OBJ"
     local -A t1_spec=()
@@ -847,7 +846,7 @@ test_case14 ()
                 "[3]$X{z}$X" "value5" \
                 "[4]$X[3]$X" "value5"
 
-    if  x_equals get_tree get_tree_spec &&
+    if  x_equals shift_tree get_tree_spec &&
         x_equals t1 t1_spec ; then
         log_test 1 1
     else

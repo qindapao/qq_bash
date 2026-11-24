@@ -702,7 +702,8 @@ x_unshift_tree () { _x_array_write "$1" "$2" unshift tree "$3" ; }
 
 # 数组 pop/shift 前的定位（内部）。
 # @in  $1=树名  $2=父路径物理全 key  $3=pop|shift  $4=leaf|tree
-# @out REPLY=叶值 或 子树
+#      $5=输出变量名（leaf=标量，tree=关联数组；必填）
+# @out $5=叶值 或 子树
 # @ret 0=OK  其他=透传 x_get_leaf/x_get_tree
 _x_array_get ()
 {
@@ -712,22 +713,27 @@ _x_array_get ()
     local tr_mode=$3
     # leaf / tree
     local tr_read=$4
+    local tr_out_name=$5
+
+    [[ -n "$tr_out_name" ]] || {
+        die ERR "_x_array_get: output variable is required."
+        return $X_RET_ENUM_KEY_IS_INVALID
+    }
 
     local tr_next_key
     _x_array_next_key "$tr_name" "$tr_up_key" "$tr_mode" || return $?
     tr_next_key=$REPLY REPLY=
 
     case "$tr_read" in
-    leaf)   x_get_leaf "$tr_name" "$tr_next_key" ;;
+    leaf)
+        local tr_leaf=''
+        x_get_leaf "$tr_name" "$tr_next_key" || return $?
+        tr_leaf=$REPLY REPLY=
+        local -n tr_w_leaf=$tr_out_name
+        tr_w_leaf=$tr_leaf
+        ;;
     tree)
-        local -A tr_tree=()
-        x_get_tree tr_tree "$tr_name" "$tr_next_key" || return $?
-        #@if at_k_var_substitution==1
-        REPLY=${tr_tree[*]@K}
-        #@endif
-        #@if at_k_var_substitution==0
-        array_to_kv_q_str tr_tree ; REPLY=$REPLY
-        #@endif
+        x_get_tree "$tr_out_name" "$tr_name" "$tr_next_key" || return $?
         ;;
     esac
 }
@@ -736,19 +742,14 @@ _x_array_get ()
 
 # 数组 pop/shift 封装：
 # x_pop_leaf/x_pop_tree/x_shift_leaf/x_shift_tree
-# @in  $1=树名  $2=父路径物理全 key
-# @out REPLY=弹出的叶值 或 子树
+# @in  $1=树名  $2=父路径物理全 key  $3=输出变量名
+#      （leaf=标量，tree=关联数组；必填）
+# @out $3=弹出的叶值 或 子树
 # @ret 0=OK  其他=透传 _x_array_get/x_delete
 x_pop_leaf ()
 {
-    REPLY=
-    # REPLY It will be rewritten directly in the sub-function. The explicit
-    # assignment here is just for higher readability.
-    local tr_pop_leaf_reply=
-    _x_array_get "$1" "$2" pop leaf || return $?
-    tr_pop_leaf_reply=$REPLY REPLY=
+    _x_array_get "$1" "$2" pop leaf "$3" || return $?
     x_delete "$1" "$2[-1]$X" || return $?
-    REPLY=$tr_pop_leaf_reply
 }
 
 #-------------------------------------------------------------------------------
@@ -756,12 +757,8 @@ x_pop_leaf ()
 # 数组 pop 子树封装（同上）。
 x_pop_tree ()
 {
-    REPLY=
-    local tr_pop_tree_reply=
-    _x_array_get "$1" "$2" pop tree || return $?
-    tr_pop_tree_reply=$REPLY REPLY=
+    _x_array_get "$1" "$2" pop tree "$3" || return $?
     x_delete "$1" "$2[-1]$X" || return $?
-    REPLY=$tr_pop_tree_reply
 }
 
 #-------------------------------------------------------------------------------
@@ -769,12 +766,8 @@ x_pop_tree ()
 # 数组 shift 叶封装（同上）。
 x_shift_leaf ()
 {
-    REPLY=
-    local tr_shift_leaf_reply=
-    _x_array_get "$1" "$2" shift leaf || return $?
-    tr_shift_leaf_reply=$REPLY REPLY=
+    _x_array_get "$1" "$2" shift leaf "$3" || return $?
     x_delete "$1" "$2[0]$X" || return $?
-    REPLY=$tr_shift_leaf_reply
 }
 
 #-------------------------------------------------------------------------------
@@ -782,12 +775,8 @@ x_shift_leaf ()
 # 数组 shift 子树封装（同上）。
 x_shift_tree ()
 {
-    REPLY=
-    local tr_shift_tree_reply=
-    _x_array_get "$1" "$2" shift tree || return $?
-    tr_shift_tree_reply=$REPLY REPLY=
+    _x_array_get "$1" "$2" shift tree "$3" || return $?
     x_delete "$1" "$2[0]$X" || return $?
-    REPLY=$tr_shift_tree_reply
 }
 
 #-------------------------------------------------------------------------------

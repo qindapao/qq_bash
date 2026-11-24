@@ -19,20 +19,23 @@ declare -gA T=()
 x_init T "$X_TYPE_OBJ"
 x_insert T "{arr}$X[0]$X" a
 x_insert T "{arr}$X[1]$X" b
-x_pop_leaf T "{arr}$X" || { echo 'FAIL pop_leaf rc' ; exit 1 ; }
-check 'pop_leaf value' 'b' "$REPLY"
+declare -g pop_leaf=''
+x_pop_leaf T "{arr}$X" pop_leaf || { echo 'FAIL pop_leaf rc' ; exit 1 ; }
+check 'pop_leaf value' 'b' "$pop_leaf"
 x_get_leaf T "{arr}$X[0]$X"
 check 'pop_leaf removed last' 'a' "$REPLY"
-x_shift_leaf T "{arr}$X" || { echo 'FAIL shift_leaf rc' ; exit 1 ; }
-check 'shift_leaf value' 'a' "$REPLY"
-x_shift_leaf T "{arr}$X" >/dev/null 2>&1
+declare -g shift_leaf=''
+x_shift_leaf T "{arr}$X" shift_leaf || { echo 'FAIL shift_leaf rc' ; exit 1 ; }
+check 'shift_leaf value' 'a' "$shift_leaf"
+x_shift_leaf T "{arr}$X" shift_leaf >/dev/null 2>&1
 check 'empty array shift fails' '1' "$(( $? != 0 ))"
 
 # pop tree
 declare -gA U=()
 x_init U "$X_TYPE_OBJ"
 x_insert U "{arr}$X[0]$X{k}$X" v
-x_pop_tree U "{arr}$X" || { echo 'FAIL pop_tree rc' ; exit 1 ; }
+declare -gA POP_TREE=()
+x_pop_tree U "{arr}$X" POP_TREE || { echo 'FAIL pop_tree rc' ; exit 1 ; }
 x_get_node_type U "{arr}$X" path
 check 'pop_tree leaves empty array' "$X_NODE_KIND_ARR_EMPTY" "$?"
 
