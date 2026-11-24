@@ -676,10 +676,10 @@ _x_array_write ()
     case "$tr_write" in
     leaf)
         x_insert "$tr_name" "$tr_next_key" "$tr_value" \
-                 "" "" "$tr_out_name" || return $?
+                 "" "" "$tr_out_name"
         ;;
     tree)
-        x_graft "$tr_name" "$tr_next_key" "$tr_value" "$tr_out_name" || return $?
+        x_graft "$tr_name" "$tr_next_key" "$tr_value" "$tr_out_name"
         ;;
     esac
 }
@@ -732,7 +732,7 @@ _x_array_get ()
         tr_w_leaf=$tr_leaf
         ;;
     tree)
-        x_get_tree "$tr_out_name" "$tr_name" "$tr_next_key" || return $?
+        x_get_tree "$tr_out_name" "$tr_name" "$tr_next_key"
         ;;
     esac
 }
@@ -748,7 +748,7 @@ _x_array_get ()
 x_pop_leaf ()
 {
     _x_array_get "$1" "$2" pop leaf "$3" || return $?
-    x_delete "$1" "$2[-1]$X" || return $?
+    x_delete "$1" "$2[-1]$X"
 }
 
 #-------------------------------------------------------------------------------
@@ -757,7 +757,7 @@ x_pop_leaf ()
 x_pop_tree ()
 {
     _x_array_get "$1" "$2" pop tree "$3" || return $?
-    x_delete "$1" "$2[-1]$X" || return $?
+    x_delete "$1" "$2[-1]$X"
 }
 
 #-------------------------------------------------------------------------------
@@ -766,7 +766,7 @@ x_pop_tree ()
 x_shift_leaf ()
 {
     _x_array_get "$1" "$2" shift leaf "$3" || return $?
-    x_delete "$1" "$2[0]$X" || return $?
+    x_delete "$1" "$2[0]$X"
 }
 
 #-------------------------------------------------------------------------------
@@ -775,7 +775,7 @@ x_shift_leaf ()
 x_shift_tree ()
 {
     _x_array_get "$1" "$2" shift tree "$3" || return $?
-    x_delete "$1" "$2[0]$X" || return $?
+    x_delete "$1" "$2[0]$X"
 }
 
 #-------------------------------------------------------------------------------
@@ -896,7 +896,7 @@ x_to_flat_assoc () { x_layer_get_flat 'obj' "$1" "$2" "$3" "${4:-}" ; }
 x_pop_to_flat_array ()
 {
     x_to_flat_array "$1" "$2[-1]$X" "$3" || return $?
-    x_delete "$1" "$2[-1]$X" || return $?
+    x_delete "$1" "$2[-1]$X"
 }
 
 #-------------------------------------------------------------------------------
@@ -905,7 +905,7 @@ x_pop_to_flat_array ()
 x_pop_to_flat_assoc ()
 {
     x_to_flat_assoc "$1" "$2[-1]$X" "$3" || return $?
-    x_delete "$1" "$2[-1]$X" || return $?
+    x_delete "$1" "$2[-1]$X"
 }
 
 #-------------------------------------------------------------------------------
@@ -917,7 +917,7 @@ x_pop_to_flat_assoc ()
 x_shift_to_flat_array ()
 {
     x_to_flat_array "$1" "$2[0]$X" "$3" || return $?
-    x_delete "$1" "$2[0]$X" || return $?
+    x_delete "$1" "$2[0]$X"
 }
 
 #-------------------------------------------------------------------------------
@@ -929,7 +929,7 @@ x_shift_to_flat_array ()
 x_shift_to_flat_assoc ()
 {
     x_to_flat_assoc "$1" "$2[0]$X" "$3" || return $?
-    x_delete "$1" "$2[0]$X" || return $?
+    x_delete "$1" "$2[0]$X"
 }
 
 #-------------------------------------------------------------------------------
@@ -974,10 +974,10 @@ x_flat_to_tree ()
     }
 
     if [[ -n "$tr_out_name" ]] ; then
-        x_qinserts "$1" "common:$tr_out_name" "$tr_prefix" "${tr_params[@]}" || return $?
+        x_qinserts "$1" "common:$tr_out_name" "$tr_prefix" "${tr_params[@]}"
     else
         local -a tr_qinfo=()
-        x_qinserts "$1" common:tr_qinfo "$tr_prefix" "${tr_params[@]}" || return $?
+        x_qinserts "$1" common:tr_qinfo "$tr_prefix" "${tr_params[@]}"
     fi
 }
 
@@ -1023,10 +1023,10 @@ _x_flat_insert ()
     }
 
     if [[ -n "$tr_out_name" ]] ; then
-        x_qinserts "$1" "common:$tr_out_name" "$tr_next_key" "${tr_params[@]}" || return $?
+        x_qinserts "$1" "common:$tr_out_name" "$tr_next_key" "${tr_params[@]}"
     else
         local -a tr_qinfo=()
-        x_qinserts "$1" common:tr_qinfo "$tr_next_key" "${tr_params[@]}" || return $?
+        x_qinserts "$1" common:tr_qinfo "$tr_next_key" "${tr_params[@]}"
     fi
 }
 
