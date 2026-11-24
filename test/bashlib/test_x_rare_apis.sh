@@ -73,7 +73,9 @@ check 'shift_flat_array has z' '1' "$([[ "${FLAT_SHIFT[0]}" == z ]] && echo 1 ||
 declare -gA Y=()
 x_init Y "$X_TYPE_OBJ"
 x_insert Y "{arr}$X" "$X_VALUE_NULL_ARR"
-x_push_leaf_fast Y "" "{arr}$X" a b || { echo 'FAIL push_leaf_fast rc' ; exit 1 ; }
+declare -ga PUSH_FAST_INFO=()
+x_push_leaf_fast Y "" "{arr}$X" PUSH_FAST_INFO a b || { echo 'FAIL push_leaf_fast rc' ; exit 1 ; }
+check 'push_leaf_fast info count' '4' "${#PUSH_FAST_INFO[@]}"
 x_get_leaf Y "{arr}$X[0]$X"
 check 'push_leaf_fast first' 'a' "$REPLY"
 x_get_leaf Y "{arr}$X[1]$X"

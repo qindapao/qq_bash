@@ -128,12 +128,8 @@ test_case1 ()
         x_inserts t2 "" "[0]$X(4)$X{c}$X" "t2_1" \
                         "[0]$X(2)$X{c1}$X" "t2_2"
 
-    #@if current_shell_process_replace==1
-        local -a "my_graft_info=(${|x_graft t1 "{a}$X{c}$X[4]$X" t2;})"
-    #@endif
-    #@if current_shell_process_replace==0
-        x_graft t1 "{a}$X{c}$X[4]$X" t2 ; local -a "my_graft_info=($REPLY)"
-    #@endif
+        local -a my_graft_info=()
+        x_graft t1 "{a}$X{c}$X[4]$X" t2 my_graft_info
 
         if [[ "${my_graft_info[0]}" == '13' ]] ; then
             log_test 1 1
