@@ -1372,21 +1372,24 @@ _x_token_to_node_id_fast ()
 
 # 删除节点（含全部子树）。空 key 会重置整棵树。
 # @in  $1=树名  $2=物理全 key（空=清空树）
-# @out REPLY=列表 "node_id physical_key"（被删除的子树根）
+#      $3=输出数组名（可空；空=不收集被删除的子树根）
+# @out $3=列表 "node_id physical_key"（$3 非空时）
 # @ret 0=OK  4=X_RET_ENUM_KEY_IS_INVALID
 x_delete () 
 {
-    REPLY=
     # local - ; set +x
     local -n tr_t=$1
     local tr_full_key=$2
-    local -a tr_delete_reply=()
+
+    if [[ -n "$3" ]] ; then
+        local -n tr_w_delete_out=$3
+        tr_w_delete_out=()
+    fi
 
     # Empty key is legal. Only ROOT nodes are reserved.
     [[ -z "$tr_full_key" ]] && {
         x_init "$1" "${tr_t[$X_ROOT_ID.t]}"
-        tr_delete_reply=("$X_ROOT_ID" "")
-        REPLY=${tr_delete_reply[*]@Q}
+        [[ -n "$3" ]] && tr_w_delete_out=("$X_ROOT_ID" "")
         return ${X_RET_ENUM_OK}
     }
 
@@ -1471,9 +1474,8 @@ x_delete ()
     fi
 
     unset -v 'tr_t["$tr_parent.c.$tr_token"]'
-    
-    tr_delete_reply=("$tr_node" "$tr_full_key")
-    REPLY=${tr_delete_reply[*]@Q}
+
+    [[ -n "$3" ]] && tr_w_delete_out=("$tr_node" "$tr_full_key")
 
     return "$X_RET_ENUM_OK"
 }

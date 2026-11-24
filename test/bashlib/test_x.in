@@ -1634,6 +1634,33 @@ test_case_x_insert_token_dict_leaf_intercept ()
     return 0
 }
 
+test_case_x_delete_out ()
+{
+    local -A t=()
+    x_init t "$X_TYPE_OBJ"
+    x_insert t "{a}$X" "1"
+
+    local -a leaf_out=()
+    x_delete t "{a}$X" leaf_out
+    if ((${#leaf_out[@]}==2)) &&
+        [[ -n "${leaf_out[0]}" && -n "${leaf_out[1]}" ]] ; then
+        log_test 1 1
+    else
+        log_test 0 1 ; return 1
+    fi
+
+    local -a root_out=()
+    x_delete t "" root_out
+    if ((${#root_out[@]}==2)) &&
+        [[ "${root_out[0]}" == "$X_ROOT_ID" && -z "${root_out[1]}" ]] ; then
+        log_test 1 2
+    else
+        log_test 0 2 ; return 1
+    fi
+
+    return 0
+}
+
 # step_test _x_insert_token_dict_leaf_intercept
 
 eval -- "$(AS_RUN_TEST_CASES)"
