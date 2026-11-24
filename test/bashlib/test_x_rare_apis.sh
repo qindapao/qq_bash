@@ -41,25 +41,30 @@ declare -gA V=()
 x_init V "$X_TYPE_OBJ"
 x_insert V "{obj}$X{a}$X" 1
 x_insert V "{obj}$X{b}$X" 2
-x_layer_get_flat obj V "{obj}$X"
+declare -gA FLAT_OBJ=()
+x_layer_get_flat obj V "{obj}$X" FLAT_OBJ
 check 'layer_get_flat obj rc' '0' "$?"
-check 'layer_get_flat obj has a' '1' "$([[ "$REPLY" == *a* ]] && echo 1 || echo 0)"
+check 'layer_get_flat obj has a' '1' "$([[ -v 'FLAT_OBJ[a]' ]] && echo 1 || echo 0)"
 x_insert V "{arr}$X[0]$X" x
 x_insert V "{arr}$X[1]$X" y
-x_layer_get_flat arr V "{arr}$X"
+declare -ga FLAT_ARR=()
+x_layer_get_flat arr V "{arr}$X" FLAT_ARR
 check 'layer_get_flat arr rc' '0' "$?"
+check 'layer_get_flat arr count' '2' "${#FLAT_ARR[@]}"
 
 # pop flat assoc / shift flat array
 declare -gA W=()
 x_init W "$X_TYPE_OBJ"
 x_insert W "{arr}$X[0]$X{k}$X" v
-x_pop_to_flat_assoc W "{arr}$X" || { echo 'FAIL pop_flat_assoc rc' ; exit 1 ; }
-check 'pop_flat_assoc has k' '1' "$([[ "$REPLY" == *k* ]] && echo 1 || echo 0)"
+declare -gA FLAT_POP=()
+x_pop_to_flat_assoc W "{arr}$X" FLAT_POP || { echo 'FAIL pop_flat_assoc rc' ; exit 1 ; }
+check 'pop_flat_assoc has k' '1' "$([[ -v 'FLAT_POP[k]' ]] && echo 1 || echo 0)"
 declare -gA X2=()
 x_init X2 "$X_TYPE_OBJ"
 x_insert X2 "{arr}$X[0]$X[0]$X" z
-x_shift_to_flat_array X2 "{arr}$X" || { echo 'FAIL shift_flat_array rc' ; exit 1 ; }
-check 'shift_flat_array has z' '1' "$([[ "$REPLY" == *z* ]] && echo 1 || echo 0)"
+declare -ga FLAT_SHIFT=()
+x_shift_to_flat_array X2 "{arr}$X" FLAT_SHIFT || { echo 'FAIL shift_flat_array rc' ; exit 1 ; }
+check 'shift_flat_array has z' '1' "$([[ "${FLAT_SHIFT[0]}" == z ]] && echo 1 || echo 0)"
 
 # push_leaf_fast
 declare -gA Y=()

@@ -799,18 +799,28 @@ x_shift_tree ()
 #-------------------------------------------------------------------------------
 
 # 把节点扁平化为关联数组或数组（要求节点自身及子节点都是扁平叶）。
-# @in  $1='arr' 或 'obj'  $2=树名  $3=物理全 key  $4=节点 ID（可选）
-# @out REPLY=扁平结果（@Q / @K 格式）
+# @in  $1='arr' 或 'obj'  $2=树名  $3=物理全 key
+#      $4=输出变量名（必填）；arr 必须声明 local -a，obj 必须 local -A
+#      $5=节点 ID（可选）
+# @out $4=扁平结果（arr=数组，obj=关联数组）
 # @ret 0=X_FLAT_IS_MATCH  1=X_FLAT_IS_NOT_MATCH
 #      2=X_FLAT_ARRAY_NULL  3=X_FLAT_ASSOC_NULL
 x_layer_get_flat ()
 {
-    REPLY=
     # local - ; set +x
     local tr_expect=$1
     local -n tr_t=$2
     local tr_full_key=$3
-    local tr_node_id=$4
+    local tr_out_name=$4
+    local tr_node_id=$5
+
+    [[ -n "$tr_out_name" ]] || {
+        die ERR "x_layer_get_flat: output variable is required."
+        return $X_RET_ENUM_KEY_IS_INVALID
+    }
+    local -n tr_w_flat=$tr_out_name
+    tr_w_flat=()
+
     # 'arr' or 'obj'
 
     if [[ -z "$tr_node_id" ]] ; then
@@ -838,60 +848,47 @@ x_layer_get_flat ()
     fi
 
     # Object or array to determine whether the child has children (non-flat)
-    local tr_old_ifs=$IFS IFS=$'\n' tr_tuple
     case "${tr_t[$tr_node_id.t]}" in
     $X_TYPE_ARR)
         [[ "$tr_expect" == 'arr' ]] || {
             die ERR "node id:${tr_node_id} flat type not match."
             return $X_FLAT_IS_NOT_MATCH
         }
-        local -a tr_plat_arr=()
         local tr_iter_str
-            #@if current_shell_process_replace==1
-        tr_iter_str=${|x_iter "$2" '' $((2#11111)) "$tr_node_id";}
-            #@endif
-            #@if current_shell_process_replace==0
-        x_iter "$2" '' $((2#11111)) "$tr_node_id" ; eval "${_ret_s_/o/tr_iter_str}"
-            #@endif
+        x_iter "$2" '' $((2#11111)) "$tr_node_id" || return $?
+        tr_iter_str=$REPLY REPLY=
 
-        for tr_tuple in $tr_iter_str ; do
-            IFS=$tr_old_ifs ; local -a "tr_tuple=($tr_tuple)"
-            x_layer_child_is_flat "${tr_tuple[1]}" || {
-                die ERR "node id:${tr_node_id} flat type not match."
-                return $X_FLAT_IS_NOT_MATCH
-            }
-            tr_plat_arr+=("${tr_tuple[3]}")
-        done
-        REPLY=${tr_plat_arr[*]@Q}
+        local tr_line
+        if [[ -n "$tr_iter_str" ]] ; then
+            while IFS= read -r tr_line ; do
+                local -a "tr_tuple=($tr_line)"
+                x_layer_child_is_flat "${tr_tuple[1]}" || {
+                    die ERR "node id:${tr_node_id} flat type not match."
+                    return $X_FLAT_IS_NOT_MATCH
+                }
+                tr_w_flat+=("${tr_tuple[3]}")
+            done <<< "$tr_iter_str"
+        fi
         ;;
     $X_TYPE_OBJ)
         [[ "$tr_expect" == 'obj' ]] || {
             die ERR "node id:${tr_node_id} flat type not match."
             return $X_FLAT_IS_NOT_MATCH
         }
-        local -A tr_plat_arr=()
         local tr_iter_str
-    #@if current_shell_process_replace==1
-        tr_iter_str=${|x_iter "$2" '' $((2#11111)) "$tr_node_id";}
-    #@endif
-    #@if current_shell_process_replace==0
-        x_iter "$2" '' $((2#11111)) "$tr_node_id"
-        tr_iter_str=$REPLY
-    #@endif
-        for tr_tuple in $tr_iter_str ; do
-            IFS=$tr_old_ifs ; local -a "tr_tuple=($tr_tuple)"
-            x_layer_child_is_flat "${tr_tuple[1]}" || {
-                die ERR "node id:${tr_node_id} flat type not match."
-                return $X_FLAT_IS_NOT_MATCH
-            }
-            tr_plat_arr["${tr_tuple[0]:1:-1}"]="${tr_tuple[3]}"
-        done
-    #@if at_k_var_substitution==1
-        REPLY=${tr_plat_arr[*]@K}
-    #@endif
-    #@if at_k_var_substitution==0
-        array_to_kv_q_str tr_plat_arr ; REPLY=$REPLY
-    #@endif
+        x_iter "$2" '' $((2#11111)) "$tr_node_id" || return $?
+        tr_iter_str=$REPLY REPLY=
+        local tr_line
+        if [[ -n "$tr_iter_str" ]] ; then
+            while IFS= read -r tr_line ; do
+                local -a "tr_tuple=($tr_line)"
+                x_layer_child_is_flat "${tr_tuple[1]}" || {
+                    die ERR "node id:${tr_node_id} flat type not match."
+                    return $X_FLAT_IS_NOT_MATCH
+                }
+                tr_w_flat["${tr_tuple[0]:1:-1}"]="${tr_tuple[3]}"
+            done <<< "$tr_iter_str"
+        fi
         ;;
     esac
 
@@ -901,31 +898,23 @@ x_layer_get_flat ()
 #-------------------------------------------------------------------------------
 
 # 扁平化包装：
-# x_to_flat_array  $1=树名  $2=物理全 key  -> REPLY=数组
-# x_to_flat_assoc  $1=树名  $2=物理全 key  -> REPLY=关联数组
+# x_to_flat_array  $1=树名  $2=物理全 key  $3=输出数组名  $4=节点 ID（可选）
+# x_to_flat_assoc  $1=树名  $2=物理全 key  $3=输出关联数组名  $4=节点 ID（可选）
+# @out $3=扁平结果
 # @ret 0=X_FLAT_IS_MATCH  其他=X_FLAT_*
-x_to_flat_array () { x_layer_get_flat 'arr' "$@" ; }
-x_to_flat_assoc () { x_layer_get_flat 'obj' "$@" ; }
+x_to_flat_array () { x_layer_get_flat 'arr' "$1" "$2" "$3" "${4:-}" ; }
+x_to_flat_assoc () { x_layer_get_flat 'obj' "$1" "$2" "$3" "${4:-}" ; }
 
 #-------------------------------------------------------------------------------
 
 # pop 后取扁平结果（数组 / 关联数组）。
-# @in  $1=树名  $2=父路径物理全 key
-# @out REPLY=扁平结果
+# @in  $1=树名  $2=父路径物理全 key  $3=输出数组/关联数组名
+# @out $3=扁平结果
 # @ret 0=X_FLAT_IS_MATCH  其他=X_FLAT_* 或 X_RET_ENUM_*
 x_pop_to_flat_array ()
 {
-    REPLY=
-    local tr_pop_fa_reply=
-        #@if current_shell_process_replace==1
-    tr_pop_fa_reply=${|x_to_flat_array "$1" "$2[-1]$X";} || return $?
-        #@endif
-        #@if current_shell_process_replace==0
-    x_to_flat_array "$1" "$2[-1]$X" || eval "$_ret_e"
-    eval "${_ret_s_/o/tr_pop_fa_reply}"
-        #@endif
+    x_to_flat_array "$1" "$2[-1]$X" "$3" || return $?
     x_delete "$1" "$2[-1]$X" || return $?
-    REPLY=$tr_pop_fa_reply
 }
 
 #-------------------------------------------------------------------------------
@@ -933,55 +922,32 @@ x_pop_to_flat_array ()
 # pop 关联数组（同上）。
 x_pop_to_flat_assoc ()
 {
-    REPLY=
-    local tr_pop_fs_reply=
-        #@if current_shell_process_replace==1
-    tr_pop_fs_reply=${|x_to_flat_assoc "$1" "$2[-1]$X";} || return $?
-        #@endif
-        #@if current_shell_process_replace==0
-    x_to_flat_assoc "$1" "$2[-1]$X" || eval "$_ret_e"
-    eval "${_ret_s_/o/tr_pop_fs_reply}"
-        #@endif
+    x_to_flat_assoc "$1" "$2[-1]$X" "$3" || return $?
     x_delete "$1" "$2[-1]$X" || return $?
-    REPLY=$tr_pop_fs_reply
 }
 
 #-------------------------------------------------------------------------------
 
 # shift 后取扁平结果（数组）。
+# @in  $1=树名  $2=父路径物理全 key  $3=输出数组名
+# @out $3=扁平结果
 # @ret 0=X_FLAT_IS_MATCH  其他=X_FLAT_* 或 X_RET_ENUM_*
 x_shift_to_flat_array ()
 {
-    REPLY=
-    local tr_shif_fa_reply=
-        #@if current_shell_process_replace==1
-    tr_shif_fa_reply=${|x_to_flat_array "$1" "$2[0]$X";} || return $?
-        #@endif
-        #@if current_shell_process_replace==0
-    x_to_flat_array "$1" "$2[0]$X" || eval "$_ret_e"
-    eval "${_ret_s_/o/tr_shif_fa_reply}"
-        #@endif
+    x_to_flat_array "$1" "$2[0]$X" "$3" || return $?
     x_delete "$1" "$2[0]$X" || return $?
-    REPLY=$tr_shif_fa_reply
 }
 
 #-------------------------------------------------------------------------------
 
 # shift 后取扁平结果（关联数组）。
+# @in  $1=树名  $2=父路径物理全 key  $3=输出关联数组名
+# @out $3=扁平结果
 # @ret 0=X_FLAT_IS_MATCH  其他=X_FLAT_* 或 X_RET_ENUM_*
 x_shift_to_flat_assoc ()
 {
-    REPLY=
-    local tr_shift_fs_reply=
-        #@if current_shell_process_replace==1
-    tr_shift_fs_reply=${|x_to_flat_assoc "$1" "$2[0]$X";} || return $?
-        #@endif
-        #@if current_shell_process_replace==0
-    x_to_flat_assoc "$1" "$2[0]$X" || eval "$_ret_e"
-    eval "${_ret_s_/o/tr_shift_fs_reply}"
-        #@endif
+    x_to_flat_assoc "$1" "$2[0]$X" "$3" || return $?
     x_delete "$1" "$2[0]$X" || return $?
-    REPLY=$tr_shift_fs_reply
 }
 
 #-------------------------------------------------------------------------------

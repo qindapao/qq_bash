@@ -372,7 +372,6 @@ test_case5 ()
                         "{h}$X" "${X_VALUE_NULL}"     \
                         "{i}$X" "null"                 \
                         "{j}$X" $'xxx\n  \n yyy'
-    local flat_1 flat_1_ret
     local -A flat_1_spec=(
         [a]=1
         [b]="101.3$X"
@@ -385,19 +384,9 @@ test_case5 ()
         [i]="null"
         [j]=$'xxx\n  \n yyy'
         )
-    local flat_1 flat_1_ret
-
-#@if current_shell_process_replace==1
-    flat_1=${|x_to_flat_assoc t1;} ; flat_1_ret=$?
-#@endif
-#@if current_shell_process_replace==0
-    x_to_flat_assoc t1 ; flat_1_ret=$?
-    flat_1=$REPLY
-#@endif
-
-    if ((flat_1_ret==0)) ; then
-        local -A "flat_1=($flat_1)"
-    fi
+    local flat_1_ret
+    local -A flat_1=()
+    x_to_flat_assoc t1 "" flat_1 ; flat_1_ret=$?
 
     # cat -A <(x_dump t1)
 
@@ -425,7 +414,6 @@ test_case6 ()
                         "[21]$X" "${X_VALUE_NULL}"     \
                         "[22]$X" "null"                 \
                         "[23]$X" "xxx"
-    local flat_1 flat_1_ret
     local -a flat_1_spec=(
         "${X_VALUE_NULL}"
         "${X_VALUE_NULL}"
@@ -453,17 +441,9 @@ test_case6 ()
         "xxx"
         )
 
-#@if current_shell_process_replace==1
-    flat_1=${|x_to_flat_array t1;} ; flat_1_ret=$?
-#@endif
-#@if current_shell_process_replace==0
-    x_to_flat_array t1 ; flat_1_ret=$?
-    flat_1=$REPLY
-#@endif
-
-    if ((flat_1_ret==0)) ; then
-        local -a "flat_1=($flat_1)"
-    fi
+    local flat_1_ret
+    local -a flat_1=()
+    x_to_flat_array t1 "" flat_1 ; flat_1_ret=$?
 
     # cat -A <(x_dump t1)
 
@@ -491,7 +471,6 @@ test_case7 ()
                         "{y}$X{h}$X" "${X_VALUE_NULL}"     \
                         "{y}$X{i}$X" "null"                 \
                         "{y}$X{j}$X" "xxx"
-    local flat_1 flat_1_ret
     local -A flat_1_spec=(
         [a]=1
         [b]="101.3$X"
@@ -499,17 +478,9 @@ test_case7 ()
         [d]="${X_VALUE_TRUE}"
         )
     
-#@if current_shell_process_replace==1
-    flat_1=${|x_to_flat_assoc t1 "{x}$X";} ; flat_1_ret=$?
-#@endif
-#@if current_shell_process_replace==0
-    x_to_flat_assoc t1 "{x}$X" ; flat_1_ret=$?
-    flat_1=$REPLY
-#@endif
-
-    if ((flat_1_ret==0)) ; then
-        local -A "flat_1=($flat_1)"
-    fi
+    local flat_1_ret
+    local -A flat_1=()
+    x_to_flat_assoc t1 "{x}$X" flat_1 ; flat_1_ret=$?
 
     # cat -A <(x_dump t1)
     # printf '%s => %s\n' "${flat_1[@]@k}"
@@ -604,7 +575,6 @@ test_case8 ()
         log_test 0 3 ; return 1
     fi
 
-    local flat_1 flat_1_ret
     local -a flat_1_spec=(
         "${X_VALUE_NULL}"
         "${X_VALUE_NULL}"
@@ -623,16 +593,9 @@ test_case8 ()
         "101.3$X"
         )
 
-#@if current_shell_process_replace==1
-    flat_1=${|x_to_flat_array t1 '' 2;} ; flat_1_ret=$?
-#@endif
-#@if current_shell_process_replace==0
-    x_to_flat_array t1 '' 2 ; flat_1_ret=$?
-    flat_1=$REPLY
-#@endif
-    if ((flat_1_ret==0)) ; then
-        local -a "flat_1=($flat_1)"
-    fi
+    local flat_1_ret
+    local -a flat_1=()
+    x_to_flat_array t1 "" flat_1 2 ; flat_1_ret=$?
 
     # cat -A <(x_dump t1)
     # printf '%s\n' "${flat_1[@]}"
@@ -917,14 +880,10 @@ test_case15 ()
                     "[4]$X{z}$X" "value5" \
                     "[5]$X[3]$X" "value5"
 
-#@if current_shell_process_replace==1
-    local -a "arr=(${|x_pop_to_flat_array t1;})"
-    local -A "obj=(${|x_shift_to_flat_assoc t1;})"
-#@endif
-#@if current_shell_process_replace==0
-    x_pop_to_flat_array t1 ; local -a "arr=($REPLY)"
-    x_shift_to_flat_assoc t1 ; local -A "obj=($REPLY)"
-#@endif
+    local -a arr=()
+    local -A obj=()
+    x_pop_to_flat_array t1 "" arr
+    x_shift_to_flat_assoc t1 "" obj
 
     local -a arr_spec=([0]=$'null'$X [1]=$'null'$X [2]=$'null'$X [3]="value5")
     local -A obj_spec=([b]="value1" [aage]="value2" )    
