@@ -1268,15 +1268,33 @@ play_game () {
     # 转义字符串，integer 属性会让 bash 把字符串当算术表达式求值并报错。
     local _t
 
-    # Bash 4.4 没有 EPOCHREALTIME；没有它时 NOW/LAST 恒为 0，
-    # 逻辑和渲染累加器永远不增长，画面就会静止。
-    # 4.4 回退到 date +%s%N，再退到 SECONDS 秒级。
+    # Bash 4.4 没有 EPOCHREALTIME。优先用 /proc/uptime；
+    # Linux/MSYS 都有这个只读文件，Bash 内建 read 不会 fork。
+    # 精度只有 10ms，但比每帧 fork date 好得多。
+    # 可用性只探测一次，避免每帧多一次 stat。
+    local -i _has_proc_uptime=0
+    [[ -r /proc/uptime ]] && _has_proc_uptime=1
     _game_now_us ()
     {
         if [[ -n "${EPOCHREALTIME:-}" ]] ; then
             REPLY=${EPOCHREALTIME/./}
             return 0
         fi
+
+        local _up _rest _whole _frac
+        if (( _has_proc_uptime )) &&
+           read -r _up _rest < /proc/uptime ; then
+            if [[ "$_up" == *.* ]] ; then
+                _whole=${_up%%.*}
+                _frac=${_up#*.}
+                (( ${#_frac} == 1 )) && _frac+=0
+                REPLY=$((10#$_whole * 1000000 + 10#$_frac * 10000))
+            else
+                REPLY=$((10#$_up * 1000000))
+            fi
+            return 0
+        fi
+
         local _ns
         _ns=$(date +%s%N 2>/dev/null)
         if [[ -n "$_ns" ]] ; then
