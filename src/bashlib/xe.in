@@ -39,14 +39,15 @@ x_graft ()
     # 3. Use the x_walk function to traverse a subtree
     x_graft_walk_cb ()
     {
-        local tr_node_kind=$1 tr_index_full_key=$3 tr_value=$4 tr_prefix=$tr_graft_prefix
+        # local tr_node_kind=$1 tr_index_full_key=$3 tr_value=$4
+        local tr_prefix=$tr_graft_prefix
 
-        case "$tr_node_kind" in
+        case "$1" in
         $X_NODE_KIND_LEAF|$X_NODE_KIND_LEAF_NULL|$X_NODE_KIND_OBJ_EMPTY|$X_NODE_KIND_ARR_EMPTY)
 
             x_insert "$tr_target_name" \
-                        "$tr_prefix$tr_index_full_key" \
-                        "$tr_value" \
+                        "$tr_prefix$3" \
+                        "$4" \
                         "$tr_graft_start_token_id" \
                         "$tr_graft_start_path_token" || return $?
 

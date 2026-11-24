@@ -188,15 +188,16 @@ tr_resolve_physical_token ()
 {
     REPLY=
     local -n tr_t=$1
-    local tr_token=$2 tr_node=$3
+    local tr_token=$2
+    # local tr_node=$3
 
     if [[ "${tr_token:0:1}${tr_token: -1}" == '<>' ]] ; then
-        local -a "tr_child_ids=(${tr_t[$tr_node.s]})"
+        local -a "tr_child_ids=(${tr_t[$3.s]})"
 
         array_index "${tr_token}" ${tr_child_ids[@]} ; local -i tr_index=$REPLY
 
         ((tr_index==-1)) && {
-            die ERR "node:${tr_node}(token:${tr_token@Q}) can not find index."
+            die ERR "node:$3(token:${tr_token@Q}) can not find index."
             return $X_RET_ENUM_KEY_IS_INVALID
         }
         tr_token="[$tr_index]"
@@ -216,18 +217,18 @@ tr_resolve_physical_token ()
 _negative_token_to_positive ()
 {
     REPLY=
-    local tr_token=$1 tr_array_len=$2 tr_node=$3
-    if ((${tr_token:1:-1}<0)) ; then
-        local -i tr_token_abs=${tr_token:1:-1}
+    # local tr_token=$1 tr_array_len=$2 tr_node=$3
+    local -i tr_token_abs=${1:1:-1}
+    if ((${1:1:-1}<0)) ; then
         ((tr_token_abs=-tr_token_abs))
-        ((tr_token_abs>tr_array_len)) && {
-            die ERR "node:${tr_node}(token:${tr_token@Q}) index:${tr_token:1:-1} is out of index."
+        ((tr_token_abs>$2)) && {
+            die ERR "node:$3(token:${1@Q}) index:${1:1:-1} is out of index."
             return $X_RET_ENUM_KEY_OUT_OF_INDEX
         }
-        ((tr_token_abs=tr_array_len-tr_token_abs))
-        REPLY="${tr_token:0:1}$tr_token_abs${tr_token: -1}"
+        ((tr_token_abs=$2-tr_token_abs))
+        REPLY="${1:0:1}$tr_token_abs${1: -1}"
     else
-        REPLY="$tr_token"
+        REPLY="$1"
     fi
     return $X_RET_ENUM_OK
 }
@@ -372,9 +373,7 @@ x_qinserts ()
 {
     REPLY=
     # local - ; set +x
-    local tr_t_name=$1
-    # leaves or common
-    local tr_return_mode=$2 tr_common_prefix=$3
+    local tr_t_name=$1 tr_return_mode=$2 tr_common_prefix=$3
     shift 3
     # MSYS2/Bash 坑：声明命令里的复合数组赋值会吞掉 \r：
     #     local -a a=("$@")       # CR 丢失
@@ -530,27 +529,24 @@ x_inserts ()
 x_insert_token_dict ()
 {
     local -n tr_t=$1
-
-    local tr_node=$2 tr_prefix=$3
-    local -a tr_token_values=("${@:4}")
-    local tr_path_key=
-    local -a tr_tokens=()
+    local tr_node=$2 tr_path_key= tr_child_id=
+    # local tr_prefix=$3
+    local -a tr_token_values=("${@:4}") tr_tokens=()
     local -i tr_index=0
-    local tr_child_key tr_child_id
     local tr_token tr_value
 
     # ---- 自动定位：$2 为空时，从 $3 走一遍树找父节点 ----
     if [[ -z "$tr_node" ]] ; then
-        if [[ -z "$tr_prefix" ]] ; then
+        if [[ -z "$3" ]] ; then
             # 空前缀 → 根节点
             tr_node=$X_ROOT_ID
         else
-            x_key_is_invalid "$tr_prefix" || return $?
+            x_key_is_invalid "$3" || return $?
 
             local node tk cid
             local -a w_x_insert_token_dict__tks=()
             _split_tokens_fast w_x_insert_token_dict__tks \
-                               "$tr_prefix" 0 || return $?
+                               "$3" 0 || return $?
             node=$X_ROOT_ID
             for tk in "${w_x_insert_token_dict__tks[@]}" ; do
                 if [[ "$tk" == '<'*'>' ]] ; then
@@ -559,7 +555,7 @@ x_insert_token_dict ()
                     cid="${tr_t[$node.c.$tk]}"
                 fi
                 if [[ -z "$cid" ]] ; then
-                    die ERR "x_insert_token_dict: path '${tr_prefix}'"\
+                    die ERR "x_insert_token_dict: path '${3}'"\
                             "not found (at token: ${tk})."
                     return $X_RET_ENUM_KEY_IS_NOTFOUND
                 fi
@@ -571,7 +567,7 @@ x_insert_token_dict ()
             # 因为这个快速函数不处理 NULL 升变
             if [[ -z "${tr_t[$tr_node.t]+_}" &&
                   -z "${tr_t[$tr_node.s]+_}" ]] ; then
-                die ERR "x_insert_token_dict: parent '${tr_prefix}' is a"\
+                die ERR "x_insert_token_dict: parent '${3}' is a"\
                         "leaf, cannot have children."
                 return $X_RET_ENUM_KEY_UP_LEV_TYPE_MISMATCH
             fi
@@ -581,7 +577,7 @@ x_insert_token_dict ()
     for((tr_index=0;tr_index<${#tr_token_values[@]};tr_index+=2)) ; do
         tr_token=${tr_token_values[tr_index]}
         tr_value=${tr_token_values[tr_index+1]}
-        tr_path_key=$tr_prefix$tr_token$X
+        tr_path_key=$3$tr_token$X
 
         [[ ${tr_t[$tr_path_key]+_} ]] && {
             tr_t[$tr_path_key]=$tr_value
@@ -667,22 +663,22 @@ x_insert_token_dict ()
 x_insert_dict ()
 {
     local -n tr_t=$1
-    local tr_full_key=$2
+    # local tr_full_key=$2
+    # local tr_value=$3
+    # local tr_start_node_id=${4:-"$X_ROOT_ID"}
 
-    local tr_value=$3 tr_start_node_id=${4:-"$X_ROOT_ID"} tr_path_key=${5:-""}
-
-    [[ ${tr_t["$tr_full_key"]+_} ]] && {
-        tr_t["$tr_full_key"]=$tr_value
+    [[ ${tr_t["$2"]+_} ]] && {
+        tr_t["$2"]=$3
         return ${X_RET_ENUM_OK}
     }
 
-    local tr_token tr_child_key tr_child_id
+    local tr_token tr_child_key tr_child_id \
+          tr_node=${4:-"$X_ROOT_ID"} tr_path_key=${5:-""}
 
     # Here tr_full_key needs to remove the tr_path_key prefix and start traversing
     local -a w_x_insert_dict__tr_tokens=()
     _split_tokens_fast w_x_insert_dict__tr_tokens \
-                       "${tr_full_key#"$tr_path_key"}" 0 || return $?
-    local tr_node=${tr_start_node_id}
+                       "${2#"$tr_path_key"}" 0 || return $?
 
     for tr_token in "${w_x_insert_dict__tr_tokens[@]}" ; do
         local tr_token_pack="${tr_token:0:1}${tr_token: -1}"
@@ -722,7 +718,7 @@ x_insert_dict ()
         tr_path_key+="$tr_token$X"
     done
 
-    case "$tr_value" in
+    case "$3" in
     "$X_VALUE_NULL_ARR")
         tr_t[$tr_node.t]="$X_TYPE_ARR"
         return $X_RET_ENUM_OK
@@ -733,7 +729,7 @@ x_insert_dict ()
         ;;
     *)
         tr_t[$tr_node.k]=$tr_path_key
-        tr_t["$tr_path_key"]=$tr_value
+        tr_t["$tr_path_key"]=$3
         return $X_RET_ENUM_OK
     esac
 }
@@ -771,13 +767,15 @@ x_insert ()
     REPLY=
     # local - ; set +x
     local -n tr_t=$1
-    local tr_full_key=$2
+    # local tr_full_key=$2
     local -i tr_array_index=-1
     local -a tr_insert_reply=()
 
-    x_key_is_invalid "$tr_full_key" || return $?
+    x_key_is_invalid "$2" || return $?
 
-    local tr_value=$3 tr_start_node_id=${4:-"$X_ROOT_ID"} tr_path_key=${5:-""}
+    # local tr_value=$3
+    # local tr_start_node_id=${4:-"$X_ROOT_ID"}
+    local tr_path_key=${5:-""}
 
     if [[ -n "$tr_path_key" ]] ; then
         x_key_is_invalid "$tr_path_key" || return $?
@@ -789,23 +787,23 @@ x_insert ()
     fi
 
     # If it is a leaf node, update the value directly
-    if  [[ ${tr_t["$tr_full_key"]+_} ]] &&
-        [[ "$tr_value" != "$X_VALUE_NULL_ARR" ]] &&
-        [[ "$tr_value" != "$X_VALUE_NULL_OBJ" ]] ; then
-        tr_t["$tr_full_key"]=$tr_value
+    if  [[ ${tr_t["$2"]+_} ]] &&
+        [[ "$3" != "$X_VALUE_NULL_ARR" ]] &&
+        [[ "$3" != "$X_VALUE_NULL_OBJ" ]] ; then
+        tr_t["$2"]=$3
         # 叶子覆盖只需要 node_id + physical_full_key。含 [i]/() 的路径需要索引
         # token 的物理解析，仍走完整版本；纯 {} / <> 路径走无 assoc 的快速查找。
         # 索引 token 的识别用“闭合 ]/)”+ 分隔符：早退路径只处理已存在的值键，
         # 数组元素的值存在物理 <id>$X 下，[i]/() 正常不会走到这里；这里是防御。
         local tr_node_id tr_node_phys_key
-        if [[ "$tr_full_key" == *"]$X"* || "$tr_full_key" == *")$X"* ]] ; then
+        if [[ "$2" == *"]$X"* || "$2" == *")$X"* ]] ; then
             local -A w_x_insert__ninfo=()
-            _x_token_to_node_id w_x_insert__ninfo "$1" "$tr_full_key" || return $?
+            _x_token_to_node_id w_x_insert__ninfo "$1" "$2" || return $?
 
             tr_node_id=${w_x_insert__ninfo[node_id]}
             tr_node_phys_key=${w_x_insert__ninfo[physical_full_key]}
         else
-            _x_token_to_node_id_fast "$1" "$tr_full_key" \
+            _x_token_to_node_id_fast "$1" "$2" \
                     tr_node_id tr_node_phys_key || return $?
         fi
         tr_insert_reply=("$tr_node_id" "$tr_node_phys_key")
@@ -816,23 +814,24 @@ x_insert ()
     local tr_token tr_child_key tr_child_id tr_tokens_str
 
     # Here tr_full_key needs to remove the tr_path_key prefix and start traversing
-    tr_tokens_str=${tr_full_key#"$tr_path_key"}
-    [[ -n "$tr_path_key" && "$tr_tokens_str" == "$tr_full_key" ]] && {
-        die ERR "path_key:${tr_path_key@Q} is not part of full key:${tr_full_key@Q}."
+    tr_tokens_str=${2#"$tr_path_key"}
+    [[ -n "$tr_path_key" && "$tr_tokens_str" == "$2" ]] && {
+        die ERR "path_key:${tr_path_key@Q} is not part of full key:${2@Q}."
         return $X_RET_ENUM_KEY_IS_INVALID
     }
 
     local -a w_x_insert__tr_tokens=()
     _split_tokens w_x_insert__tr_tokens "$tr_tokens_str" 1 || return $?
-    local tr_node=${tr_start_node_id}
+    local tr_node=${4:-"$X_ROOT_ID"}
 
     # Record the ID key of the created intermediate node, all need to be deleted
     local -A tr_tmp_node_ids_map=()
 
+    local tr_key tr_token_pack
     for tr_token in "${w_x_insert__tr_tokens[@]}" ; do
-        local tr_key="${tr_t[$tr_node.k]}"
-        local -i tr_array_index=-1
-        local tr_token_pack="${tr_token:0:1}${tr_token: -1}"
+        tr_key="${tr_t[$tr_node.k]}" \
+        tr_array_index=-1 \
+        tr_token_pack="${tr_token:0:1}${tr_token: -1}"
         case "$tr_token_pack" in
         '{}') 
             # The previous level must be null or obj or nothing (only nodes have tags)
@@ -986,24 +985,24 @@ x_insert ()
     # empty array, but the content to be inserted does not match,
     # an error will be reported.
     if  [[ "${tr_t[$tr_node.t]}" == "$X_TYPE_OBJ" ]] &&
-        [[ "$tr_value" != "$X_VALUE_NULL_OBJ" ]] ; then
+        [[ "$3" != "$X_VALUE_NULL_OBJ" ]] ; then
         die ERR "node:${tr_node}(token:${tr_token@Q}) is null obj,but insert is not."
         return $X_RET_ENUM_KEY_UP_LEV_TYPE_MISMATCH
     fi
 
     if  [[ "${tr_t[$tr_node.t]}" == "$X_TYPE_ARR" ]] &&
-        [[ "$tr_value" != "$X_VALUE_NULL_ARR" ]] ; then
+        [[ "$3" != "$X_VALUE_NULL_ARR" ]] ; then
         die ERR "node:${tr_node}(token:${tr_token@Q}) is null array,but insert is not."
         return $X_RET_ENUM_KEY_UP_LEV_TYPE_MISMATCH
     fi
 
     local tr_new_type
-    case "$tr_value" in
+    case "$3" in
         "$X_VALUE_NULL_ARR")   tr_new_type="$X_TYPE_ARR" ;;
         "$X_VALUE_NULL_OBJ")   tr_new_type="$X_TYPE_OBJ" ;;
         *)
             tr_t[$tr_node.k]=$tr_path_key
-            tr_t["$tr_path_key"]=$tr_value
+            tr_t["$tr_path_key"]=$3
             # 返回节点 ID
             tr_insert_reply=("$tr_node" "$tr_path_key")
             REPLY=${tr_insert_reply[*]@Q}
@@ -1222,12 +1221,12 @@ _x_token_to_node_id ()
     # 返回上层的关联数组
     local -n w_tr_node_info=$1 ; w_tr_node_info=()
     local -n tr_t=$2
-    local tr_full_key=$3
+    # local tr_full_key=$3
     local -i    tr_need_index_full_key=${4:-0} \
                 tr_need_child_cnt=${5:-0} \
                 tr_need_value=${6:-0}
 
-    [[ -z "$tr_full_key" ]] && {
+    [[ -z "$3" ]] && {
         # ROOT
         if ((tr_need_child_cnt)) ; then
             if [[ -n "${tr_t[$X_ROOT_ID.s]}" ]] ; then
@@ -1248,11 +1247,11 @@ _x_token_to_node_id ()
         return ${X_RET_ENUM_OK}
     }
 
-    x_key_is_invalid "$tr_full_key" || return $?
+    x_key_is_invalid "$3" || return $?
 
     local -a w__x_token_to_node_id__tr_tokens=()
     _split_tokens w__x_token_to_node_id__tr_tokens \
-                  "$tr_full_key" || return $?
+                  "$3" || return $?
     local tr_node=$X_ROOT_ID tr_token tr_child_id tr_token_raw tr_real_full_key=''
     local tr_token_index= tr_index_full_key=
     for tr_token in "${w__x_token_to_node_id__tr_tokens[@]}" ; do
@@ -1328,13 +1327,12 @@ _x_token_to_node_id_fast ()
     local -n _xtf_t=$1
     local -n _xtf_id=$3
     local -n _xtf_phys=$4
-    local _xtf_key=$2
-    local _xtf_tokens_str _xtf_token _xtf_child _xtf_path=''
+    # local _xtf_key=$2
+    local _xtf_token _xtf_child _xtf_path='' _xtf_node=$X_ROOT_ID
 
     local -a w__x_token_to_node_id_fast__tokens=()
     _split_tokens_fast w__x_token_to_node_id_fast__tokens \
-                       "$_xtf_key" || return $?
-    local _xtf_node=$X_ROOT_ID
+                       "$2" || return $?
 
     for _xtf_token in "${w__x_token_to_node_id_fast__tokens[@]}" ; do
         if [[ "$_xtf_token" == '<'*'>' ]] ; then
@@ -1569,30 +1567,31 @@ x_walk ()
 {
     # local - ; set +x
     local -n tr_t=$1
-    local tr_prefix=$2
-    local tr_cb=${3:-x_cb_print}
+    # local tr_prefix=$2
+    # local tr_cb=${3:-x_cb_print}
 
-    local tr_root_id tr_physical_full_key tr_index_full_key
-    local tr_node_kind
+    local tr_physical_full_key tr_index_full_key tr_node_kind \
+          tr_node_id tr_index_prefix tr_physical_prefix \
+          tr_tk tr_child_id tr_value tr_index_token
+    local -i tr_index=0
     local -A w_x_walk__ninfo=()
     _x_token_to_node_id w_x_walk__ninfo \
-                        "$1" "$tr_prefix" 1 || return $?
-    tr_root_id=${w_x_walk__ninfo[node_id]}
-    tr_physical_full_key=${w_x_walk__ninfo[physical_full_key]}
-    tr_index_full_key=${w_x_walk__ninfo[index_full_key]}
+                        "$1" "$2" 1 || return $?
 
     local -a tr_stack=()
-    tr_stack+=("$tr_physical_full_key" "$tr_index_full_key" "$tr_root_id")
+    tr_stack+=(
+        "${w_x_walk__ninfo[physical_full_key]}"
+        "${w_x_walk__ninfo[index_full_key]}"
+        "${w_x_walk__ninfo[node_id]}"
+    )
 
     while ((${#tr_stack[@]})); do
-        local tr_node_id=${tr_stack[-1]} ; unset -v 'tr_stack[-1]'
-        local tr_index_prefix=${tr_stack[-1]} ; unset -v 'tr_stack[-1]'
-        local tr_physical_prefix=${tr_stack[-1]} ; unset -v 'tr_stack[-1]'
+        tr_node_id=${tr_stack[-1]} ; unset -v 'tr_stack[-1]'
+        tr_index_prefix=${tr_stack[-1]} ; unset -v 'tr_stack[-1]'
+        tr_physical_prefix=${tr_stack[-1]} ; unset -v 'tr_stack[-1]'
 
         local -a "tr_children=(${tr_t[$tr_node_id.s]})"
-        local tr_tk tr_child_id tr_value tr_index_token
-
-        local -i tr_index=0
+        tr_index=0
         for tr_tk in "${tr_children[@]}"; do
             if [[ "$tr_tk" == '<'*'>' ]] ; then
                 tr_child_id=${tr_tk:1:-1}
@@ -1603,7 +1602,7 @@ x_walk ()
             x_get_node_type "$1" "$tr_child_id" ; tr_node_kind=$?
             local tr_key="${tr_t["$tr_child_id.k"]}"
             [[ -n "$tr_key" ]] && tr_value=${tr_t["$tr_key"]} || tr_value=''
-            
+
             # There are special cases here. Empty arrays and empty
             # objects also return simulated values.
             case "$tr_node_kind" in
@@ -1618,14 +1617,14 @@ x_walk ()
             tr_index_full_key="$tr_index_prefix$tr_index_token$X"
             tr_physical_full_key="$tr_physical_prefix$tr_tk$X"
 
-            "$tr_cb"  "$tr_node_kind" \
-                            "$tr_index_token" \
-                            "$tr_index_full_key" \
-                            "$tr_value" \
-                            "$tr_tk" \
-                            "$tr_physical_full_key" \
-                            "$tr_child_id" \
-                            "$tr_node_id" || return $?
+            "${3:-x_cb_print}"  "$tr_node_kind" \
+                                "$tr_index_token" \
+                                "$tr_index_full_key" \
+                                "$tr_value" \
+                                "$tr_tk" \
+                                "$tr_physical_full_key" \
+                                "$tr_child_id" \
+                                "$tr_node_id" || return $?
 
             case "$tr_node_kind" in
             $X_NODE_KIND_OBJ|$X_NODE_KIND_ARR)
@@ -1648,25 +1647,23 @@ x_walk ()
 x_walk_dict_tree ()
 {
     local -n tr_t=$1
-    local tr_prefix=$2
-    local tr_cb=${3:-x_cb_print}
+    # local tr_prefix=$2
+    # local tr_cb=${3:-x_cb_print}
 
     local tr_root_id=$X_ROOT_ID tr_root_path=''
-    if [[ -n "$tr_prefix" ]] ; then
+    if [[ -n "$2" ]] ; then
         local -A w_x_walk_dict_tree__ninfo=()
         _x_token_to_node_id w_x_walk_dict_tree__ninfo \
-                            "$1" "$tr_prefix" 1 || return $?
+                            "$1" "$2" 1 || return $?
         tr_root_id=${w_x_walk_dict_tree__ninfo[node_id]}
         tr_root_path=${w_x_walk_dict_tree__ninfo[physical_full_key]}
     fi
 
-    local -a tr_stack_ids=("$tr_root_id")
-    local -a tr_stack_paths=("$tr_root_path")
+    local -a tr_stack_ids=("$tr_root_id") tr_stack_paths=("$tr_root_path")
     local tr_node_id tr_node_path tr_tk tr_child_id tr_child_path tr_kind tr_value tr_child_key
 
     while ((${#tr_stack_ids[@]})) ; do
-        tr_node_id=${tr_stack_ids[-1]}
-        tr_node_path=${tr_stack_paths[-1]}
+        tr_node_id=${tr_stack_ids[-1]} tr_node_path=${tr_stack_paths[-1]}
         unset -v 'tr_stack_ids[-1]' 'tr_stack_paths[-1]'
 
         local -a "tr_children=(${tr_t[$tr_node_id.s]})"
@@ -1674,10 +1671,9 @@ x_walk_dict_tree ()
             tr_child_id=${tr_t["$tr_node_id.c.$tr_tk"]}
             [[ -n "$tr_child_id" ]] || continue
 
-            tr_child_path="$tr_node_path$tr_tk$X"
-            tr_value=''
+            tr_child_path="$tr_node_path$tr_tk$X" tr_value=
             if [[ ${tr_t[$tr_child_id.k]+_} ]] ; then
-                tr_child_key=${tr_t["$tr_child_id.k"]}
+                tr_child_key=${tr_t["$tr_child_id.k"]} \
                 tr_value=${tr_t["$tr_child_key"]}
                 if [[ "$tr_value" == "$X_VALUE_NULL" ]] ; then
                     tr_kind=$X_NODE_KIND_LEAF_NULL
@@ -1688,7 +1684,7 @@ x_walk_dict_tree ()
                 if [[ -n "${tr_t[$tr_child_id.s]}" ]] ; then
                     tr_kind=$X_NODE_KIND_OBJ
                 else
-                    tr_kind=$X_NODE_KIND_OBJ_EMPTY
+                    tr_kind=$X_NODE_KIND_OBJ_EMPTY \
                     tr_value=$X_VALUE_NULL_OBJ
                 fi
             elif [[ "${tr_t[$tr_child_id.t]}" == "$X_TYPE_ARR" ]] ; then
@@ -1699,12 +1695,11 @@ x_walk_dict_tree ()
                 return $X_RET_ENUM_KEY_IS_INVALID
             fi
 
-            "$tr_cb" "$tr_kind" "$tr_tk" "$tr_child_path" "$tr_value" \
+            "${3:-x_cb_print}" "$tr_kind" "$tr_tk" "$tr_child_path" "$tr_value" \
                      "$tr_tk" "$tr_child_path" "$tr_child_id" "$tr_node_id" || return $?
 
             [[ "$tr_kind" == "$X_NODE_KIND_OBJ" ]] && {
-                tr_stack_ids+=("$tr_child_id")
-                tr_stack_paths+=("$tr_child_path")
+                tr_stack_ids+=("$tr_child_id") tr_stack_paths+=("$tr_child_path")
             }
         done
     done
@@ -1900,11 +1895,8 @@ _x_rebuild_from_dump_get_dict_kv ()
     # key 结束位置 = 第一个未转义的 '}'。
     # 绝大多数行没有转义：直接两次参数展开（去 '{' 前缀、截到第一个 '}'），
     # 避免逐字符切片；只有 key 里出现 '\' 时才走慢路径逐字符扫描。
-    local tr_rest=${tr_dump_list[tr_i]}
-    local tr_out=
-    local tr_after_key tr_rest_after='' tr_ch
-    tr_after_key=${tr_rest#*'{'}
-    tr_out=${tr_after_key%%'}'*}
+    local tr_rest=${tr_dump_list[tr_i]} tr_out= tr_after_key tr_rest_after='' tr_ch
+    tr_after_key=${tr_rest#*'{'} tr_out=${tr_after_key%%'}'*}
     if [[ "$tr_out" == *\\* ]] ; then
         # 慢路径：key 里有转义，逐字符找第一个未转义的 '}'
         local -i tr_begin=-1 tr_pos=0 tr_len=${#tr_rest} tr_end=-1
@@ -1988,13 +1980,8 @@ _x_rebuild_from_dump_get_array ()
 x_rebuild_from_dump ()
 {
     local -n tr_w_tree=$1 ; tr_w_tree=()
-    local tr_dump_str=$2
-    local tr_line
-    local tr_line1_indent=
-    local tr_line1_enter=0
-    local -a tr_dump_list=()
-
-    local -a tr_raw_lines=()
+    local tr_dump_str=$2 tr_line tr_line1_indent= tr_line1_enter=0
+    local -a tr_dump_list=() tr_raw_lines=()
     mapfile -t tr_raw_lines <<< "$tr_dump_str"
     for tr_line in "${tr_raw_lines[@]}" ; do
         [[ $tr_line == *[![:space:]]* ]] || continue
