@@ -67,9 +67,8 @@ array_sorted_insert ()
 array_delete_first_e ()
 {
     local -n a=$1
-    local del_e=$2
     local i ; for i in "${!a[@]}" ; do
-        [[ "$del_e" == "${a[$i]}" ]] && {
+        [[ "$2" == "${a[$i]}" ]] && {
             unset -v 'a[$i]' ; return 0 ;
         }
     done
@@ -82,23 +81,29 @@ array_delete_first_e ()
 array_delete_e ()
 {
     local -n a=$1
-    local del_e=$2
     local i ; for i in "${!a[@]}" ; do
-        [[ "$del_e" == "${a[$i]}" ]] && unset -v 'a[$i]'
+        [[ "$2" == "${a[$i]}" ]] && unset -v 'a[$i]'
     done
 }
 
 #-------------------------------------------------------------------------------
 
+# 在值列表中查找元素位置。
+# @in  $1=目标值  $2..=待查找的值列表
+# @out REPLY=首个匹配位置（0 起）；未找到为 -1
+# @ret 0
 array_index ()
 {
-    local e=$1 item
+    local e=$1
+    shift
+    local item
     local -i idx=0
-    for item in "${@:2}" ; do
-        [[ "$e" == "$item" ]] && { REPLY=$idx ; return ; }
+    for item in "$@" ; do
+        [[ "$e" == "$item" ]] && { REPLY=$idx ; return 0 ; }
         ((idx++))
     done
     REPLY=-1
+    return 0
 }
 
 #-------------------------------------------------------------------------------
