@@ -32,19 +32,20 @@ declare -gA _BASHLIB_IMPORTED
 # tr_
 #
 # ================================================================================
-# MSYS2 / Git Bash limitation: CR (0x0D) in x data is unsupported.
+# MSYS2 / Git Bash limitation: CR (0x0D) in x keys is unsupported.
 #
 # MSYS2's Bash strips raw CR when an assignment string is re-parsed, e.g.
 #     local -A "map=($REPLY)"
 #     eval "map=($REPLY)"
-# A CR inside a key or value is silently lost. The same test on native Linux
+# A CR inside a key is silently lost. The same test on native Linux
 # Bash keeps CR intact. This is an MSYS2 Bash/platform quirk, not an x-tree
 # design rule.
 #
-# Therefore: do not put raw CR into x keys or values on Windows/MSYS2. If you
-# must transport CR, encode it in your own layer and decode after the shell
-# parser has finished. Do not rely on declaration/eval round trips to preserve
-# it. Linux/Bash has no such CR limitation.
+# Values are stored and returned as raw strings, and @Q token lists encode
+# CR as an escaped form; value paths covered by test_msys2_cr.sh preserve
+# CR on MSYS2. Do not put raw CR into x keys on Windows/MSYS2. If you must
+# transport a CR-containing key, encode it in your own layer and decode
+# after the shell parser has finished. Linux/Bash has no such limitation.
 # ================================================================================
 #================================================================================
 

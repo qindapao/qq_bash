@@ -906,6 +906,10 @@ supports objects, arrays, nulls, booleans, ordered children, and path access.
 - Dependency direction: `xe.sh` and `xj.sh` both source `x.sh` only, and are
   independent of each other; `x.sh` must not source or call into `xe.sh` /
   `xj.sh`. Tests source the layer they use.
+- MSYS2 CR contract: **values** are preserved across insert/get/walk/dump/
+  rebuild/iter/flat/JSON; **keys** are not guaranteed. The platform limitation
+  and the exact guarantee are documented at the top of `x.sh` and covered by
+  `test/bashlib/test_msys2_cr.sh`.
 
 Full parameters and return codes are documented in the function headers of
 `src/bashlib/x.sh`, `src/bashlib/xe.sh` and `src/bashlib/xj.sh`.

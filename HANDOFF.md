@@ -187,7 +187,7 @@ render          ≈ 8–9 ms
    明确 NULL/空容器前置条件与“调用方负责”的边界，不把它们改成完整校验。
 6. **MSYS2 CR**：
    - `x_qinserts` 改为先声明、后赋值 `tr_insert_kv=("$@")`；
-   - `x.sh` 顶部明确 CR 不支持；
+   - `x.sh` 顶部明确：MSYS2 只保证 value 的 CR；key 的 CR 不支持；
    - 新增 `test_msys2_cr.sh`，非 MSYS2 静默跳过，MSYS2 验证 workaround 和
      `x_qinserts` 的 CR 保存。
 7. **`x_iter` 消费契约**：

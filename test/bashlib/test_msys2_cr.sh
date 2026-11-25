@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # MSYS2/Git Bash regression test: CR survives the declaration-then-assign
-# workaround, and x_qinserts preserves CR in values.
+# workaround, and value paths preserve CR (keys are not guaranteed).
 #
 # On Linux/macOS/other normal Bash platforms this test is a silent no-op:
 # the platform does not have the MSYS2 CR stripping bug.
@@ -63,6 +63,78 @@ WALK_CR_PHYS=
 walk_cr_probe () { WALK_CR_PHYS=$6 ; }
 x_walk W "{a${cr}b}$X" walk_cr_probe
 check_equal 'x_walk keeps CR in physical key' "{a${cr}b}$X{c}$X" "$WALK_CR_PHYS"
+
+# Values are part of the supported contract; keys are not.
+test_value_cr () {
+    local val="v${cr}x"
+    local path="{leaf}$X"
+    local -A V=()
+    x_init V "$X_TYPE_OBJ"
+    x_insert V "$path" "$val"
+
+    x_get_leaf V "$path"
+    check_equal 'x_get_leaf keeps CR in value' "$val" "$REPLY"
+
+    local -A VT=()
+    x_get_tree VT V ''
+    x_get_leaf VT "$path"
+    check_equal 'x_get_tree keeps CR in value' "$val" "$REPLY"
+
+    local -A VI=()
+    x_id_rebuild V VI
+    x_get_leaf VI "$path"
+    check_equal 'x_id_rebuild keeps CR in value' "$val" "$REPLY"
+
+    local dump
+    dump=$(x_dump V '' 4 2)
+    local -A VR=()
+    x_rebuild_from_dump VR "$dump"
+    x_get_leaf VR "$path"
+    check_equal 'x_dump/x_rebuild keeps CR in value' "$val" "$REPLY"
+
+    x_iter V '' $((2#11111))
+    local line
+    while IFS= read -r line ; do
+        local -a "tuple=($line)"
+        check_equal 'x_iter keeps CR in value' "$val" "${tuple[3]}"
+    done <<< "$REPLY"
+
+    local -A info=()
+    _x_token_to_node_id info V "$path" 0 0 1
+    check_equal '_x_token_to_node_id keeps CR in value' "$val" "${info[value]}"
+
+    local -A flat=()
+    x_layer_get_flat obj V '' flat
+    check_equal 'x_layer_get_flat keeps CR in value' "$val" "${flat[leaf]}"
+
+    local -A A=()
+    x_init A "$X_TYPE_ARR"
+    x_insert A "[0]$X" "$val"
+    local -a aflat=()
+    x_layer_get_flat arr A '' aflat
+    check_equal 'array flat keeps CR in value' "$val" "${aflat[0]}"
+}
+test_value_cr
+
+if command -v gobolt >/dev/null 2>&1 ; then
+    . ../../src/bashlib/xj.sh
+    test_json_value_cr () {
+        local json='{"obj":"v\rx","arr":["w\ry"]}'
+        local -A J=()
+        x_from_json J "$json"
+        x_get_leaf J "{obj}$X"
+        check_equal 'x_from_json keeps CR in value' $'v\rx' "$REPLY"
+        x_get_leaf J "{arr}$X[0]$X"
+        check_equal 'x_from_json array keeps CR in value' $'w\ry' "$REPLY"
+
+        x_to_json J
+        local -A J2=()
+        x_from_json J2 "$REPLY"
+        x_get_leaf J2 "{obj}$X"
+        check_equal 'x_to_json keeps CR in value' $'v\rx' "$REPLY"
+    }
+    test_json_value_cr
+fi
 
 if (( FAILS )) ; then
     printf '%d assertion(s) failed\n' "$FAILS"
