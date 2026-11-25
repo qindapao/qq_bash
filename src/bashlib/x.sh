@@ -161,8 +161,15 @@ _split_tokens ()
 
     for token in "${w_tokens[@]}" ; do
         ((${#token}<=2)) && return $X_RET_ENUM_KEY_IS_INVALID
-        case "${token:0:1}${token: -1}" in
-        '()')
+        case "$token" in
+        '{'*'}'|'<'*'>')  : ;;
+        '['*']')
+            str_is_decimal_int "${token:1:-1}" || {
+                die ERR "key:${2@Q} is invalid!"
+                return $X_RET_ENUM_KEY_IS_INVALID
+            }
+            ;;
+        '('*')')
             # Must have insertion semantics and must be a positive integer
             ((is_insertion_semantics)) || {
                 die ERR "now are not in insertion semantics. key:${2@Q} is invalid!"
@@ -173,13 +180,6 @@ _split_tokens ()
                 return $X_RET_ENUM_KEY_IS_INVALID
             }
             ;;
-        '[]')
-            str_is_decimal_int "${token:1:-1}" || {
-                die ERR "key:${2@Q} is invalid!"
-                return $X_RET_ENUM_KEY_IS_INVALID
-            }
-            ;;
-        '{}'|'<>')  : ;;
         *)  die ERR "key:${2@Q} is invalid!"
             return $X_RET_ENUM_KEY_IS_INVALID
             ;;
