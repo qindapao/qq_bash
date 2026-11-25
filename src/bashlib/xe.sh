@@ -154,6 +154,7 @@ x_get_leaf ()
 #-------------------------------------------------------------------------------
 
 # 获取子树（返回一棵新树）。空 key 返回整棵树。
+# 不压缩 node_id；子树直接沿用原树的 max_index，输出允许稀疏。
 # @in  $1=输出关联数组名（调用方先声明 local -A）
 #      $2=树名  $3=物理全 key（空=整棵树）
 #      $4=起始 node_id（可选）  $5=物理全 key（可选）
@@ -203,6 +204,9 @@ x_get_tree ()
 
     # 6. Create a new tree
     x_init "$1" "${tr_t[$tr_node.t]}"
+    # 不重排节点 ID，直接沿用原树 max_index。
+    # 输出可能稀疏，但后续插入仍不会和已有节点 ID 冲突。
+    tr_w_tree[max_index]=${tr_t[max_index]}
 
     # If the subtree root is empty, it is returned directly.
     ((${#tr_root_children[@]})) || return $X_RET_ENUM_OK
@@ -211,7 +215,7 @@ x_get_tree ()
     tr_w_tree[$X_ROOT_ID.s]=${tr_root_children[*]@Q}
 
     # 8. Mount all root children
-    local tr_tk tr_cid
+    local tr_tk tr_cid tr_cur tr_key tr_new_key tr_s tr_tp
     local -a tr_stack=()
     for tr_tk in "${tr_root_children[@]}" ; do
         if [[ "$tr_tk" == '<'*'>' ]] ; then
@@ -224,27 +228,27 @@ x_get_tree ()
     done
 
     # 9. DFS copy child node
-    local tr_max_id=1
     while ((${#tr_stack[@]})) ; do
-        local tr_cur=${tr_stack[-1]}
+        tr_cur=${tr_stack[-1]}
         unset -v 'tr_stack[-1]'
-        ((tr_max_id=(tr_cur>tr_max_id)?tr_cur:tr_max_id))
 
         # tr_w_tree[$tr_cur]=1
-        [[ -n "${tr_t[$tr_cur.s]}" ]] && tr_w_tree[$tr_cur.s]=${tr_t[$tr_cur.s]}
-        [[ -n "${tr_t[$tr_cur.t]}" ]] && tr_w_tree[$tr_cur.t]=${tr_t[$tr_cur.t]}
+        tr_s=${tr_t[$tr_cur.s]}
+        [[ -n "$tr_s" ]] && tr_w_tree[$tr_cur.s]=$tr_s
+        tr_tp=${tr_t[$tr_cur.t]}
+        [[ -n "$tr_tp" ]] && tr_w_tree[$tr_cur.t]=$tr_tp
 
         # The key here cannot be copied directly from the old tree, and
         # the prefix needs to be cut off.
-        local tr_key=${tr_t["$tr_cur.k"]}
+        tr_key=${tr_t["$tr_cur.k"]}
 
         if [[ -n "$tr_key" ]] ; then
-            tr_w_tree[$tr_cur.k]=${tr_key#"$tr_real_full_key"}
-            local tr_new_key=${tr_w_tree["$tr_cur.k"]}
+            tr_new_key=${tr_key#"$tr_real_full_key"}
+            tr_w_tree[$tr_cur.k]=$tr_new_key
             tr_w_tree["$tr_new_key"]=${tr_t["$tr_key"]}
         fi
 
-        local -a "tr_children=(${tr_t[$tr_cur.s]})"
+        local -a "tr_children=($tr_s)"
 
         for tr_tk in "${tr_children[@]}" ; do
             if [[ "$tr_tk" == '<'*'>' ]] ; then
@@ -256,8 +260,6 @@ x_get_tree ()
             tr_stack+=("$tr_cid")
         done
     done
-
-    tr_w_tree[max_index]=$((tr_max_id+1))
 
     return ${X_RET_ENUM_OK}
 }

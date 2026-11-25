@@ -1595,8 +1595,11 @@ x_walk ()
     _x_token_to_node_id w_x_walk__ninfo \
                         "$1" "$2" 1 || return $?
 
+    # MSYS2 Bash 5.2 的 local 复合数组赋值会吞掉 CR；这里必须
+    # 先声明、再赋值，不能合成 local -a tr_stack=(...)。
+    # 但是库里面类似的风险还有不少，只能 msys2 用户自己去避免
     local -a tr_stack=()
-    tr_stack+=(
+    tr_stack=(
         "${w_x_walk__ninfo[physical_full_key]}"
         "${w_x_walk__ninfo[index_full_key]}"
         "${w_x_walk__ninfo[node_id]}"
@@ -2025,6 +2028,8 @@ x_rebuild_from_dump ()
     local tr_indent_cnt=${#tr_indent}
 
     # 先处理空字典和空列表
+    # 注意：只有两行也可能是“根节点下只有一个叶子”，不能把 len==2
+    # 一律当成空容器；不匹配时继续走正常解析。
     if ((${#tr_dump_list[@]}==2)) ; then
         case "${tr_dump_list[1]}" in
         *${X_VALUE_NULL_OBJ})
@@ -2105,10 +2110,12 @@ x_rebuild_from_dump ()
     # 开始处理
     local tr_idx tr_idx_key tr_n_lev
     for (( tr_i=1;tr_i<${#tr_dump_list[@]};tr_i++ )) ; do
+        tr_n_lev=${tr_lev[tr_i]}
         case "${tr_type[tr_i]}" in
         a_leaf)
-            tr_n_lev=${tr_lev[tr_i]}
-            tr_path_stack=("${tr_path_stack[@]:0:tr_n_lev}")
+            if ((tr_n_lev<${#tr_path_stack[@]})) ; then
+                tr_path_stack=("${tr_path_stack[@]:0:tr_n_lev}")
+            fi
             printf -v tr_idx_key "%s" "${tr_path_stack[@]}"
             tr_idx=${tr_array_indexs[$tr_idx_key]:-0}
             tr_array_indexs[$tr_idx_key]=$((tr_idx+1))
@@ -2124,24 +2131,10 @@ x_rebuild_from_dump ()
                 tr_leafs=()
             fi
         ;;
-        a_tree)
-            tr_n_lev=${tr_lev[tr_i]}
-            if ((tr_n_lev>=${#tr_path_stack[@]})) ; then
-                printf -v tr_idx_key "%s" "${tr_path_stack[@]}"
-                tr_idx=${tr_array_indexs[$tr_idx_key]:-0}
-                tr_array_indexs[$tr_idx_key]=$((tr_idx+1))
-                tr_path_stack+=("[$tr_idx]$X")
-            else
-                tr_path_stack=("${tr_path_stack[@]:0:tr_n_lev}")
-                printf -v tr_idx_key "%s" "${tr_path_stack[@]}"
-                tr_idx=${tr_array_indexs[$tr_idx_key]:-0}
-                tr_array_indexs[$tr_idx_key]=$((tr_idx+1))
-                tr_path_stack+=("[$tr_idx]$X")
-            fi
-        ;;
         d_leaf)
-            tr_n_lev=${tr_lev[tr_i]}
-            tr_path_stack=("${tr_path_stack[@]:0:tr_n_lev}")
+            if ((tr_n_lev<${#tr_path_stack[@]})) ; then
+                tr_path_stack=("${tr_path_stack[@]:0:tr_n_lev}")
+            fi
             printf -v tr_idx_key "%s" "${tr_path_stack[@]}"
             tr_leafs+=("${tr_key[tr_i]}" "${tr_value[tr_i]}")
             # 判断是否触发写叶子
@@ -2154,14 +2147,20 @@ x_rebuild_from_dump ()
                 tr_leafs=()
             fi
         ;;
-        d_tree)
-            tr_n_lev=${tr_lev[tr_i]}
-            if ((tr_n_lev>=${#tr_path_stack[@]})) ; then
-                tr_path_stack+=("${tr_key[tr_i]}")
-            else
+        a_tree)
+            if ((tr_n_lev<${#tr_path_stack[@]})) ; then
                 tr_path_stack=("${tr_path_stack[@]:0:tr_n_lev}")
-                tr_path_stack+=("${tr_key[tr_i]}")
             fi
+            printf -v tr_idx_key "%s" "${tr_path_stack[@]}"
+            tr_idx=${tr_array_indexs[$tr_idx_key]:-0}
+            tr_array_indexs[$tr_idx_key]=$((tr_idx+1))
+            tr_path_stack+=("[$tr_idx]$X")
+        ;;
+        d_tree)
+            if ((tr_n_lev<${#tr_path_stack[@]})) ; then
+                tr_path_stack=("${tr_path_stack[@]:0:tr_n_lev}")
+            fi
+            tr_path_stack+=("${tr_key[tr_i]}")
         ;;
         esac
     done

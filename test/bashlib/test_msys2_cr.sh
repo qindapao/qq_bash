@@ -56,6 +56,14 @@ x_qinserts T common:w_test_msys2_cr__qinfo '' "{k}$X" "v${cr}" || {
 x_get_leaf T "{k}$X"
 check_equal 'x_qinserts keeps CR in value' "v${cr}" "$REPLY"
 
+declare -gA W=()
+x_init W "$X_TYPE_OBJ"
+x_insert W "{a${cr}b}$X{c}$X" "v"
+WALK_CR_PHYS=
+walk_cr_probe () { WALK_CR_PHYS=$6 ; }
+x_walk W "{a${cr}b}$X" walk_cr_probe
+check_equal 'x_walk keeps CR in physical key' "{a${cr}b}$X{c}$X" "$WALK_CR_PHYS"
+
 if (( FAILS )) ; then
     printf '%d assertion(s) failed\n' "$FAILS"
     exit 1
