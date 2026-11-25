@@ -602,6 +602,30 @@ test_case_str_unescape ()
 }
 
 
+test_case_decimal_validators ()
+{
+    local -a pos_ok=(0 1 10 12345) \
+             pos_bad=('' 00 01 -1 +1 1a ' 1' '1 ' $'1\n' '１２３') \
+             int_ok=(0 1 -1 -10 -999) \
+             int_bad=('' -0 -00 --1 - +1 01 1.2 ' 1' '1 ' $'1\n' '１２３')
+    local v
+
+    for v in "${pos_ok[@]}" ; do
+        str_is_decimal_positive_int "$v" || { log_test 0 1 ; return 1 ; }
+    done
+    for v in "${pos_bad[@]}" ; do
+        str_is_decimal_positive_int "$v" && { log_test 0 2 ; return 1 ; }
+    done
+    for v in "${int_ok[@]}" ; do
+        str_is_decimal_int "$v" || { log_test 0 3 ; return 1 ; }
+    done
+    for v in "${int_bad[@]}" ; do
+        str_is_decimal_int "$v" && { log_test 0 4 ; return 1 ; }
+    done
+
+    log_test 1 1
+}
+
 # step_test 12
 eval -- "$(AS_RUN_TEST_CASES)"
 
