@@ -223,6 +223,8 @@ awk_cut ()
             }
         ' "$tmp_sep" "$tmp_str")
     rm -f -- "$tmp_sep" "$tmp_str"
+    # awk 用 "%s " 在字段末尾加空格哨兵，防止 command substitution 吃掉
+    # 字段自身的尾随换行；这里去掉哨兵，字段内容保持原样。
     [[ -n "$REPLY" ]] && REPLY=${REPLY::-1}
 }
 
@@ -256,6 +258,8 @@ awk_cut_regex ()
             }
         ' "$tmp_sep" "$tmp_str")
     rm -f -- "$tmp_sep" "$tmp_str"
+    # awk 用 "%s " 在字段末尾加空格哨兵，防止 command substitution 吃掉
+    # 字段自身的尾随换行；这里去掉哨兵，字段内容保持原样。
     [[ -n "$REPLY" ]] && REPLY=${REPLY::-1}
 }
 
@@ -275,7 +279,10 @@ awk_cut_regex ()
 #   count < 0  : -1 = last field, -2 = second last, etc.
 #
 # Behavior:
-#   . If the field does not exist → return empty string (unlike awk)
+#   . A string without sep is one field:
+#       count 0 / -1 -> the whole string
+#       other counts -> empty string
+#   . A field outside the available range -> empty string
 #   . Multi-character separators are fully supported
 #   . No external commands are used (pure Bash, high performance)
 #
@@ -298,7 +305,15 @@ str_cut ()
     REPLY=
     local str=$1 sep=$2 cnt=$3
     [[ -z "$sep" ]] && { echo "sep:$sep can not be null!" >&2 ; return 1 ; }
-    [[ "$str" == *"$sep"* ]] || return 0
+
+    # 无分隔符时整串就是唯一字段；与 awk 字段语义一致。
+    if [[ "$str" != *"$sep"* ]] ; then
+        case $cnt in
+        0|-1) REPLY=$str ;;
+        esac
+        return 0
+    fi
+
     ((${#str}>_STR_BUILT_IN_THRESHOLDS)) && { awk_cut "$@" ; return $? ; }
 
     local transformed=$str

@@ -114,7 +114,7 @@ test_case3 ()
         [[ "$get_str4" == '' ]] &&
         [[ "$get_str5" == 'e' ]] &&
         [[ "$get_str6" == '' ]] &&
-        [[ "$get_str7" == '' ]] &&
+        [[ "$get_str7" == "$str1" ]] &&
         [[ "$get_str8" == '' ]] &&
         [[ "$get_str9" == '' ]] &&
         [[ "$get_str10" == 'e' ]] &&
@@ -123,7 +123,7 @@ test_case3 ()
         [[ "$get_str13" == 'b' ]] &&
         [[ "$get_str14" == 'a' ]] &&
         [[ "$get_str15" == '' ]] &&
-        [[ "$get_str16" == '' ]] &&
+        [[ "$get_str16" == "$str1" ]] &&
         [[ "$get_str17" == '' ]] &&
         [[ "$get_str18" == '' ]] ; then
         log_test 1 1
