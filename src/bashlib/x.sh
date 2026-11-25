@@ -1069,18 +1069,16 @@ x_dump ()
 
     [[ "${tr_t[$tr_node.t]}" == "$X_TYPE_OBJ" ]] &&
     [[ -z "${tr_t[$tr_node.s]}" ]] && {
-        local XDump_tr_value_p
-        str_escape_keep_nl "$X_VALUE_NULL_OBJ" XDump_tr_value_p
-        printf '%s%s\n' "$tr_indent" "$XDump_tr_value_p"
+        str_escape_keep_nl "$X_VALUE_NULL_OBJ"
+        printf '%s%s\n' "$tr_indent" "$REPLY"
         printf '%smax_index => %s\n' "$tr_indent" "${tr_t[max_index]}"
         return
     }
 
     [[ "${tr_t[$tr_node.t]}" == "$X_TYPE_ARR" ]] &&
     [[ -z "${tr_t[$tr_node.s]}" ]] && {
-        local XDump_tr_value_p
-        str_escape_keep_nl "$X_VALUE_NULL_ARR" XDump_tr_value_p
-        printf '%s%s\n' "$tr_indent" "$XDump_tr_value_p"
+        str_escape_keep_nl "$X_VALUE_NULL_ARR"
+        printf '%s%s\n' "$tr_indent" "$REPLY"
         printf '%smax_index => %s\n' "$tr_indent" "${tr_t[max_index]}"
         return
     }
@@ -1142,9 +1140,8 @@ _x_dump ()
             tr_token_safe=$tr_token tr_token_disp=$tr_token
         else
             # 字典键：统一走自定义转义（保留 \n，内部的 }转义），不再用 %q/@Q
-            local _XDump_tr_token_safe
-            str_escape_key "${tr_token:1:-1}" _XDump_tr_token_safe
-            tr_token_safe="{$_XDump_tr_token_safe}"
+            str_escape_key "${tr_token:1:-1}"
+            tr_token_safe="{$REPLY}"
             # 多行键的续行加 | 补位：| 与第一行的 { 对齐，
             # 使行首空格明确属于键内容而非缩进
             tr_token_disp="${tr_token_safe//$'\n'/$'\n'$tr_indent|}"
@@ -1171,9 +1168,8 @@ _x_dump ()
                     tr_value_indent+="${tr_indent}   |"
                 fi
                 tr_value_p="${tr_value//$'\n'/$'\n'$tr_value_indent}"
-                local _XDump_tr_value_p
-                str_escape_keep_nl "$tr_value_p" _XDump_tr_value_p
-                tr_value_p=$_XDump_tr_value_p
+                str_escape_keep_nl "$tr_value_p"
+                tr_value_p=$REPLY
             }
 
             printf '%s%s%s %s %s\n' \
@@ -1184,9 +1180,8 @@ _x_dump ()
                 "$tr_value_p"
         elif [[ "${tr_t[$tr_child_id.t]}" == "$X_TYPE_ARR" ]] && [[ -z "${tr_t[$tr_child_id.s]}" ]] ; then
             ((tr_value_need_print)) && {
-                local _XDump_tr_value_p
-                str_escape_keep_nl "$X_VALUE_NULL_ARR" _XDump_tr_value_p
-                tr_value_p=$_XDump_tr_value_p
+                str_escape_keep_nl "$X_VALUE_NULL_ARR"
+                tr_value_p=$REPLY
 
             }
 
@@ -1198,9 +1193,8 @@ _x_dump ()
                 "$tr_value_p"
         elif [[ "${tr_t[$tr_child_id.t]}" == "$X_TYPE_OBJ" ]] && [[ -z "${tr_t[$tr_child_id.s]}" ]] ; then
             ((tr_value_need_print)) && {
-                local _XDump_tr_value_p
-                str_escape_keep_nl "$X_VALUE_NULL_OBJ" _XDump_tr_value_p
-                tr_value_p=$_XDump_tr_value_p
+                str_escape_keep_nl "$X_VALUE_NULL_OBJ"
+                tr_value_p=$REPLY
             }
 
             printf '%s%s%s %s %s\n' \

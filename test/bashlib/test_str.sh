@@ -352,65 +352,76 @@ test_case11 ()
 
     # ---- 1. 快速路径：纯 ASCII + 换行 ----
     local input1=$'hello\nworld'
-    str_escape_keep_nl "$input1" result
+    str_escape_keep_nl "$input1"
+    result=$REPLY
     _t11_check "case1_ascii_nl" "$input1"
 
     # ---- 2. 快速路径：含中文 ----
     local input2=$'我是中文hahah中\n\n文文'
-    str_escape_keep_nl "$input2" result
+    str_escape_keep_nl "$input2"
+    result=$REPLY
     _t11_check "case2_chinese" "$input2"
 
     # ---- 3. 快速路径：空字符串 ----
-    str_escape_keep_nl "" result
+    str_escape_keep_nl ""
+    result=$REPLY
     _t11_check "case3_empty" ""
 
     # ---- 4. 中速路径：反斜杠 ----
     local input4="a${bs}b${bs}c"
     local expected4="a${bs}${bs}b${bs}${bs}c"
-    str_escape_keep_nl "$input4" result
+    str_escape_keep_nl "$input4"
+    result=$REPLY
     _t11_check "case4_backslash" "$expected4"
 
     # ---- 5. 中速路径：\b \f \r \t ----
     local input5=$'a\bb\fc\rd\te'
     local expected5="a${bs}bb${bs}fc${bs}rd${bs}te"
-    str_escape_keep_nl "$input5" result
+    str_escape_keep_nl "$input5"
+    result=$REPLY
     _t11_check "case5_ctrl_shorthand" "$expected5"
 
     # ---- 6. 慢速路径：C0 控制字符 (\x01, \x02) ----
     local input6=$'a\x01b\x02c'
     local expected6="a${bs}u0001b${bs}u0002c"
-    str_escape_keep_nl "$input6" result
+    str_escape_keep_nl "$input6"
+    result=$REPLY
     _t11_check "case6_c0" "$expected6"
 
     # ---- 7. 慢速路径：DEL (\x7f) ----
     local input7=$'a\x7fb'
     local expected7="a${bs}u007fb"
-    str_escape_keep_nl "$input7" result
+    str_escape_keep_nl "$input7"
+    result=$REPLY
     _t11_check "case7_del" "$expected7"
 
     # ---- 8. 慢速路径：C1 (CSI \x9b) ----
     # 在 UTF-8 环境下 0x9b 是非法的，但函数应该能按码点正确处理
     local input8=$'a\x9bb'
     local expected8="a${bs}u009bb"
-    str_escape_keep_nl "$input8" result
+    str_escape_keep_nl "$input8"
+    result=$REPLY
     _t11_check "case8_c1_csi" "$expected8"
 
     # ---- 9. 慢速路径：单引号不崩溃 ----
     local input9=$'a\'b\x01c'
     local expected9="a'b${bs}u0001c"
-    str_escape_keep_nl "$input9" result
+    str_escape_keep_nl "$input9"
+    result=$REPLY
     _t11_check "case9_quote" "$expected9"
 
     # ---- 10. 混合场景：中文 + 反斜杠 + Tab + C0 + 单引号 + 双引号 + 换行符 ----
     local input10=$'中文\\n\t\x01单引\'引号\nxx\n"'
     local expected10=$'中文\\\\n\\t\\u0001单引\'引号\nxx\n"'
-    str_escape_keep_nl "$input10" result
+    str_escape_keep_nl "$input10"
+    result=$REPLY
     _t11_check "case10_mixed" "$expected10"
 
    # ---- 11. 慢速路径：单引号 + C0（确保 printf 容错生效） ----
     local input11=$'\'\x01\''
     local expected11="'${bs}u0001'"
-    str_escape_keep_nl "$input11" result
+    str_escape_keep_nl "$input11"
+    result=$REPLY
     _t11_check "case11_quote_c0" "$expected11" 
 
     # ---- 12. 终极混合大用例：包含所有控制字符（C0 / DEL / C1）----
@@ -426,7 +437,9 @@ test_case11 ()
         expected12+="$hex"
     done
 
-    str_escape_keep_nl "$input12" result
+    str_escape_keep_nl "$input12"
+
+    result=$REPLY
     _t11_check "case12_ultimate_all_ctrls" "$expected12"
 
     # ---- 汇总 ----
@@ -448,7 +461,8 @@ test_case12 ()
 {
     local str_normal='hello 中文 a => b'
     local TestCase12_str1
-    str_escape_keep_nl "$str_normal" TestCase12_str1
+    str_escape_keep_nl "$str_normal"
+    TestCase12_str1=$REPLY
     str_unescape "$TestCase12_str1" ; str_after1=$REPLY REPLY=
 
     if [[ "$str_normal" == "$str_after1" ]] ; then
@@ -459,7 +473,8 @@ test_case12 ()
 
     local str_special=$'A\\B\n不对\t\r是对\b\f中\034中文\u0080gegeg\u009f\\x\\u12\\n\\u4e2d tail\\'
     local TestCase12_str
-    str_escape_keep_nl "$str_special" TestCase12_str
+    str_escape_keep_nl "$str_special"
+    TestCase12_str=$REPLY
     str_unescape "$TestCase12_str" ; str_after=$REPLY REPLY=
 
     if [[ "$str_special" == "$str_after" ]] ; then
@@ -480,7 +495,8 @@ test_case_escape_keep_nl ()
 
     # 1. 快速路径：纯可打印 + 中文 + 含 }，原样返回（值版不碰 }）
     s='hello 中文 {"a":1}'
-    str_escape_keep_nl "$s" v
+    str_escape_keep_nl "$s"
+    v=$REPLY
     if [[ "$v" == "$s" ]] ; then
         log_test 1 1
     else
@@ -489,7 +505,8 @@ test_case_escape_keep_nl ()
 
     # 2. 反斜杠 → \\（含字面 \} 也只转 \，不碰 }）
     s='a\}b'
-    str_escape_keep_nl "$s" v
+    str_escape_keep_nl "$s"
+    v=$REPLY
     if [[ "$v" == 'a\\}b' ]] ; then
         log_test 1 2
     else
@@ -498,7 +515,8 @@ test_case_escape_keep_nl ()
 
     # 3. 简写：\b \f \r \t
     s=$'x\by\fz\rw\t'
-    str_escape_keep_nl "$s" v
+    str_escape_keep_nl "$s"
+    v=$REPLY
     if [[ "$v" == 'x\by\fz\rw\t' ]] ; then
         log_test 1 3
     else
@@ -507,7 +525,8 @@ test_case_escape_keep_nl ()
 
     # 4. C0/C1 → \uXXXX；真换行保留
     s=$'\x01\n\x9c'
-    str_escape_keep_nl "$s" v
+    str_escape_keep_nl "$s"
+    v=$REPLY
     if [[ "$v" == $'\\u0001\n\\u009c' ]] ; then
         log_test 1 4
     else
@@ -526,7 +545,8 @@ test_case_escape_key ()
 
     # 1. 快速路径：无 \ 无 } 无控制符
     s='plain key 中文'
-    str_escape_key "$s" v
+    str_escape_key "$s"
+    v=$REPLY
     if [[ "$v" == "$s" ]] ; then
         log_test 1 1
     else
@@ -535,7 +555,8 @@ test_case_escape_key ()
 
     # 2. } → \}（值版不转，key 版转，这是分叉点）
     s='a}b'
-    str_escape_key "$s" v
+    str_escape_key "$s"
+    v=$REPLY
     if [[ "$v" == 'a\}b' ]] ; then
         log_test 1 2
     else
@@ -544,7 +565,8 @@ test_case_escape_key ()
 
     # 3. 顺序验证：字面 \} 必须变 \\\}（\ 先于 } 转）
     s='a\}b'
-    str_escape_key "$s" v
+    str_escape_key "$s"
+    v=$REPLY
     if [[ "$v" == 'a\\\}b' ]] ; then
         log_test 1 3
     else
@@ -553,7 +575,8 @@ test_case_escape_key ()
 
     # 4. 控制字符照常处理，} 也转
     s=$'x\ty}z'
-    str_escape_key "$s" v
+    str_escape_key "$s"
+    v=$REPLY
     if [[ "$v" == 'x\ty\}z' ]] ; then
         log_test 1 4
     else

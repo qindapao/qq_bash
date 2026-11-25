@@ -398,7 +398,7 @@ str_bytes () { local LC_ALL=C; REPLY=${#1}; }
 # 输出：保留 \n 真换行；\b \f \r \t 用简写；反斜杠转 \\；
 #       C0(0x00-0x1F) / DEL(0x7F) / C1(0x80-0x9F) 转 \uXXXX；
 #       双引号、中文等可打印字符原样（不转义 "，不输出外层引号）；
-#       $3=1 时额外把 } 转成 \}（供字典键定界用）。
+#       $2=1 时额外把 } 转成 \}（供字典键定界用）。
 #
 # 【执行机制】
 #   1. 快速路径：若字符串不含反斜杠，且除换行外全为可打印字符，
@@ -411,18 +411,19 @@ str_bytes () { local LC_ALL=C; REPLY=${#1}; }
 #
 # 【注意】C1 中 0x9B=CSI、0x9D=OSC、0x90=DCS，终端安全风险高于 C0。
 #
-# @in  $1=原始字符串  $2=输出变量名（nameref）  $3=1 表示额外转义 }（默认 0）
+# @in  $1=原始字符串  $2=1 表示额外转义 }（默认 0）
+# @out REPLY=转义结果
 # @ret 0
 _str_escape_impl ()
 {
+    REPLY=
     local s=$1 i ch code hex
-    local -n out=$2
-    local escape_rbrace=${3:-0}
+    local escape_rbrace=${2:-0}
 
     # 快速路径：无反斜杠、无非打印（除换行）；key 版还需无裸 }
     if [[ $s != *\\* && $s != *[!$'\n'[:print:]]* ]] &&
        { ((!escape_rbrace)) || [[ $s != *'}'* ]]; } ; then
-        out=$s ; return
+        REPLY=$s ; return
     fi
 
     s=${s//'\'/'\\'}
@@ -430,22 +431,21 @@ _str_escape_impl ()
     s=${s//$'\b'/'\b'} s=${s//$'\f'/'\f'} s=${s//$'\r'/'\r'} s=${s//$'\t'/'\t'}
 
     # 如果替换后只剩可打印 ASCII和回车,直接返回
-    [[ $s != *[!$'\n'[:print:]]* ]] && { out=$s ; return ; }
+    [[ $s != *[!$'\n'[:print:]]* ]] && { REPLY=$s ; return ; }
 
-    out=''
     for ((i = 0; i < ${#s}; i++)); do
         ch=${s:i:1}
         case $ch in
             # 保留真换行
-            $'\n')  out+=$'\n'   ;;
+            $'\n')  REPLY+=$'\n'   ;;
             *)
                 # 显式按码点判断，不依赖 [[:cntrl:]] 对 C1 的 locale 行为：
                 printf -v code '%d' "'$ch"
                 if (( code < 32 || (code >= 127 && code <= 159) )); then
                     printf -v hex '\\u%04x' "$code"
-                    out+=$hex
+                    REPLY+=$hex
                 else
-                    out+=$ch
+                    REPLY+=$ch
                 fi
                 ;;
         esac
@@ -454,16 +454,18 @@ _str_escape_impl ()
 
 #-------------------------------------------------------------------------------
 # 值用：通用 JSON 风格转义，不转义 }。
-# @in  $1=原始字符串  $2=输出变量名（nameref）
+# @in  $1=原始字符串
+# @out REPLY=转义结果
 # @ret 0
-str_escape_keep_nl () { _str_escape_impl "$1" "$2" 0 ; }
+str_escape_keep_nl () { _str_escape_impl "$1" 0 ; }
 
 #-------------------------------------------------------------------------------
 # 字典键用：在通用转义基础上额外把 } 转成 \}，保证 { ... } 定界无歧义。
 # 反斜杠先于 } 转义（顺序不可颠倒，否则注入的 \} 会被二次转义）。
-# @in  $1=原始字符串  $2=输出变量名（nameref）
+# @in  $1=原始字符串
+# @out REPLY=转义结果
 # @ret 0
-str_escape_key ()     { _str_escape_impl "$1" "$2" 1 ; }
+str_escape_key ()     { _str_escape_impl "$1" 1 ; }
 
 #-------------------------------------------------------------------------------
 # 转义字符串反解。是 str_escape_keep_nl 和 str_escape_key 的共同逆函数。

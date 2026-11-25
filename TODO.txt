@@ -226,8 +226,8 @@
   * born vs hire/fire 比值重测：born 变轻后小类约 1.18x；大类场景未验证。
     建议造一个 60 字段的测试类，验证"born 随字段数线性增长、hire 基本不变"。
   * 资源市场 XO_RES_LIMIT_DEFAULT=512 是否合适（按类观察峰值再调）。
-  * `_str_escape_impl` 返回的是标量字符串，却用 `local -n out=$2` 的引用输出；
-    按返回值规范应改成 `REPLY`。内部 wrappers 也要跟着调整；暂不修，先记录。
+  * `_str_escape_impl` 已改为标量 `REPLY` 输出；公开包装
+    `str_escape_keep_nl` / `str_escape_key` 和调用方同步更新，已完成。
   * `str_split` 仍通过 `REPLY=${ret_arr[*]@Q}` 返回数组；目前只有测试消费，
     后续改成调用方数组输出，和新 API 对齐。
 
