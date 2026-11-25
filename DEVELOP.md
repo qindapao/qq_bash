@@ -411,6 +411,12 @@ reference. Migration starts only after same-workload micro-benchmarks (200-bulle
 tick, 100×30 diff render, input polling) show Tcl 9 can hold the frame budget;
 until that decision is made, new mechanics still land in the Bash version.
 
+The Tcl 9 design is **not** "TclOO everywhere or AoS everywhere". Current
+direction: TclOO for long-lived objects and pooled small objects (reuse the
+`hire`/`fire` idea, reset only volatile fields), with AoS/SoA kept as a
+profiled fallback for extreme bulk/particle workloads. TclOO object creation is
+expensive; allocation per spawn is the thing to avoid, not TclOO itself.
+
 ## The `xo` object system
 
 `xo` gives Bash a small, pragmatic object model. Every object is an associative
