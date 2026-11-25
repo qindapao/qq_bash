@@ -537,48 +537,46 @@ str_escape_key ()     { _str_escape_impl "$1" 1 ; }
 str_unescape ()
 {
     REPLY=
-    local s=$1 out=''
-
     # 快速路径：无反斜杠直接原样返回
-    [[ $s != *\\* ]] && { REPLY=$s ; return 0 ; }
+    [[ $1 != *\\* ]] && { REPLY=$1 ; return 0 ; }
 
     # 只有出现 \n / \t / \}，且没有 \\ \u \r \b \f 时才走快速路径。
     # 三次 C 层替换比逐反斜杠切片快，连单个常见转义也更快；
     # 不需要反斜杠计数阈值，也不需要 extglob。
-    if [[ $s != *\\[\\ubrf]* && $s == *\\[nt}]* ]] ; then
-        s=${s//'\n'/$'\n'} s=${s//'\t'/$'\t'} s=${s//'\}'/\}} REPLY=$s
+    if [[ $1 != *\\[\\ubrf]* && $1 == *\\[nt}]* ]] ; then
+        REPLY=${1//'\n'/$'\n'} REPLY=${REPLY//'\t'/$'\t'} REPLY=${REPLY//'\}'/\}}
         return 0
     fi
 
-    local rest=$s head ch hex ch_out
+    local rest=$1 head ch hex ch_out
     while [[ $rest == *\\* ]]; do
         head=${rest%%\\*}
-        out+=$head
+        REPLY+=$head
         # 吃掉 head 和一个 '\'
         rest=${rest:${#head}+1}
-        [[ -z $rest ]] && { out+='\' ; break ; }
+        [[ -z $rest ]] && { REPLY+='\' ; break ; }
         ch=${rest:0:1}
         case $ch in
-            '\')  out+='\'   ; rest=${rest:1} ;;
-            '}')  out+='}'   ; rest=${rest:1} ;;
-            'n')  out+=$'\n' ; rest=${rest:1} ;;
-            'b')  out+=$'\b' ; rest=${rest:1} ;;
-            'f')  out+=$'\f' ; rest=${rest:1} ;;
-            'r')  out+=$'\r' ; rest=${rest:1} ;;
-            't')  out+=$'\t' ; rest=${rest:1} ;;
+            '\')  REPLY+='\'   ; rest=${rest:1} ;;
+            '}')  REPLY+='}'   ; rest=${rest:1} ;;
+            'n')  REPLY+=$'\n' ; rest=${rest:1} ;;
+            'b')  REPLY+=$'\b' ; rest=${rest:1} ;;
+            'f')  REPLY+=$'\f' ; rest=${rest:1} ;;
+            'r')  REPLY+=$'\r' ; rest=${rest:1} ;;
+            't')  REPLY+=$'\t' ; rest=${rest:1} ;;
             'u')
                 hex=${rest:1:4}
                 if ((${#hex}==4)) && [[ $hex != *[!0-9a-fA-F]* ]] ; then
                     printf -v ch_out '%b' "\\u$hex"
-                    out+=$ch_out ; rest=${rest:5}
+                    REPLY+=$ch_out ; rest=${rest:5}
                 else
-                    out+='\u' ; rest=${rest:1}
+                    REPLY+='\u' ; rest=${rest:1}
                 fi
                 ;;
-            *) out+="\\$ch" ; rest=${rest:1} ;;
+            *) REPLY+="\\$ch" ; rest=${rest:1} ;;
         esac
     done
-    out+=$rest REPLY=$out ; return 0
+    REPLY+=$rest ; return 0
 }
 
 #-------------------------------------------------------------------------------
