@@ -23,10 +23,21 @@ granularity) and slower string paths; expect visibly lower FPS. A UTF-8 locale
 is still recommended: if the host locale is not UTF-8, non-ASCII output and
 UTF-8-sensitive helpers degrade. Bash 5+ is the supported performance target.
 
-> The Bash version is **feature-frozen**: bug fixes, balance tuning, and cleanup
-> only — no new Bosses, weapons, or mechanics. Architecture, the `xo` object
-> system, the `x` tree, and the test flow are documented in
-> [DEVELOP.md](DEVELOP.md). Project conventions: [CONSTITUTION.md](CONSTITUTION.md).
+> The Bash version is the **primary development target**, not feature-frozen.
+> New mechanics, systems, and cleanup work can still land here; the Tcl 9
+> migration remains a future exploration and does not block Bash development.
+> Architecture, the `xo` object system, the `x` tree, and the test flow are
+> documented in [DEVELOP.md](DEVELOP.md). Project conventions:
+> [CONSTITUTION.md](CONSTITUTION.md).
+
+### Optional: gobolt for JSON
+
+The `x` JSON layer (`x_from_json` / `x_to_json`) and its tests use the
+`gobolt` CLI from [qindapao/common_tool](https://github.com/qindapao/common_tool).
+Download the latest release for your platform from
+[common_tool Releases](https://github.com/qindapao/common_tool/releases/latest),
+put `gobolt` on `PATH`, and make it executable. The game itself does not need
+gobolt; it is only required for JSON interop and the JSON tests.
 
 ## What's inside
 

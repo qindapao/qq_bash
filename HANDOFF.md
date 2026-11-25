@@ -33,8 +33,9 @@ bash --version               # 开发机常用 5.2/5.3；4.4.23 仅做兼容验�
 - 80×24 终端，字符画飞机/敌人/Boss，彩色 ANSI；
 - 鼠标控制飞机，自动开火，键盘移动/斜向/炸弹/暂停/存档；
 - 多种武器、掉落物、Boss 三阶段、Boss 增益、电网、弹幕形状；
-- 全部逻辑、渲染、对象系统、树结构都用 Bash 写，没有任何外部运行时依赖
-  （除了少数测试用的工具）。
+- 全部逻辑、渲染、对象系统、树结构都用 Bash 写；游戏核心没有外部运行时依赖。
+  JSON 层和少数测试可选依赖 `gobolt`，见
+  [common_tool Releases](https://github.com/qindapao/common_tool/releases/latest)。
 
 代码规模：`src/` 61 个文件、约 19.4k 行（全部为手写 `.sh`）；
 `test/` 43 个用例脚本。
@@ -218,7 +219,9 @@ render          ≈ 8–9 ms
 
 - 截至该日期，游戏 tick/render 性能优化尚未开始；后续已完成分桶、批量补脏等优化。
 - `str_unescape` 的 `${var@E}` 只记录了未来方向，没有替换实现。
-- `gobolt`（独立仓库 `D:\code\common_tool`）的 NUL 限制未处理；
+- `gobolt`（[common_tool](https://github.com/qindapao/common_tool)，从
+  [Releases](https://github.com/qindapao/common_tool/releases/latest) 下载）
+  的 NUL 限制未处理；
   NUL 是 Bash 字符串无法表示的数据，不是当前库的阻塞项。
 - 全库注释整理继续延期到架构闭环之后。
 

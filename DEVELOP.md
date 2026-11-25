@@ -1,8 +1,8 @@
 # DEVELOP — qq_bash internals
 
 Development notes for `qq_bash`: what the project is for, how `xo` and `x` work,
-the game's class tree, test/run flow, and the rules that keep the Bash version
-frozen. Player-facing documentation lives in [README.md](README.md); project
+the game's class tree, test/run flow, and the rules for the Bash version.
+Player-facing documentation lives in [README.md](README.md); project
 conventions live in [CONSTITUTION.md](CONSTITUTION.md).
 
 ---
@@ -366,15 +366,9 @@ untrusted input.
 
 ## Bash version status
 
-The Bash version of `strafe_bash` is **feature-frozen**. It is not receiving
-new Bosses, weapons, mechanics, or systems. Remaining work is limited to:
-
-- bug fixes
-- balance tuning
-- code cleanup and removal of code smells
-- architectural cleanup, including moving responsibilities out of the main
-  loop into the library/classes where they belong
-- keeping `xo` reusable outside the game
+The Bash version of `strafe_bash` is the **primary development target** and is
+not feature-frozen. New mechanics, systems, and cleanup work can land here; the
+Tcl 9 migration remains a future exploration and does not block Bash work.
 
 The 30 FPS target is intentional. Bash/MSYS performance limits are accepted;
 the game is a validation showcase, not a performance benchmark.
@@ -903,6 +897,12 @@ supports objects, arrays, nulls, booleans, ordered children, and path access.
 - `x_walk_dict_tree` — fast walker for **pure `{}` trees**; it rejects arrays
   and physical-id nodes. Use `x_walk` for mixed trees.
 - **JSON (`xj.sh`)** — `x_to_json` / `x_from_json`; source `xj.sh`
+- **gobolt dependency** — `xj.sh` shells out to `gobolt` from
+  [qindapao/common_tool](https://github.com/qindapao/common_tool). Download the
+  latest platform build from
+  [common_tool Releases](https://github.com/qindapao/common_tool/releases/latest)
+  and put it on `PATH`. The game core does not require gobolt; only JSON
+  interop and the JSON tests do.
 - Dependency direction: `xe.sh` and `xj.sh` both source `x.sh` only, and are
   independent of each other; `x.sh` must not source or call into `xe.sh` /
   `xj.sh`. Tests source the layer they use.
