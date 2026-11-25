@@ -3,8 +3,9 @@
 **A pure-Bash toolkit — and an `xo` object-system validation game built with it.**
 
 `qq_bash` bundles a small standard-library of string/array helpers, a JSON-like
-tree (`x`), an object system (`xo`), and **strafe_bash**: a playable ASCII
-shooter that runs entirely in Bash. No Node, Python, or game engine.
+tree (`x`), an object system (`xo`), **strafe_bash**: a playable ASCII shooter,
+and **lattice_bash**: a pure-Bash tmux TUI workbench. No Node, Python, or game
+engine.
 
 ```bash
 chmod +x ./src/strafe_bash/strafe_bash.sh
@@ -12,6 +13,17 @@ chmod +x ./src/strafe_bash/strafe_bash.sh
 ./src/strafe_bash/strafe_bash.sh -t light     # light-background terminal
 ./src/strafe_bash/strafe_bash.sh -h           # controls, options, author
 ```
+
+Lattice workbench (requires `tmux`):
+
+```bash
+./src/lattice_bash/lattice.sh --root .
+```
+
+It opens a two-pane tmux session: file browser on the left, executor shell on
+the right. Quick commands live in
+[`src/lattice_bash/config/commands.conf`](src/lattice_bash/config/commands.conf);
+`g`, for example, runs `git_check_status.sh` against the selected directory.
 
 All library and test sources are tracked `.sh` files; there is no build step.
 
