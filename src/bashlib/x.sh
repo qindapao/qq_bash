@@ -134,9 +134,8 @@ _split_tokens ()
 
     [[ -n "$2" ]] || return $X_RET_ENUM_OK
 
-    # 非空 token 串必须带尾部分隔符；否则最后一段没有边界，属于非法输入。
-    # 用切片做确定性的后缀判断；多字符 X 也能正确比较。
-    if [[ "${2: -${#X}}" != "$X" ]] ; then
+    # 非空 token 串必须带尾部分隔符；`*"$X"` 是“以 X 结尾”，不是“包含 X”。
+    if [[ "$2" != *"$X" ]] ; then
         return $X_RET_ENUM_KEY_IS_INVALID
     fi
 
@@ -349,7 +348,7 @@ _tokens_insert_to_overwrite ()
 # @ret 0=OK  7=X_RET_ENUM_KEY_IS_NULL
 x_key_is_invalid ()
 {
-    if [[ "${1:0:${#X}}" == "$X" ]] ||
+    if [[ "$1" == "$X"* ]] ||
         [[ "$1" == *"$X$X"* ]] ||
         [[ "$1" == "$X" ]] ||
         [[ "$1" != *"$X" ]] ; then

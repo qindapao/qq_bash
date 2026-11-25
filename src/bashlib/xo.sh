@@ -1841,7 +1841,7 @@ _xo_obj_mixin_drop_table ()
         return $X_RET_ENUM_KEY_IS_INVALID
     }
     for k in "${!XO_OBJ_METHOD[@]}" ; do
-        [[ "${k:0:${#obj}+1}" == "${obj}|" ]] && unset -v 'XO_OBJ_METHOD[$k]'
+        [[ "$k" == "${obj}|"* ]] && unset -v 'XO_OBJ_METHOD[$k]'
     done
     return 0
 }
