@@ -2,8 +2,11 @@
 declare -gA _STRAFE_LOADED
 (( _STRAFE_LOADED[main]++ )) && return 0
 
-# 静默加载：xo.in 会 source grammar.sh 并打印 bash 特性开关表，那些输出不能进画面
-. "$STRAFE_LIB_HOME/xo.sh" >/dev/null 2>&1
+# 静默加载：xo.sh 会 source grammar.sh 并打印 bash 特性开关表，那些输出不能进画面
+if ! . "$STRAFE_LIB_HOME/xo.sh" >/dev/null 2>&1 ; then
+    printf 'failed to load xo.sh (X already defined?)\n' >&2
+    exit 1
+fi
 
 . "$STRAFE_PROJ_DIR/config/const.sh"
 . "$STRAFE_PROJ_DIR/config/globals.sh"

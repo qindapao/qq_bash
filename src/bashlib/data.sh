@@ -1,7 +1,7 @@
 declare -gA _BASHLIB_IMPORTED
 ((_BASHLIB_IMPORTED[data]++)) && return 0
 
-. "${BASH_SOURCE[0]%/*}/x.sh"
+. "${BASH_SOURCE[0]%/*}/x.sh" || return 1
 
 # ==============================================================================
 # dataclass: lightweight external containers, not xo objects.

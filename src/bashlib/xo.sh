@@ -1,7 +1,7 @@
 declare -gA _BASHLIB_IMPORTED
 ((_BASHLIB_IMPORTED[xo]++)) && return 0
 
-. "${BASH_SOURCE[0]%/*}/x.sh"
+. "${BASH_SOURCE[0]%/*}/x.sh" || return 1
 
 # ==============================================================================
 # 【当前已实现】
@@ -1836,8 +1836,12 @@ xo_is_a ()
 _xo_obj_mixin_drop_table ()
 {
     local obj=$1 k
+    [[ -n "$obj" ]] || {
+        die ERR "_xo_obj_mixin_drop_table: empty object handle"
+        return $X_RET_ENUM_KEY_IS_INVALID
+    }
     for k in "${!XO_OBJ_METHOD[@]}" ; do
-        [[ "$k" == "${obj}|"* ]] && unset -v 'XO_OBJ_METHOD[$k]'
+        [[ "${k:0:${#obj}+1}" == "${obj}|" ]] && unset -v 'XO_OBJ_METHOD[$k]'
     done
     return 0
 }

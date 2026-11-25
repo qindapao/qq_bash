@@ -1,7 +1,7 @@
 declare -gA _BASHLIB_IMPORTED
 ((_BASHLIB_IMPORTED[xe]++)) && return 0
 
-. "${BASH_SOURCE[0]%/*}/x.sh"
+. "${BASH_SOURCE[0]%/*}/x.sh" || return 1
 
 
 # Flat layer judgment
@@ -445,7 +445,7 @@ x_id_rebuild ()
         local -a w__x_id_rebuild_key__tokens=()
 
         if [[ -n "$old_key" ]] ; then
-            _split_tokens w__x_id_rebuild_key__tokens "$old_key"
+            _split_tokens w__x_id_rebuild_key__tokens "$old_key" || return $?
         fi
 
         for tk in "${w__x_id_rebuild_key__tokens[@]}" ; do

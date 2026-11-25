@@ -1,6 +1,14 @@
 declare -gA _BASHLIB_IMPORTED
 ((_BASHLIB_IMPORTED[x]++)) && return 0
 
+# X 是全局保留分隔符。首次 source 时如果调用方已经定义 X，直接拒绝加载。
+# 这是致命错误：source 方必须检查返回值并终止，不允许重试半加载的模块。
+# X 故意不是 readonly，便于测试在子 shell 中临时覆盖。
+if [[ -n "${X+x}" ]] ; then
+    printf 'x.sh: X is already defined; refuse to override it\n' >&2
+    return 1
+fi
+
 . "${BASH_SOURCE[0]%/*}/grammar.sh"
 . "${BASH_SOURCE[0]%/*}/array.sh"
 . "${BASH_SOURCE[0]%/*}/var.sh"
@@ -55,8 +63,12 @@ declare -gA _BASHLIB_IMPORTED
 # But usually $'\034' is enough.
 # Be careful not to change this value casually, as it may affect the re-import of the variable.
 # The semantics will change after importing
-# readonly X=$'\034\035\036\037'
-readonly X=$'\034'
+# X 当前是单字符：切分器优先走 IFS word splitting。
+# 多字符分隔符保留逐段慢路径；未来优化方向是：先把分隔符替换成数据中不存在的
+# 单字符哨兵，再复用 IFS word splitting，避免逐段 %%/# 的 O(N²) 写法。
+# WARNING: X 是全局分隔符契约；不要在树/常量创建后修改它。
+# 非 readonly 只是为了测试可在子 shell 中临时覆盖。
+X=$'\034'
 readonly X_ROOT_ID=1
 
 readonly X_RET_ENUM_OK=0
@@ -97,7 +109,6 @@ readonly X_VALUE_NULL_OBJ="{}$X"
 readonly X_VALUE_NULL_ARR="[]$X"
 
 #-------------------------------------------------------------------------------
-# 不做 tokens 合法性检查；调用方必须保证路径/键已校验。
 _split_tokens_fast ()
 {
     if ((${#X}==1)) ; then
@@ -112,16 +123,44 @@ _split_tokens_fast ()
 #-------------------------------------------------------------------------------
 
 # 拆分 "$X" 分隔的 token 串为数组，校验每个 token 是否合法（'{k}'/'[i]'/'()'/'<>'）。
+# 单 token 直接写入；多 token 用 word splitting 切分；多字符分隔符走慢路径。
 # @in  $1=输出数组变量名  $2=token 串  $3=插入语义标志(1=允许 '()' 主键)
 # @out $1=token 数组
 # @ret 0=OK  4=X_RET_ENUM_KEY_IS_INVALID
 _split_tokens ()
 {
     local -n w_tokens=$1 ; w_tokens=()
-    local tokens_str=$2 is_insertion_semantics=${3:-0} token
+    local is_insertion_semantics=${3:-0} token
 
-    while [[ -n "$tokens_str" ]] ; do
-        token=${tokens_str%%"$X"*}
+    [[ -n "$2" ]] || return $X_RET_ENUM_OK
+
+    # 非空 token 串必须带尾部分隔符；否则最后一段没有边界，属于非法输入。
+    # 用切片做确定性的后缀判断；多字符 X 也能正确比较。
+    if [[ "${2: -${#X}}" != "$X" ]] ; then
+        return $X_RET_ENUM_KEY_IS_INVALID
+    fi
+
+    if ((${#X}==1)) ; then
+        # 单 token 不走数组 word splitting，避免 set -f/local IFS 的固定开销。
+        local body=${2%"$X"}
+        if [[ "$body" != *"$X"* ]] ; then
+            w_tokens=("$body")
+        else
+            _split_tokens_fast "$1" "$2" || return $?
+        fi
+    else
+        # 多字符分隔符：保留逐段提取的扩展路径。
+        # 用 -n 做 O(1) 判空；正常有尾部分隔符时一定会逐步缩短。
+        # 优化方向：把 X 替换成数据中不存在的单字符哨兵，再走 word splitting。
+        local tokens_str=$2
+        while [[ -n "$tokens_str" ]] ; do
+            token=${tokens_str%%"$X"*}
+            w_tokens+=("$token")
+            tokens_str="${tokens_str#*"$X"}"
+        done
+    fi
+
+    for token in "${w_tokens[@]}" ; do
         ((${#token}<=2)) && return $X_RET_ENUM_KEY_IS_INVALID
         case "${token:0:1}${token: -1}" in
         '()')
@@ -146,9 +185,6 @@ _split_tokens ()
             return $X_RET_ENUM_KEY_IS_INVALID
             ;;
         esac
-        w_tokens+=("$token")
-
-        tokens_str="${tokens_str#*"$X"}"
     done
 
     return $X_RET_ENUM_OK
@@ -313,7 +349,7 @@ _tokens_insert_to_overwrite ()
 # @ret 0=OK  7=X_RET_ENUM_KEY_IS_NULL
 x_key_is_invalid ()
 {
-    if [[ "$1" == "$X"* ]] ||
+    if [[ "${1:0:${#X}}" == "$X" ]] ||
         [[ "$1" == *"$X$X"* ]] ||
         [[ "$1" == "$X" ]] ||
         [[ "$1" != *"$X" ]] ; then

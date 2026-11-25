@@ -1307,6 +1307,59 @@ test_case_hardware_tree_perfect ()
     return 0
 }
 
+test_case_split_tokens_edges ()
+{
+    local -a a=()
+
+    _split_tokens a ''
+    if (( $? != 0 || ${#a[@]} != 0 )) ; then
+        log_test 0 1 ; return 1
+    fi
+
+    _split_tokens a "{a}$X"
+    if (( $? != 0 )) || [[ "${a[0]}" != '{a}' ]] ; then
+        log_test 0 2 ; return 1
+    fi
+
+    _split_tokens a "{a}$X[0]$X"
+    if (( $? != 0 )) || [[ "${a[0]}" != '{a}' || "${a[1]}" != '[0]' ]] ; then
+        log_test 0 3 ; return 1
+    fi
+
+    _split_tokens a "${X}{a}$X" 2>/dev/null
+    (( $? == 4 )) || { log_test 0 4 ; return 1 ; }
+
+    _split_tokens a "{a}$X${X}" 2>/dev/null
+    (( $? == 4 )) || { log_test 0 5 ; return 1 ; }
+
+    _split_tokens a "{a}$X{b}" 2>/dev/null
+    (( $? == 4 )) || { log_test 0 6 ; return 1 ; }
+
+    _split_tokens a "{a}$X" 2>/dev/null
+    (( $? == 0 )) || { log_test 0 7 ; return 1 ; }
+
+    # 多字符分隔符：X 不是 readonly，测试在子 shell 临时覆盖，退出后自动恢复。
+    (
+        X='--'
+        local -a a=()
+        _split_tokens a "{a}--{b}--" 0
+        (( $? == 0 )) || exit 1
+        [[ "${a[0]}" == '{a}' && "${a[1]}" == '{b}' ]] || exit 1
+
+        _split_tokens a "{a}--{b}" 0 2>/dev/null
+        (( $? == 4 )) || exit 1
+
+        _split_tokens a "--{a}--" 0 2>/dev/null
+        (( $? == 4 )) || exit 1
+
+        _split_tokens a "{a}----{b}--" 0 2>/dev/null
+        (( $? == 4 )) || exit 1
+    )
+    (($? == 0)) || { log_test 0 7 ; return 1 ; }
+
+    log_test 1 1
+}
+
 test_case_x_rebuild_from_dump ()
 {
     local tree_str1='

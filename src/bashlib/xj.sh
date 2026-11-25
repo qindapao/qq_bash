@@ -1,7 +1,7 @@
 declare -gA _BASHLIB_IMPORTED
 ((_BASHLIB_IMPORTED[xj]++)) && return 0
 
-. "${BASH_SOURCE[0]%/*}/x.sh"
+. "${BASH_SOURCE[0]%/*}/x.sh" || return 1
 
 # gobolt JSON Object type return value
 readonly X_GOBOLT_JSONTYPENULL=1
