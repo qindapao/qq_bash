@@ -897,9 +897,9 @@ test reads slots through `eb_field`.
 supports objects, arrays, nulls, booleans, ordered children, and path access.
 
 - **Core (`x.sh`)** — `x_init`, `x_insert`, `x_delete`, `x_walk`,
-  `x_walk_dict_tree`, `x_dump`, `x_rebuild_from_dump`, node/type queries
+  `x_iter`, `x_walk_dict_tree`, `x_dump`, `x_rebuild_from_dump`, node/type queries
 - **Extension (`xe.sh`)** — `x_get_leaf` / `x_get_tree`, leaf/tree push/pop/shift,
-  `x_iter`, flat/layer conversion, `x_equals`, `x_graft`, `x_id_rebuild`
+  flat/layer conversion, `x_equals`, `x_graft`, `x_id_rebuild`
 - `x_walk_dict_tree` — fast walker for **pure `{}` trees**; it rejects arrays
   and physical-id nodes. Use `x_walk` for mixed trees.
 - **JSON (`xj.sh`)** — `x_to_json` / `x_from_json`; source `xj.sh`
