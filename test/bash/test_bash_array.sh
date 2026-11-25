@@ -26,13 +26,18 @@ test_case2 ()
     arr_xx=("${arr_xx[@]:0:10000}" "new_element" "${arr_xx[@]:10000}")
     local end=$EPOCHREALTIME
     elapsed=$(awk -v s="$start" -v e="$end" 'BEGIN {print (e - s) * 1000}')
-    # time is less than 300 ms
-    if float_compare "300" "$elapsed" ; then
-        log_test 1 1
-    else
+    # MSYS2 上 50k 数组拼接的墙钟抖动很大，这里只防数量级退化。
+    # 实测正常范围约 250~320ms，1500ms 留足余量。
+    if ! float_compare "1500" "$elapsed" ; then
         log_test 0 1 ; return 1
     fi
 
+    if (( ${#arr_xx[@]} != 50001 )) ||
+       [[ "${arr_xx[$((${#arr_xx[@]} - 1))]}" != "50000" ]] ; then
+        log_test 0 1 ; return 1
+    fi
+
+    log_test 1 1
     return 0
 }
 
