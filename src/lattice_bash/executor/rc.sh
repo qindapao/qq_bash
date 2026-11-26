@@ -57,7 +57,7 @@ PROMPT_COMMAND="__lattice_prompt_cleanup${PROMPT_COMMAND:+; $PROMPT_COMMAND}"
 # Keep deep paths from swallowing the whole input line; Bash prints
 # .../parent/leaf instead of the full absolute path.
 PROMPT_DIRTRIM=2
-PS1='lattice:\w\$ '
+PS1='\[\e[1;34m\]\w\[\e[0m\]\[\e[1;32m\]\$\[\e[0m\] '
 
 # Open a path or a grep-style file:line token in the editor.
 eg ()

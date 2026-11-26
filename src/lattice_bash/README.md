@@ -70,7 +70,8 @@ a minimum pane width.
 Long file names are truncated with `...`; the footer shows the selected entry's
 full path. The tree deliberately does not wrap entries, because wrapping breaks
 the one-entry-per-row selection model. The executor prompt uses
-`PROMPT_DIRTRIM=2`, so deep directories render as `lattice:.../parent/leaf$`
+`PROMPT_DIRTRIM=2`, so deep directories render as `.../parent/leaf$` in blue
+with a green prompt sigil.
 instead of consuming the whole input line.
 
 In the left tree, a single mouse click selects a row. Double-click a directory

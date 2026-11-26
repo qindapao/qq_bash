@@ -741,7 +741,7 @@ The rc sets:
 DEBUG trap
 PROMPT_COMMAND cleanup
 PROMPT_DIRTRIM=2
-PS1='lattice:\w\$ '
+PS1='\[\e[1;34m\]\w\[\e[0m\]\[\e[1;32m\]\$\[\e[0m\] '
 eg()
 ```
 
