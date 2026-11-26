@@ -62,6 +62,9 @@ gobolt; it is only required for JSON interop and the JSON tests.
 
 ## lattice_bash
 
+![lattice_bash_1](lattice_1.png)
+![lattice_bash_2](lattice_2.png)
+
 A focused terminal workbench built on tmux:
 
 ```text
