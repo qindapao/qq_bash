@@ -53,23 +53,39 @@ lattice_tmux_apply_tui_width ()
     lattice_tmux_quick resize-pane -t "$TMUX_PANE" -x "$w" 2>/dev/null || true
 }
 
-lattice_search_zoom_start ()
+lattice_search_status_update ()
 {
-    [[ -n "${TMUX_PANE:-}" ]] || return 0
-    local zoomed
-    zoomed=$(lattice_tmux_quick display-message -p -t "$TMUX_PANE" '#{window_zoomed_flag}' 2>/dev/null) || return 0
-    [[ "$zoomed" == '1' ]] && return 0
-    lattice_tmux_quick resize-pane -Z -t "$TMUX_PANE" 2>/dev/null || return 0
-    LATTICE_SEARCH_ZOOM=1
+    local q=${LATTICE_CMD_QUERY:-}
+    q=${q//#/##}
+    lattice_tmux_quick set-option -g status-right " search> ${q}_ " 2>/dev/null || true
+    lattice_tmux_quick set-option -g status-right-length 240 2>/dev/null || true
 }
 
-lattice_search_zoom_end ()
+lattice_search_status_start ()
 {
-    (( LATTICE_SEARCH_ZOOM )) || return 0
-    local zoomed
-    zoomed=$(lattice_tmux_quick display-message -p -t "$TMUX_PANE" '#{window_zoomed_flag}' 2>/dev/null) || zoomed=''
-    [[ "$zoomed" == '1' ]] && lattice_tmux_quick resize-pane -Z -t "$TMUX_PANE" 2>/dev/null || true
-    LATTICE_SEARCH_ZOOM=0
+    [[ -n "${TMUX:-}" ]] || return 0
+    LATTICE_SEARCH_STATUS_RIGHT=$(lattice_tmux_quick show-options -gv status-right 2>/dev/null) || LATTICE_SEARCH_STATUS_RIGHT=''
+    LATTICE_SEARCH_STATUS_RIGHT_LENGTH=$(lattice_tmux_quick show-options -gv status-right-length 2>/dev/null) || LATTICE_SEARCH_STATUS_RIGHT_LENGTH=''
+    LATTICE_SEARCH_STATUS_ACTIVE=1
+    lattice_search_status_update
+}
+
+lattice_search_status_end ()
+{
+    (( LATTICE_SEARCH_STATUS_ACTIVE )) || return 0
+    if [[ -n "$LATTICE_SEARCH_STATUS_RIGHT" ]] ; then
+        lattice_tmux_quick set-option -g status-right "$LATTICE_SEARCH_STATUS_RIGHT" 2>/dev/null || true
+    else
+        lattice_tmux_quick set-option -gu status-right 2>/dev/null || true
+    fi
+    if [[ -n "$LATTICE_SEARCH_STATUS_RIGHT_LENGTH" ]] ; then
+        lattice_tmux_quick set-option -g status-right-length "$LATTICE_SEARCH_STATUS_RIGHT_LENGTH" 2>/dev/null || true
+    else
+        lattice_tmux_quick set-option -gu status-right-length 2>/dev/null || true
+    fi
+    LATTICE_SEARCH_STATUS_ACTIVE=0
+    LATTICE_SEARCH_STATUS_RIGHT=''
+    LATTICE_SEARCH_STATUS_RIGHT_LENGTH=''
 }
 
 lattice_tmux_mouse_on ()

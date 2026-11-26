@@ -421,11 +421,11 @@ lattice_command 'git diff'   'file' 'pane' 'git diff -- "$WB_FILE"' '查看选�
 There are no command shortcut keys. Open the `:` palette, use `j/k` or arrows
 to select, press `/` to enter search and type to filter, and press Enter to
 send; the palette stays open after dispatch. Esc leaves search (clearing the
-query), then Esc leaves the palette. Opening search temporarily zooms the TUI
-pane to the full window and replaces the header with a `search>` line that
-keeps the query tail visible; exiting search restores the 30/70 layout.
-PageUp/PageDown and the mouse wheel move through a long list; the
-header shows the visible range. A `*` marks a command
+query), then Esc leaves the palette. Opening search mirrors the query into the
+tmux status bar and replaces the header with a `search>` line, so the query
+stays visible without hiding the executor pane. Exiting search restores the
+previous status bar. PageUp/PageDown and the mouse wheel move through a long
+list; the header shows the visible range. A `*` marks a command
 with a snapshot and `+` marks a user-added command. Rows show the command name,
 scope, and target. A one-line preview below the list shows the selected command
 body only. The command body is not rendered in the list itself, but remains

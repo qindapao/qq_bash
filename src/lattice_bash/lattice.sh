@@ -54,7 +54,7 @@ EOF
 
 lattice_cleanup ()
 {
-    lattice_search_zoom_end 2>/dev/null || true
+    lattice_search_status_end 2>/dev/null || true
     if (( ${LATTICE_SCREEN_ACTIVE:-0} )) ; then
         LATTICE_SCREEN_ACTIVE=0
         lattice_screen_done

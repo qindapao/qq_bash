@@ -406,34 +406,44 @@ lattice_handle_commands_key ()
     '/')
         if (( LATTICE_CMD_SEARCH )) ; then
             lattice_registry_set_query "$LATTICE_CMD_QUERY/"
+            lattice_search_status_update
         else
             LATTICE_CMD_SEARCH=1
-            lattice_search_zoom_start
+            lattice_search_status_start
         fi
         ;;
     $'\033')
         if (( LATTICE_CMD_SEARCH )) ; then
             LATTICE_CMD_SEARCH=0
             lattice_registry_set_query ''
-            lattice_search_zoom_end
+            lattice_search_status_end
         else
             LATTICE_MODE='tree'
             return 0
         fi
         ;;
     $'\025')
-        (( LATTICE_CMD_SEARCH )) && lattice_registry_set_query ''
+        if (( LATTICE_CMD_SEARCH )) ; then
+            lattice_registry_set_query ''
+            lattice_search_status_update
+        fi
         ;;
     $'\177'|$'\b')
         if (( LATTICE_CMD_SEARCH )) ; then
             q=$LATTICE_CMD_QUERY
-            [[ -n "$q" ]] && lattice_registry_set_query "${q%?}"
+            if [[ -n "$q" ]] ; then
+                lattice_registry_set_query "${q%?}"
+                lattice_search_status_update
+            fi
         fi
         ;;
     *)
         if (( LATTICE_CMD_SEARCH )) ; then
             case "$key" in
-            [[:print:]]) lattice_registry_set_query "$LATTICE_CMD_QUERY$key" ;;
+            [[:print:]])
+                lattice_registry_set_query "$LATTICE_CMD_QUERY$key"
+                lattice_search_status_update
+                ;;
             esac
         else
             case "$key" in
@@ -480,7 +490,7 @@ lattice_handle_key ()
         return 0
     fi
     if (( ! LATTICE_CMD_SEARCH )) ; then
-        lattice_search_zoom_end
+        lattice_search_status_end
     fi
     if (( LATTICE_FORM_OPEN )) ; then
         lattice_handle_form_key "$key"

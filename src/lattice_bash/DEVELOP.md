@@ -533,11 +533,11 @@ than calling an external grep per keystroke.
 
 Case is ignored by lowercasing both haystack and query.
 
-Opening search temporarily zooms the TUI pane to the full tmux window so the
-query remains readable in the narrow 30% layout. While searching, the header
-becomes a dedicated `search>` line showing the query tail and cursor; exiting
-search restores the previous zoom state. This avoids adding a second input
-overlay with its own focus and lifecycle rules.
+Opening search mirrors the query into the tmux status bar and turns the TUI
+header into a dedicated `search>` line showing the query tail. The executor
+pane stays visible. The status-right and status-right-length values are saved
+before search and restored on exit; if the TUI exits unexpectedly, cleanup
+restores them.
 
 ### 7.7 Duplicate policy
 
