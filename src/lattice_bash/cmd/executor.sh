@@ -65,8 +65,12 @@ lattice_executor_context_write ()
 
 lattice_executor_send ()
 {
-    local cmd=$1 target_spec=${2:-pane} target
-    shift 2 2>/dev/null || shift $#
+    local cmd=$1 target_spec=${2:-pane} submit=${3:-run} target
+    shift 2
+    if [[ "${1:-}" == 'run' || "${1:-}" == 'insert' ]] ; then
+        submit=$1
+        shift
+    fi
     target=$(lattice_executor_target "$target_spec") || {
         lattice_status 'no executor pane; start via lattice.sh' error
         return 1
@@ -74,7 +78,7 @@ lattice_executor_send ()
 
     lattice_executor_context_write "$@"
     # The command is pasted verbatim. No wrapper, no env prefix, no marker.
-    lattice_tmux_send "$target" "$cmd" || {
+    lattice_tmux_send "$target" "$cmd" "$submit" || {
         lattice_status "failed sending to $target" error
         return 1
     }

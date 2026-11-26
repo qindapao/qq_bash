@@ -449,6 +449,17 @@ lattice_command 'grep in target' 'dir' 'pane' \
   'PATTERN' 'TARGET_DIR=.'
 ```
 
+A command whose name begins with `@` is insert-only:
+
+```bash
+lattice_command '@ssh' 'dir' 'pane' 'ssh ' '打开 SSH 骨架'
+```
+
+The registry stores a `submit` mode. `run` means paste + Enter; `insert` means
+paste only. Insert-only commands are not written to history. This is the
+supported escape hatch for interactive programs (SSH, REPLs, prompts): the TUI
+delivers a skeleton and the user finishes it in the executor.
+
 Also accepted as one whitespace-separated string:
 
 ```bash
@@ -521,6 +532,12 @@ Bash's C-level `[[ $hay == $pattern ]]` does the matching. This is much faster
 than calling an external grep per keystroke.
 
 Case is ignored by lowercasing both haystack and query.
+
+Opening search temporarily zooms the TUI pane to the full tmux window so the
+query remains readable in the narrow 30% layout. While searching, the header
+becomes a dedicated `search>` line showing the query tail and cursor; exiting
+search restores the previous zoom state. This avoids adding a second input
+overlay with its own focus and lifecycle rules.
 
 ### 7.7 Duplicate policy
 
@@ -681,6 +698,9 @@ This is normal Unix behavior and is not considered a leak.
 
 Parameterized commands are **not written to history**. Replaying them without
 their parameter values would send an empty/incorrect command.
+
+Insert-only `@` commands are also not written to history: they were never
+executed by Lattice, only placed on the executor command line.
 
 History stores command templates, not expanded values:
 

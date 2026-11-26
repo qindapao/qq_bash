@@ -53,6 +53,25 @@ lattice_tmux_apply_tui_width ()
     lattice_tmux_quick resize-pane -t "$TMUX_PANE" -x "$w" 2>/dev/null || true
 }
 
+lattice_search_zoom_start ()
+{
+    [[ -n "${TMUX_PANE:-}" ]] || return 0
+    local zoomed
+    zoomed=$(lattice_tmux_quick display-message -p -t "$TMUX_PANE" '#{window_zoomed_flag}' 2>/dev/null) || return 0
+    [[ "$zoomed" == '1' ]] && return 0
+    lattice_tmux_quick resize-pane -Z -t "$TMUX_PANE" 2>/dev/null || return 0
+    LATTICE_SEARCH_ZOOM=1
+}
+
+lattice_search_zoom_end ()
+{
+    (( LATTICE_SEARCH_ZOOM )) || return 0
+    local zoomed
+    zoomed=$(lattice_tmux_quick display-message -p -t "$TMUX_PANE" '#{window_zoomed_flag}' 2>/dev/null) || zoomed=''
+    [[ "$zoomed" == '1' ]] && lattice_tmux_quick resize-pane -Z -t "$TMUX_PANE" 2>/dev/null || true
+    LATTICE_SEARCH_ZOOM=0
+}
+
 lattice_tmux_mouse_on ()
 {
     lattice_tmux_quick set-option -g mouse on 2>/dev/null || true
@@ -161,13 +180,14 @@ lattice_tmux_mark_role ()
 
 lattice_tmux_send ()
 {
-    local target=$1 cmd=$2
+    local target=$1 cmd=$2 submit=${3:-run}
     # set-buffer + paste-buffer -p preserves special characters and avoids
     # send-keys interpreting them as key names.
     printf '%s' "$cmd" | lattice_tmux_quick load-buffer - 2>/dev/null || {
         lattice_tmux_quick set-buffer -- "$cmd" || return 1
     }
     lattice_tmux_quick paste-buffer -p -d -t "$target" || return 1
+    [[ "$submit" == 'insert' ]] && return 0
     lattice_tmux_quick send-keys -t "$target" Enter || return 1
     return 0
 }

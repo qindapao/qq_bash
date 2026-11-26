@@ -97,7 +97,7 @@ _lattice_row ()
 {
     local text=$1
     _lattice_fit "$text" "$LATTICE_COLS"
-    LATTICE_FRAME+=("$REPLY"$'\033[K\r\n')
+    LATTICE_FRAME+=("$LATTICE_C_RESET$REPLY$LATTICE_C_RESET"$'\033[K\r\n')
 }
 
 _lattice_blank ()
@@ -171,7 +171,7 @@ lattice_render_tree ()
             else
                 line=$REPLY
             fi
-            LATTICE_FRAME+=("$line"$'\033[K\r\n')
+            LATTICE_FRAME+=("$LATTICE_C_RESET$line"$'\033[K\r\n')
         else
             _lattice_blank
         fi
@@ -233,7 +233,17 @@ lattice_render_commands ()
         mode_label='list'
         footer='j/k ↑↓ PgUp/PgDn / p D del R reload Alt-↑↓ Ctrl-t Enter Esc '
     fi
-    _lattice_row "${LATTICE_C_BOLD}${LATTICE_C_CYAN} quick commands  [${mode_label}]  ${start}-$(( offset + body < total ? offset + body : total ))/${total}  * snapshot  + user ${LATTICE_C_RESET}"
+    if (( LATTICE_CMD_SEARCH )) ; then
+        local q=${LATTICE_CMD_QUERY}
+        local maxq=$(( LATTICE_COLS - 16 ))
+        (( maxq < 8 )) && maxq=8
+        if (( ${#q} > maxq )) ; then
+            q="...${q: -maxq}"
+        fi
+        _lattice_row " search> ${q}_"
+    else
+        _lattice_row "${LATTICE_C_BOLD}${LATTICE_C_CYAN} quick commands  [${mode_label}]  ${start}-$(( offset + body < total ? offset + body : total ))/${total}  * snapshot  + user ${LATTICE_C_RESET}"
+    fi
 
     for ((row=0;row<body;row++)); do
         pos=$(( offset + row ))
@@ -304,7 +314,7 @@ lattice_render_history ()
             if (( idx == LATTICE_SELECTED )) ; then
                 line="$LATTICE_C_REV> ${line:2}$LATTICE_C_RESET"
             fi
-            LATTICE_FRAME+=("$line"$'\033[K\r\n')
+            LATTICE_FRAME+=("$LATTICE_C_RESET$line"$'\033[K\r\n')
         else
             _lattice_blank
         fi
@@ -471,6 +481,7 @@ lattice_render_help ()
     _lattice_row "${LATTICE_C_BOLD}${LATTICE_C_CYAN} lattice help ${LATTICE_C_RESET}"
     local -a lines=(
         'j/k or arrows   move'
+        'Home / End      first / last entry'
         'Ctrl-n/p move even while searching'
         '/               filter file and directory names'
         'Enter           enter directory / open file in gvim'

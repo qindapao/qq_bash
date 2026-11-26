@@ -9,6 +9,7 @@ declare -ga LATTICE_CMD_TARGETS=()
 declare -ga LATTICE_CMD_COMMANDS=()
 declare -ga LATTICE_CMD_SNAPSHOTS=()
 declare -ga LATTICE_CMD_PARAMS=()
+declare -ga LATTICE_CMD_SUBMIT=()
 declare -ga LATTICE_CMD_ORIGINS=()
 declare -gA LATTICE_CMD_DISABLED=()
 declare -gA LATTICE_CMD_NAME_MAP=()
@@ -29,10 +30,11 @@ lattice_command ()
 lattice_command_add ()
 {
     local name=${1:-} scope=${2:-dir} target=${3:-pane} cmd=${4:-} snapshot=${5:-}
-    local params='' arg
+    local params='' arg submit='run'
     for arg in "${@:6}" ; do
         params+="${params:+ }$arg"
     done
+    [[ "$name" == @* ]] && submit='insert'
     local id i
     [[ -n "$name" && -n "$cmd" ]] || {
         lattice_status "bad command definition (name/cmd required)" error
@@ -49,6 +51,7 @@ lattice_command_add ()
             LATTICE_CMD_COMMANDS[i]=$cmd
             LATTICE_CMD_SNAPSHOTS[i]=$snapshot
             LATTICE_CMD_PARAMS[i]=$params
+            LATTICE_CMD_SUBMIT[i]=$submit
             LATTICE_CMD_ORIGINS[i]='user'
             return 0
         fi
@@ -63,6 +66,7 @@ lattice_command_add ()
     LATTICE_CMD_COMMANDS+=("$cmd")
     LATTICE_CMD_SNAPSHOTS+=("$snapshot")
     LATTICE_CMD_PARAMS+=("$params")
+    LATTICE_CMD_SUBMIT+=("$submit")
     LATTICE_CMD_ORIGINS+=("${LATTICE_CMD_LOAD_ORIGIN:-base}")
     LATTICE_CMD_NAME_MAP[$name]=$id
     return 0
@@ -80,6 +84,7 @@ lattice_registry_reset ()
     LATTICE_CMD_COMMANDS=()
     LATTICE_CMD_SNAPSHOTS=()
     LATTICE_CMD_PARAMS=()
+    LATTICE_CMD_SUBMIT=()
     LATTICE_CMD_ORIGINS=()
     LATTICE_CMD_HAY=()
     LATTICE_CMD_VIEW=()
@@ -155,7 +160,7 @@ lattice_registry_apply_order ()
 {
     [[ -f "$LATTICE_ORDER_FILE" ]] || return 0
     local -A index_of=() used=()
-    local -a new_ids=() new_names=() new_scopes=() new_targets=() new_commands=() new_snapshots=() new_params=() new_origins=()
+    local -a new_ids=() new_names=() new_scopes=() new_targets=() new_commands=() new_snapshots=() new_params=() new_submits=() new_origins=()
     local name i idx
 
     for ((i=0;i<${#LATTICE_CMD_NAMES[@]};i++)); do
@@ -173,6 +178,7 @@ lattice_registry_apply_order ()
         new_commands+=("${LATTICE_CMD_COMMANDS[idx]}")
         new_snapshots+=("${LATTICE_CMD_SNAPSHOTS[idx]}")
         new_params+=("${LATTICE_CMD_PARAMS[idx]}")
+        new_submits+=("${LATTICE_CMD_SUBMIT[idx]:-run}")
         new_origins+=("${LATTICE_CMD_ORIGINS[idx]}")
         used[$name]=1
     done < "$LATTICE_ORDER_FILE"
@@ -187,6 +193,7 @@ lattice_registry_apply_order ()
         new_commands+=("${LATTICE_CMD_COMMANDS[i]}")
         new_snapshots+=("${LATTICE_CMD_SNAPSHOTS[i]}")
         new_params+=("${LATTICE_CMD_PARAMS[i]}")
+        new_submits+=("${LATTICE_CMD_SUBMIT[i]:-run}")
         new_origins+=("${LATTICE_CMD_ORIGINS[i]}")
         used[$name]=1
     done
@@ -198,6 +205,7 @@ lattice_registry_apply_order ()
     LATTICE_CMD_COMMANDS=("${new_commands[@]}")
     LATTICE_CMD_SNAPSHOTS=("${new_snapshots[@]}")
     LATTICE_CMD_PARAMS=("${new_params[@]}")
+    LATTICE_CMD_SUBMIT=("${new_submits[@]}")
     LATTICE_CMD_ORIGINS=("${new_origins[@]}")
     LATTICE_CMD_ROW_CACHE=()
     lattice_registry_build_hay
@@ -242,6 +250,7 @@ lattice_registry_move_selected ()
     tmp=${LATTICE_CMD_COMMANDS[raw_a]} ; LATTICE_CMD_COMMANDS[raw_a]=${LATTICE_CMD_COMMANDS[raw_b]} ; LATTICE_CMD_COMMANDS[raw_b]=$tmp
     tmp=${LATTICE_CMD_SNAPSHOTS[raw_a]} ; LATTICE_CMD_SNAPSHOTS[raw_a]=${LATTICE_CMD_SNAPSHOTS[raw_b]} ; LATTICE_CMD_SNAPSHOTS[raw_b]=$tmp
     tmp=${LATTICE_CMD_PARAMS[raw_a]} ; LATTICE_CMD_PARAMS[raw_a]=${LATTICE_CMD_PARAMS[raw_b]} ; LATTICE_CMD_PARAMS[raw_b]=$tmp
+    tmp=${LATTICE_CMD_SUBMIT[raw_a]} ; LATTICE_CMD_SUBMIT[raw_a]=${LATTICE_CMD_SUBMIT[raw_b]} ; LATTICE_CMD_SUBMIT[raw_b]=$tmp
     tmp=${LATTICE_CMD_ORIGINS[raw_a]} ; LATTICE_CMD_ORIGINS[raw_a]=${LATTICE_CMD_ORIGINS[raw_b]} ; LATTICE_CMD_ORIGINS[raw_b]=$tmp
     tmp=${LATTICE_CMD_HAY[raw_a]} ; LATTICE_CMD_HAY[raw_a]=${LATTICE_CMD_HAY[raw_b]} ; LATTICE_CMD_HAY[raw_b]=$tmp
 
@@ -266,6 +275,7 @@ lattice_registry_move_to_top ()
     local cmd=${LATTICE_CMD_COMMANDS[raw]}
     local snapshot=${LATTICE_CMD_SNAPSHOTS[raw]}
     local params=${LATTICE_CMD_PARAMS[raw]}
+    local submit=${LATTICE_CMD_SUBMIT[raw]:-run}
     local origin=${LATTICE_CMD_ORIGINS[raw]}
     local hay=${LATTICE_CMD_HAY[raw]}
 
@@ -277,6 +287,7 @@ lattice_registry_move_to_top ()
         LATTICE_CMD_COMMANDS[i]=${LATTICE_CMD_COMMANDS[i-1]}
         LATTICE_CMD_SNAPSHOTS[i]=${LATTICE_CMD_SNAPSHOTS[i-1]}
         LATTICE_CMD_PARAMS[i]=${LATTICE_CMD_PARAMS[i-1]}
+        LATTICE_CMD_SUBMIT[i]=${LATTICE_CMD_SUBMIT[i-1]}
         LATTICE_CMD_ORIGINS[i]=${LATTICE_CMD_ORIGINS[i-1]}
         LATTICE_CMD_HAY[i]=${LATTICE_CMD_HAY[i-1]}
     done
@@ -287,6 +298,7 @@ lattice_registry_move_to_top ()
     LATTICE_CMD_COMMANDS[0]=$cmd
     LATTICE_CMD_SNAPSHOTS[0]=$snapshot
     LATTICE_CMD_PARAMS[0]=$params
+    LATTICE_CMD_SUBMIT[0]=$submit
     LATTICE_CMD_ORIGINS[0]=$origin
     LATTICE_CMD_HAY[0]=$hay
 
@@ -507,12 +519,15 @@ lattice_registry_dispatch_index ()
 
 lattice_registry_run_index ()
 {
-    local idx=$1 cmd
+    local idx=$1 cmd submit
     shift
     cmd=${LATTICE_CMD_COMMANDS[idx]:-}
+    submit=${LATTICE_CMD_SUBMIT[idx]:-run}
     [[ -n "$cmd" ]] || return 1
-    lattice_executor_send "$cmd" "${LATTICE_CMD_TARGETS[idx]:-pane}" "$@" || return $?
-    if (( $# == 0 )) ; then
+    lattice_executor_send "$cmd" "${LATTICE_CMD_TARGETS[idx]:-pane}" "$submit" "$@" || return $?
+    if [[ "$submit" == 'insert' ]] ; then
+        lattice_status "inserted skeleton: ${LATTICE_CMD_NAMES[idx]}  Ctrl-b → to edit" ok
+    elif (( $# == 0 )) ; then
         lattice_history_add "$cmd" "$LATTICE_DIR"
         lattice_status "sent: ${LATTICE_CMD_NAMES[idx]}" ok
     else

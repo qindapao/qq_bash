@@ -196,6 +196,7 @@ If there is no executor pane, the TUI reports an error instead of splitting from
 
 ```text
 j/k, ↑/↓     move
+Home / End   first / last entry
 Enter        enter directory / run selected command
 h            parent directory
 Backspace    parent directory
@@ -420,8 +421,11 @@ lattice_command 'git diff'   'file' 'pane' 'git diff -- "$WB_FILE"' '查看选�
 There are no command shortcut keys. Open the `:` palette, use `j/k` or arrows
 to select, press `/` to enter search and type to filter, and press Enter to
 send; the palette stays open after dispatch. Esc leaves search (clearing the
-query), then Esc leaves the palette. PageUp/PageDown and the mouse wheel move
-through a long list; the header shows the visible range. A `*` marks a command
+query), then Esc leaves the palette. Opening search temporarily zooms the TUI
+pane to the full window and replaces the header with a `search>` line that
+keeps the query tail visible; exiting search restores the 30/70 layout.
+PageUp/PageDown and the mouse wheel move through a long list; the
+header shows the visible range. A `*` marks a command
 with a snapshot and `+` marks a user-added command. Rows show the command name,
 scope, and target. A one-line preview below the list shows the selected command
 body only. The command body is not rendered in the list itself, but remains
@@ -486,6 +490,17 @@ lattice_command 'grep in target' 'dir' 'pane' \
   '搜索指定目录' \
   'PATTERN TARGET_DIR=.'
 ```
+
+A command name starting with `@` is **insert-only**. Lattice pastes the command
+skeleton without pressing Enter and does not add it to history:
+
+```bash
+lattice_command '@ssh' 'dir' 'pane' 'ssh ' '插入 SSH 骨架；不会自动执行。'
+```
+
+The status line reports that the skeleton was inserted. Switch to the executor
+with `Ctrl-b →`, finish the command, and press Enter yourself. This is the
+intended mode for interactive commands such as SSH, REPLs, and prompts.
 
 An empty fifth argument means there is no snapshot. Parameters can still
 follow it:

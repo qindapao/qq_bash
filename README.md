@@ -20,10 +20,9 @@ Lattice workbench (requires `tmux`):
 ./src/lattice_bash/lattice.sh --root .
 ```
 
-It opens a two-pane tmux session: file browser on the left, executor shell on
-the right. Quick commands live in
-[`src/lattice_bash/config/commands.conf`](src/lattice_bash/config/commands.conf);
-`g`, for example, runs `git_check_status.sh` against the selected directory.
+It opens a two-pane tmux session: file browser and command palette on the left,
+executor shell on the right. See
+[`src/lattice_bash/README.md`](src/lattice_bash/README.md) for the full manual.
 
 All library and test sources are tracked `.sh` files; there is no build step.
 
@@ -58,7 +57,30 @@ gobolt; it is only required for JSON interop and the JSON tests.
 | **`xo`** | Class templates, single inheritance, mixins, object pool, named objects, method dispatch |
 | **`x`** | In-memory JSON-like tree: objects, arrays, null/bool, paths, DFS, JSON round-trip |
 | **`strafe_bash`** | Terminal shooter: planes, enemies, three Bosses, weapons, drops, save/load |
+| **`lattice_bash`** | tmux TUI workbench: file tree, command palette, snapshots, parameters, executor |
 | **`str` / `array` / `float` / `var`** | UTF-8-aware strings, arrays, numbers, indirection helpers |
+
+## lattice_bash
+
+A focused terminal workbench built on tmux:
+
+```text
+left  : file tree + command palette
+right : normal interactive executor shell
+```
+
+It supports command snapshots, simple parameters, command ordering, history,
+portable USB configuration, and a machine-specific environment profile. It is
+intentionally not a full file manager: no preview, no file operations UI, no
+plugin system.
+
+```bash
+./src/lattice_bash/lattice.sh --version
+./src/lattice_bash/lattice.sh --root /path/to/project
+```
+
+User manual: [`src/lattice_bash/README.md`](src/lattice_bash/README.md)  
+Architecture, tradeoffs and pitfalls: [`src/lattice_bash/DEVELOP.md`](src/lattice_bash/DEVELOP.md)
 
 ## strafe_bash
 

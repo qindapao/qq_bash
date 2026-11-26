@@ -130,6 +130,14 @@ lattice_handle_tree_key ()
     case "$key" in
     j|$'\033[B'|$'\016') lattice_tree_move 1 ;;
     k|$'\033[A'|$'\020'|$'\013') lattice_tree_move -1 ;;
+    $'\033[H'|$'\033[1~'|$'\033[7~'|$'\033OH')
+        LATTICE_SELECTED=0
+        LATTICE_TREE_OFFSET=0
+        ;;
+    $'\033[F'|$'\033[4~'|$'\033[8~'|$'\033OF')
+        LATTICE_SELECTED=$(( ${#LATTICE_ENTRIES[@]} - 1 ))
+        (( LATTICE_SELECTED < 0 )) && LATTICE_SELECTED=0
+        ;;
     $'\033[C')   lattice_tree_enter ;;
     $'\033[D'|h|$'\177'|$'\b') lattice_tree_parent ;;
     $'\r'|'')    lattice_tree_enter ;;    r)           lattice_tree_refresh ;;
@@ -355,6 +363,14 @@ lattice_handle_commands_key ()
     $'\033[1;3B'|$'\033[1;5B') lattice_registry_move_selected 1 ;;
     $'\033[A') LATTICE_SELECTED=$((LATTICE_SELECTED-1)) ;;
     $'\033[B') LATTICE_SELECTED=$((LATTICE_SELECTED+1)) ;;
+    $'\033[H'|$'\033[1~'|$'\033[7~'|$'\033OH')
+        LATTICE_SELECTED=0
+        LATTICE_CMD_OFFSET=0
+        ;;
+    $'\033[F'|$'\033[4~'|$'\033[8~'|$'\033OF')
+        LATTICE_SELECTED=$(( ${#LATTICE_CMD_VIEW[@]} - 1 ))
+        (( LATTICE_SELECTED < 0 )) && LATTICE_SELECTED=0
+        ;;
     $'\020') LATTICE_SELECTED=$((LATTICE_SELECTED-1)) ;;
     $'\016') LATTICE_SELECTED=$((LATTICE_SELECTED+1)) ;;
     $'\013') LATTICE_SELECTED=$((LATTICE_SELECTED-1)) ;;
@@ -392,12 +408,14 @@ lattice_handle_commands_key ()
             lattice_registry_set_query "$LATTICE_CMD_QUERY/"
         else
             LATTICE_CMD_SEARCH=1
+            lattice_search_zoom_start
         fi
         ;;
     $'\033')
         if (( LATTICE_CMD_SEARCH )) ; then
             LATTICE_CMD_SEARCH=0
             lattice_registry_set_query ''
+            lattice_search_zoom_end
         else
             LATTICE_MODE='tree'
             return 0
@@ -460,6 +478,9 @@ lattice_handle_key ()
     if [[ "$key" == $'\007' ]] ; then
         LATTICE_QUIT=1
         return 0
+    fi
+    if (( ! LATTICE_CMD_SEARCH )) ; then
+        lattice_search_zoom_end
     fi
     if (( LATTICE_FORM_OPEN )) ; then
         lattice_handle_form_key "$key"
