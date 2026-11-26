@@ -124,6 +124,16 @@ lattice_tmux_mouse_on ()
     done
     lattice_tmux_quick unbind -T prefix O 2>/dev/null || true
 
+    # Alt/Ctrl + left-click on a visible executor line: extract the last
+    # existing path[:line] and open it, without requiring a selection.
+    local line_helper="$LATTICE_HOME/executor/open-line.sh"
+    local mouse_key
+    for mouse_key in M-MouseDown1Pane C-MouseDown1Pane ; do
+        lattice_tmux_quick bind -n "$mouse_key" run-shell \
+            "printf '%s' '#{q:mouse_line}' | \"$line_helper\" '#{q:pane_current_path}'" \
+            2>/dev/null || true
+    done
+
     # The supported editor action: copy a selection, then Ctrl-b e.
     lattice_tmux_quick bind -T prefix e run-shell \
         "tmux show-buffer | \"$helper\" #{q:pane_current_path}" \

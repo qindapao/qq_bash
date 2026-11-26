@@ -776,6 +776,39 @@ bad path   -> message + buffer kept
 Relative paths resolve against the active pane's cwd, not against a global
 fixed root.
 
+### 9.3.1 Opening a mouse line without selection
+
+`Alt+left-click` and `Ctrl+left-click` are bound in the tmux `root` table:
+
+```text
+M-MouseDown1Pane
+C-MouseDown1Pane
+```
+
+They run `open-line.sh` with the full `#{mouse_line}` and the pane cwd. This is
+possible only because the binding is a mouse event; tmux does not expose a
+persistent hover position, and there is no supported `mouse_x`/`mouse_y`
+column for a later keyboard binding.
+
+The helper trims leading whitespace and ANSI escapes, scans whitespace
+tokens from the start, and opens the first token that exists:
+
+```text
+file:line  -> editor + line
+file       -> editor
+directory  -> file manager
+none       -> no action
+```
+
+The priority is per token. The scan is deliberately simple and deterministic;
+a line with multiple existing paths uses the first one. The buffer-based
+`Ctrl-b e` action is unchanged and remains the fallback for arbitrary
+selections.
+
+Alt is the primary modifier because Ctrl+click is often consumed by terminal
+hyperlink handling; Ctrl is bound as a compatibility fallback. Plain click is
+not used because it must keep selecting panes and dragging text.
+
 ### 9.4 Detaching the editor
 
 `copy-pipe`/tmux command pipelines close stdio quickly. The helper launches the

@@ -740,6 +740,26 @@ Ctrl-b e        open last buffer as file[:line], or a directory in the file mana
 Ctrl-b ]        paste the last buffer
 ```
 
+For a line that is already visible, no selection or buffer is needed:
+
+```text
+Alt + left click    open the line under the pointer
+Ctrl + left click   same, as a terminal fallback
+```
+
+The line parser trims leading whitespace and ANSI escapes, then scans
+whitespace-separated tokens from the start. The first existing token wins:
+
+```text
+1. path:line   -> editor at that line
+2. path        -> editor
+3. directory   -> system file manager
+4. nothing existing -> no action
+```
+
+Only existing paths are considered. `Ctrl-b e` remains the explicit
+buffer-based action; it does not try to read the mouse position.
+
 `Ctrl-b o` is tmux's normal next-pane switch; it is unrelated to the editor
 action.
 
@@ -831,6 +851,19 @@ A grep line such as `path/file.sh:42: pattern` is parsed correctly; relative
 paths resolve against the executor's current directory.
 
 For the mouse workflow:
+
+```text
+Alt+left click on path/file.sh:42 in the right pane
+```
+
+No drag or copy mode is required. The line parser scans from the beginning and
+uses the first existing token:
+
+```text
+path:line -> file -> directory -> no action
+```
+
+The older selection workflow still works:
 
 ```text
 normal drag-select path/file.sh:42 in the right pane
