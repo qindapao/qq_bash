@@ -10,15 +10,15 @@ _lattice_history_prompt ()
     IFS= read -r q || q=''
     lattice_term_raw
     lattice_history_set_query "$q"
-    LATTICE_SELECTED=0
+    LATTICE_HISTORY_SELECTED=0
 }
 
 _lattice_select_clamp ()
 {
     local max=$1
     (( max < 0 )) && max=0
-    (( LATTICE_SELECTED < 0 )) && LATTICE_SELECTED=0
-    (( LATTICE_SELECTED > max )) && LATTICE_SELECTED=$max
+    (( LATTICE_HISTORY_SELECTED < 0 )) && LATTICE_HISTORY_SELECTED=0
+    (( LATTICE_HISTORY_SELECTED > max )) && LATTICE_HISTORY_SELECTED=$max
 }
 
 lattice_handle_tree_mouse ()
@@ -44,7 +44,7 @@ lattice_handle_tree_mouse ()
     (( row >= 0 && row < ${#LATTICE_ENTRIES[@]} )) || return 0
 
     LATTICE_RECENT_FOCUS=0
-    LATTICE_SELECTED=$row
+    LATTICE_TREE_SELECTED=$row
     lattice_selected_path
     path=$REPLY
     lattice_status "$path"
@@ -131,21 +131,22 @@ lattice_handle_tree_key ()
     j|$'\033[B'|$'\016') lattice_tree_move 1 ;;
     k|$'\033[A'|$'\020'|$'\013') lattice_tree_move -1 ;;
     $'\033[H'|$'\033[1~'|$'\033[7~'|$'\033OH')
-        LATTICE_SELECTED=0
+        LATTICE_TREE_SELECTED=0
         LATTICE_TREE_OFFSET=0
         ;;
     $'\033[F'|$'\033[4~'|$'\033[8~'|$'\033OF')
-        LATTICE_SELECTED=$(( ${#LATTICE_ENTRIES[@]} - 1 ))
-        (( LATTICE_SELECTED < 0 )) && LATTICE_SELECTED=0
+        LATTICE_TREE_SELECTED=$(( ${#LATTICE_ENTRIES[@]} - 1 ))
+        (( LATTICE_TREE_SELECTED < 0 )) && LATTICE_TREE_SELECTED=0
         ;;
     $'\033[C')   lattice_tree_enter ;;
     $'\033[D'|h|$'\177'|$'\b') lattice_tree_parent ;;
     $'\r'|'')    lattice_tree_enter ;;    r)           lattice_tree_refresh ;;
     .)           lattice_tree_toggle_hidden ;;
     o)           lattice_tree_open_directory ;;
+    y)           lattice_tree_yank_path ;;
     :)           lattice_registry_open ;;
     /)           lattice_tree_search_open ;;
-    H)           LATTICE_MODE='history'; LATTICE_SELECTED=0; lattice_history_rebuild_view ;;
+    H)           LATTICE_MODE='history'; lattice_history_rebuild_view ;;
     '?' )        LATTICE_MODE='help' ;;
     $'\022')     LATTICE_RECENT_FOCUS=1; LATTICE_RECENT_SELECTED=0
                  lattice_status "recent commands: ${#LATTICE_RECENT_CMDS[@]}  j/k Enter Esc" ;;
@@ -314,20 +315,20 @@ lattice_handle_commands_mouse ()
 
     if (( b >= 64 )) ; then
         if (( b == 64 )) ; then
-            LATTICE_SELECTED=$((LATTICE_SELECTED-3))
+            LATTICE_CMD_SELECTED=$((LATTICE_CMD_SELECTED-3))
         else
-            LATTICE_SELECTED=$((LATTICE_SELECTED+3))
+            LATTICE_CMD_SELECTED=$((LATTICE_CMD_SELECTED+3))
         fi
-        (( LATTICE_SELECTED < 0 )) && LATTICE_SELECTED=0
-        (( LATTICE_SELECTED >= ${#LATTICE_CMD_VIEW[@]} )) && \
-            LATTICE_SELECTED=$(( ${#LATTICE_CMD_VIEW[@]} - 1 ))
-        (( LATTICE_SELECTED < 0 )) && LATTICE_SELECTED=0
+        (( LATTICE_CMD_SELECTED < 0 )) && LATTICE_CMD_SELECTED=0
+        (( LATTICE_CMD_SELECTED >= ${#LATTICE_CMD_VIEW[@]} )) && \
+            LATTICE_CMD_SELECTED=$(( ${#LATTICE_CMD_VIEW[@]} - 1 ))
+        (( LATTICE_CMD_SELECTED < 0 )) && LATTICE_CMD_SELECTED=0
         return 0
     fi
     (( y >= 2 && y < 2 + LATTICE_CMD_BODY )) || return 0
     row=$(( LATTICE_CMD_OFFSET + y - 2 ))
     (( row >= 0 && row < ${#LATTICE_CMD_VIEW[@]} )) || return 0
-    LATTICE_SELECTED=$row
+    LATTICE_CMD_SELECTED=$row
     idx=${LATTICE_CMD_VIEW[row]}
 
     if (( (b & 3) == 2 )) ; then
@@ -357,23 +358,23 @@ lattice_handle_commands_key ()
 {
     local key=$1 idx q
     case "$key" in
-    $'\033[5~') LATTICE_SELECTED=$((LATTICE_SELECTED - LATTICE_CMD_BODY)) ;;
-    $'\033[6~') LATTICE_SELECTED=$((LATTICE_SELECTED + LATTICE_CMD_BODY)) ;;
+    $'\033[5~') LATTICE_CMD_SELECTED=$((LATTICE_CMD_SELECTED - LATTICE_CMD_BODY)) ;;
+    $'\033[6~') LATTICE_CMD_SELECTED=$((LATTICE_CMD_SELECTED + LATTICE_CMD_BODY)) ;;
     $'\033[1;3A'|$'\033[1;5A') lattice_registry_move_selected -1 ;;
     $'\033[1;3B'|$'\033[1;5B') lattice_registry_move_selected 1 ;;
-    $'\033[A') LATTICE_SELECTED=$((LATTICE_SELECTED-1)) ;;
-    $'\033[B') LATTICE_SELECTED=$((LATTICE_SELECTED+1)) ;;
+    $'\033[A') LATTICE_CMD_SELECTED=$((LATTICE_CMD_SELECTED-1)) ;;
+    $'\033[B') LATTICE_CMD_SELECTED=$((LATTICE_CMD_SELECTED+1)) ;;
     $'\033[H'|$'\033[1~'|$'\033[7~'|$'\033OH')
-        LATTICE_SELECTED=0
+        LATTICE_CMD_SELECTED=0
         LATTICE_CMD_OFFSET=0
         ;;
     $'\033[F'|$'\033[4~'|$'\033[8~'|$'\033OF')
-        LATTICE_SELECTED=$(( ${#LATTICE_CMD_VIEW[@]} - 1 ))
-        (( LATTICE_SELECTED < 0 )) && LATTICE_SELECTED=0
+        LATTICE_CMD_SELECTED=$(( ${#LATTICE_CMD_VIEW[@]} - 1 ))
+        (( LATTICE_CMD_SELECTED < 0 )) && LATTICE_CMD_SELECTED=0
         ;;
-    $'\020') LATTICE_SELECTED=$((LATTICE_SELECTED-1)) ;;
-    $'\016') LATTICE_SELECTED=$((LATTICE_SELECTED+1)) ;;
-    $'\013') LATTICE_SELECTED=$((LATTICE_SELECTED-1)) ;;
+    $'\020') LATTICE_CMD_SELECTED=$((LATTICE_CMD_SELECTED-1)) ;;
+    $'\016') LATTICE_CMD_SELECTED=$((LATTICE_CMD_SELECTED+1)) ;;
+    $'\013') LATTICE_CMD_SELECTED=$((LATTICE_CMD_SELECTED-1)) ;;
     $'\024')
         lattice_registry_move_to_top
         ;;
@@ -395,7 +396,7 @@ lattice_handle_commands_key ()
                 LATTICE_MODE='commands'
                 LATTICE_CMD_SEARCH=0
                 LATTICE_CMD_QUERY=''
-                LATTICE_SELECTED=0
+                LATTICE_CMD_SELECTED=0
                 lattice_registry_rebuild_view
                 lattice_status 'commands reloaded' ok
             else
@@ -447,25 +448,25 @@ lattice_handle_commands_key ()
             esac
         else
             case "$key" in
-            j|$'\033[B') LATTICE_SELECTED=$((LATTICE_SELECTED+1)) ;;
-            k|$'\033[A') LATTICE_SELECTED=$((LATTICE_SELECTED-1)) ;;
+            j|$'\033[B') LATTICE_CMD_SELECTED=$((LATTICE_CMD_SELECTED+1)) ;;
+            k|$'\033[A') LATTICE_CMD_SELECTED=$((LATTICE_CMD_SELECTED-1)) ;;
             q) LATTICE_MODE='tree' ; return 0 ;;
             esac
         fi
         ;;
     esac
-    (( LATTICE_SELECTED < 0 )) && LATTICE_SELECTED=0
-    (( LATTICE_SELECTED >= ${#LATTICE_CMD_VIEW[@]} )) && \
-        LATTICE_SELECTED=$(( ${#LATTICE_CMD_VIEW[@]} - 1 ))
-    (( LATTICE_SELECTED < 0 )) && LATTICE_SELECTED=0
+    (( LATTICE_CMD_SELECTED < 0 )) && LATTICE_CMD_SELECTED=0
+    (( LATTICE_CMD_SELECTED >= ${#LATTICE_CMD_VIEW[@]} )) && \
+        LATTICE_CMD_SELECTED=$(( ${#LATTICE_CMD_VIEW[@]} - 1 ))
+    (( LATTICE_CMD_SELECTED < 0 )) && LATTICE_CMD_SELECTED=0
 }
 
 lattice_handle_history_key ()
 {
     local key=$1
     case "$key" in
-    j|$'\033[B'|$'\016') LATTICE_SELECTED=$((LATTICE_SELECTED+1)) ;;
-    k|$'\033[A'|$'\020'|$'\013') LATTICE_SELECTED=$((LATTICE_SELECTED-1)) ;;
+    j|$'\033[B'|$'\016') LATTICE_HISTORY_SELECTED=$((LATTICE_HISTORY_SELECTED+1)) ;;
+    k|$'\033[A'|$'\020'|$'\013') LATTICE_HISTORY_SELECTED=$((LATTICE_HISTORY_SELECTED-1)) ;;
     $'\r')
         lattice_history_rerun && LATTICE_MODE='tree'
         ;;

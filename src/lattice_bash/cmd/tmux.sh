@@ -58,7 +58,6 @@ lattice_search_status_update ()
     local q=${LATTICE_CMD_QUERY:-}
     q=${q//#/##}
     lattice_tmux_quick set-option -g status-right " search> ${q}_ " 2>/dev/null || true
-    lattice_tmux_quick set-option -g status-right-length 240 2>/dev/null || true
 }
 
 lattice_search_status_start ()
@@ -67,6 +66,7 @@ lattice_search_status_start ()
     LATTICE_SEARCH_STATUS_RIGHT=$(lattice_tmux_quick show-options -gv status-right 2>/dev/null) || LATTICE_SEARCH_STATUS_RIGHT=''
     LATTICE_SEARCH_STATUS_RIGHT_LENGTH=$(lattice_tmux_quick show-options -gv status-right-length 2>/dev/null) || LATTICE_SEARCH_STATUS_RIGHT_LENGTH=''
     LATTICE_SEARCH_STATUS_ACTIVE=1
+    lattice_tmux_quick set-option -g status-right-length 240 2>/dev/null || true
     lattice_search_status_update
 }
 
@@ -86,6 +86,118 @@ lattice_search_status_end ()
     LATTICE_SEARCH_STATUS_ACTIVE=0
     LATTICE_SEARCH_STATUS_RIGHT=''
     LATTICE_SEARCH_STATUS_RIGHT_LENGTH=''
+}
+
+lattice_status_left_worker ()
+{
+    local file=$1 stop=$2 parent=$PPID last='' want
+    while [[ ! -e "$stop" ]] && kill -0 "$parent" 2>/dev/null ; do
+        want=''
+        IFS= read -r want < "$file" 2>/dev/null || want=''
+        if [[ "$want" != "$last" ]] ; then
+            lattice_tmux_quick set-option -g status-left "$want " 2>/dev/null || true
+            last=$want
+        fi
+        sleep 0.15
+    done
+}
+
+lattice_status_left_start ()
+{
+    [[ -n "${TMUX:-}" ]] || return 0
+    (( LATTICE_STATUS_LEFT_SAVED )) && return 0
+    LATTICE_STATUS_LEFT_ORIG=$(lattice_tmux_quick show-options -gv status-left 2>/dev/null) || LATTICE_STATUS_LEFT_ORIG=''
+    LATTICE_STATUS_LEFT_LENGTH_ORIG=$(lattice_tmux_quick show-options -gv status-left-length 2>/dev/null) || LATTICE_STATUS_LEFT_LENGTH_ORIG=''
+    LATTICE_STATUS_LEFT_SAVED=1
+    lattice_tmux_quick set-option -g status-left-length 100 2>/dev/null || true
+
+    # One window only: remove the window list and keep the context left/right.
+    LATTICE_STATUS_FORMAT_ORIG=$(lattice_tmux_quick show-options -gv 'status-format[0]' 2>/dev/null) || LATTICE_STATUS_FORMAT_ORIG=''
+    lattice_tmux_quick set-option -g 'status-format[0]' \
+        '#[align=left range=left #{E:status-left-style}]#[push-default]#{T;=/#{status-left-length}:status-left}#[pop-default]#[align=right range=right #{E:status-right-style}]#[push-default]#{T;=/#{status-right-length}:status-right}#[pop-default]' \
+        2>/dev/null || true
+
+    # Put WB_ROOT in the outer terminal title, not the useless session/window label.
+    LATTICE_SET_TITLES_ORIG=$(lattice_tmux_quick show-options -gv set-titles 2>/dev/null) || LATTICE_SET_TITLES_ORIG=''
+    LATTICE_SET_TITLES_STRING_ORIG=$(lattice_tmux_quick show-options -gv set-titles-string 2>/dev/null) || LATTICE_SET_TITLES_STRING_ORIG=''
+    if [[ -n "${LATTICE_ROOT:-}" ]] ; then
+        lattice_tmux_quick set-option -g set-titles on 2>/dev/null || true
+        lattice_tmux_quick set-option -g set-titles-string "${LATTICE_ROOT//#/##}" 2>/dev/null || true
+    fi
+
+    LATTICE_STATUS_LEFT_FILE="${TMPDIR:-/tmp}/lattice-status-left-${LATTICE_TMUX_SESSION:-$$}"
+    LATTICE_STATUS_LEFT_STOP="${LATTICE_STATUS_LEFT_FILE}.stop"
+    rm -f -- "$LATTICE_STATUS_LEFT_STOP"
+    : > "$LATTICE_STATUS_LEFT_FILE"
+    ( lattice_status_left_worker "$LATTICE_STATUS_LEFT_FILE" "$LATTICE_STATUS_LEFT_STOP" ) &
+    LATTICE_STATUS_LEFT_PID=$!
+}
+
+lattice_status_left_update ()
+{
+    [[ -n "${TMUX:-}" ]] || return 0
+    local dir=${LATTICE_DIR:-} file='' idx=${LATTICE_TREE_SELECTED:-0}
+    local left
+
+    if [[ -n "$dir" && -n "${LATTICE_ENTRIES[idx]:-}" ]] &&
+       (( ${LATTICE_ENTRY_IS_DIR[idx]:-0} == 0 )) ; then
+        file="${dir%/}/${LATTICE_ENTRIES[idx]}"
+    fi
+    left=" DIR ${dir}"
+    [[ -n "$file" ]] && left+="  FILE ${file}"
+    [[ "$left" == "$LATTICE_STATUS_LEFT_TEXT" ]] && return 0
+    LATTICE_STATUS_LEFT_TEXT=$left
+
+    [[ -n "$LATTICE_STATUS_LEFT_FILE" ]] || return 0
+    printf '%s\n' "${left//#/##}" > "$LATTICE_STATUS_LEFT_FILE" 2>/dev/null || true
+}
+
+lattice_status_left_end ()
+{
+    (( LATTICE_STATUS_LEFT_SAVED )) || return 0
+    if [[ -n "$LATTICE_STATUS_LEFT_STOP" ]] ; then
+        : > "$LATTICE_STATUS_LEFT_STOP"
+    fi
+    if [[ -n "$LATTICE_STATUS_LEFT_PID" ]] ; then
+        kill "$LATTICE_STATUS_LEFT_PID" 2>/dev/null || true
+        wait "$LATTICE_STATUS_LEFT_PID" 2>/dev/null || true
+    fi
+    [[ -n "$LATTICE_STATUS_LEFT_FILE" ]] && rm -f -- "$LATTICE_STATUS_LEFT_FILE" "$LATTICE_STATUS_LEFT_STOP"
+    if [[ -n "$LATTICE_STATUS_LEFT_ORIG" ]] ; then
+        lattice_tmux_quick set-option -g status-left "$LATTICE_STATUS_LEFT_ORIG" 2>/dev/null || true
+    else
+        lattice_tmux_quick set-option -gu status-left 2>/dev/null || true
+    fi
+    if [[ -n "$LATTICE_STATUS_LEFT_LENGTH_ORIG" ]] ; then
+        lattice_tmux_quick set-option -g status-left-length "$LATTICE_STATUS_LEFT_LENGTH_ORIG" 2>/dev/null || true
+    else
+        lattice_tmux_quick set-option -gu status-left-length 2>/dev/null || true
+    fi
+    if [[ -n "$LATTICE_STATUS_FORMAT_ORIG" ]] ; then
+        lattice_tmux_quick set-option -g 'status-format[0]' "$LATTICE_STATUS_FORMAT_ORIG" 2>/dev/null || true
+    else
+        lattice_tmux_quick set-option -gu 'status-format[0]' 2>/dev/null || true
+    fi
+    if [[ -n "$LATTICE_SET_TITLES_ORIG" ]] ; then
+        lattice_tmux_quick set-option -g set-titles "$LATTICE_SET_TITLES_ORIG" 2>/dev/null || true
+    else
+        lattice_tmux_quick set-option -gu set-titles 2>/dev/null || true
+    fi
+    if [[ -n "$LATTICE_SET_TITLES_STRING_ORIG" ]] ; then
+        lattice_tmux_quick set-option -g set-titles-string "$LATTICE_SET_TITLES_STRING_ORIG" 2>/dev/null || true
+    else
+        lattice_tmux_quick set-option -gu set-titles-string 2>/dev/null || true
+    fi
+    LATTICE_STATUS_LEFT_SAVED=0
+    LATTICE_STATUS_LEFT_TEXT=''
+    LATTICE_STATUS_LEFT_ORIG=''
+    LATTICE_STATUS_LEFT_LENGTH_ORIG=''
+    LATTICE_STATUS_LEFT_FILE=''
+    LATTICE_STATUS_LEFT_STOP=''
+    LATTICE_STATUS_LEFT_PID=''
+    LATTICE_STATUS_FORMAT_ORIG=''
+    LATTICE_SET_TITLES_ORIG=''
+    LATTICE_SET_TITLES_STRING_ORIG=''
 }
 
 lattice_tmux_mouse_on ()

@@ -204,6 +204,8 @@ Backspace    parent directory
 r            refresh
 .            toggle hidden files
 o            open selected directory in the system file manager
+y            copy selected path to the clipboard
+```
 :            quick command palette
 /            filter file/dir names in tree; search commands in palette
 H            history
@@ -652,7 +654,15 @@ WB_DIR     current directory; updates when you enter/parent a directory
 WB_FILE    selected file, empty for a directory
 ```
 
-## Command order
+The left status line shows:
+
+```text
+DIR /d/code/qq_bash  FILE /d/code/qq_bash/src/lattice.sh
+```
+
+`WB_ROOT` is used as the outer terminal title. The window list is removed
+because Lattice opens a single window. Status updates are coalesced in the
+background, so moving the selection does not block on a tmux call.
 
 Palette order is stored separately in:
 

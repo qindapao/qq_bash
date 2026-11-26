@@ -149,10 +149,10 @@ lattice_render_tree ()
     (( offset < 0 )) && offset=0
     (( offset > total - body )) && offset=$(( total - body ))
     (( offset < 0 )) && offset=0
-    if (( LATTICE_SELECTED < offset )) ; then
-        offset=$LATTICE_SELECTED
-    elif (( LATTICE_SELECTED >= offset + body )) ; then
-        offset=$(( LATTICE_SELECTED - body + 1 ))
+    if (( LATTICE_TREE_SELECTED < offset )) ; then
+        offset=$LATTICE_TREE_SELECTED
+    elif (( LATTICE_TREE_SELECTED >= offset + body )) ; then
+        offset=$(( LATTICE_TREE_SELECTED - body + 1 ))
     fi
     LATTICE_TREE_OFFSET=$offset
     LATTICE_TREE_BODY=$body
@@ -162,10 +162,10 @@ lattice_render_tree ()
         if (( i < ${#LATTICE_ENTRIES[@]} )) ; then
             entry=${LATTICE_ENTRIES[i]}
             mark=' '
-            (( i == LATTICE_SELECTED )) && mark='>'
+            (( i == LATTICE_TREE_SELECTED )) && mark='>'
             [[ "${LATTICE_ENTRY_IS_DIR[i]}" == 1 ]] && entry="$entry/"
             _lattice_fit "$mark $entry" "$LATTICE_COLS"
-            if (( i == LATTICE_SELECTED )) ; then
+            if (( i == LATTICE_TREE_SELECTED )) ; then
                 _lattice_pad "$REPLY" "$LATTICE_COLS"
                 line="$LATTICE_C_REV$REPLY$LATTICE_C_RESET"
             else
@@ -203,12 +203,12 @@ lattice_render_tree ()
     [[ "$LATTICE_MODE" == 'commands' ]] && mode='COMMANDS'
     [[ "$LATTICE_MODE" == 'history' ]] && mode='HISTORY'
     _lattice_footer " ${LATTICE_STATUS:-${LATTICE_DIR}} " \
-        "[$mode] j/k Enter / r . o h : H ^R ? ^G "
+        "[$mode] j/k Enter / r . o y h : H ^R ? ^G "
 }
 
 lattice_render_commands ()
 {
-    local i row idx pos name scope target snapshot cmd line mode_label footer total start snapmark usermark
+    local i row idx pos name scope target snapshot cmd line footer total start snapmark usermark
     local preview_h=1
     local body=$(( LATTICE_ROWS - 3 - preview_h ))
     (( body < 1 )) && body=1
@@ -217,20 +217,18 @@ lattice_render_commands ()
     (( offset < 0 )) && offset=0
     (( offset > total - body )) && offset=$(( total - body ))
     (( offset < 0 )) && offset=0
-    if (( LATTICE_SELECTED < offset )) ; then
-        offset=$LATTICE_SELECTED
-    elif (( LATTICE_SELECTED >= offset + body )) ; then
-        offset=$(( LATTICE_SELECTED - body + 1 ))
+    if (( LATTICE_CMD_SELECTED < offset )) ; then
+        offset=$LATTICE_CMD_SELECTED
+    elif (( LATTICE_CMD_SELECTED >= offset + body )) ; then
+        offset=$(( LATTICE_CMD_SELECTED - body + 1 ))
     fi
     LATTICE_CMD_OFFSET=$offset
     LATTICE_CMD_BODY=$body
     start=$(( total ? offset + 1 : 0 ))
 
     if (( LATTICE_CMD_SEARCH )) ; then
-        mode_label="search /${LATTICE_CMD_QUERY}"
         footer='type filter ↑↓ select / Alt-↑↓ move Ctrl-t top Enter run p preview Esc back '
     else
-        mode_label='list'
         footer='j/k ↑↓ PgUp/PgDn / p D del R reload Alt-↑↓ Ctrl-t Enter Esc '
     fi
     if (( LATTICE_CMD_SEARCH )) ; then
@@ -242,7 +240,7 @@ lattice_render_commands ()
         fi
         _lattice_row " search> ${q}_"
     else
-        _lattice_row "${LATTICE_C_BOLD}${LATTICE_C_CYAN} quick commands  [${mode_label}]  ${start}-$(( offset + body < total ? offset + body : total ))/${total}  * snapshot  + user ${LATTICE_C_RESET}"
+        _lattice_row "${LATTICE_C_BOLD}${LATTICE_C_CYAN} \$_  ${start}-$(( offset + body < total ? offset + body : total ))/${total}  *snapshot  +user ${LATTICE_C_RESET}"
     fi
 
     for ((row=0;row<body;row++)); do
@@ -273,7 +271,7 @@ lattice_render_commands ()
                 base=$REPLY
                 LATTICE_CMD_ROW_CACHE[$key]=$base
             fi
-            if (( pos == LATTICE_SELECTED )) ; then
+            if (( pos == LATTICE_CMD_SELECTED )) ; then
                 _lattice_pad "$base" "$LATTICE_COLS"
                 line="$LATTICE_C_REV$REPLY$LATTICE_C_RESET"
             else
@@ -286,8 +284,8 @@ lattice_render_commands ()
     done
 
     # Preview area: only the selected command body, no labels or snapshot.
-    if (( total > 0 )) && (( LATTICE_SELECTED >= 0 && LATTICE_SELECTED < total )) ; then
-        idx=${LATTICE_CMD_VIEW[LATTICE_SELECTED]}
+    if (( total > 0 )) && (( LATTICE_CMD_SELECTED >= 0 && LATTICE_CMD_SELECTED < total )) ; then
+        idx=${LATTICE_CMD_VIEW[LATTICE_CMD_SELECTED]}
         cmd=${LATTICE_CMD_COMMANDS[idx]:-}
         cmd=${cmd%%$'\n'*}
         _lattice_fit "$cmd" "$LATTICE_COLS"
@@ -305,7 +303,7 @@ lattice_render_history ()
     local body=$(( LATTICE_ROWS - 3 ))
     (( body < 1 )) && body=1
     local offset=0
-    (( LATTICE_SELECTED >= body )) && offset=$(( LATTICE_SELECTED - body + 1 ))
+    (( LATTICE_HISTORY_SELECTED >= body )) && offset=$(( LATTICE_HISTORY_SELECTED - body + 1 ))
 
     for ((row=0;row<body;row++)); do
         idx=$(( offset + row ))
@@ -314,7 +312,7 @@ lattice_render_history ()
             cmd=${LATTICE_HISTORY_CMDS[i]}
             _lattice_fit "  $cmd" "$LATTICE_COLS"
             line=$REPLY
-            if (( idx == LATTICE_SELECTED )) ; then
+            if (( idx == LATTICE_HISTORY_SELECTED )) ; then
                 line="$LATTICE_C_REV> ${line:2}$LATTICE_C_RESET"
             fi
             LATTICE_FRAME+=("$LATTICE_C_RESET$line"$'\033[K\r\n')
@@ -492,6 +490,7 @@ lattice_render_help ()
         'r               refresh tree'
         '.               toggle hidden files'
         'o               open selected directory in the file manager'
+        'y               copy selected path to the clipboard'
         ':               quick command palette'
         '/               search commands in palette'
         '↑/↓             select command'
@@ -529,4 +528,5 @@ lattice_render ()
     (( LATTICE_FORM_OPEN )) && lattice_render_form_popup
     (( LATTICE_SNAPSHOT_OPEN )) && lattice_render_snapshot_popup
     printf '%s' "${LATTICE_FRAME[@]}"
+    lattice_status_left_update
 }

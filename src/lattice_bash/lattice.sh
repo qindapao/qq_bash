@@ -54,6 +54,7 @@ EOF
 
 lattice_cleanup ()
 {
+    lattice_status_left_end 2>/dev/null || true
     lattice_search_status_end 2>/dev/null || true
     if (( ${LATTICE_SCREEN_ACTIVE:-0} )) ; then
         LATTICE_SCREEN_ACTIVE=0
@@ -74,6 +75,7 @@ lattice_app_main ()
     LATTICE_NEED_RENDER=0
     [[ -n "${TMUX:-}" ]] && lattice_tmux_apply_tui_width
     [[ -n "${TMUX:-}" ]] && lattice_tmux_mouse_on
+    [[ -n "${TMUX:-}" ]] && lattice_status_left_start
     trap lattice_cleanup EXIT
     trap lattice_signal_exit INT TERM HUP
     trap 'LATTICE_NEED_RENDER=1; lattice_term_size' WINCH
@@ -152,8 +154,6 @@ lattice_create_session ()
     # Start with a plain shell, split first, then respawn the TUI. Starting the
     # TUI before the split makes it cache the full-window width and renders
     # misaligned inside the smaller pane.
-    # The first tmux server start can be much slower than a normal control
-    # command on MSYS2; give only this one a longer cold-start window.
     # The first tmux server start can be much slower than a normal control
     # command on MSYS2; give only this one a longer cold-start window.
     LATTICE_TMUX_TIMEOUT=10 lattice_tmux_quick new-session -d -s "$session" -n work -c "$root" \

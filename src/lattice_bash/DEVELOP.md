@@ -776,6 +776,24 @@ bad path   -> message + buffer kept
 Relative paths resolve against the active pane's cwd, not against a global
 fixed root.
 
+The tmux status-left line mirrors the live context instead of the session/window
+label:
+
+```text
+DIR <WB_DIR>  FILE <WB_FILE>
+```
+
+`WB_FILE` is omitted for a directory selection. `lattice_status_left_start`
+saves the original `status-left`, `status-left-length`, `status-format[0]`,
+`set-titles` and `set-titles-string`, removes the single-window list, and sets
+the outer title to `WB_ROOT`.
+
+Status updates are written to a small temp file and applied by one background
+worker. The TUI never runs a tmux `set-option` on selection movement; updating
+`status-left` synchronously would add roughly 50 ms per key on MSYS2. The worker
+coalesces rapid movement and applies only the latest text. Cleanup stops the
+worker and restores all saved options.
+
 ### 9.3.1 Opening a mouse line without selection
 
 `Alt+left-click` and `Ctrl+left-click` are bound in the tmux `root` table:
@@ -858,6 +876,7 @@ h/Backspace parent
 r           refresh
 .           hidden files
 o           open selected directory in system file manager
+y           copy selected path to the clipboard
 /           incremental name filter
 ```
 

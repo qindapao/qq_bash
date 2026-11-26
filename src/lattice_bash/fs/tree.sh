@@ -23,15 +23,15 @@ lattice_tree_apply_filter ()
             LATTICE_ENTRY_IS_DIR+=("${LATTICE_ALL_ENTRY_IS_DIR[i]}")
         fi
     done
-    (( LATTICE_SELECTED >= ${#LATTICE_ENTRIES[@]} )) && \
-        LATTICE_SELECTED=$(( ${#LATTICE_ENTRIES[@]} - 1 ))
-    (( LATTICE_SELECTED < 0 )) && LATTICE_SELECTED=0
+    (( LATTICE_TREE_SELECTED >= ${#LATTICE_ENTRIES[@]} )) && \
+        LATTICE_TREE_SELECTED=$(( ${#LATTICE_ENTRIES[@]} - 1 ))
+    (( LATTICE_TREE_SELECTED < 0 )) && LATTICE_TREE_SELECTED=0
 }
 
 lattice_tree_set_filter ()
 {
     LATTICE_TREE_FILTER=$1
-    LATTICE_SELECTED=0
+    LATTICE_TREE_SELECTED=0
     lattice_tree_apply_filter
 }
 
@@ -39,7 +39,7 @@ lattice_tree_search_open ()
 {
     LATTICE_TREE_SEARCH=1
     LATTICE_TREE_FILTER=''
-    LATTICE_SELECTED=0
+    LATTICE_TREE_SELECTED=0
     lattice_tree_apply_filter
 }
 
@@ -47,7 +47,7 @@ lattice_tree_search_close ()
 {
     LATTICE_TREE_SEARCH=0
     LATTICE_TREE_FILTER=''
-    LATTICE_SELECTED=0
+    LATTICE_TREE_SELECTED=0
     lattice_tree_apply_filter
 }
 
@@ -112,9 +112,9 @@ lattice_tree_move ()
     local delta=$1 max
     max=$(( ${#LATTICE_ENTRIES[@]} - 1 ))
     (( max < 0 )) && return 0
-    LATTICE_SELECTED=$(( LATTICE_SELECTED + delta ))
-    (( LATTICE_SELECTED < 0 )) && LATTICE_SELECTED=0
-    (( LATTICE_SELECTED > max )) && LATTICE_SELECTED=$max
+    LATTICE_TREE_SELECTED=$(( LATTICE_TREE_SELECTED + delta ))
+    (( LATTICE_TREE_SELECTED < 0 )) && LATTICE_TREE_SELECTED=0
+    (( LATTICE_TREE_SELECTED > max )) && LATTICE_TREE_SELECTED=$max
     lattice_selected_path
     lattice_status "$REPLY"
 }
@@ -125,7 +125,7 @@ lattice_tree_enter ()
     lattice_selected_path
     path=$REPLY
     if [[ -d "$path" ]] ; then
-        LATTICE_SELECTED=0
+        LATTICE_TREE_SELECTED=0
         LATTICE_TREE_SEARCH=0
         LATTICE_TREE_FILTER=''
         lattice_tree_load "$path" || return $?
@@ -140,7 +140,7 @@ lattice_tree_parent ()
     [[ "$LATTICE_DIR" == '/' ]] && return 0
     parent=${LATTICE_DIR%/*}
     [[ -z "$parent" ]] && parent='/'
-    LATTICE_SELECTED=0
+    LATTICE_TREE_SELECTED=0
     LATTICE_TREE_SEARCH=0
     LATTICE_TREE_FILTER=''
     lattice_tree_load "$parent" || return $?
@@ -175,6 +175,23 @@ lattice_tree_open_directory ()
     }
     "$opener" "$path" >/dev/null 2>&1 &
     lattice_status "open directory: $path" ok
+}
+
+lattice_tree_yank_path ()
+{
+    local path copier="$LATTICE_HOME/executor/copy-selection.sh"
+    lattice_selected_path
+    path=$REPLY
+    [[ -n "$path" ]] || return 1
+    [[ -x "$copier" ]] || {
+        lattice_status "clipboard helper missing" error
+        return 1
+    }
+    printf '%s' "$path" | "$copier" >/dev/null 2>&1 || {
+        lattice_status "copy path failed" error
+        return 1
+    }
+    lattice_status "copied path: $path" ok
 }
 
 lattice_tree_refresh ()

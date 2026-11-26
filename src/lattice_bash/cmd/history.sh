@@ -147,7 +147,7 @@ lattice_history_set_query ()
 
 lattice_history_selected ()
 {
-    local vi=${LATTICE_SELECTED:-0} idx
+    local vi=${LATTICE_HISTORY_SELECTED:-0} idx
     idx=${LATTICE_HISTORY_VIEW[vi]:-}
     [[ -n "$idx" ]] || return 1
     REPLY=${LATTICE_HISTORY_CMDS[idx]}

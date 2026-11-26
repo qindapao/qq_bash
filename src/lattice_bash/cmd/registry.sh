@@ -144,15 +144,15 @@ lattice_registry_rebuild_view ()
             ((ok)) && LATTICE_CMD_VIEW+=("$i")
         done
     fi
-    (( LATTICE_SELECTED >= ${#LATTICE_CMD_VIEW[@]} )) && \
-        LATTICE_SELECTED=$(( ${#LATTICE_CMD_VIEW[@]} - 1 ))
-    (( LATTICE_SELECTED < 0 )) && LATTICE_SELECTED=0
+    (( LATTICE_CMD_SELECTED >= ${#LATTICE_CMD_VIEW[@]} )) && \
+        LATTICE_CMD_SELECTED=$(( ${#LATTICE_CMD_VIEW[@]} - 1 ))
+    (( LATTICE_CMD_SELECTED < 0 )) && LATTICE_CMD_SELECTED=0
 }
 
 lattice_registry_set_query ()
 {
     LATTICE_CMD_QUERY=$1
-    LATTICE_SELECTED=0
+    LATTICE_CMD_SELECTED=0
     lattice_registry_rebuild_view
 }
 
@@ -234,7 +234,7 @@ lattice_registry_save_order ()
 
 lattice_registry_move_selected ()
 {
-    local delta=$1 view_pos=$LATTICE_SELECTED target raw_a raw_b tmp
+    local delta=$1 view_pos=$LATTICE_CMD_SELECTED target raw_a raw_b tmp
     target=$(( view_pos + delta ))
     (( target < 0 )) && target=0
     (( target >= ${#LATTICE_CMD_VIEW[@]} )) && target=$(( ${#LATTICE_CMD_VIEW[@]} - 1 ))
@@ -257,14 +257,14 @@ lattice_registry_move_selected ()
     lattice_registry_save_order || return 1
     LATTICE_CMD_ROW_CACHE=()
     lattice_registry_rebuild_view
-    LATTICE_SELECTED=$target
+    LATTICE_CMD_SELECTED=$target
     lattice_status 'command order saved' ok
     return 0
 }
 
 lattice_registry_move_to_top ()
 {
-    local raw=${LATTICE_CMD_VIEW[LATTICE_SELECTED]:-} i
+    local raw=${LATTICE_CMD_VIEW[LATTICE_CMD_SELECTED]:-} i
     [[ -n "$raw" ]] || return 0
     (( raw > 0 )) || return 0
 
@@ -305,7 +305,7 @@ lattice_registry_move_to_top ()
     lattice_registry_save_order || return 1
     LATTICE_CMD_ROW_CACHE=()
     lattice_registry_rebuild_view
-    LATTICE_SELECTED=0
+    LATTICE_CMD_SELECTED=0
     lattice_status "pinned: $name" ok
     return 0
 }
@@ -315,13 +315,12 @@ lattice_registry_open ()
     LATTICE_MODE='commands'
     LATTICE_CMD_SEARCH=0
     LATTICE_CMD_QUERY=''
-    LATTICE_SELECTED=0
     lattice_registry_rebuild_view
 }
 
 lattice_registry_selected_raw_index ()
 {
-    REPLY=${LATTICE_CMD_VIEW[LATTICE_SELECTED]:-}
+    REPLY=${LATTICE_CMD_VIEW[LATTICE_CMD_SELECTED]:-}
     [[ -n "$REPLY" ]]
 }
 
@@ -340,7 +339,6 @@ lattice_registry_show_snapshot ()
     }
     name=${LATTICE_CMD_NAMES[idx]}
     LATTICE_SNAPSHOT_TEXT=$text
-    LATTICE_SNAPSHOT_NAME=$name
     LATTICE_SNAPSHOT_SCROLL=0
     LATTICE_SNAPSHOT_OPEN=1
     return 0
@@ -422,6 +420,24 @@ lattice_registry_disable_name ()
     lattice_status "disabled command: $name" ok
 }
 
+lattice_registry_check_arrays ()
+{
+    # Every parallel array must stay index-aligned with NAMES. This catches a
+    # forgotten reset/order/swap branch after adding a registry field.
+    local n=${#LATTICE_CMD_NAMES[@]} field
+    local -a fields=(IDS SCOPES TARGETS COMMANDS SNAPSHOTS PARAMS SUBMIT ORIGINS)
+    for field in "${fields[@]}" ; do
+        local -n ref="LATTICE_CMD_$field"
+        if (( ${#ref[@]} != n )) ; then
+            local msg="registry array misaligned: $field=${#ref[@]} names=$n"
+            printf 'lattice: %s\n' "$msg" >&2
+            lattice_status "$msg" error
+            return 1
+        fi
+    done
+    return 0
+}
+
 lattice_registry_load ()
 {
     lattice_registry_reset
@@ -448,6 +464,8 @@ lattice_registry_load ()
         }
     fi
     LATTICE_CMD_LOAD_ORIGIN=base
+
+    lattice_registry_check_arrays || return 1
 
     if (( ${#LATTICE_CMD_ERRORS[@]} )) ; then
         local err
