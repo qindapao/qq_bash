@@ -951,6 +951,7 @@ recent panel is capped at 8 unique commands
 Important optimization history:
 
 * The first command-row cache removed repeated CJK width calculation.
+* The command-row cache is capped at 4096 entries and cleared on width changes.
 * `_lattice_fit` and `_lattice_pad` have ASCII fast paths.
 * A duplicate-name scan was removed from every `lattice_command_add` call; it
   made 1000-command loading take 9.4 seconds. Do not reintroduce an O(N²) scan
@@ -1034,6 +1035,8 @@ launcher. Do not remove that redirect.
 ### 15.8 CJK width and per-frame cost
 
 `str_display_width` is correct but expensive when called per character per row.
+Its slow path skips ASCII runs and only enters codepoint width logic for
+non-ASCII characters; no unbounded character cache is kept.
 Use the ASCII fast path and the command-row cache. Snapshot text is
 manually-triggered and may take the slow path.
 

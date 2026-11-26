@@ -250,6 +250,9 @@ lattice_render_commands ()
         if (( pos < total )) ; then
             idx=${LATTICE_CMD_VIEW[pos]}
             key="${idx}:${LATTICE_COLS}"
+            if (( ${#LATTICE_CMD_ROW_CACHE[@]} >= 4096 )) ; then
+                LATTICE_CMD_ROW_CACHE=()
+            fi
             if [[ -n "${LATTICE_CMD_ROW_CACHE[$key]+x}" ]] ; then
                 base=${LATTICE_CMD_ROW_CACHE[$key]}
             else

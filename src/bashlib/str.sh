@@ -604,17 +604,17 @@ str_unescape ()
 str_display_width ()
 {
     REPLY=0
-    local i ch cp
 
-    # 快速路径：纯 ASCII（0x00-0x7F），宽度 = 字符数
+    # 快速路径：排除非 ASCII 和控制字符后，剩下的只能是 0x20..0x7E。
+    # 这些字符每个正好占一个终端单元格，所以 ${#1} 就是显示宽度。
     # 用 [[:ascii:]] 而非 [ -~] 或 [[:print:]]：后两者在多字节 locale 下
     # 会漏判或误判中文，[[:ascii:]] 与 locale 无关，最稳。
-    if [[ $1 != *[![:ascii:]]* ]]; then
+    if [[ $1 != *[![:ascii:]]* && $1 != *[[:cntrl:]]* ]] ; then
         REPLY=${#1}
         return
     fi
 
-    # 慢速路径：逐字符判断码点范围
+    # 慢速路径：跳过 ASCII 连续段，只对非 ASCII 字符做码点判断。
     # 宽字符（宽度 2）范围：
     #   0x1100-0x115F   Hangul Jamo
     #   0x2E80-0x303E   CJK 部首扩展、符号
@@ -630,12 +630,30 @@ str_display_width ()
     #   0x1F300-0x1F64F Emoji
     #   0x1F900-0x1F9FF 补充 Emoji
     #   0x20000-0x3FFFD CJK 扩展 B+
-    for (( i = 0; i < ${#1}; i++ )); do
-        ch=${1:i:1}
+    # Slow path. Control characters are zero-width; remove ASCII controls once
+    # instead of checking every ASCII run. Non-ASCII controls still fall through
+    # to the codepoint path below.
+    local s=$1 run ch cp
+    if [[ "$s" == *[[:cntrl:]]* ]] ; then
+        s=${s//[[:cntrl:]]/}
+    fi
+    if [[ "$s" != *[![:ascii:]]* ]] ; then
+        REPLY=${#s}
+        return
+    fi
+    while [[ -n "$s" ]] ; do
+        run=${s%%[![:ascii:]]*}
+        (( REPLY += ${#run} ))
+        s=${s:${#run}}
+        [[ -n "$s" ]] || break
+
+        ch=${s:0:1}
         printf -v cp '%d' "'$ch"
 
+        # The one-pass control cleanup normally removes C0/C1 already.
+        # Keep this as a locale/byte fallback; control characters are
+        # zero-width by contract.
         if (( cp < 32 || (cp >= 127 && cp < 160) )); then
-            # 控制字符宽度 0
             :
         elif (( (cp >= 0x1100  && cp <= 0x115F) ||
                 (cp >= 0x2E80  && cp <= 0x303E) ||
@@ -651,10 +669,11 @@ str_display_width ()
                 (cp >= 0x1F300 && cp <= 0x1F64F) ||
                 (cp >= 0x1F900 && cp <= 0x1F9FF) ||
                 (cp >= 0x20000 && cp <= 0x3FFFD) )); then
-            (( REPLY += 2 ))
+            ((REPLY+=2))
         else
-            (( REPLY += 1 ))
+            ((REPLY+=1))
         fi
+        s=${s:1}
     done
 }
 

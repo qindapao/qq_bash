@@ -139,7 +139,7 @@ lattice_status ()
 
 lattice_term_size ()
 {
-    local size actual_cols
+    local size actual_cols old_cols=$LATTICE_COLS
     actual_cols=$LATTICE_COLS
     if size=$(stty size 2>/dev/null) && [[ -n "$size" ]] ; then
         LATTICE_ROWS=${size%% *}
@@ -148,6 +148,9 @@ lattice_term_size ()
     fi
     (( LATTICE_COLS < 24 )) && LATTICE_COLS=24
     (( LATTICE_ROWS < 10 )) && LATTICE_ROWS=10
+    if (( LATTICE_COLS != old_cols )) ; then
+        LATTICE_CMD_ROW_CACHE=()
+    fi
 
     # Keep a mouse-dragged border from squeezing the TUI into an unusable
     # width. The pane can reach 1 column before WINCH arrives; ask tmux to put
