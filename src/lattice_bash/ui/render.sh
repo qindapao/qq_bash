@@ -48,7 +48,7 @@ _lattice_fit ()
         fi
         return
     fi
-    str_display_width "$s" width
+    str_display_width "$s"; width=$REPLY
     if (( width <= n )) ; then
         REPLY=$s
         return
@@ -64,7 +64,7 @@ _lattice_fit ()
         ch=${s:i:1}
         case "$ch" in
         [[:ascii:]]) w=1 ;;
-        *) str_display_width "$ch" w ;;
+        *) str_display_width "$ch"; w=$REPLY ;;
         esac
         (( used + w > target )) && break
         out+=$ch
@@ -83,7 +83,7 @@ _lattice_pad ()
     if [[ "$s" != *[![:ascii:]]* ]] ; then
         used=${#s}
     else
-        str_display_width "$s" used
+        str_display_width "$s"; used=$REPLY
     fi
     if (( used >= width )) ; then
         _lattice_fit "$s" "$width"
@@ -111,17 +111,17 @@ _lattice_footer ()
 
     # Reserve the shortcut block first. A long status/path must never push the
     # key help off the row; only the left side gets ellipsized.
-    str_display_width "$right" rw
+    str_display_width "$right"; rw=$REPLY
     if (( rw >= LATTICE_COLS )) ; then
         _lattice_fit "$right" "$LATTICE_COLS"
         right=$REPLY
-        str_display_width "$right" rw
+        str_display_width "$right"; rw=$REPLY
     fi
     max_left=$(( LATTICE_COLS - rw - 1 ))
     (( max_left < 0 )) && max_left=0
     _lattice_fit "$left" "$max_left"
     left=$REPLY
-    str_display_width "$left" lw
+    str_display_width "$left"; lw=$REPLY
 
     pad=$(( LATTICE_COLS - lw - rw ))
     (( pad < 0 )) && pad=0
@@ -327,7 +327,7 @@ _lattice_wrap_line ()
     local text=$1 width=$2 line='' used=0 ch w i
     for ((i=0;i<${#text};i++)); do
         ch=${text:i:1}
-        str_display_width "$ch" w
+        str_display_width "$ch"; w=$REPLY
         if (( ${#line} > 0 && used + w > width )) ; then
             LATTICE_SNAPSHOT_WRAP+=("$line")
             line=$ch
@@ -351,7 +351,7 @@ lattice_snapshot_layout ()
 
     maxw=24
     for line in "${raw[@]}" ; do
-        str_display_width "$line" width
+        str_display_width "$line"; width=$REPLY
         (( width > maxw )) && maxw=$width
     done
     w=$(( maxw + 4 ))
@@ -429,12 +429,12 @@ lattice_render_form_popup ()
         fi
     done
 
-    str_display_width "$title" width
+    str_display_width "$title"; width=$REPLY
     (( width > maxw )) && maxw=$width
-    str_display_width 'Enter next · Esc cancel' width
+    str_display_width 'Enter next · Esc cancel'; width=$REPLY
     (( width > maxw )) && maxw=$width
     for line in "${rows[@]}" ; do
-        str_display_width "$line" width
+        str_display_width "$line"; width=$REPLY
         (( width > maxw )) && maxw=$width
     done
     w=$(( maxw + 4 ))

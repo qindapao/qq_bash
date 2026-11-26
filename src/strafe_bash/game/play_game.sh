@@ -1245,7 +1245,7 @@ _play_game_tick () {
     # ---- 14. 刷飘字 ----
     (( G_WORD_TICK++ % 250 == 0 )) && (( ${#WORDS[@]} < WORD_LIMIT )) && {
         local _wtext="${WORD_LIST[RANDOM % ${#WORD_LIST[@]}]}" _ww
-        str_display_width "$_wtext" _ww
+        str_display_width "$_wtext"; _ww=$REPLY
         if (( _ww <= SCREEN_W - 4 )) ; then
             xo_obj_born Word "$_wtext"
             WORDS+=("$REPLY")

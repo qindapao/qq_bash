@@ -54,7 +54,7 @@ test_case1 ()
             printf '  非可打印 ASCII index %s: [%s]\n' "$i" "$t"
         fi
 
-        str_display_width "$t" w
+        str_display_width "$t"; w=$REPLY
         (( w > maxw )) && { toolong=1 ; printf '  过长 index %s (%s > %s): [%s]\n' "$i" "$w" "$maxw" "$t" ; }
 
         [[ -n "${seen[$t]+_}" ]] && { dup=1 ; printf '  重复词条: [%s]\n' "$t" ; }

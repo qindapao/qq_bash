@@ -1191,8 +1191,8 @@ _x_dump ()
                 local tr_value_indent="${tr_token_safe}"
                 ((tr_id_need_print)) && tr_value_indent+="(${tr_child_id})"
                 tr_value_indent=${tr_value_indent##*$'\n'}
-                local _XDump_w ; str_display_width "$tr_value_indent" _XDump_w
-                printf -v tr_value_indent '%*s' "$_XDump_w" ''
+                str_display_width "$tr_value_indent"
+                printf -v tr_value_indent '%*s' "$REPLY" ''
 
                 # 多行键最后一行多了 |，值续行补偿加一个空格
                 [[ $tr_token_safe == *$'\n'* ]] && tr_value_indent+=" "

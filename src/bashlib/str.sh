@@ -581,7 +581,9 @@ str_unescape ()
 
 #-------------------------------------------------------------------------------
 # 计算字符串在终端下的显示宽度（以终端字符单元格为准）
-# 用法: str_display_width <字符串> <输出变量名>
+# 用法: str_display_width <字符串>
+# 输出: REPLY=显示宽度
+# 返回: 0
 #
 # 【计算规则】
 #   - 纯 ASCII 字符：宽度 = 字符数（例如已转义的 \u0001 序列是 6 个
@@ -597,16 +599,18 @@ str_unescape ()
 #   - 若值多行，调用方应先取最后一行（例如 ${s##*$'\n'}）再计算宽度。
 #   - 若直接传入未转义的原始控制字符，慢速路径虽按码点算 0 宽，但
 #     会造成终端显示混乱，属用法错误。建议先过 str_escape_keep_nl 再传。
+#
+# 该函数只写 REPLY，不接收输出变量名。
 str_display_width ()
 {
-    local s=$1 total=0 i ch cp
-    local -n out_w=$2
+    REPLY=0
+    local i ch cp
 
     # 快速路径：纯 ASCII（0x00-0x7F），宽度 = 字符数
     # 用 [[:ascii:]] 而非 [ -~] 或 [[:print:]]：后两者在多字节 locale 下
     # 会漏判或误判中文，[[:ascii:]] 与 locale 无关，最稳。
-    if [[ $s != *[![:ascii:]]* ]]; then
-        out_w=${#s}
+    if [[ $1 != *[![:ascii:]]* ]]; then
+        REPLY=${#1}
         return
     fi
 
@@ -626,8 +630,8 @@ str_display_width ()
     #   0x1F300-0x1F64F Emoji
     #   0x1F900-0x1F9FF 补充 Emoji
     #   0x20000-0x3FFFD CJK 扩展 B+
-    for (( i = 0; i < ${#s}; i++ )); do
-        ch=${s:i:1}
+    for (( i = 0; i < ${#1}; i++ )); do
+        ch=${1:i:1}
         printf -v cp '%d' "'$ch"
 
         if (( cp < 32 || (cp >= 127 && cp < 160) )); then
@@ -647,12 +651,11 @@ str_display_width ()
                 (cp >= 0x1F300 && cp <= 0x1F64F) ||
                 (cp >= 0x1F900 && cp <= 0x1F9FF) ||
                 (cp >= 0x20000 && cp <= 0x3FFFD) )); then
-            (( total += 2 ))
+            (( REPLY += 2 ))
         else
-            (( total += 1 ))
+            (( REPLY += 1 ))
         fi
     done
-    out_w=$total
 }
 
 #-------------------------------------------------------------------------------

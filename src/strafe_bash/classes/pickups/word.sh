@@ -30,7 +30,7 @@ Word_born () {
     local -n self=$1
     self[text]=$2
     local _w
-    str_display_width "$2" _w
+    str_display_width "$2"; _w=$REPLY
     self[len]=$_w \
     self[y]=$GAME_TOP
     local _maxx=$(( SCREEN_W - 3 - _w ))
