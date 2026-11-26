@@ -5,6 +5,7 @@ declare -gA _LATTICE_LOADED
 (( _LATTICE_LOADED[history]++ )) && return 0
 
 declare -ga LATTICE_HISTORY_CMDS=()
+declare -ga LATTICE_HISTORY_TIMES=()
 declare -ga LATTICE_HISTORY_DIRS=()
 declare -ga LATTICE_HISTORY_IDS=()
 declare -ga LATTICE_HISTORY_VIEW=()
@@ -12,24 +13,55 @@ declare -ga LATTICE_RECENT_CMDS=()
 LATTICE_HISTORY_QUERY=''
 declare -i LATTICE_HISTORY_NEXT=1
 declare -i LATTICE_RECENT_SELECTED=0
-LATTICE_RECENT_LIMIT=${LATTICE_RECENT_LIMIT:-3}
+LATTICE_RECENT_LIMIT=${LATTICE_RECENT_LIMIT:-8}
+LATTICE_HISTORY_LIMIT=${LATTICE_HISTORY_LIMIT:-1000}
+(( LATTICE_HISTORY_LIMIT < 1 )) && LATTICE_HISTORY_LIMIT=1
+
+lattice_history_rewrite ()
+{
+    local i tmp
+    [[ -d "$LATTICE_STATE_DIR" ]] || return 1
+    tmp=$(mktemp "$LATTICE_HISTORY_FILE.XXXXXX") || return 1
+    for ((i=0;i<${#LATTICE_HISTORY_CMDS[@]};i++)); do
+        printf '%s\t%s\t%s\t%s\n' \
+            "${LATTICE_HISTORY_IDS[i]}" \
+            "${LATTICE_HISTORY_TIMES[i]}" \
+            "${LATTICE_HISTORY_DIRS[i]}" \
+            "${LATTICE_HISTORY_CMDS[i]}" >> "$tmp" || {
+                rm -f -- "$tmp"
+                return 1
+            }
+    done
+    mv -f -- "$tmp" "$LATTICE_HISTORY_FILE"
+}
+
+lattice_history_trim ()
+{
+    local total=${#LATTICE_HISTORY_CMDS[@]} drop
+    (( total <= LATTICE_HISTORY_LIMIT )) && return 0
+    drop=$(( total - LATTICE_HISTORY_LIMIT ))
+    LATTICE_HISTORY_IDS=("${LATTICE_HISTORY_IDS[@]:drop}")
+    LATTICE_HISTORY_TIMES=("${LATTICE_HISTORY_TIMES[@]:drop}")
+    LATTICE_HISTORY_DIRS=("${LATTICE_HISTORY_DIRS[@]:drop}")
+    LATTICE_HISTORY_CMDS=("${LATTICE_HISTORY_CMDS[@]:drop}")
+    lattice_history_rewrite
+}
 
 lattice_history_init ()
 {
-    mkdir -p -- "$LATTICE_STATE_DIR" || return 1
-    touch -- "$LATTICE_HISTORY_FILE" 2>/dev/null || true
-    LATTICE_HISTORY_TREE=''
-    xo_data_born_dtree || return $?
-    LATTICE_HISTORY_TREE=$REPLY
+    [[ -d "$LATTICE_STATE_DIR" ]] || mkdir -p -- "$LATTICE_STATE_DIR" || return 1
+    [[ -f "$LATTICE_HISTORY_FILE" ]] || : > "$LATTICE_HISTORY_FILE"
 
-    local line id cmd dir ts
+    local line id ts dir cmd
     while IFS=$'\t' read -r id ts dir cmd ; do
         [[ -n "$id" ]] || continue
         LATTICE_HISTORY_IDS+=("$id")
+        LATTICE_HISTORY_TIMES+=("$ts")
         LATTICE_HISTORY_DIRS+=("$dir")
         LATTICE_HISTORY_CMDS+=("$cmd")
         (( LATTICE_HISTORY_NEXT <= id )) && LATTICE_HISTORY_NEXT=$((id + 1))
     done < "$LATTICE_HISTORY_FILE"
+    lattice_history_trim
     lattice_history_rebuild_view
     lattice_recent_refresh
     return 0
@@ -37,7 +69,7 @@ lattice_history_init ()
 
 lattice_history_add ()
 {
-    local cmd=$1 dir=${2:-$LATTICE_DIR} id ts path
+    local cmd=$1 dir=${2:-$LATTICE_DIR} id ts
     id=$LATTICE_HISTORY_NEXT
     ((LATTICE_HISTORY_NEXT++))
     ts=$(date +%s)
@@ -48,14 +80,11 @@ lattice_history_add ()
     cmd=${cmd//$'\n'/ }
     printf '%s\t%s\t%s\t%s\n' "$id" "$ts" "$dir" "$cmd" >> "$LATTICE_HISTORY_FILE"
 
-    path="{h}$X{$id}$X"
-    x_insert "$LATTICE_HISTORY_TREE" "${path}{cmd}$X" "$cmd" || return $?
-    x_insert "$LATTICE_HISTORY_TREE" "${path}{dir}$X" "$dir" || return $?
-    x_insert "$LATTICE_HISTORY_TREE" "${path}{ts}$X" "$ts" || return $?
-
     LATTICE_HISTORY_IDS+=("$id")
+    LATTICE_HISTORY_TIMES+=("$ts")
     LATTICE_HISTORY_DIRS+=("$dir")
     LATTICE_HISTORY_CMDS+=("$cmd")
+    lattice_history_trim
     lattice_history_rebuild_view
     lattice_recent_refresh
     return 0

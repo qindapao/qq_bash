@@ -9,19 +9,18 @@ fi
 LATTICE_HOME=${LATTICE_HOME:-$(cd -- "${LATTICE_SELF%/*}" && pwd)}
 LATTICE_LIB_HOME=${LATTICE_LIB_HOME:-$(cd -- "$LATTICE_HOME/../bashlib" && pwd)}
 
+# Reuse str_display_width for CJK alignment. str.sh prints its grammar probe;
+# suppress that chatter in the TUI launcher.
 # shellcheck source=/dev/null
-. "$LATTICE_LIB_HOME/x.sh" || {
-    printf 'lattice: failed to load x.sh (is X already set?)\n' >&2
+. "$LATTICE_LIB_HOME/str.sh" >/dev/null || {
+    printf 'lattice: failed to load str.sh\n' >&2
     exit 1
 }
-# shellcheck source=/dev/null
-. "$LATTICE_LIB_HOME/data.sh" || exit 1
 
 # shellcheck source=/dev/null
 . "$LATTICE_HOME/app/state.sh"
 # shellcheck source=/dev/null
 . "$LATTICE_HOME/fs/tree.sh"
-# shellcheck source=/dev/null
 # shellcheck source=/dev/null
 . "$LATTICE_HOME/cmd/registry.sh"
 # shellcheck source=/dev/null
@@ -47,6 +46,8 @@ Usage: lattice.sh [options]
   --no-tmux           run TUI without looking for a tmux executor
   --list-commands     print configured commands
   --print-command NAME print the expanded command for NAME
+  --machine-id       print machine id and env config paths
+  --version, -v      print version
   --help              this help
 EOF
 }
@@ -70,6 +71,8 @@ lattice_app_main ()
 {
     LATTICE_SCREEN_ACTIVE=0
     LATTICE_NEED_RENDER=0
+    [[ -n "${TMUX:-}" ]] && lattice_tmux_apply_tui_width
+    [[ -n "${TMUX:-}" ]] && lattice_tmux_mouse_on
     trap lattice_cleanup EXIT
     trap lattice_signal_exit INT TERM HUP
     trap 'LATTICE_NEED_RENDER=1; lattice_term_size' WINCH
@@ -133,6 +136,7 @@ lattice_create_session ()
 
     if lattice_tmux_session_exists ; then
         if lattice_tmux_has_role tui && lattice_tmux_has_role executor ; then
+            lattice_tmux_mouse_on
             lattice_tmux_select_role tui
             lattice_tmux attach -t "$session"
             return $?
@@ -149,12 +153,15 @@ lattice_create_session ()
     # misaligned inside the smaller pane.
     # The first tmux server start can be much slower than a normal control
     # command on MSYS2; give only this one a longer cold-start window.
+    # The first tmux server start can be much slower than a normal control
+    # command on MSYS2; give only this one a longer cold-start window.
     LATTICE_TMUX_TIMEOUT=10 lattice_tmux_quick new-session -d -s "$session" -n work -c "$root" \
         'exec bash --noprofile --norc' || {
         printf 'lattice: tmux new-session failed for session %s\n' "$session" >&2
         return 1
     }
-    if ! lattice_tmux_quick split-window -h -t "$session:work" -c "$root" \
+    lattice_tmux_mouse_on
+    if ! lattice_tmux_quick split-window -h -p 70 -t "$session:work" -c "$root" \
             "$(lattice_tmux_executor_command)" ; then
         printf 'lattice: tmux split-window failed (executor pane)\n' >&2
         lattice_tmux_quick kill-session -t "$session" 2>/dev/null || true
@@ -193,10 +200,17 @@ main ()
         --no-tmux) LATTICE_NO_TMUX=1 ; shift ;;
         --list-commands) mode='list' ; shift ;;
         --print-command) mode='print' ; PRINT_KEY=$2 ; shift 2 ;;
+        --machine-id) mode='machine' ; shift ;;
+        --version|-v) mode='version' ; shift ;;
         --help|-h) lattice_usage ; return 0 ;;
         *) printf 'lattice: unknown option %s\n' "$1" >&2 ; lattice_usage >&2 ; return 1 ;;
         esac
     done
+
+    [[ "$mode" == 'version' ]] && {
+        printf 'lattice v%s\n' "$LATTICE_VERSION"
+        return 0
+    }
 
     [[ -d "$root" ]] || { printf 'lattice: not a directory: %s\n' "$root" >&2 ; return 1 ; }
     root=$(cd -- "$root" && pwd)
@@ -206,8 +220,13 @@ main ()
     LATTICE_CONTEXT_FILE=${LATTICE_CONTEXT_FILE:-"${TMPDIR:-/tmp}/lattice-context-${session}"}
 
     case "$mode" in
-    list) lattice_list_commands ;;
-    print) lattice_print_command "$PRINT_KEY" ;;
+    version) printf 'lattice v%s\n' "$LATTICE_VERSION" ;;
+    list) lattice_list_commands ;;    print) lattice_print_command "$PRINT_KEY" ;;
+    machine)
+        printf 'machine: %s\n' "$LATTICE_MACHINE_ID"
+        printf 'common:  %s\n' "$LATTICE_ENV_CONF"
+        printf 'machine: %s/%s.conf\n' "$LATTICE_ENV_DIR" "$LATTICE_MACHINE_ID"
+        ;;
     tui) lattice_app_main ;;
     launch)
         if [[ -n "${TMUX:-}" ]] ; then

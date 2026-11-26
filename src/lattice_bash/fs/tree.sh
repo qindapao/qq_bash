@@ -115,6 +115,8 @@ lattice_tree_move ()
     LATTICE_SELECTED=$(( LATTICE_SELECTED + delta ))
     (( LATTICE_SELECTED < 0 )) && LATTICE_SELECTED=0
     (( LATTICE_SELECTED > max )) && LATTICE_SELECTED=$max
+    lattice_selected_path
+    lattice_status "$REPLY"
 }
 
 lattice_tree_enter ()
@@ -152,6 +154,27 @@ lattice_tree_toggle_hidden ()
         LATTICE_SHOW_HIDDEN=1
     fi
     lattice_tree_load "$LATTICE_DIR"
+}
+
+lattice_tree_open_directory ()
+{
+    local path opener="$LATTICE_HOME/executor/open-directory.sh"
+    lattice_selected_path
+    path=$REPLY
+    if [[ -f "$path" ]] ; then
+        path=${path%/*}
+        [[ -n "$path" ]] || path='/'
+    fi
+    if [[ ! -d "$path" ]] ; then
+        lattice_status "not a directory: $path" error
+        return 1
+    fi
+    [[ -x "$opener" ]] || {
+        lattice_status "directory opener missing" error
+        return 1
+    }
+    "$opener" "$path" >/dev/null 2>&1 &
+    lattice_status "open directory: $path" ok
 }
 
 lattice_tree_refresh ()
