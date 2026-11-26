@@ -138,7 +138,7 @@ lattice_render_tree ()
     local recent_h=${LATTICE_RECENT_LIMIT:-8}
     (( recent_h > LATTICE_ROWS - 3 )) && recent_h=$(( LATTICE_ROWS - 3 ))
     (( recent_h < 1 )) && recent_h=1
-    local title=" ${LATTICE_NAME}  ${LATTICE_DIR} "
+    local title=" ${LATTICE_DIR} "
     (( LATTICE_TREE_SEARCH )) && title+="  /${LATTICE_TREE_FILTER}"
     _lattice_row "${LATTICE_C_BOLD}${LATTICE_C_CYAN}${title}${LATTICE_C_RESET}"
 

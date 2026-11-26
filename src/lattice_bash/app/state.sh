@@ -4,7 +4,6 @@ declare -gA _LATTICE_LOADED
 
 LATTICE_NAME='lattice'
 LATTICE_VERSION='1.0.0.0'
-
 LATTICE_HOME=${LATTICE_HOME:-$(cd -- "${BASH_SOURCE[0]%/*}/.." && pwd)}
 
 # Machine identity is derived from the operating system on every run. It must
