@@ -1612,6 +1612,18 @@ x_get_node_type ()
 #     fi
 # 空白 here-string 也会让 read 读到一行空串，所以必须先判空。
 # 换行在字段内已被 @Q 转义，所以按行拆是安全的。
+# 生成端只在前一项之后插入换行，末尾没有换行；here-string 会补上
+# 最后一个换行，因此最后一项不会丢。不要改成无末尾换行的管道输入：
+# 那样必须写 `while IFS= read -r line || [[ -n "$line" ]]`。
+# 完整示例：
+#     printf '%s' "$iter_str" |
+#     while IFS= read -r line || [[ -n "$line" ]] ; do
+#         local -a "tuple=($line)"
+#     done
+# 管道会开 subshell；如果需要让循环修改外层变量，改用进程替换：
+#     while IFS= read -r line || [[ -n "$line" ]] ; do
+#         local -a "tuple=($line)"
+#     done < <(printf '%s' "$iter_str")
 #
 # @in  $1=树名  $2=物理前缀（默认空=根）  $3=迭代掩码
 #      （bit0=phy_token bit1=type bit2=index_token bit3=value bit4=node）
