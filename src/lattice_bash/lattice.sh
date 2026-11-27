@@ -56,6 +56,7 @@ lattice_cleanup ()
 {
     lattice_status_left_end 2>/dev/null || true
     lattice_search_status_end 2>/dev/null || true
+    [[ -n "${LATTICE_CONTEXT_FILE:-}" ]] && rm -f -- "$LATTICE_CONTEXT_FILE"
     if (( ${LATTICE_SCREEN_ACTIVE:-0} )) ; then
         LATTICE_SCREEN_ACTIVE=0
         lattice_screen_done
@@ -93,8 +94,8 @@ lattice_app_main ()
 
     # Clean exit only for sessions created by the launcher. A manually started
     # --tui inside an existing tmux session must not kill the user's session.
+    # The context file is removed by lattice_cleanup, including signal exits.
     if (( LATTICE_OWN_SESSION )) ; then
-        rm -f -- "$LATTICE_CONTEXT_FILE"
         lattice_tmux_quick kill-session -t "$LATTICE_TMUX_SESSION" 2>/dev/null || true
     fi
     return 0

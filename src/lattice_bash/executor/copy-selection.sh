@@ -2,6 +2,7 @@
 # stdin: tmux selection. Put it in tmux's buffer and the system clipboard.
 set -u
 tmp=$(mktemp) || exit 1
+trap 'rm -f -- "$tmp"' EXIT
 cat > "$tmp"
 tmux set-buffer -- "$(cat "$tmp")" 2>/dev/null || true
 
