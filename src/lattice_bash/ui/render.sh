@@ -134,8 +134,8 @@ _lattice_footer ()
 
 lattice_render_tree ()
 {
-    local i row entry mark line
-    local recent_h=${LATTICE_RECENT_LIMIT:-8}
+    local i row entry mark line display key
+    local recent_h=${LATTICE_RECENT_LIMIT:-10}
     (( recent_h > LATTICE_ROWS - 3 )) && recent_h=$(( LATTICE_ROWS - 3 ))
     (( recent_h < 1 )) && recent_h=1
     local title=" ${LATTICE_DIR} "
@@ -163,15 +163,23 @@ lattice_render_tree ()
         i=$(( offset + row ))
         if (( i < ${#LATTICE_ENTRIES[@]} )) ; then
             entry=${LATTICE_ENTRIES[i]}
-            mark=' '
-            (( i == LATTICE_TREE_SELECTED )) && mark='>'
-            [[ "${LATTICE_ENTRY_IS_DIR[i]}" == 1 ]] && entry="$entry/"
-            _lattice_fit "$mark $entry" "$LATTICE_COLS"
-            if (( i == LATTICE_TREE_SELECTED )) ; then
-                _lattice_pad "$REPLY" "$LATTICE_COLS"
-                line="$LATTICE_C_REV$REPLY$LATTICE_C_RESET"
+            display=$entry
+            [[ "${LATTICE_ENTRY_IS_DIR[i]}" == 1 ]] && display+='/'
+            key="${LATTICE_COLS}:${display}"
+            if [[ -n "${LATTICE_TREE_ROW_CACHE[$key]+x}" ]] ; then
+                entry=${LATTICE_TREE_ROW_CACHE[$key]}
             else
-                line=$REPLY
+                _lattice_fit "$display" "$(( LATTICE_COLS > 2 ? LATTICE_COLS - 2 : LATTICE_COLS ))"
+                entry=$REPLY
+                if (( ${#LATTICE_TREE_ROW_CACHE[@]} >= 16384 )) ; then
+                    LATTICE_TREE_ROW_CACHE=()
+                fi
+                LATTICE_TREE_ROW_CACHE[$key]=$entry
+            fi
+            if (( i == LATTICE_TREE_SELECTED )) ; then
+                line="$LATTICE_C_REV> $entry$LATTICE_C_RESET"
+            else
+                line="  $entry"
             fi
             LATTICE_FRAME+=("$LATTICE_C_RESET$line"$'\033[K\r\n')
         else
@@ -179,7 +187,7 @@ lattice_render_tree ()
         fi
     done
 
-    # Left-bottom recent-command snapshot. Ctrl-r focuses it; 1-8 rerun.
+    # Left-bottom recent-command snapshot. Ctrl-r focuses it; 0-9 rerun.
     local r cmd
     for ((r=0;r<recent_h;r++)); do
         cmd=${LATTICE_RECENT_CMDS[r]:-}
@@ -191,7 +199,7 @@ lattice_render_tree ()
                 line=''
             fi
         else
-            _lattice_fit "recent  $((r+1))  $cmd" "$LATTICE_COLS"
+            _lattice_fit "recent  $r  $cmd" "$LATTICE_COLS"
             if (( LATTICE_RECENT_FOCUS && r == LATTICE_RECENT_SELECTED )) ; then
                 line="$LATTICE_C_REV$REPLY$LATTICE_C_RESET"
             else
@@ -341,7 +349,7 @@ lattice_render_history ()
             else
                 _lattice_fit "  $cmd" "$LATTICE_COLS"
                 line=$REPLY
-                if (( ${#LATTICE_HISTORY_ROW_CACHE[@]} >= 4096 )) ; then
+                if (( ${#LATTICE_HISTORY_ROW_CACHE[@]} >= 512 )) ; then
                     LATTICE_HISTORY_ROW_CACHE=()
                 fi
                 LATTICE_HISTORY_ROW_CACHE[$key]=$line
@@ -543,7 +551,7 @@ lattice_render_help ()
         'H               command history'
         'Home/End        first/last history entry'
         'p               preview selected history/recent command'
-        'Ctrl-r          focus recent commands (then 1-8 or Enter)'
+        'Ctrl-r          focus recent commands (then 0-9 or Enter)'
         '/               search history (inside history)'
         'R               reload commands.conf'
         'Ctrl-b a/b/c    copy clipboard into WB_A/WB_B/WB_C'

@@ -14,8 +14,8 @@ declare -ga LATTICE_RECENT_CMDS=()
 LATTICE_HISTORY_QUERY=''
 declare -i LATTICE_HISTORY_NEXT=1
 declare -i LATTICE_RECENT_SELECTED=0
-LATTICE_RECENT_LIMIT=${LATTICE_RECENT_LIMIT:-8}
-LATTICE_HISTORY_LIMIT=${LATTICE_HISTORY_LIMIT:-500}
+LATTICE_RECENT_LIMIT=${LATTICE_RECENT_LIMIT:-10}
+LATTICE_HISTORY_LIMIT=${LATTICE_HISTORY_LIMIT:-512}
 LATTICE_HISTORY_TRIM_BATCH=${LATTICE_HISTORY_TRIM_BATCH:-50}
 (( LATTICE_HISTORY_LIMIT < 1 )) && LATTICE_HISTORY_LIMIT=1
 (( LATTICE_HISTORY_TRIM_BATCH < 1 )) && LATTICE_HISTORY_TRIM_BATCH=1
@@ -116,12 +116,6 @@ lattice_recent_refresh ()
     (( LATTICE_RECENT_SELECTED < 0 )) && LATTICE_RECENT_SELECTED=0
 }
 
-lattice_recent_selected ()
-{
-    REPLY=${LATTICE_RECENT_CMDS[LATTICE_RECENT_SELECTED]:-}
-    [[ -n "$REPLY" ]]
-}
-
 lattice_recent_run_index ()
 {
     local idx=$1 cmd
@@ -132,6 +126,21 @@ lattice_recent_run_index ()
     LATTICE_MODE='tree'
     LATTICE_RECENT_FOCUS=0
     lattice_status "rerun: $cmd" ok
+    return 0
+}
+
+lattice_recent_show_preview ()
+{
+    local idx=${LATTICE_RECENT_SELECTED:-0} cmd
+    cmd=${LATTICE_RECENT_CMDS[idx]:-}
+    [[ -n "$cmd" ]] || {
+        lattice_status 'no recent command selected' error
+        return 1
+    }
+    LATTICE_SNAPSHOT_TEXT="COMMAND
+$cmd"
+    LATTICE_SNAPSHOT_SCROLL=0
+    LATTICE_SNAPSHOT_OPEN=1
     return 0
 }
 
@@ -187,21 +196,6 @@ lattice_history_show_preview ()
     }
     LATTICE_SNAPSHOT_TEXT="COMMAND
 ${LATTICE_HISTORY_CMDS[idx]}"
-    LATTICE_SNAPSHOT_SCROLL=0
-    LATTICE_SNAPSHOT_OPEN=1
-    return 0
-}
-
-lattice_recent_show_preview ()
-{
-    local idx=${LATTICE_RECENT_SELECTED:-0} cmd
-    cmd=${LATTICE_RECENT_CMDS[idx]:-}
-    [[ -n "$cmd" ]] || {
-        lattice_status 'no recent command selected' error
-        return 1
-    }
-    LATTICE_SNAPSHOT_TEXT="COMMAND
-$cmd"
     LATTICE_SNAPSHOT_SCROLL=0
     LATTICE_SNAPSHOT_OPEN=1
     return 0

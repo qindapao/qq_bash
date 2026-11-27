@@ -213,7 +213,7 @@ y            copy selected path to the clipboard
 /            filter file/dir names in tree; search commands in palette
 H            history
 p            preview selected history/recent command
-Ctrl-r       focus recent commands (then 1-8 or Enter)
+Ctrl-r       focus recent commands (then 0-9 or Enter)
 /            search history (in history mode)
 R            reload commands (tree or palette)
 ?            help
@@ -259,14 +259,13 @@ Typical machine file:
 # ~/.lattice/env.d/<machine-id>.conf
 LATTICE_EDITOR=/d/programes/vim/vim91/gvim.exe
 LATTICE_OPEN_CMD='/d/programes/vim/vim91/gvim.exe --remote-silent'
-LATTICE_RECENT_LIMIT=8
 ```
 
 Typical common file:
 
 ```bash
 # ~/.lattice/env.conf
-LATTICE_RECENT_LIMIT=8
+LATTICE_EDITOR=/d/programes/vim/vim91/gvim.exe
 ```
 
 Restart Lattice after changing these files:
@@ -336,7 +335,7 @@ Most users only need these:
 
 ```text
 LATTICE_EDITOR          editor binary; default gvim
-LATTICE_RECENT_LIMIT    recent-command count; default 8
+LATTICE_RECENT_LIMIT    recent-command count; default 10
 LATTICE_ROOT            optional initial tree root
 ```
 
@@ -356,7 +355,7 @@ LATTICE_STATE_DIR       advanced profile/state relocation
 LATTICE_ENV_CONF        advanced env-file relocation
 LATTICE_ENV_DIR         advanced env-file relocation
 LATTICE_HISTORY_FILE    derived from state dir
-LATTICE_HISTORY_LIMIT   history entry cap; default 500
+LATTICE_HISTORY_LIMIT   history entry cap; default 512
 LATTICE_ORDER_FILE      derived from state dir
 LATTICE_USER_COMMANDS_FILE  user-added commands
 LATTICE_DISABLED_FILE   hidden command names
@@ -381,7 +380,6 @@ Normal machine file:
 ```bash
 # ~/.lattice/env.d/<machine-id>.conf
 LATTICE_EDITOR=/d/programes/vim/vim91/gvim.exe
-LATTICE_RECENT_LIMIT=8
 ```
 
 Do not expose every internal variable as a user knob. If a path or session
@@ -876,9 +874,9 @@ the order file are appended in config order.
 ## Recent commands
 
 The left-bottom panel shows the last unique commands dispatched by Lattice.
-`Ctrl-r` focuses it, `j/k` selects and Enter reruns. While focused, `1`-`8`
+`Ctrl-r` focuses it, `j/k` selects and Enter reruns. While focused, `0`-`9`
 rerun the corresponding recent command. `p` or right-click previews the full
-command; left-click selects the row. The panel is capped at 8 and fully
+command; left-click selects the row. The panel is capped at 10 and fully
 visible, so the wheel does not change its selection. Numeric keys do nothing
 in tree mode.
 
@@ -913,8 +911,8 @@ also be searched with `/` and re-run with Enter.
 Default limits:
 
 ```text
-history entries   500
-recent commands   8
+history entries   512
+recent commands   10
 ```
 
 The oldest history entries are pruned when the limit is exceeded.
@@ -1112,7 +1110,7 @@ output and has a higher risk of opening the wrong path.
 app/state.sh       state, paths, terminal sizing
 fs/tree.sh         directory listing and navigation
 cmd/registry.sh    array command registry + commands.conf loader
-cmd/history.sh     TSV history + recent-command cache
+cmd/history.sh     TSV history, recent list, search and history cap
 cmd/tmux.sh        pane discovery/sending
 cmd/executor.sh    target resolution and command sending
 ui/render.sh       ANSI renderer

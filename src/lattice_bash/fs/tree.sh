@@ -6,19 +6,28 @@ declare -ga LATTICE_ENTRIES=()
 declare -ga LATTICE_ENTRY_IS_DIR=()
 declare -ga LATTICE_ALL_ENTRIES=()
 declare -ga LATTICE_ALL_ENTRY_IS_DIR=()
+declare -gA LATTICE_TREE_ROW_CACHE=()
 LATTICE_SHOW_HIDDEN=${LATTICE_SHOW_HIDDEN:-0}
 LATTICE_TREE_FILTER=''
 LATTICE_TREE_SEARCH=0
 
 lattice_tree_apply_filter ()
 {
+    local i name q=${LATTICE_TREE_FILTER,,}
+    if [[ -z "$q" ]] ; then
+        LATTICE_ENTRIES=("${LATTICE_ALL_ENTRIES[@]}")
+        LATTICE_ENTRY_IS_DIR=("${LATTICE_ALL_ENTRY_IS_DIR[@]}")
+        (( LATTICE_TREE_SELECTED >= ${#LATTICE_ENTRIES[@]} )) && \
+            LATTICE_TREE_SELECTED=$(( ${#LATTICE_ENTRIES[@]} - 1 ))
+        (( LATTICE_TREE_SELECTED < 0 )) && LATTICE_TREE_SELECTED=0
+        return 0
+    fi
     LATTICE_ENTRIES=()
     LATTICE_ENTRY_IS_DIR=()
-    local i name q=${LATTICE_TREE_FILTER,,}
     for ((i=0;i<${#LATTICE_ALL_ENTRIES[@]};i++)); do
         name=${LATTICE_ALL_ENTRIES[i]}
         if [[ "$name" == '..' ]] ||
-           [[ -z "$q" || "${name,,}" == *"$q"* ]] ; then
+           [[ "${name,,}" == *"$q"* ]] ; then
             LATTICE_ENTRIES+=("$name")
             LATTICE_ENTRY_IS_DIR+=("${LATTICE_ALL_ENTRY_IS_DIR[i]}")
         fi
@@ -54,8 +63,9 @@ lattice_tree_search_close ()
 lattice_tree_load ()
 {
     local dir=${1:-$LATTICE_DIR}
-    local -a names=() dirs=()
-    local p n
+    local -a names=()
+    local -A kind=()
+    local p n rec type
 
     [[ -d "$dir" ]] || {
         lattice_status "not a directory: $dir" error
@@ -64,23 +74,21 @@ lattice_tree_load ()
     dir=$(cd -- "$dir" 2>/dev/null && pwd) || return 1
     LATTICE_DIR=$dir
 
-    if (( LATTICE_SHOW_HIDDEN )) ; then
-        shopt -s nullglob dotglob
-        for p in "$dir"/* ; do
-            n=${p##*/}
-            [[ "$n" == '.' || "$n" == '..' ]] && continue
-            names+=("$n")
-        done
-        shopt -u dotglob
-        shopt -u nullglob
-    else
-        shopt -s nullglob
-        for p in "$dir"/* ; do
-            n=${p##*/}
-            names+=("$n")
-        done
-        shopt -u nullglob
-    fi
+    # One find pass gets entry type and name without a Bash stat per entry.
+    # -printf is GNU find (MSYS2); NUL separation keeps spaces/newlines safe.
+    while IFS= read -r -d '' rec ; do
+        type=${rec:0:1}
+        n=${rec:2}
+        [[ -n "$n" ]] || continue
+        if (( ! LATTICE_SHOW_HIDDEN )) && [[ "$n" == .* ]] ; then
+            continue
+        fi
+        if [[ "$type" == 'l' ]] && [[ -d "$dir/$n" ]] ; then
+            type=d
+        fi
+        names+=("$n")
+        kind[$n]=$type
+    done < <(find "$dir" -mindepth 1 -maxdepth 1 -printf '%y %f\0' 2>/dev/null)
 
     # sort once in C order; this is a navigation list, not a hot render path.
     if ((${#names[@]})) ; then
@@ -95,7 +103,7 @@ lattice_tree_load ()
     fi
     for n in "${names[@]}" ; do
         LATTICE_ALL_ENTRIES+=("$n")
-        if [[ -d "$dir/$n" ]] ; then
+        if [[ "${kind[$n]:-f}" == 'd' ]] ; then
             LATTICE_ALL_ENTRY_IS_DIR+=(1)
         else
             LATTICE_ALL_ENTRY_IS_DIR+=(0)

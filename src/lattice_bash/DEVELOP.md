@@ -139,7 +139,7 @@ src/lattice_bash/
 ├── app/state.sh               paths, env layers, machine id, globals, ANSI
 ├── fs/tree.sh                 file tree operations
 ├── cmd/registry.sh            command arrays, loading, search, order, forms
-├── cmd/history.sh             history TSV, recent list, history cap
+├── cmd/history.sh             history TSV, recent list, search and history cap
 ├── cmd/tmux.sh                roles, layout, mouse bindings, tmux send
 ├── cmd/executor.sh            target resolution and command sending
 ├── ui/render.sh               full-frame renderer and popups
@@ -390,15 +390,16 @@ row = LATTICE_TREE_OFFSET + y - 2
 row = history offset + y - 2
 ```
 
-The recent panel occupies the bottom rows of the tree view. Left-click selects,
-double-click reruns, and right-click previews the full command. The recent
-panel is fully visible, so wheel events leave its selection alone. In tree,
-command and history lists the wheel scrolls the viewport only; the selected
-entry does not change, and a one-page list ignores the wheel. In history mode
-left-click selects, double-click reruns, and `p` or right-click previews the
-full command. A preview popup routes a click back to the mode that opened it.
-Keyboard navigation clears the manual scroll flag and brings the selection
-back into view.
+The recent panel occupies the bottom ten rows of the tree view. Left-click
+selects, double-click reruns, and right-click previews the full command. The
+panel is fully visible, so wheel events leave its selection alone. `Ctrl-r`
+focuses it, `j/k` selects, Enter reruns, and `0`-`9` rerun the corresponding
+row. In tree, command and history lists the wheel scrolls the viewport only;
+the selected entry does not change, and a one-page list ignores the wheel. In
+history mode left-click selects, double-click reruns, and `p` or right-click
+previews the full command. A preview popup routes a click back to the mode that
+opened it. Keyboard navigation clears the manual scroll flag and brings the
+selection back into view.
 
 ### 6.6 Render modes
 
@@ -735,8 +736,8 @@ prompt plus the final command line.
 Default limits:
 
 ```text
-history entries  500
-recent commands  8
+history entries  512
+recent commands  10
 ```
 
 `LATTICE_HISTORY_LIMIT` changes the history cap. Oldest entries are pruned in
@@ -1016,13 +1017,14 @@ Measured on the development machine (MSYS2/UCRT64, tmux):
 History performance matters:
 
 ```text
-history is capped at 500 entries by default
-recent panel is capped at 8 unique commands
+history is capped at 512 entries by default
+recent panel is capped at 10 unique commands, numbered 0-9
 history rows are cached by command text and terminal width
 ```
 
-The history row cache is capped at 4096 entries. A wheel event only changes the
-viewport offset; it does not rebuild the view or move the selection.
+The history row cache is capped at 512 entries; the tree row cache is capped
+at 16384. A wheel event only changes the viewport offset; it does not rebuild
+the view or move the selection.
 
 Important optimization history:
 

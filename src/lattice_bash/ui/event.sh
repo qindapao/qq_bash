@@ -39,8 +39,8 @@ lattice_handle_tree_mouse ()
     [[ "$b" =~ ^[0-9]+$ && "$x" =~ ^[0-9]+$ && "$y" =~ ^[0-9]+$ ]] || return 0
     (( b & 32 )) && return 0
 
-    local recent_h=$(( LATTICE_ROWS - 2 - 1 ))
-    (( recent_h > LATTICE_RECENT_LIMIT )) && recent_h=$LATTICE_RECENT_LIMIT
+    local recent_h=${LATTICE_RECENT_LIMIT:-10}
+    (( recent_h > LATTICE_ROWS - 3 )) && recent_h=$(( LATTICE_ROWS - 3 ))
     (( recent_h < 1 )) && recent_h=1
     local body_h=$(( LATTICE_ROWS - 2 - recent_h ))
     (( body_h < 1 )) && body_h=1
@@ -166,18 +166,22 @@ lattice_handle_tree_key ()
             ;;
         p) lattice_recent_show_preview ;;
         @)
-            # A register chord is a tree action. Leave recent focus first so
-            # the following a/b/c reaches the pending-register handler.
             LATTICE_RECENT_FOCUS=0
             LATTICE_TREE_AT_PENDING=1
             lattice_status 'register: press a, b or c'
             ;;
-        1|2|3|4|5|6|7|8)
-            idx=$(( key - 1 ))
+        0|1|2|3|4|5|6|7|8|9)
+            idx=$key
             (( idx < ${#LATTICE_RECENT_CMDS[@]} )) && lattice_recent_run_index "$idx"
             ;;
         $'\022'|$'\033'|q)
             LATTICE_RECENT_FOCUS=0
+            ;;
+        *)
+            # Any other key is a tree action: leave recent focus and let the
+            # normal tree handler process it (r refreshes, : opens palette...).
+            LATTICE_RECENT_FOCUS=0
+            lattice_handle_tree_key "$key"
             ;;
         esac
         return 0
@@ -217,7 +221,7 @@ lattice_handle_tree_key ()
     H)           LATTICE_HISTORY_SEARCH=0; LATTICE_MODE='history'; lattice_history_set_query ''; lattice_history_rebuild_view ;;
     '?' )        LATTICE_MODE='help' ;;
     $'\022')     LATTICE_RECENT_FOCUS=1; LATTICE_RECENT_SELECTED=0
-                 lattice_status "recent commands: ${#LATTICE_RECENT_CMDS[@]}  j/k Enter Esc" ;;
+                 lattice_status "recent commands: ${#LATTICE_RECENT_CMDS[@]}  j/k 0-9 Enter Esc" ;;
     R)           lattice_registry_reload; lattice_reload_all ;;
     q)           lattice_status 'Ctrl-g quits; q is disabled to avoid accidental exit' ;;
     esac
