@@ -673,6 +673,66 @@ lattice_command 'echo path' 'file' 'pane' \
   'printf "%s\n" {{WB_FILE}}'
 ```
 
+### Terminal control sequences in command bodies
+
+Allowed:
+
+```text
+plain UTF-8 text
+\n and \t produced by printf
+SGR color/style: ESC [ ... m
+  reset, bold, dim, italic, underline, reverse
+  basic, 256-color and truecolor foreground/background
+```
+
+Examples:
+
+```bash
+lattice_command 'red text' 'dir' 'pane' \
+  "printf '\033[31mred\033[0m\n'"
+
+lattice_command 'bold red' 'dir' 'pane' \
+  "printf '\033[1;31mbold red\033[0m\n'"
+```
+
+Not allowed in a command body (`<...>` means a placeholder, not literal text):
+
+```text
+ESC[200~ ; ESC[201~              bracketed-paste start/end
+ESC[?2004h ; ESC[?2004l          bracketed-paste mode
+ESC[?1000h/l                     mouse press/release
+ESC[?1002h/l                     mouse button drag
+ESC[?1003h/l                     mouse any motion
+ESC[?1006h/l                     SGR mouse encoding
+ESC[?1015h/l                     urxvt mouse encoding
+ESC[?1049h/l                     alternate screen + cursor
+ESC[?1047h/l                     alternate screen
+ESC[?47h/l                       legacy alternate screen
+ESC[?25h/l                       cursor visible/hidden
+ESC[<n> q                        cursor shape
+ESC[<n>A/B/C/D                    cursor up/down/right/left
+ESC[<n>H / ESC[<n>f              cursor position
+ESC[2J / ESC[K                   erase display/line
+ESC[<n>J / ESC[<n>K              erase display/line variants
+ESC 7 / ESC 8                    save/restore cursor
+ESC]0;<title>BEL                 window/icon title
+ESC]2;<title>BEL                 window title
+ESC]8;<params>;<uri>ST           hyperlink
+ESC]52;<params>;<data>ST         clipboard access
+ESC[6n ; ESC[c                   terminal queries
+```
+
+Rule of thumb:
+
+```text
+SGR color/style -> allowed
+anything that changes terminal state, input mode, cursor or screen -> script
+```
+
+Those state-changing sequences can interfere with the TUI or with the
+bracketed paste used to deliver the command. If a command needs that level of
+terminal manipulation, wrap it in a script and run the script instead.
+
 ### Literal newlines and tabs
 
 `commands.conf` and `commands.user.conf` are Bash files, so use Bash ANSI-C
