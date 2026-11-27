@@ -56,7 +56,6 @@ lattice_cleanup ()
 {
     lattice_status_left_end 2>/dev/null || true
     lattice_search_status_end 2>/dev/null || true
-    [[ -n "${LATTICE_CONTEXT_FILE:-}" ]] && rm -f -- "$LATTICE_CONTEXT_FILE"
     if (( ${LATTICE_SCREEN_ACTIVE:-0} )) ; then
         LATTICE_SCREEN_ACTIVE=0
         lattice_screen_done
@@ -84,7 +83,6 @@ lattice_app_main ()
     lattice_registry_load || exit 1
     lattice_history_init || exit 1
     lattice_tree_load "$LATTICE_ROOT" || exit 1
-    lattice_executor_context_write
 
     lattice_screen_init
     LATTICE_SCREEN_ACTIVE=1
@@ -94,7 +92,6 @@ lattice_app_main ()
 
     # Clean exit only for sessions created by the launcher. A manually started
     # --tui inside an existing tmux session must not kill the user's session.
-    # The context file is removed by lattice_cleanup, including signal exits.
     if (( LATTICE_OWN_SESSION )) ; then
         lattice_tmux_quick kill-session -t "$LATTICE_TMUX_SESSION" 2>/dev/null || true
     fi
@@ -122,8 +119,7 @@ lattice_print_command ()
         return 1
     }
     idx=$REPLY
-    lattice_command_expand "${LATTICE_CMD_COMMANDS[idx]}"
-    printf '%s\n' "$REPLY"
+    printf '%s\n' "${LATTICE_CMD_COMMANDS[idx]}"
 }
 
 lattice_create_session ()
@@ -219,7 +215,6 @@ main ()
     LATTICE_ROOT=$root
     LATTICE_CONFIG=$config
     LATTICE_TMUX_SESSION=$session
-    LATTICE_CONTEXT_FILE=${LATTICE_CONTEXT_FILE:-"${TMPDIR:-/tmp}/lattice-context-${session}"}
 
     case "$mode" in
     version) printf 'lattice v%s\n' "$LATTICE_VERSION" ;;

@@ -74,12 +74,17 @@ LATTICE_DISABLED_FILE=${LATTICE_DISABLED_FILE:-"$LATTICE_STATE_DIR/commands.disa
 LATTICE_EXECUTOR_RC=${LATTICE_EXECUTOR_RC:-"$LATTICE_HOME/executor/rc.sh"}
 LATTICE_EDITOR=${LATTICE_EDITOR:-gvim}
 LATTICE_OPEN_CMD=${LATTICE_OPEN_CMD:-"$LATTICE_EDITOR --remote-silent"}
-LATTICE_CONTEXT_FILE=${LATTICE_CONTEXT_FILE:-"${TMPDIR:-/tmp}/lattice-context-${LATTICE_TMUX_SESSION:-lattice}"}
+LATTICE_REGISTER_A_FILE=${LATTICE_REGISTER_A_FILE:-"$LATTICE_STATE_DIR/wb-register-A"}
+LATTICE_REGISTER_B_FILE=${LATTICE_REGISTER_B_FILE:-"$LATTICE_STATE_DIR/wb-register-B"}
+LATTICE_REGISTER_C_FILE=${LATTICE_REGISTER_C_FILE:-"$LATTICE_STATE_DIR/wb-register-C"}
+LATTICE_CLIP_CACHE_FILE=${LATTICE_CLIP_CACHE_FILE:-"$LATTICE_STATE_DIR/wb-clip"}
+LATTICE_TREE_AT_PENDING=0
 
 LATTICE_DIR=$LATTICE_ROOT
 LATTICE_TREE_SELECTED=0
 LATTICE_CMD_SELECTED=0
 LATTICE_HISTORY_SELECTED=0
+LATTICE_HISTORY_SEARCH=0
 LATTICE_MODE='tree'
 LATTICE_STATUS=''
 LATTICE_STATUS_KIND='info'
@@ -144,6 +149,116 @@ lattice_status ()
 {
     LATTICE_STATUS=$1
     LATTICE_STATUS_KIND=${2:-info}
+}
+
+lattice_register_file ()
+{
+    case "$1" in
+    A) REPLY=$LATTICE_REGISTER_A_FILE ;;
+    B) REPLY=$LATTICE_REGISTER_B_FILE ;;
+    C) REPLY=$LATTICE_REGISTER_C_FILE ;;
+    *) REPLY='' ; return 1 ;;
+    esac
+}
+
+lattice_register_read ()
+{
+    local file
+    lattice_register_file "$1" || return 1
+    file=$REPLY
+    REPLY=''
+    [[ -f "$file" ]] || return 0
+    IFS= read -r -d '' REPLY < "$file" || true
+}
+
+lattice_register_write ()
+{
+    local key=$1 value=$2 file tmp
+    lattice_register_file "$key" || return 1
+    file=$REPLY
+    [[ -d "$LATTICE_STATE_DIR" ]] || mkdir -p -- "$LATTICE_STATE_DIR" || return 1
+    tmp=$(mktemp "$file.XXXXXX") || return 1
+    printf '%s' "$value" > "$tmp" || {
+        rm -f -- "$tmp"
+        return 1
+    }
+    mv -f -- "$tmp" "$file" || {
+        rm -f -- "$tmp"
+        return 1
+    }
+}
+
+lattice_clipboard_cache_write ()
+{
+    local value=$1 preview tmp
+    lattice_preview_head "$value"
+    preview=$REPLY
+    [[ -d "$LATTICE_STATE_DIR" ]] || mkdir -p -- "$LATTICE_STATE_DIR" || return 1
+    tmp=$(mktemp "$LATTICE_CLIP_CACHE_FILE.XXXXXX") || return 1
+    printf '%s' "$preview" > "$tmp" || {
+        rm -f -- "$tmp"
+        return 1
+    }
+    mv -f -- "$tmp" "$LATTICE_CLIP_CACHE_FILE" || {
+        rm -f -- "$tmp"
+        return 1
+    }
+}
+
+lattice_clipboard_read ()
+{
+    local reader="$LATTICE_HOME/executor/read-clipboard.sh" tmp
+    REPLY=''
+    [[ -x "$reader" ]] || return 1
+    tmp=$(mktemp) || return 1
+    if command -v timeout >/dev/null 2>&1 ; then
+        timeout --kill-after=1 3 "$reader" > "$tmp" 2>/dev/null || {
+            rm -f -- "$tmp"
+            return 1
+        }
+    else
+        "$reader" > "$tmp" 2>/dev/null || {
+            rm -f -- "$tmp"
+            return 1
+        }
+    fi
+    IFS= read -r -d '' REPLY < "$tmp" || true
+    rm -f -- "$tmp"
+}
+
+lattice_preview_head ()
+{
+    local s=$1
+    s=${s//$'\n'/ }
+    s=${s//$'\r'/ }
+    s=${s//$'\t'/ }
+    if (( ${#s} > 5 )) ; then
+        REPLY="${s:0:5}..."
+    else
+        REPLY=$s
+    fi
+}
+
+# Read at most six characters without loading a potentially huge clipboard
+# value into memory.
+lattice_file_preview ()
+{
+    local file=$1 ch fd
+    local -i i=0
+    REPLY=''
+    [[ -f "$file" ]] || return 0
+    exec {fd}<"$file" || return 1
+    while (( i < 6 )) ; do
+        ch=''
+        if ! IFS= read -r -n 1 -u "$fd" ch ; then
+            [[ -n "$ch" ]] && REPLY+=$ch
+            break
+        fi
+        [[ -n "$ch" ]] || ch=' '
+        REPLY+=$ch
+        ((i++))
+    done
+    exec {fd}<&-
 }
 
 lattice_term_size ()

@@ -205,6 +205,7 @@ r            refresh
 .            toggle hidden files
 o            open selected directory in the system file manager
 y            copy selected path to the clipboard
+@a / @b / @c copy selected full path into WB_A/WB_B/WB_C
 ```
 :            quick command palette
 /            filter file/dir names in tree; search commands in palette
@@ -383,25 +384,59 @@ LATTICE_RECENT_LIMIT=8
 Do not expose every internal variable as a user knob. If a path or session
 matters, prefer the CLI (`--root`, `--config`, `--session`).
 
-### Dynamic values: do not configure
+### Dynamic values: placeholders only
 
-Lattice writes these immediately before each executor command:
+Commands use explicit placeholders:
 
 ```text
-WB_ROOT     project root
-WB_DIR      current tree directory
-WB_FILE     selected file; empty for a directory
+{{WB_ROOT}}     project root
+{{WB_DIR}}      current tree directory
+{{WB_FILE}}     selected file; empty for a directory
+{{WB_CLIP}}     current system clipboard
+{{WB_A}}        register A
+{{WB_B}}        register B
+{{WB_C}}        register C
 ```
 
-They are available inside command definitions:
+Before sending, Lattice replaces each placeholder with a shell-quoted literal:
 
 ```bash
-lattice_command 'pwd'     'dir'  'pane' 'pwd'
-lattice_command 'cd here' 'dir'  'pane' 'cd "$WB_DIR"'
-lattice_command 'view'    'file' 'pane' 'gvim "$WB_FILE"'
+lattice_command 'cd here' 'dir'  'pane' 'cd {{WB_DIR}}'
+lattice_command 'view'    'file' 'pane' 'gvim {{WB_FILE}}'
+lattice_command 'diff A C' 'dir' 'pane' 'diff -u {{WB_A}} {{WB_C}}'
 ```
 
-Do not put `WB_*` in `env.conf`; they are runtime context, not user settings.
+Registers are shared with the executor:
+
+```text
+tree:       @a / @b / @c   copy selected full path into WB_A/B/C
+executor:   Ctrl-b a/b/c   copy system clipboard into WB_A/B/C
+executor:   Ctrl-b v       refresh WB_CLIP preview from the clipboard
+```
+
+`Ctrl-b c` overrides tmux new-window inside the Lattice session.  
+The status-left preview shows `CLIP`, `A`, `B`, `C` with the first five
+characters and `...` when longer; empty values are omitted. The preview
+refreshes when a register or clipboard cache changes; arbitrary external
+clipboard changes wait for `Ctrl-b v` or the next clipboard command.
+
+The `CLIP` preview cache stores only the first five characters; the full
+clipboard is read on demand for `{{WB_CLIP}}` and is not persisted by the cache
+writer. Registers intentionally store their full values because the user
+explicitly placed them there.
+
+A clipboard read timeout is a failure, not partial content: the staged file is
+discarded, the cache/register is left unchanged, and a command using
+`{{WB_CLIP}}` is not sent. An actually empty clipboard is still a successful
+read and becomes an empty argument.
+
+Do not use `$WB_DIR`, `$WB_FILE`, `$WB_ROOT`, `$WB_A/B/C`, `$WB_CLIP`, or
+`$LP_*` in command templates. They are rejected at dispatch time. The executor
+receives the final literal command with no environment prefix or hidden
+context.
+
+Do not put these values in `env.conf`; they are runtime context, not user
+settings.
 
 ## Configuration
 
@@ -416,14 +451,16 @@ A ready-to-copy user-command example is
 The example file is trusted Bash configuration:
 
 ```bash
-lattice_command 'git status' 'dir'  'pane' 'GIT_TERMINAL_PROMPT=0 git -C "$WB_DIR" status --short --branch' '只查看当前目录。'
-lattice_command 'git check all' 'dir' 'pane' 'GIT_TERMINAL_PROMPT=0 timeout 60 git_check_status.sh -o "$WB_DIR"' '扫描所有仓库，较慢。'
-lattice_command 'git diff'   'file' 'pane' 'git diff -- "$WB_FILE"' '查看选中文件的 diff。'
+lattice_command 'git status' 'dir'  'pane' 'GIT_TERMINAL_PROMPT=0 git -C {{WB_DIR}} status --short --branch' '只查看当前目录。'
+lattice_command 'git check all' 'dir' 'pane' 'GIT_TERMINAL_PROMPT=0 timeout 60 git_check_status.sh -o {{WB_DIR}}' '扫描所有仓库，较慢。'
+lattice_command 'git diff'   'file' 'pane' 'git diff -- {{WB_FILE}}' '查看选中文件的 diff。'
 ```
 
 There are no command shortcut keys. Open the `:` palette, use `j/k` or arrows
 to select, press `/` to enter search and type to filter, and press Enter to
-send; the palette stays open after dispatch. Esc leaves search (clearing the
+send; the palette stays open after dispatch. While search is active, printable
+keys such as `p`, `D` and `R` go into the query; their command shortcuts only
+apply when search is inactive. Esc leaves search (clearing the
 query), then Esc leaves the palette. Opening search mirrors the query into the
 tmux status bar and replaces the header with a `search>` line, so the query
 stays visible without hiding the executor pane. Exiting search restores the
@@ -432,8 +469,9 @@ list; the header shows the visible range. A `*` marks a command
 with a snapshot and `+` marks a user-added command. Rows show the command name,
 scope, and target. A one-line preview below the list shows the selected command
 body only. The command body is not rendered in the list itself, but remains
-searchable. Press `p` or right-click a row for the full snapshot content.
-The snapshot popup shows only the snapshot text, with no title or footer.
+searchable. Press `p` or right-click a row to see the full command body; if the
+command has a snapshot, both sections are shown. The popup has no title or
+footer.
 Moving to another row, clicking elsewhere, or Esc/q dismisses it automatically.
 Press `D` to disable the selected command. Add commands manually in
 `commands.user.conf`, then press `R` in the palette to reload, or restart
@@ -449,38 +487,36 @@ list. Snapshots are included in search and may contain Chinese.
 
 ```bash
 lattice_command 'grep current tree' 'dir' 'pane' \
-  'grep -n --color=auto -- "$LP_PATTERN" "$WB_DIR"' \
+  'grep -n --color=auto -- {{PATTERN}} {{WB_DIR}}' \
   '按模式搜索当前文件树' \
   'PATTERN'
 ```
 
 Selecting the command and pressing Enter opens a form instead of sending
-immediately. Values are supplied as environment variables in the executor;
-they are never interpolated into the command string and there is no `eval`.
+immediately. Values are plain input strings, not shell fragments. Lattice
+quotes each value with the `${value@Q}` operator and substitutes it before
+sending.
 
 ```text
-PATTERN   -> exported as $LP_PATTERN
+PATTERN   -> placeholder {{PATTERN}}
 NAME=def  -> default value def
 ```
 
-Parameters are namespaced. A parameter named `PATTERN` is never exported as
-bare `$PATTERN`; it is available as:
+There is no `LP_` namespace and no `eval`. A parameter named `PATTERN` is only
+addressable as:
 
 ```bash
-"$LP_PATTERN"
+{{PATTERN}}
 ```
 
-This avoids clobbering `PATH`, `HOME`, or user environment variables. A
-parameter block is one-shot: `LP_*` values are available while the command
-runs, then cleared at the next prompt. Stale values are also unset before a new
-command loads its parameters.
+The final literal command is stored in history, so it can be rerun directly.
 
 All arguments after the snapshot are parameters. They may be written
 separately:
 
 ```bash
 lattice_command 'grep in target' 'dir' 'pane' \
-  'grep -nHE --color=auto -- "$LP_PATTERN" "$LP_TARGET_DIR"' \
+  'grep -nHE --color=auto -- {{PATTERN}} {{TARGET_DIR}}' \
   '搜索指定目录' \
   'PATTERN' 'TARGET_DIR=.'
 ```
@@ -489,9 +525,16 @@ or as one whitespace-separated argument:
 
 ```bash
 lattice_command 'grep in target' 'dir' 'pane' \
-  'grep -nHE --color=auto -- "$LP_PATTERN" "$LP_TARGET_DIR"' \
+  'grep -nHE --color=auto -- {{PATTERN}} {{TARGET_DIR}}' \
   '搜索指定目录' \
   'PATTERN TARGET_DIR=.'
+```
+
+Placeholders must be outside single/double quotes:
+
+```bash
+grep -- {{PATTERN}} {{WB_DIR}}      # correct
+grep -- "{{PATTERN}}" {{WB_DIR}}    # wrong
 ```
 
 A command name starting with `@` is **insert-only**. Lattice pastes the command
@@ -501,25 +544,29 @@ skeleton without pressing Enter and does not add it to history:
 lattice_command '@ssh' 'dir' 'pane' 'ssh ' '插入 SSH 骨架；不会自动执行。'
 ```
 
-The status line reports that the skeleton was inserted. Switch to the executor
-with `Ctrl-b →`, finish the command, and press Enter yourself. This is the
-intended mode for interactive commands such as SSH, REPLs, and prompts.
+The status line reports that the skeleton was inserted. Lattice switches focus
+to the executor automatically; use `Ctrl-b ←` to return to the TUI. Press Enter
+yourself when the command is ready. This is the intended mode for interactive
+commands such as SSH, REPLs, and prompts.
 
 An empty fifth argument means there is no snapshot. Parameters can still
 follow it:
 
 ```bash
 lattice_command 'grep in target' 'dir' 'pane' \
-  'grep -nHE --color=auto -- "$LP_PATTERN" "$LP_TARGET_DIR"' \
+  'grep -nHE --color=auto -- {{PATTERN}} {{TARGET_DIR}}' \
   '' \
   'PATTERN' 'TARGET_DIR=.'
 ```
 
-A command with an empty snapshot is not marked with `*`, and `p` /
-right-click reports that it has no snapshot.
+A command with an empty snapshot still shows its command body in the popup;
+`p` / right-click reports `COMMAND` only.
 
-The form shows one field per parameter; defaults are prefilled. Enter moves to
-the next field and sends after the last one.
+The form uses almost the full TUI pane width so long values remain readable.
+It shows one field per parameter; defaults are prefilled. The active field uses
+the terminal cursor rather than an inserted underscore, so the cursor does not
+occupy or shift a character cell; the terminal's own cursor shape is preserved. Enter moves to the next field
+and sends after the last one.
 
 ```text
 Ctrl-u    clear current field
@@ -527,12 +574,37 @@ Ctrl-d    restore its default value
 Esc       cancel
 ```
 
-Commands that still use bare `$PATTERN` must be updated to
-`$LP_PATTERN`.
+### Explicit ANSI-C value
 
-Parameterized commands are intentionally not written to history yet: replaying
-one would need its parameter values. Re-run it from the palette and enter the
-parameters again.
+If a parameter is one complete `$'...'` word, Lattice treats it as an already
+quoted literal and inserts it verbatim. The command is then **inserted without
+Enter**, focus moves to the executor, and you review it before pressing Enter.
+
+```text
+$'a b'
+$'line1\nline2'
+$'it\'s 中文'
+```
+
+The value must be exactly one complete ANSI-C word. Malformed attempts such as
+`$'a'; id` or `$'a'$'b'` are re-quoted as ordinary literal text and still use
+preview insertion. This is not shell evaluation: `$'...'` never runs command
+substitution.
+
+Preview commands from a valid `$'...'` parameter are recorded in Lattice history
+as the inserted text, before any manual edits. Re-running them uses that
+pre-edit text; the user is responsible for reviewing it. Malformed `$'...'`
+attempts and `@` skeletons are not recorded because they are incomplete or
+invalid command text.
+
+A command whose template uses `{{WB_CLIP}}` is stored in history as its
+expanded literal, so history may contain the clipboard text. Clear
+`history.tsv` if that content is sensitive; registers are always stored in
+full because they are explicit user state.
+
+Parameterized commands are written to history as their fully expanded literal
+command. Special characters in values need no user escaping: type the value
+literally and Lattice quotes it for the shell.
 
 ### Literal newlines and tabs
 
@@ -577,12 +649,11 @@ lattice_command 'two commands' 'dir' 'pane' \
   '执行两条命令'
 ```
 
-`$'...'` does not bypass quoting and is not an injection defense. Dynamic
-values still belong in environment variables with quotes:
+`$'...'` does not bypass quoting. Dynamic values belong in placeholders:
 
 ```bash
 lattice_command 'echo value' 'dir' 'pane' \
-  'printf "%s\n" "$LP_PATTERN"' \
+  'printf "%s\n" {{PATTERN}}' \
   '打印参数' \
   'PATTERN'
 ```
@@ -649,9 +720,9 @@ reusing the name.
 A command receives:
 
 ```text
-WB_ROOT    project root
-WB_DIR     current directory; updates when you enter/parent a directory
-WB_FILE    selected file, empty for a directory
+{{WB_ROOT}}    project root
+{{WB_DIR}}     current directory; updates when you enter/parent a directory
+{{WB_FILE}}    selected file, empty for a directory
 ```
 
 The left status line shows:
@@ -690,21 +761,21 @@ Only commands dispatched by Lattice are recorded, in:
 ~/.lattice/history.tsv
 ```
 
-Entries store the command template, not expanded values. For example the file
-contains:
+Entries store the final literal command, including expanded placeholders and
+parameter values. For example the file contains:
 
 ```bash
-grep -n -- "$WB_DIR/file.txt"
+grep -n -- '/d/code/qq_bash/file.txt'
 ```
 
-not the expanded path. Rerunning it recreates the current executor context, so
-`$WB_DIR` and `$WB_FILE` resolve against the current selection.
+not the template. Rerunning an entry executes the same literal command.
 
-Parameterized commands are intentionally not written: replaying one would need
-the parameter values. Use the palette and enter them again.
+Parameterized commands are recorded with their values, so they can be rerun
+directly. Commands run directly in another shell are not captured.
 
-Commands run directly in another shell are not captured. History entries can
-be searched with `/` and re-run with Enter.
+Press `/` in the history panel for incremental search. Type to filter, `Esc`
+leaves search, and `Esc` again returns to the tree. Enter reruns the selected
+entry. History entries can also be searched with `/` and re-run with Enter.
 
 Default limits:
 
@@ -774,7 +845,9 @@ buffer-based action; it does not try to read the mouse position.
 action.
 
 There is no graphical scrollbar in the executor. Use `Ctrl-b [` then PgUp/PgDn
-(or the mouse wheel) to browse tmux scrollback; `q` leaves copy mode.
+(or the mouse wheel) to browse tmux scrollback; `q` leaves copy mode. Sending
+a command from the palette automatically leaves copy mode first, so the
+command reaches the shell prompt instead of the copy buffer.
 
 ### Splitting the executor
 
@@ -835,7 +908,7 @@ whole-window operation; `Ctrl-b d` only detaches and is safe.
 If the original executor is deliberately exited from its shell, TUI commands
 fail with `no executor pane`. Recover by starting a fresh `lattice` session;
 there is no reliable way to promote an arbitrary split back into the Lattice
-executor because it lacks the executor rc/context hook.
+executor because it lacks the executor rc and prompt setup.
 
 On Windows, an explicit clipboard bridge is:
 
@@ -908,7 +981,7 @@ fs/tree.sh         directory listing and navigation
 cmd/registry.sh    array command registry + commands.conf loader
 cmd/history.sh     TSV history + recent-command cache
 cmd/tmux.sh        pane discovery/sending
-cmd/executor.sh    target resolution and context injection
+cmd/executor.sh    target resolution and command sending
 ui/render.sh       ANSI renderer
 ui/event.sh        key loop
 ```

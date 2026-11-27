@@ -191,7 +191,20 @@ lattice_tree_yank_path ()
         lattice_status "copy path failed" error
         return 1
     }
+    lattice_clipboard_cache_write "$path" 2>/dev/null || true
     lattice_status "copied path: $path" ok
+}
+
+lattice_tree_register ()
+{
+    local key=$1 path
+    lattice_selected_path
+    path=$REPLY
+    lattice_register_write "$key" "$path" || {
+        lattice_status "register write failed: WB_$key" error
+        return 1
+    }
+    lattice_status "WB_$key <- $path" ok
 }
 
 lattice_tree_refresh ()

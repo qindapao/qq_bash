@@ -326,18 +326,25 @@ lattice_registry_selected_raw_index ()
 
 lattice_registry_show_snapshot ()
 {
-    local idx name text
+    local idx cmd snapshot text
     lattice_registry_selected_raw_index || {
         lattice_status 'no command selected' error
         return 1
     }
     idx=$REPLY
-    text=${LATTICE_CMD_SNAPSHOTS[idx]:-}
-    [[ -n "$text" ]] || {
-        lattice_status "no snapshot: ${LATTICE_CMD_NAMES[idx]}" error
+    cmd=${LATTICE_CMD_COMMANDS[idx]:-}
+    snapshot=${LATTICE_CMD_SNAPSHOTS[idx]:-}
+    [[ -n "$cmd" ]] || {
+        lattice_status "no command body: ${LATTICE_CMD_NAMES[idx]}" error
         return 1
     }
-    name=${LATTICE_CMD_NAMES[idx]}
+
+    text="COMMAND
+$cmd"
+    if [[ -n "$snapshot" ]] ; then
+        text+=$'\n\nSNAPSHOT\n'
+        text+=$snapshot
+    fi
     LATTICE_SNAPSHOT_TEXT=$text
     LATTICE_SNAPSHOT_SCROLL=0
     LATTICE_SNAPSHOT_OPEN=1
@@ -512,17 +519,130 @@ lattice_registry_index_for_name ()
     return 1
 }
 
-# Build the command line sent to the executor. Values are injected as
-# environment variables, so config commands can use "$WB_FILE" etc. without
-# this function interpolating them into a shell string.
+lattice_ansi_c_word ()
+{
+    local v=$1 ch
+    local -i i esc=0
+    [[ ${v:0:2} == "\$'" ]] || return 1
+    (( ${#v} >= 3 )) || return 1
+    [[ ${v: -1} == "'" ]] || return 1
+    for ((i=2;i<${#v}-1;i++)); do
+        ch=${v:i:1}
+        if (( esc )) ; then
+            esc=0
+            continue
+        fi
+        if [[ "$ch" == '\' ]] ; then
+            esc=1
+            continue
+        fi
+        [[ "$ch" == "'" ]] && return 1
+    done
+    (( esc == 0 ))
+}
+
+# Expand {{WB_*}} and {{PARAM}} placeholders into shell-quoted literals.
+# No shell evaluation is performed; values use the @Q operator.
+# A parameter that is one complete $'...' word is inserted verbatim and
+# marks the command for preview-only insertion.
 lattice_command_expand ()
 {
-    local cmd=$1 selected file=''
+    local cmd=$1
+    shift
+    local -A values=()
+    local pair name value out='' rest prefix
+    local selected file=''
+
+    LATTICE_EXPAND_PREVIEW=0
+    LATTICE_EXPAND_QUOTED_OK=0
+    if [[ "$cmd" == *'$WB_'* || "$cmd" == *'${WB_'* ||
+          "$cmd" == *'$LP_'* || "$cmd" == *'${LP_'* ]] ; then
+        lattice_status 'legacy $WB_*/$LP_* in command; use {{...}}' error
+        REPLY=''
+        return 1
+    fi
+
     lattice_selected_path
     selected=$REPLY
     [[ -f "$selected" ]] && file=$selected
-    printf -v REPLY 'WB_ROOT=%q WB_DIR=%q WB_FILE=%q %s' \
-        "$LATTICE_ROOT" "$LATTICE_DIR" "$file" "$cmd"
+    values[WB_ROOT]=${LATTICE_ROOT:-}
+    values[WB_DIR]=${LATTICE_DIR:-}
+    values[WB_FILE]=$file
+    [[ "$cmd" == *'{{WB_A}}'* ]] && { lattice_register_read A; values[WB_A]=$REPLY; }
+    [[ "$cmd" == *'{{WB_B}}'* ]] && { lattice_register_read B; values[WB_B]=$REPLY; }
+    [[ "$cmd" == *'{{WB_C}}'* ]] && { lattice_register_read C; values[WB_C]=$REPLY; }
+    if [[ "$cmd" == *'{{WB_CLIP}}'* ]] ; then
+        if ! lattice_clipboard_read ; then
+            lattice_status 'clipboard read failed; command not sent' error
+            REPLY=''
+            return 1
+        fi
+        values[WB_CLIP]=$REPLY
+        lattice_clipboard_cache_write "$REPLY" 2>/dev/null || true
+    fi
+
+    for pair in "$@" ; do
+        name=${pair%%=*}
+        value=${pair#*=}
+        [[ "$name" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]] || {
+            lattice_status "invalid parameter name: $name" error
+            REPLY=''
+            return 1
+        }
+        case "$name" in
+        WB_ROOT|WB_DIR|WB_FILE)
+            lattice_status "reserved placeholder: $name" error
+            REPLY=''
+            return 1
+            ;;
+        esac
+        values[$name]=$value
+    done
+
+    rest=$cmd
+    while [[ "$rest" == *'{{'* ]] ; do
+        prefix=${rest%%'{{'*}
+        out+=$prefix
+        rest=${rest#*'{{'}
+        if [[ "$rest" != *'}}'* ]] ; then
+            lattice_status 'unclosed {{...}} in command' error
+            REPLY=''
+            return 1
+        fi
+        name=${rest%%'}}'*}
+        rest=${rest#*'}}'}
+        if [[ ! "$name" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]] || [[ -z "${values[$name]+_}" ]] ; then
+            lattice_status "unknown placeholder: $name" error
+            REPLY=''
+            return 1
+        fi
+        value=${values[$name]}
+        case "$name" in
+        WB_ROOT|WB_DIR|WB_FILE)
+            # Filesystem context is trusted: always quote it, never interpret
+            # a path that happens to start with $' as shell syntax.
+            out+=${value@Q}
+            ;;
+        *)
+            # Parameter/clipboard/register values are user-controlled. A
+            # complete $'...' word is an explicit escape hatch; everything
+            # else is quoted literally.
+            if [[ "${value:0:2}" == "\$'" ]] ; then
+                LATTICE_EXPAND_PREVIEW=1
+                if lattice_ansi_c_word "$value" ; then
+                    LATTICE_EXPAND_QUOTED_OK=1
+                    out+=$value
+                else
+                    out+=${value@Q}
+                fi
+            else
+                out+=${value@Q}
+            fi
+            ;;
+        esac
+    done
+    REPLY=$out$rest
+    return 0
 }
 
 lattice_registry_dispatch_index ()
@@ -537,19 +657,34 @@ lattice_registry_dispatch_index ()
 
 lattice_registry_run_index ()
 {
-    local idx=$1 cmd submit
+    local idx=$1 raw cmd submit
+    local -i preview quoted_ok
     shift
-    cmd=${LATTICE_CMD_COMMANDS[idx]:-}
+    raw=${LATTICE_CMD_COMMANDS[idx]:-}
     submit=${LATTICE_CMD_SUBMIT[idx]:-run}
-    [[ -n "$cmd" ]] || return 1
-    lattice_executor_send "$cmd" "${LATTICE_CMD_TARGETS[idx]:-pane}" "$submit" "$@" || return $?
+    [[ -n "$raw" ]] || return 1
+    lattice_command_expand "$raw" "$@" || return 1
+    cmd=$REPLY
+    preview=${LATTICE_EXPAND_PREVIEW:-0}
+    quoted_ok=${LATTICE_EXPAND_QUOTED_OK:-0}
+    (( preview )) && submit=insert
+
+    lattice_executor_send "$cmd" "${LATTICE_CMD_TARGETS[idx]:-pane}" "$submit" || return $?
     if [[ "$submit" == 'insert' ]] ; then
-        lattice_status "inserted skeleton: ${LATTICE_CMD_NAMES[idx]}  Ctrl-b → to edit" ok
-    elif (( $# == 0 )) ; then
+        (( preview && quoted_ok )) && lattice_history_add "$cmd" "$LATTICE_DIR"
+        lattice_tmux_focus_executor 2>/dev/null || true
+        if (( preview )) ; then
+            if (( quoted_ok )) ; then
+                lattice_status "preview: quoted parameter; press Enter to run" ok
+            else
+                lattice_status "preview: malformed quoted parameter; review before Enter" error
+            fi
+        else
+            lattice_status "inserted skeleton: ${LATTICE_CMD_NAMES[idx]}  Ctrl-b → to edit" ok
+        fi
+    else
         lattice_history_add "$cmd" "$LATTICE_DIR"
         lattice_status "sent: ${LATTICE_CMD_NAMES[idx]}" ok
-    else
-        lattice_status "sent with parameters: ${LATTICE_CMD_NAMES[idx]}" ok
     fi
     return 0
 }

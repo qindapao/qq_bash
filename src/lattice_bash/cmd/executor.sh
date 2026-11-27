@@ -37,46 +37,22 @@ lattice_executor_open_file ()
     fi
     # Foreground: a failure is printed and the normal prompt comes back before
     # the next action. gvim itself detaches its GUI; no shell '&' is needed.
-    cmd="$LATTICE_OPEN_CMD \"\$WB_FILE\""
+    lattice_command_expand "$LATTICE_OPEN_CMD {{WB_FILE}}" || return $?
+    cmd=$REPLY
     lattice_executor_send "$cmd" pane || return $?
     lattice_history_add "$cmd" "$LATTICE_DIR"
     lattice_status "open: ${path##*/}" ok
     return 0
 }
 
-lattice_executor_context_write ()
-{
-    local selected file='' pair name value
-    lattice_selected_path
-    selected=$REPLY
-    [[ -f "$selected" ]] && file=$selected
-    {
-        printf '%s\n%s\n%s\n' "$LATTICE_DIR" "$file" "$LATTICE_ROOT"
-        for pair in "$@" ; do
-            name=${pair%%=*}
-            value=${pair#*=}
-            [[ "$name" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]] || continue
-            value=${value//$'\t'/ }
-            value=${value//$'\n'/ }
-            printf '%s\t%s\n' "$name" "$value"
-        done
-    } > "$LATTICE_CONTEXT_FILE"
-}
-
 lattice_executor_send ()
 {
     local cmd=$1 target_spec=${2:-pane} submit=${3:-run} target
-    shift 2
-    if [[ "${1:-}" == 'run' || "${1:-}" == 'insert' ]] ; then
-        submit=$1
-        shift
-    fi
     target=$(lattice_executor_target "$target_spec") || {
         lattice_status 'no executor pane; start via lattice.sh' error
         return 1
     }
 
-    lattice_executor_context_write "$@"
     # The command is pasted verbatim. No wrapper, no env prefix, no marker.
     lattice_tmux_send "$target" "$cmd" "$submit" || {
         lattice_status "failed sending to $target" error

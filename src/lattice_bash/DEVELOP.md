@@ -27,7 +27,7 @@ The TUI does four jobs:
 browse files
 select a command
 collect optional parameters
-write context and paste the command into the executor pane
+expand {{placeholders}} and paste the literal command
 ```
 
 It does **not** execute commands, capture output, parse stdout, or manage the
@@ -61,7 +61,7 @@ count.
 The TUI and executor are independent processes in separate tmux panes.
 
 ```text
-control plane : TUI -> context file + tmux paste -> executor
+control plane : TUI -> literal command + tmux paste -> executor
 data plane    : executor -> tmux pane rendering
 ```
 
@@ -69,23 +69,25 @@ The TUI never reads executor output. The executor never renders TUI state.
 Closing or blocking the TUI must not block a running foreground command, except
 when the whole owned tmux session is deliberately killed.
 
-### 2.2 No TUI-side interpolation, no `eval`
+### 2.2 No TUI-side shell interpolation, no `eval`
 
-A command string is stored as text. TUI does not substitute `$WB_DIR`,
-`$LP_PATTERN`, or shell syntax. The executor's Bash expands variables after the
-context has been loaded.
+A command template uses explicit placeholders:
 
-This keeps quoting honest and avoids the classic double-evaluation bugs.
+```text
+{{WB_ROOT}} {{WB_DIR}} {{WB_FILE}} {{PARAM}}
+```
+
+The TUI replaces each placeholder with a `${value@Q}` shell-quoted literal.
+No shell evaluation is performed and no variable environment is passed.
+
+This keeps quoting honest and avoids double-evaluation bugs.
 
 ### 2.3 Explicit contracts
 
 Only these values cross the boundary:
 
 ```text
-WB_ROOT / WB_DIR / WB_FILE    dynamic selection context
-LP_<NAME>                     one-shot command parameters
-command text                  pasted verbatim
-context file path             startup environment
+literal command text          computed in the TUI
 editor binary                 startup environment
 ```
 
@@ -139,10 +141,10 @@ src/lattice_bash/
 ├── cmd/registry.sh            command arrays, loading, search, order, forms
 ├── cmd/history.sh             history TSV, recent list, history cap
 ├── cmd/tmux.sh                roles, layout, mouse bindings, tmux send
-├── cmd/executor.sh            target resolution, context write, send
+├── cmd/executor.sh            target resolution and command sending
 ├── ui/render.sh               full-frame renderer and popups
 ├── ui/event.sh                raw keys, mouse, forms, event loop
-├── executor/rc.sh             executor shell hook, WB/LP cleanup, eg
+├── executor/rc.sh             executor prompt and eg
 ├── executor/open-selection.sh open selected file:line or directory
 ├── executor/open-directory.sh platform file manager launcher
 ├── executor/copy-selection.sh clipboard bridge
@@ -200,7 +202,6 @@ install EXIT/INT/TERM/HUP/WINCH traps
 load registry
 load history
 load file tree
-write initial context
 enter alternate screen and raw mode
 run event loop
 restore terminal
@@ -247,11 +248,11 @@ Consequences:
 split executor              -> original remains target
 focus a split               -> target does not change
 close original executor     -> no executor target; sends fail safely
-mark a split as executor    -> it may become target, but it lacks rc/context
+mark a split as executor    -> it may become target, but it lacks rc setup
 ```
 
 Do not auto-promote splits. A split shell started by tmux is not running the
-executor rc and does not have the context hook.
+executor rc.
 
 ### 5.3 Layout
 
@@ -444,7 +445,7 @@ Everything after the snapshot is a parameter:
 
 ```bash
 lattice_command 'grep in target' 'dir' 'pane' \
-  'grep -nHE -- "$LP_PATTERN" "$LP_TARGET_DIR"' \
+  'grep -nHE -- {{PATTERN}} {{TARGET_DIR}}' \
   '搜索指定目录' \
   'PATTERN' 'TARGET_DIR=.'
 ```
@@ -456,9 +457,9 @@ lattice_command '@ssh' 'dir' 'pane' 'ssh ' '打开 SSH 骨架'
 ```
 
 The registry stores a `submit` mode. `run` means paste + Enter; `insert` means
-paste only. Insert-only commands are not written to history. This is the
-supported escape hatch for interactive programs (SSH, REPLs, prompts): the TUI
-delivers a skeleton and the user finishes it in the executor.
+paste only, then focus the executor. Insert-only commands are not written to
+history. This is the supported escape hatch for interactive programs (SSH,
+REPLs, prompts): the TUI delivers a skeleton and the user finishes it.
 
 Also accepted as one whitespace-separated string:
 
@@ -581,7 +582,7 @@ hand-written Bash files.
 
 ---
 
-## 8. Parameters and context injection
+## 8. Parameters and placeholders
 
 ### 8.1 Parameter lifecycle
 
@@ -610,106 +611,106 @@ NAME=default  default value
 There is no separate type system and no complex interactive parameter support.
 Complex interactive commands belong in the executor.
 
-### 8.2 Namespace
+### 8.2 Placeholders
 
-Parameters are exported only as:
-
-```text
-LP_<NAME>
-```
-
-Example:
-
-```bash
-"$LP_PATTERN"
-"$LP_TARGET_DIR"
-```
-
-Bare `$PATTERN` is never set. This prevents clobbering `PATH`, `HOME`, etc.
-`LP_` is reserved for Lattice.
-
-### 8.3 Context file
-
-Before every send, the TUI writes:
+Command templates use:
 
 ```text
-line 1: WB_DIR
-line 2: WB_FILE
-line 3: WB_ROOT
-line 4+: NAME<TAB>value
+{{WB_ROOT}}
+{{WB_DIR}}
+{{WB_FILE}}
+{{PARAM}}
 ```
 
-The executor consumes it at command time.
+`PARAM` is the parameter name declared in the sixth argument. There is no
+`LP_` namespace and no exported parameter environment.
 
-### 8.4 DEBUG trap
+### 8.3 Expansion and quoting
 
-`executor/rc.sh` installs:
-
-```bash
-trap '__lattice_context' DEBUG
-```
-
-`DEBUG` is a Bash **trap event**, not `set -x` debug mode.
-
-It runs before every simple command. `__lattice_context`:
+Before sending, `lattice_command_expand`:
 
 ```text
-read first 3 lines -> WB_*
-unset all LP_* from previous round
-read remaining tab-separated lines
-export LP_<NAME>
-truncate context back to 3 lines
-set LATTICE_CONTEXT_LOADED=1
+reads WB_ROOT / WB_DIR / WB_FILE from the tree
+reads NAME=value pairs from the form
+replaces each {{NAME}} with ${value@Q}
+rejects unknown or unclosed placeholders
 ```
 
-Why not inject at prompt time: the TUI writes the context **after** the prompt
-has already been displayed and the command arrives later.
+Values with spaces, quotes, `$`, backticks, or newlines become safe shell
+literals. The command sent to the executor is the same literal stored in
+history.
 
-### 8.5 One-shot cleanup and multi-line commands
-
-At the next prompt:
+Placeholders must be outside quotes:
 
 ```bash
-PROMPT_COMMAND='__lattice_prompt_cleanup'
+grep -- {{PATTERN}} {{WB_DIR}}      # correct
+grep -- "{{PATTERN}}" {{WB_DIR}}    # invalid; @Q escaping changes
 ```
 
-unsets all `LP_*` and resets `LATTICE_CONTEXT_LOADED=0`.
+### 8.4 History
 
-`LATTICE_CONTEXT_LOADED` prevents a multi-line command from losing its
-parameters between simple commands:
+Every dispatched command is stored as its final literal text, including
+parameter values. `history.tsv` therefore contains repeatable commands.
 
-```bash
-echo "$LP_PATTERN"
-grep "$LP_PATTERN" .
-```
+Insert-only `@` commands are not written. Commands forced into preview mode by
+a **valid** `$'...'` parameter are written as the inserted text, before any
+manual edit; replay uses that pre-edit text and the user owns the review.
+Malformed `$'...'` attempts are not recorded.
 
-The first DEBUG loads and consumes; later DEBUGs in the same command see the
-flag and do nothing.
+History search is modal and incremental: `/` activates the filter, printable
+keys update it without a blocking `read`, `Esc` leaves search and a second
+`Esc` returns to the tree. This avoids the old blocking prompt that could look
+stuck.
 
-### 8.6 Limits of cleanup
+### 8.5 Explicit ANSI-C parameters
 
-Environment variables are inherited by children at spawn time. A background
-process started during the command keeps the environment it inherited; the
-parent shell cannot unset variables inside an already-running child.
+A parameter that is exactly one complete `$'...'` word is inserted verbatim.
+Any other `$'`-prefixed value falls back to `@Q` quoting. Both cases force
+`submit=insert`, so the user reviews and presses Enter.
 
-This is normal Unix behavior and is not considered a leak.
+The validator scans for an unescaped single quote and a trailing backslash:
+it never evaluates the value. Raw Chinese/Unicode is accepted; only malformed
+ASCII quoting falls back.
 
-### 8.7 History interaction
+Commands containing legacy `$WB_*` or `$LP_*` syntax are rejected at dispatch
+time. They must be migrated to placeholders.
 
-Parameterized commands are **not written to history**. Replaying them without
-their parameter values would send an empty/incorrect command.
+### 8.6 Registers and clipboard
 
-Insert-only `@` commands are also not written to history: they were never
-executed by Lattice, only placed on the executor command line.
-
-History stores command templates, not expanded values:
+`WB_A/WB_B/WB_C` are raw files in `LATTICE_STATE_DIR`:
 
 ```text
-grep -n -- "$WB_DIR/file.txt"
+wb-register-A
+wb-register-B
+wb-register-C
+wb-clip
 ```
 
-Rerun recreates the current context, so `$WB_DIR` resolves against the current
-selection, not the directory at the original run.
+`wb-clip` stores only the five-character preview, never the full clipboard.
+Full clipboard content is read on demand into memory for `{{WB_CLIP}}`
+expansion; it is not persisted by the cache writer. Registers intentionally
+store their full values because the user explicitly placed them there.
+
+- tree `@` then `a/b/c` writes the selected full path;
+- `Ctrl-b a/b/c` reads the system clipboard into the register;
+- `Ctrl-b v` refreshes only the `WB_CLIP` preview;
+- commands referencing `{{WB_CLIP}}` read and cache the clipboard once.
+
+The status-left worker reads the register files and renders `CLIP A B C` with
+the first five characters plus `...` when longer. This keeps the TUI render
+path free of clipboard calls and per-key file work. External clipboard changes
+are intentionally not polled.
+
+Clipboard reads use a 2-second inner timeout and a 3-second outer
+`--kill-after=1` guard. Timeout/discard is a failure: partial temp data is
+removed, caches/registers are not overwritten, and `{{WB_CLIP}}` commands are
+not sent. A successful empty read is still a valid empty value.
+
+`Ctrl-b c` overrides tmux new-window inside the Lattice session. The session
+is single-window, so creating another window would produce an unmarked pane.
+
+The executor gets no hidden context and no cleanup trap; it is a plain Bash
+prompt plus the final command line.
 
 Default limits:
 
@@ -730,19 +731,15 @@ the TSV is atomically rewritten.
 The right pane is started with:
 
 ```bash
-LATTICE_CONTEXT_FILE=...
 LATTICE_EDITOR=...
 exec bash --noprofile --rcfile executor/rc.sh -i
 ```
 
-The rc sets:
+The rc sets only:
 
 ```text
-DEBUG trap
-PROMPT_COMMAND cleanup
 PROMPT_DIRTRIM=2
 PS1='\[\e[1;34m\]\w\[\e[0m\]\[\e[1;32m\]\$\[\e[0m\] '
-eg()
 ```
 
 ### 9.2 `eg`
@@ -900,8 +897,9 @@ wheel        scroll
 Esc/q/click  close
 ```
 
-The popup contains only a border and the snapshot text. Do not add a title or
-footer; those were removed because they were visual noise.
+The popup contains only a border, the command body, and — if present — a blank
+line followed by the snapshot. Do not add a title or footer; those were removed
+because they were visual noise.
 
 Long lines are wrapped with display-width accounting for CJK/emoji.
 
@@ -1063,7 +1061,7 @@ executor is an error, never a reason to split from the TUI.
 
 `Ctrl-b x` is guarded for TUI/executor. A user can still type `exit` in the
 executor or use `Ctrl-b &`. Recovering requires a fresh session; arbitrary
-splits cannot be promoted because they lack the executor rc/context hook.
+splits cannot be promoted because they lack the executor rc.
 
 ### 15.4 tmux pane options are not inherited
 
@@ -1101,22 +1099,20 @@ Unreliable under MSYS2 tmux. Use `show-buffer`/helper temp-file bridge instead.
 A GUI editor launched from `copy-pipe` can read selection stdin and exit.
 Redirect stdin from `/dev/null` and detach with `setsid`/`nohup`.
 
-### 15.11 Parameters polluting the shell
+### 15.11 Placeholder quoting
 
-Never export bare parameter names. Use `LP_<NAME>`, clear before and after the
-command, and consume the context block once.
+Do not export parameter environments. Replace `{{NAME}}` with `${value@Q}` at
+dispatch time; placeholders must be outside shell quotes.
 
-### 15.12 Multi-line commands and one-shot context
+### 15.12 Multi-line commands
 
-If the context is consumed before every simple command, a multi-line command
-loses its parameters after the first line. Use `LATTICE_CONTEXT_LOADED` to load
-once per command; reset it in `PROMPT_COMMAND`.
+There is no one-shot context to lose. A rendered multi-line command is a
+single literal paste; every line sees the same values.
 
-### 15.13 History templates and parameterized commands
+### 15.13 History
 
-History stores templates. Parameterized commands are not stored because their
-values would be missing on replay. Do not store only the template and assume it
-will work.
+History stores the rendered literal command, including parameter values.
+Insert-only `@` commands are not stored because Lattice never executes them.
 
 ### 15.14 Duplicate names
 
@@ -1176,21 +1172,15 @@ tmux show -g mouse
 tmux list-keys -T prefix | grep -E ' e | x | z '
 ```
 
-### Executor context
+### Executor command
+
+The executor is a plain Bash prompt. Inspect the command that was sent with:
 
 ```bash
-printf '%s\n' "$WB_DIR" "$WB_FILE" "$WB_ROOT"
-env | grep '^LP_'
+history 1
 ```
 
-If parameters are missing, check:
-
-```text
-context file has >3 lines
-DEBUG trap installed
-PROMPT_COMMAND cleanup did not run too early
-LATTICE_CONTEXT_LOADED behavior
-```
+There is no context file, DEBUG trap or parameter environment to inspect.
 
 ### TUI
 
@@ -1222,10 +1212,10 @@ cost. Parallel arrays are faster and easier to inspect.
 Removed: multi-field editing in a 30%-wide TUI was slow and error-prone. Use a
 text editor and `R`.
 
-### Bare parameter names
+### Legacy template variables
 
-Rejected: pollutes the executor environment and can overwrite important
-variables. Namespaced `LP_` values are the contract.
+Rejected: `$WB_*` and `$LP_*` produce empty or stale shell values. Use
+`{{...}}` placeholders; the renderer quotes them with `@Q`.
 
 ### Hard failure on duplicate names
 
@@ -1289,11 +1279,11 @@ ssh -t devbox 'cd /home/me/project && /path/to/lattice.sh'
 Why this is the easiest:
 
 ```text
-file tree, paths, context, executor and command transport all stay remote
+file tree, paths, executor and command transport all stay remote
 no local/remote path mapping
 no per-command SSH protocol
 no remote file API
-current WB_* / LP_* semantics remain unchanged
+commands are fully rendered before transport
 ```
 
 What still needs work:
@@ -1345,7 +1335,6 @@ The hard parts:
 
 ```text
 remote file tree
-remote context injection
 local/remote path mapping
 editor choice
 SSH disconnect detection
@@ -1366,21 +1355,15 @@ The rough backend shape would be:
 ```text
 list_dir(path)
 stat(path)
-write_context(remote_file, wb, params)
-send_command(text)
+send_command(literal_text)
 open_file(remote_path, line)
 ```
 
 The local backend is today's implementation. An SSH backend must implement the
 same interface. Do not add `if remote` branches to every tmux/tree function.
 
-Context injection over SSH would probably mirror the local design:
-
-```text
-local helper writes remote context file
-remote rc.sh DEBUG trap reads it
-remote prompt cleanup clears LP_*
-```
+Commands are fully rendered before transport. A remote backend should receive
+the same literal command text; no remote context file or prompt trap is needed.
 
 The transport can still be local tmux `send-keys` into the SSH pane. That part
 is reliable; the remote filesystem and path contracts are the hard part.
@@ -1417,8 +1400,8 @@ step 3:    only if needed: backend abstraction for local TUI + remote executor
 step 4:    local gvim/SSHFS only after a proven file-system strategy
 ```
 
-The first step should not touch the registry, parameter namespace, context
-format, or tmux roles. It should reuse them on the remote host.
+The first step should not touch the registry, placeholder rendering, literal
+transport, or tmux roles. It should reuse them on the remote host.
 
 ### 18.5 Invariants for any SSH implementation
 
@@ -1454,8 +1437,9 @@ Before committing a structural change:
 [ ] --version still prints v1.0.0.0
 [ ] --list-commands works with the USB config
 [ ] TUI starts, q no longer quits, Ctrl-g exits
-[ ] executor receives WB_* and LP_* correctly
-[ ] LP_* cleared at prompt
+[ ] executor receives the literal expanded command
+[ ] command history contains the same literal
+[ ] no `$WB_*` / `$LP_*` templates remain
 [ ] command list click after scroll selects the visible row
 [ ] snapshot popup has no title/footer
 [ ] no new TUI test files unless explicitly requested
@@ -1467,8 +1451,8 @@ If a change affects one of these contracts, update this file first or alongside
 the code:
 
 ```text
-context file format
-LP_ namespace
+placeholder syntax
+literal expansion and @Q quoting
 tmux roles
 command config format
 environment precedence
@@ -1481,10 +1465,9 @@ history limits
 
 ```text
 TUI             left pane; Lattice's renderer and input loop
-executor        right pane; normal interactive Bash with Lattice rc
-context file    three fixed lines + optional parameter block
-WB_*            dynamic selection context
-LP_*            one-shot parameter namespace
+executor        right pane; plain interactive Bash with Lattice rc
+placeholder     {{WB_DIR}} / {{WB_FILE}} / {{WB_ROOT}} / {{PARAM}}
+literal command final @Q-quoted shell command sent and stored
 snapshot        optional display-only help text for a command
 disabled list   names hidden without editing the source config
 frozen example  config/commands.conf shipped in the repo
@@ -1502,9 +1485,9 @@ If you remember nothing else:
 ```text
 TUI and executor are separate processes.
 TUI never executes commands.
-TUI writes context, then pastes a command into tmux.
-Executor's DEBUG trap loads WB_*/LP_*.
-Executor's PROMPT_COMMAND clears LP_*.
+TUI expands {{placeholders}} with @Q, then pastes a literal command.
+The executor is a plain Bash prompt with no context trap.
+History stores the same literal command.
 Config is trusted Bash.
 Source config is never rewritten.
 The tmux executor is found by role, not focus.

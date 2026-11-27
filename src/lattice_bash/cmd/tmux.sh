@@ -90,10 +90,28 @@ lattice_search_status_end ()
 
 lattice_status_left_worker ()
 {
-    local file=$1 stop=$2 parent=$PPID last='' want
+    local file=$1 stop=$2 parent=$PPID last='' want base key value
     while [[ ! -e "$stop" ]] && kill -0 "$parent" 2>/dev/null ; do
-        want=''
-        IFS= read -r want < "$file" 2>/dev/null || want=''
+        base=''
+        IFS= read -r base < "$file" 2>/dev/null || base=''
+        want=$base
+
+        lattice_file_preview "$LATTICE_CLIP_CACHE_FILE"
+        value=$REPLY
+        if [[ -n "$value" ]] ; then
+            lattice_preview_head "$value"
+            want+="  CLIP $REPLY"
+        fi
+        for key in A B C ; do
+            lattice_register_file "$key"
+            lattice_file_preview "$REPLY"
+            value=$REPLY
+            [[ -n "$value" ]] || continue
+            lattice_preview_head "$value"
+            want+="  $key $REPLY"
+        done
+
+        want=${want//#/##}
         if [[ "$want" != "$last" ]] ; then
             lattice_tmux_quick set-option -g status-left "$want " 2>/dev/null || true
             last=$want
@@ -109,7 +127,7 @@ lattice_status_left_start ()
     LATTICE_STATUS_LEFT_ORIG=$(lattice_tmux_quick show-options -gv status-left 2>/dev/null) || LATTICE_STATUS_LEFT_ORIG=''
     LATTICE_STATUS_LEFT_LENGTH_ORIG=$(lattice_tmux_quick show-options -gv status-left-length 2>/dev/null) || LATTICE_STATUS_LEFT_LENGTH_ORIG=''
     LATTICE_STATUS_LEFT_SAVED=1
-    lattice_tmux_quick set-option -g status-left-length 100 2>/dev/null || true
+    lattice_tmux_quick set-option -g status-left-length 160 2>/dev/null || true
 
     # One window only: remove the window list and keep the context left/right.
     LATTICE_STATUS_FORMAT_ORIG=$(lattice_tmux_quick show-options -gv 'status-format[0]' 2>/dev/null) || LATTICE_STATUS_FORMAT_ORIG=''
@@ -149,7 +167,7 @@ lattice_status_left_update ()
     LATTICE_STATUS_LEFT_TEXT=$left
 
     [[ -n "$LATTICE_STATUS_LEFT_FILE" ]] || return 0
-    printf '%s\n' "${left//#/##}" > "$LATTICE_STATUS_LEFT_FILE" 2>/dev/null || true
+    printf '%s\n' "$left" > "$LATTICE_STATUS_LEFT_FILE" 2>/dev/null || true
 }
 
 lattice_status_left_end ()
@@ -204,7 +222,18 @@ lattice_tmux_mouse_on ()
 {
     lattice_tmux_quick set-option -g mouse on 2>/dev/null || true
     lattice_tmux_quick set-option -g set-clipboard on 2>/dev/null || true
+    lattice_tmux_quick set-environment -g LATTICE_STATE_DIR "$LATTICE_STATE_DIR" 2>/dev/null || true
+    lattice_tmux_quick set-environment -g LATTICE_HOME "$LATTICE_HOME" 2>/dev/null || true
     lattice_tmux_quick set-environment -g LATTICE_EDITOR "$LATTICE_EDITOR" 2>/dev/null || true
+    local register_helper="$LATTICE_HOME/executor/copy-register.sh"
+    local refresh_helper="$LATTICE_HOME/executor/refresh-clipboard.sh"
+    local register_key
+    for register_key in a b c ; do
+        lattice_tmux_quick bind -T prefix "$register_key" run-shell -b \
+            "\"$register_helper\" ${register_key^}" 2>/dev/null || true
+    done
+    lattice_tmux_quick bind -T prefix v run-shell -b \
+        "\"$refresh_helper\"" 2>/dev/null || true
     # tmux has no minimum pane width. A border drag can destroy the TUI pane
     # before WINCH reaches the application, so border dragging stays off.
     lattice_tmux_quick unbind -n MouseDrag1Border 2>/dev/null || true
@@ -241,13 +270,13 @@ lattice_tmux_mouse_on ()
     local line_helper="$LATTICE_HOME/executor/open-line.sh"
     local mouse_key
     for mouse_key in M-MouseDown1Pane C-MouseDown1Pane ; do
-        lattice_tmux_quick bind -n "$mouse_key" run-shell \
+        lattice_tmux_quick bind -n "$mouse_key" run-shell -b \
             "printf '%s' '#{q:mouse_line}' | \"$line_helper\" '#{q:pane_current_path}'" \
             2>/dev/null || true
     done
 
     # The supported editor action: copy a selection, then Ctrl-b e.
-    lattice_tmux_quick bind -T prefix e run-shell \
+    lattice_tmux_quick bind -T prefix e run-shell -b \
         "tmux show-buffer | \"$helper\" #{q:pane_current_path}" \
         2>/dev/null || true
 }
@@ -269,8 +298,8 @@ lattice_tmux_has_role ()
 
 lattice_tmux_executor_command ()
 {
-    printf 'LATTICE_CONTEXT_FILE=%q LATTICE_EDITOR=%q exec bash --noprofile --rcfile %q -i' \
-        "$LATTICE_CONTEXT_FILE" "$LATTICE_EDITOR" "$LATTICE_EXECUTOR_RC"
+    printf 'LATTICE_EDITOR=%q exec bash --noprofile --rcfile %q -i' \
+        "$LATTICE_EDITOR" "$LATTICE_EXECUTOR_RC"
 }
 
 lattice_tmux_select_executor ()
@@ -286,6 +315,13 @@ lattice_tmux_select_executor ()
     done < <(lattice_tmux_quick list-panes -t "$LATTICE_TMUX_SESSION" \
                 -F '#{pane_id} #{@lattice_role}' 2>/dev/null)
     return 1
+}
+
+lattice_tmux_focus_executor ()
+{
+    lattice_tmux_select_executor || return 1
+    lattice_tmux_quick select-pane -t "$LATTICE_TMUX_TARGET" 2>/dev/null || return 1
+    return 0
 }
 
 lattice_tmux_select_role ()
@@ -319,6 +355,9 @@ lattice_tmux_mark_role ()
 lattice_tmux_send ()
 {
     local target=$1 cmd=$2 submit=${3:-run}
+    # If the executor is in copy/view mode, paste would be consumed by that
+    # mode instead of reaching the shell prompt. Leave the mode first.
+    lattice_tmux_quick copy-mode -q -t "$target" 2>/dev/null || true
     # set-buffer + paste-buffer -p preserves special characters and avoids
     # send-keys interpreting them as key names.
     printf '%s' "$cmd" | lattice_tmux_quick load-buffer - 2>/dev/null || {

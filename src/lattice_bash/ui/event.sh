@@ -4,12 +4,8 @@ declare -gA _LATTICE_LOADED
 
 _lattice_history_prompt ()
 {
-    local q
-    printf '\033[%d;1H\033[Ksearch: ' "$LATTICE_ROWS"
-    lattice_term_restore
-    IFS= read -r q || q=''
-    lattice_term_raw
-    lattice_history_set_query "$q"
+    LATTICE_HISTORY_SEARCH=1
+    lattice_history_set_query ''
     LATTICE_HISTORY_SELECTED=0
 }
 
@@ -127,6 +123,17 @@ lattice_handle_tree_key ()
         return 0
     fi
 
+    if (( LATTICE_TREE_AT_PENDING )) ; then
+        LATTICE_TREE_AT_PENDING=0
+        case "$key" in
+        a|A) lattice_tree_register A ;;
+        b|B) lattice_tree_register B ;;
+        c|C) lattice_tree_register C ;;
+        *)   lattice_status 'register: use @a, @b or @c' error ;;
+        esac
+        return 0
+    fi
+
     case "$key" in
     j|$'\033[B'|$'\016') lattice_tree_move 1 ;;
     k|$'\033[A'|$'\020'|$'\013') lattice_tree_move -1 ;;
@@ -144,9 +151,10 @@ lattice_handle_tree_key ()
     .)           lattice_tree_toggle_hidden ;;
     o)           lattice_tree_open_directory ;;
     y)           lattice_tree_yank_path ;;
+    @)           LATTICE_TREE_AT_PENDING=1; lattice_status 'register: press a, b or c' ;;
     :)           lattice_registry_open ;;
     /)           lattice_tree_search_open ;;
-    H)           LATTICE_MODE='history'; lattice_history_rebuild_view ;;
+    H)           LATTICE_HISTORY_SEARCH=0; LATTICE_MODE='history'; lattice_history_set_query ''; lattice_history_rebuild_view ;;
     '?' )        LATTICE_MODE='help' ;;
     $'\022')     LATTICE_RECENT_FOCUS=1; LATTICE_RECENT_SELECTED=0
                  lattice_status "recent commands: ${#LATTICE_RECENT_CMDS[@]}  j/k Enter Esc" ;;
@@ -357,6 +365,15 @@ lattice_handle_commands_mouse ()
 lattice_handle_commands_key ()
 {
     local key=$1 idx q
+    if (( LATTICE_CMD_SEARCH )) ; then
+        case "$key" in
+        p|D|R)
+            lattice_registry_set_query "$LATTICE_CMD_QUERY$key"
+            lattice_search_status_update
+            return 0
+            ;;
+        esac
+    fi
     case "$key" in
     $'\033[5~') LATTICE_CMD_SELECTED=$((LATTICE_CMD_SELECTED - LATTICE_CMD_BODY)) ;;
     $'\033[6~') LATTICE_CMD_SELECTED=$((LATTICE_CMD_SELECTED + LATTICE_CMD_BODY)) ;;
@@ -463,7 +480,51 @@ lattice_handle_commands_key ()
 
 lattice_handle_history_key ()
 {
-    local key=$1
+    local key=$1 q
+    if (( LATTICE_HISTORY_SEARCH )) ; then
+        case "$key" in
+        $'\033[A'|$'\020'|'k') LATTICE_HISTORY_SELECTED=$((LATTICE_HISTORY_SELECTED-1)) ;;
+        $'\033[B'|$'\016'|'j') LATTICE_HISTORY_SELECTED=$((LATTICE_HISTORY_SELECTED+1)) ;;
+        $'\033')
+            LATTICE_HISTORY_SEARCH=0
+            lattice_history_set_query ''
+            LATTICE_HISTORY_SELECTED=0
+            ;;
+        $'\r')
+            lattice_history_rerun && {
+                LATTICE_HISTORY_SEARCH=0
+                lattice_history_set_query ''
+                LATTICE_MODE='tree'
+            }
+            ;;
+        $'\025')
+            lattice_history_set_query ''
+            LATTICE_HISTORY_SELECTED=0
+            ;;
+        $'\177'|$'\b')
+            q=${LATTICE_HISTORY_QUERY}
+            if [[ -n "$q" ]] ; then
+                lattice_history_set_query "${q%?}"
+                LATTICE_HISTORY_SELECTED=0
+            fi
+            ;;
+        '/')
+            lattice_history_set_query "${LATTICE_HISTORY_QUERY}/"
+            LATTICE_HISTORY_SELECTED=0
+            ;;
+        *)
+            case "$key" in
+            [[:print:]])
+                lattice_history_set_query "${LATTICE_HISTORY_QUERY}$key"
+                LATTICE_HISTORY_SELECTED=0
+                ;;
+            esac
+            ;;
+        esac
+        _lattice_select_clamp $(( ${#LATTICE_HISTORY_VIEW[@]} - 1 ))
+        return 0
+    fi
+
     case "$key" in
     j|$'\033[B'|$'\016') LATTICE_HISTORY_SELECTED=$((LATTICE_HISTORY_SELECTED+1)) ;;
     k|$'\033[A'|$'\020'|$'\013') LATTICE_HISTORY_SELECTED=$((LATTICE_HISTORY_SELECTED-1)) ;;
@@ -471,7 +532,11 @@ lattice_handle_history_key ()
         lattice_history_rerun && LATTICE_MODE='tree'
         ;;
     '/') _lattice_history_prompt ;;
-    $'\033'|q) LATTICE_MODE='tree' ;;
+    $'\033'|q)
+        LATTICE_HISTORY_SEARCH=0
+        lattice_history_set_query ''
+        LATTICE_MODE='tree'
+        ;;
     esac
     _lattice_select_clamp $(( ${#LATTICE_HISTORY_VIEW[@]} - 1 ))
 }

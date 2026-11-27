@@ -298,8 +298,18 @@ lattice_render_commands ()
 
 lattice_render_history ()
 {
-    local i row idx cmd line
-    _lattice_row "${LATTICE_C_BOLD}${LATTICE_C_CYAN} history  /${LATTICE_HISTORY_QUERY} ${LATTICE_C_RESET}"
+    local i row idx cmd line q maxq
+    if (( LATTICE_HISTORY_SEARCH )) ; then
+        q=${LATTICE_HISTORY_QUERY}
+        maxq=$(( LATTICE_COLS - 16 ))
+        (( maxq < 8 )) && maxq=8
+        if (( ${#q} > maxq )) ; then
+            q="...${q: -maxq}"
+        fi
+        _lattice_row "${LATTICE_C_BOLD}${LATTICE_C_CYAN} search> ${q}_${LATTICE_C_RESET}"
+    else
+        _lattice_row "${LATTICE_C_BOLD}${LATTICE_C_CYAN} history${LATTICE_C_RESET}"
+    fi
     local body=$(( LATTICE_ROWS - 3 ))
     (( body < 1 )) && body=1
     local offset=0
@@ -320,7 +330,11 @@ lattice_render_history ()
             _lattice_blank
         fi
     done
-    _lattice_footer " ${LATTICE_STATUS} " '[HISTORY] j/k Enter / Esc '
+    if (( LATTICE_HISTORY_SEARCH )) ; then
+        _lattice_footer " ${LATTICE_STATUS} " '[SEARCH] type filter ↑↓ Enter Esc '
+    else
+        _lattice_footer " ${LATTICE_STATUS} " '[HISTORY] j/k Enter / Esc '
+    fi
 }
 
 _lattice_wrap_line ()
@@ -418,28 +432,22 @@ lattice_render_form_popup ()
 {
     local title=$LATTICE_FORM_TITLE
     local -a rows=()
-    local i label value line maxw=24 width w h top left horiz inner
+    local i label value line w h top left horiz inner
+    local cursor_row=0 cursor_col=0 cursor_prefix_width=0
     for ((i=0;i<${#LATTICE_FORM_LABELS[@]};i++)); do
         label=${LATTICE_FORM_LABELS[i]}
         value=${LATTICE_FORM_VALUES[i]:-}
+        rows+=("${label}: ${value}")
         if (( i == LATTICE_FORM_INDEX )) ; then
             local cursor=${LATTICE_FORM_CURSORS[i]:-${#value}}
-            rows+=("${label}: ${value:0:cursor}_${value:cursor}")
-        else
-            rows+=("${label}: ${value}")
+            str_display_width "${label}: ${value:0:cursor}"
+            cursor_prefix_width=$REPLY
+            cursor_row=$(( i + 3 ))
         fi
     done
 
-    str_display_width "$title"; width=$REPLY
-    (( width > maxw )) && maxw=$width
-    str_display_width 'Enter next · Esc cancel'; width=$REPLY
-    (( width > maxw )) && maxw=$width
-    for line in "${rows[@]}" ; do
-        str_display_width "$line"; width=$REPLY
-        (( width > maxw )) && maxw=$width
-    done
-    w=$(( maxw + 4 ))
-    (( w > LATTICE_COLS - 2 )) && w=$(( LATTICE_COLS - 2 ))
+    # Use almost the full TUI pane so long parameter values remain readable.
+    w=$(( LATTICE_COLS - 2 ))
     (( w < 20 )) && w=20
     inner=$(( w - 4 ))
     h=$(( ${#rows[@]} + 4 ))
@@ -475,6 +483,15 @@ lattice_render_form_popup ()
         printf -v line '\033[0m\033[%d;%dH%s\033[0m' "$((top+i))" "$left" "$line"
         LATTICE_FRAME+=("$line")
     done
+    if (( cursor_row > 0 )) ; then
+        cursor_col=$(( left + 2 + cursor_prefix_width ))
+        (( cursor_col < left + 2 )) && cursor_col=$(( left + 2 ))
+        (( cursor_col > left + 2 + inner - 1 )) && cursor_col=$(( left + 2 + inner - 1 ))
+        (( cursor_row > h - 2 )) && cursor_row=$(( h - 2 ))
+        printf -v line '\033[%d;%dH\033[?25h' \
+            "$((top + cursor_row - 1))" "$cursor_col"
+        LATTICE_FRAME+=("$line")
+    fi
 }
 
 lattice_render_help ()
@@ -491,6 +508,7 @@ lattice_render_help ()
         '.               toggle hidden files'
         'o               open selected directory in the file manager'
         'y               copy selected path to the clipboard'
+        '@a/@b/@c        store selected path in WB_A/WB_B/WB_C'
         ':               quick command palette'
         '/               search commands in palette'
         '↑/↓             select command'
@@ -502,6 +520,8 @@ lattice_render_help ()
         'Ctrl-r          focus recent commands (then 1-8 or Enter)'
         '/               search history (inside history)'
         'R               reload commands.conf'
+        'Ctrl-b a/b/c    copy clipboard into WB_A/WB_B/WB_C'
+        'Ctrl-b v        refresh WB_CLIP preview'
         'Ctrl-g          quit and close the Lattice session'
     )
     local line
