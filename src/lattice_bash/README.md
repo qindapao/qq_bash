@@ -418,7 +418,7 @@ executor:   Ctrl-b v       refresh WB_CLIP preview from the clipboard
 ```
 
 `Ctrl-b c` overrides tmux new-window inside the Lattice session.  
-The status-left preview shows `DIR`, `A`, `B`, `C`, `FILE`, `CLIP` in that
+The status-left preview shows `DIR`, `A`, `B`, `C`, `CLIP`, `FILE` in that
 order. Registers and `CLIP` use their last ten characters, prefixed with `...`
 when longer. Empty values are omitted. The preview refreshes when a register or
 clipboard cache changes; arbitrary external clipboard changes wait for

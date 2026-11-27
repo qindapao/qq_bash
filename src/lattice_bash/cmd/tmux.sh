@@ -118,13 +118,14 @@ lattice_status_left_worker ()
             lattice_preview_tail "$value"
             want+="  $key $REPLY"
         done
-        [[ -n "$file_path" ]] && want+="  FILE $file_path"
 
         lattice_file_preview "$LATTICE_CLIP_CACHE_FILE" 64
         value=$REPLY
         if [[ -n "$value" ]] ; then
             want+="  CLIP $value"
         fi
+
+        [[ -n "$file_path" ]] && want+="  FILE $file_path"
 
         want=${want//#/##}
         if [[ "$want" != "$last" ]] ; then

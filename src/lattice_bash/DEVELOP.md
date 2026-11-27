@@ -716,7 +716,7 @@ store their full values because the user explicitly placed them there.
 - commands referencing `{{WB_CLIP}}` read and cache the clipboard once.
 
 The status-left worker reads the register files and renders
-`DIR A B C FILE CLIP`. `CLIP` and the registers show the last ten characters
+`DIR A B C CLIP FILE`. `CLIP` and the registers show the last ten characters
 with a leading `...` when longer. Empty values are omitted. This keeps the TUI
 render path free of clipboard calls and per-key file work. External clipboard
 changes are intentionally not polled.
