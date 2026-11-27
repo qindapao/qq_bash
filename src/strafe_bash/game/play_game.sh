@@ -619,7 +619,7 @@ _play_game_tick () {
                 _hit_fx_add "$_ey" "$_ex" '*' "$C_YELLOW"
                 eb_kill "$_ei"
                 killed_b[$_hitb]=1
-                unset "_pbmap[$_ey,$_ex]"
+                unset -v '_pbmap[$_ey,$_ex]'
                 continue
             fi
         fi
@@ -692,7 +692,7 @@ _play_game_tick () {
                 eb_kill "$_ei"
                 # 我方子弹只做死亡标记：BULLETS 已经重建过，第 9 段统一清理
                 killed_b[$_hitb]=1
-                unset "_pbmap[$_eny,$_enx]"
+                unset -v '_pbmap[$_eny,$_enx]'
                 continue
             fi
         fi

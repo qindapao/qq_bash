@@ -1512,7 +1512,7 @@ xo_obj_hire ()
     if (( n > 0 )) ; then
         local -i idx=$(( n - 1 ))
         local obj=${XO_RES_MARKET["$cls|$idx"]}
-        unset -v "XO_RES_MARKET[$cls|$idx]"
+        unset -v 'XO_RES_MARKET[$cls|$idx]'
         XO_RES_COUNT[$cls]=$(( n - 1 ))
         # 顺序与 born 一致：先登记回池，再调 born 钩子（钩子可读写自己的字段）
         XO_OBJ_POOL[$obj]=$cls
