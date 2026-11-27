@@ -219,8 +219,7 @@ lattice_render_tree ()
 lattice_render_commands ()
 {
     local i row idx pos name scope target snapshot cmd line footer total start snapmark usermark
-    local preview_h=1
-    local body=$(( LATTICE_ROWS - 3 - preview_h ))
+    local body=$(( LATTICE_ROWS - 3 ))
     (( body < 1 )) && body=1
     local total=${#LATTICE_CMD_VIEW[@]}
     local offset=${LATTICE_CMD_OFFSET:-0}
@@ -322,7 +321,7 @@ lattice_render_history ()
     else
         _lattice_row "${LATTICE_C_BOLD}${LATTICE_C_CYAN} history${LATTICE_C_RESET}"
     fi
-    local body=$(( LATTICE_ROWS - 3 ))
+    local body=$(( LATTICE_ROWS - 2 ))
     (( body < 1 )) && body=1
     local offset=${LATTICE_HISTORY_OFFSET:-0}
     (( offset < 0 )) && offset=0

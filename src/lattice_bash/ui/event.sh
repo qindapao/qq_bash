@@ -558,7 +558,7 @@ lattice_handle_history_mouse ()
     (( b & 32 )) && return 0
 
     if (( b >= 64 )) ; then
-        body=$(( LATTICE_ROWS - 3 ))
+        body=$(( LATTICE_ROWS - 2 ))
         (( body < 1 )) && body=1
         total=${#LATTICE_HISTORY_VIEW[@]}
         local off=${LATTICE_HISTORY_OFFSET:-0}
@@ -576,7 +576,7 @@ lattice_handle_history_mouse ()
         return 0
     fi
 
-    body=$(( LATTICE_ROWS - 3 ))
+    body=$(( LATTICE_ROWS - 2 ))
     (( body < 1 )) && body=1
     (( y >= 2 && y < 2 + body )) || return 0
     total=${#LATTICE_HISTORY_VIEW[@]}
