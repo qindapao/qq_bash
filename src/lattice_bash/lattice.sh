@@ -146,7 +146,7 @@ lattice_create_session ()
         lattice_tmux_quick kill-session -t "$session" 2>/dev/null || true
     fi
 
-    printf -v tui_cmd '%q --tui --owned --root %q --config %q --session %q' \
+    printf -v tui_cmd 'exec %q --tui --owned --root %q --config %q --session %q' \
         "$self" "$root" "$config" "$session"
     # Start with a plain shell, split first, then respawn the TUI. Starting the
     # TUI before the split makes it cache the full-window width and renders

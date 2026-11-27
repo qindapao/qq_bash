@@ -596,10 +596,16 @@ select parameterized command
 Form keys:
 
 ```text
+Tab       next field
+Shift-Tab previous field
 Ctrl-u    clear current field
 Ctrl-d    restore default
 Esc       cancel
 ```
+
+Tab and Shift-Tab move between fields; they do not insert a literal tab. Use a
+complete `$'...'` parameter such as `$'a\tb'` for literal tabs; it is validated
+and previewed like any explicit ANSI-C value.
 
 Required/optional convention:
 
@@ -624,6 +630,12 @@ Command templates use:
 
 `PARAM` is the parameter name declared in the sixth argument. There is no
 `LP_` namespace and no exported parameter environment.
+
+Names must match `[A-Za-z_][A-Za-z0-9_]*`, are case-sensitive, and must be
+declared. `WB_ROOT/WB_DIR/WB_FILE/WB_CLIP/WB_A/WB_B/WB_C` are reserved and
+cannot be parameter names. Unknown names abort dispatch. A placeholder may
+appear multiple times; every occurrence gets the same value. Snapshot text is
+display-only and is not expanded.
 
 ### 8.3 Expansion and quoting
 

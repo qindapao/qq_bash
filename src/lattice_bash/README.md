@@ -537,6 +537,26 @@ grep -- {{PATTERN}} {{WB_DIR}}      # correct
 grep -- "{{PATTERN}}" {{WB_DIR}}    # wrong
 ```
 
+Placeholder names follow `[A-Za-z_][A-Za-z0-9_]*`, are case-sensitive, and must
+be declared in the parameter list. These names are reserved for dynamic context
+and cannot be parameters:
+
+```text
+WB_ROOT WB_DIR WB_FILE WB_CLIP WB_A WB_B WB_C
+```
+
+An undeclared name is an error and the command is not sent. The same
+placeholder may appear multiple times and always receives the same value:
+
+```bash
+lattice_command 'same twice' 'dir' 'pane' \
+  'diff -u {{A}} {{A}}' \
+  '' \
+  'A'
+```
+
+Snapshot text is display-only and is never placeholder-expanded.
+
 A command name starting with `@` is **insert-only**. Lattice pastes the command
 skeleton without pressing Enter and does not add it to history:
 
@@ -569,10 +589,17 @@ occupy or shift a character cell; the terminal's own cursor shape is preserved. 
 and sends after the last one.
 
 ```text
+Tab       next field
+Shift-Tab previous field
 Ctrl-u    clear current field
 Ctrl-d    restore its default value
 Esc       cancel
 ```
+
+Enter moves to the next field and sends after the last one. Tab and Shift-Tab
+only move between fields; they do not insert a literal tab. To pass a literal
+tab as a parameter value, use the ANSI-C form, for example `$'a\tb'`; it becomes
+a preview-only value that you confirm with Enter.
 
 ### Explicit ANSI-C value
 
@@ -605,6 +632,42 @@ full because they are explicit user state.
 Parameterized commands are written to history as their fully expanded literal
 command. Special characters in values need no user escaping: type the value
 literally and Lattice quotes it for the shell.
+
+### Quotes inside command bodies
+
+The command is one Bash string. The outer quoting belongs to the config file;
+quotes inside it belong to the executor shell.
+
+Preferred outer form is single quotes:
+
+```bash
+lattice_command 'printf one' 'dir' 'pane' \
+  'printf "%s\n" "hello"'
+```
+
+To include a literal single quote, close and reopen the outer string:
+
+```bash
+lattice_command 'it works' 'dir' 'pane' \
+  'printf "%s\n" "it'\''s fine"'
+```
+
+When the body has no `$` or backticks, outer double quotes are often more
+readable, especially with a single-quoted printf format:
+
+```bash
+lattice_command 'snapshot metachars' 'dir' 'pane' \
+  "printf '%s\\n' 'snapshot demo'" \
+  'snapshot text'
+```
+
+`\\n` becomes `\n` when the config file is sourced; `printf` interprets it.
+Placeholders still go outside shell quotes:
+
+```bash
+lattice_command 'echo path' 'file' 'pane' \
+  'printf "%s\n" {{WB_FILE}}'
+```
 
 ### Literal newlines and tabs
 
