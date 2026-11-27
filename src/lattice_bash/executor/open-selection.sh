@@ -40,9 +40,14 @@ if [[ ! -f "$file" ]] ; then
     exit 1
 fi
 
-editor=${LATTICE_EDITOR:-/d/programes/vim/vim91/gvim.exe}
-if [[ ! -x "$editor" ]] ; then
-    tmux display-message "editor not executable: $editor" 2>/dev/null || true
+editor=${LATTICE_EDITOR:-gvim}
+if [[ "$editor" == */* ]] ; then
+    if [[ ! -x "$editor" ]] ; then
+        tmux display-message "editor not executable: $editor" 2>/dev/null || true
+        exit 1
+    fi
+elif ! command -v "$editor" >/dev/null 2>&1 ; then
+    tmux display-message "editor not found: $editor" 2>/dev/null || true
     exit 1
 fi
 
