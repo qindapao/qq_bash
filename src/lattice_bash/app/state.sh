@@ -94,6 +94,10 @@ LATTICE_QUIT=0
 LATTICE_RESIZING=0
 LATTICE_TREE_OFFSET=0
 LATTICE_TREE_BODY=1
+LATTICE_TREE_MANUAL_SCROLL=0
+LATTICE_CMD_MANUAL_SCROLL=0
+LATTICE_HISTORY_OFFSET=0
+LATTICE_HISTORY_MANUAL_SCROLL=0
 LATTICE_MOUSE_LAST_TS=0
 LATTICE_MOUSE_LAST_ROW=-1
 LATTICE_MOUSE_LAST_MODE=''
@@ -191,7 +195,7 @@ lattice_register_write ()
 lattice_clipboard_cache_write ()
 {
     local value=$1 preview tmp
-    lattice_preview_head "$value"
+    lattice_preview_tail "$value"
     preview=$REPLY
     [[ -d "$LATTICE_STATE_DIR" ]] || mkdir -p -- "$LATTICE_STATE_DIR" || return 1
     tmp=$(mktemp "$LATTICE_CLIP_CACHE_FILE.XXXXXX") || return 1
@@ -226,29 +230,29 @@ lattice_clipboard_read ()
     rm -f -- "$tmp"
 }
 
-lattice_preview_head ()
+lattice_preview_tail ()
 {
     local s=$1
     s=${s//$'\n'/ }
     s=${s//$'\r'/ }
     s=${s//$'\t'/ }
-    if (( ${#s} > 5 )) ; then
-        REPLY="${s:0:5}..."
+    if (( ${#s} > 10 )) ; then
+        REPLY="...${s: -10}"
     else
         REPLY=$s
     fi
 }
 
-# Read at most six characters without loading a potentially huge clipboard
-# value into memory.
+# Read at most LIMIT characters without loading a potentially huge value into
+# memory. Defaults to ten for the status preview.
 lattice_file_preview ()
 {
-    local file=$1 ch fd
+    local file=$1 limit=${2:-10} ch fd
     local -i i=0
     REPLY=''
     [[ -f "$file" ]] || return 0
     exec {fd}<"$file" || return 1
-    while (( i < 6 )) ; do
+    while (( i < limit )) ; do
         ch=''
         if ! IFS= read -r -n 1 -u "$fd" ch ; then
             [[ -n "$ch" ]] && REPLY+=$ch

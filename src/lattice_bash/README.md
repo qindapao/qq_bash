@@ -76,7 +76,10 @@ instead of consuming the whole input line.
 
 In the left tree, a single mouse click selects a row. Double-click a directory
 to enter it, `..` to go to the parent, or a file to open it with
-`LATTICE_OPEN_CMD`. The right pane still uses tmux copy mode for wheel history
+`LATTICE_OPEN_CMD`. Pressing Enter on a file does the same editor open; `o`
+opens the selected directory in the file manager. The wheel scrolls the list
+viewport without changing the selected entry; a list that fits on one page
+ignores the wheel. The right pane still uses tmux copy mode for wheel history
 and selection.
 
 ## Quick start
@@ -198,7 +201,7 @@ If there is no executor pane, the TUI reports an error instead of splitting from
 ```text
 j/k, ↑/↓     move
 Home / End   first / last entry
-Enter        enter directory / run selected command
+Enter        enter directory / open file in the editor
 h            parent directory
 Backspace    parent directory
 r            refresh
@@ -206,10 +209,10 @@ r            refresh
 o            open selected directory in the system file manager
 y            copy selected path to the clipboard
 @a / @b / @c copy selected full path into WB_A/WB_B/WB_C
-```
 :            quick command palette
 /            filter file/dir names in tree; search commands in palette
 H            history
+p            preview selected history/recent command
 Ctrl-r       focus recent commands (then 1-8 or Enter)
 /            search history (in history mode)
 R            reload commands (tree or palette)
@@ -353,7 +356,7 @@ LATTICE_STATE_DIR       advanced profile/state relocation
 LATTICE_ENV_CONF        advanced env-file relocation
 LATTICE_ENV_DIR         advanced env-file relocation
 LATTICE_HISTORY_FILE    derived from state dir
-LATTICE_HISTORY_LIMIT   history entry cap; default 1000
+LATTICE_HISTORY_LIMIT   history entry cap; default 500
 LATTICE_ORDER_FILE      derived from state dir
 LATTICE_USER_COMMANDS_FILE  user-added commands
 LATTICE_DISABLED_FILE   hidden command names
@@ -415,12 +418,13 @@ executor:   Ctrl-b v       refresh WB_CLIP preview from the clipboard
 ```
 
 `Ctrl-b c` overrides tmux new-window inside the Lattice session.  
-The status-left preview shows `CLIP`, `A`, `B`, `C` with the first five
-characters and `...` when longer; empty values are omitted. The preview
-refreshes when a register or clipboard cache changes; arbitrary external
-clipboard changes wait for `Ctrl-b v` or the next clipboard command.
+The status-left preview shows `DIR`, `A`, `B`, `C`, `FILE`, `CLIP` in that
+order. Registers and `CLIP` use their last ten characters, prefixed with `...`
+when longer. Empty values are omitted. The preview refreshes when a register or
+clipboard cache changes; arbitrary external clipboard changes wait for
+`Ctrl-b v` or the next clipboard command.
 
-The `CLIP` preview cache stores only the first five characters; the full
+The `CLIP` preview cache stores only the last ten characters; the full
 clipboard is read on demand for `{{WB_CLIP}}` and is not persisted by the cache
 writer. Registers intentionally store their full values because the user
 explicitly placed them there.
@@ -813,8 +817,10 @@ the order file are appended in config order.
 
 The left-bottom panel shows the last unique commands dispatched by Lattice.
 `Ctrl-r` focuses it, `j/k` selects and Enter reruns. While focused, `1`-`8`
-rerun the corresponding recent command. Numeric keys do nothing in tree
-mode.
+rerun the corresponding recent command. `p` or right-click previews the full
+command; left-click selects the row. The panel is capped at 8 and fully
+visible, so the wheel does not change its selection. Numeric keys do nothing
+in tree mode.
 
 ## History
 
@@ -838,12 +844,16 @@ directly. Commands run directly in another shell are not captured.
 
 Press `/` in the history panel for incremental search. Type to filter, `Esc`
 leaves search, and `Esc` again returns to the tree. Enter reruns the selected
-entry. History entries can also be searched with `/` and re-run with Enter.
+entry. Home/End jump to the first/last entry, also while searching. `p` or
+right-click previews the full command; the mouse wheel scrolls the list
+viewport without changing the selection, left-click selects, and double-click
+reruns. A list that fits on one page ignores the wheel. History entries can
+also be searched with `/` and re-run with Enter.
 
 Default limits:
 
 ```text
-history entries   1000
+history entries   500
 recent commands   8
 ```
 

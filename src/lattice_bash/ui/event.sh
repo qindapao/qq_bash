@@ -17,6 +17,18 @@ _lattice_select_clamp ()
     (( LATTICE_HISTORY_SELECTED > max )) && LATTICE_HISTORY_SELECTED=$max
 }
 
+lattice_tree_scroll ()
+{
+    local delta=$1 offset=${LATTICE_TREE_OFFSET:-0}
+    local max=$(( ${#LATTICE_ENTRIES[@]} - LATTICE_TREE_BODY ))
+    (( max < 0 )) && max=0
+    offset=$(( offset + delta ))
+    (( offset < 0 )) && offset=0
+    (( offset > max )) && offset=$max
+    LATTICE_TREE_OFFSET=$offset
+    LATTICE_TREE_MANUAL_SCROLL=1
+}
+
 lattice_handle_tree_mouse ()
 {
     local seq=${1:3}
@@ -26,11 +38,49 @@ lattice_handle_tree_mouse ()
     IFS=';' read -r b x y <<< "$seq"
     [[ "$b" =~ ^[0-9]+$ && "$x" =~ ^[0-9]+$ && "$y" =~ ^[0-9]+$ ]] || return 0
     (( b & 32 )) && return 0
+
+    local recent_h=$(( LATTICE_ROWS - 2 - 1 ))
+    (( recent_h > LATTICE_RECENT_LIMIT )) && recent_h=$LATTICE_RECENT_LIMIT
+    (( recent_h < 1 )) && recent_h=1
+    local body_h=$(( LATTICE_ROWS - 2 - recent_h ))
+    (( body_h < 1 )) && body_h=1
+    local recent_row=$(( y - 2 - body_h ))
+    if (( recent_row >= 0 && recent_row < recent_h )) ; then
+        if (( b >= 64 )) ; then
+            # The recent panel is fully visible; the wheel must not change
+            # the selected recent entry.
+            return 0
+        fi
+        LATTICE_RECENT_FOCUS=1
+        LATTICE_RECENT_SELECTED=$recent_row
+        if (( (b & 3) == 2 )) ; then
+            lattice_recent_show_preview
+            return 0
+        fi
+        (( (b & 3) == 0 )) || return 0
+        now=${EPOCHREALTIME:-0}
+        now=${now//[!0-9]/}
+        if [[ "${LATTICE_MOUSE_LAST_MODE:-}" == 'recent' ]] &&
+           (( LATTICE_MOUSE_LAST_TS > 0 &&
+              LATTICE_MOUSE_LAST_ROW == recent_row &&
+              now - LATTICE_MOUSE_LAST_TS <= 900000 )) ; then
+            LATTICE_MOUSE_LAST_TS=0
+            LATTICE_MOUSE_LAST_ROW=-1
+            lattice_recent_run_index "$recent_row"
+        else
+            LATTICE_MOUSE_LAST_TS=$now
+            LATTICE_MOUSE_LAST_ROW=$recent_row
+            LATTICE_MOUSE_LAST_MODE='recent'
+            lattice_status "recent: ${LATTICE_RECENT_CMDS[recent_row]:-}"
+        fi
+        return 0
+    fi
+
     if (( b == 64 )) ; then
-        lattice_tree_move -3
+        lattice_tree_scroll -3
         return 0
     elif (( b == 65 )) ; then
-        lattice_tree_move 3
+        lattice_tree_scroll 3
         return 0
     fi
     (( (b & 3) == 0 )) || return 0       # left button press only
@@ -39,6 +89,7 @@ lattice_handle_tree_mouse ()
     row=$(( LATTICE_TREE_OFFSET + y - 2 ))
     (( row >= 0 && row < ${#LATTICE_ENTRIES[@]} )) || return 0
 
+    LATTICE_TREE_MANUAL_SCROLL=0
     LATTICE_RECENT_FOCUS=0
     LATTICE_TREE_SELECTED=$row
     lattice_selected_path
@@ -72,6 +123,7 @@ lattice_handle_tree_key ()
         lattice_handle_tree_mouse "$key"
         return 0
     fi
+    LATTICE_TREE_MANUAL_SCROLL=0
     if (( LATTICE_TREE_SEARCH )) ; then
         case "$key" in
         $'\033[A'|$'\020') lattice_tree_move -1 ;;
@@ -111,6 +163,14 @@ lattice_handle_tree_key ()
             ;;
         $'\r')
             lattice_recent_run_index "$LATTICE_RECENT_SELECTED"
+            ;;
+        p) lattice_recent_show_preview ;;
+        @)
+            # A register chord is a tree action. Leave recent focus first so
+            # the following a/b/c reaches the pending-register handler.
+            LATTICE_RECENT_FOCUS=0
+            LATTICE_TREE_AT_PENDING=1
+            lattice_status 'register: press a, b or c'
             ;;
         1|2|3|4|5|6|7|8)
             idx=$(( key - 1 ))
@@ -322,20 +382,24 @@ lattice_handle_commands_mouse ()
     [[ "$b" =~ ^[0-9]+$ && "$x" =~ ^[0-9]+$ && "$y" =~ ^[0-9]+$ ]] || return 0
 
     if (( b >= 64 )) ; then
+        local off=${LATTICE_CMD_OFFSET:-0}
+        local max=$(( ${#LATTICE_CMD_VIEW[@]} - LATTICE_CMD_BODY ))
+        (( max < 0 )) && max=0
         if (( b == 64 )) ; then
-            LATTICE_CMD_SELECTED=$((LATTICE_CMD_SELECTED-3))
+            off=$(( off - 3 ))
         else
-            LATTICE_CMD_SELECTED=$((LATTICE_CMD_SELECTED+3))
+            off=$(( off + 3 ))
         fi
-        (( LATTICE_CMD_SELECTED < 0 )) && LATTICE_CMD_SELECTED=0
-        (( LATTICE_CMD_SELECTED >= ${#LATTICE_CMD_VIEW[@]} )) && \
-            LATTICE_CMD_SELECTED=$(( ${#LATTICE_CMD_VIEW[@]} - 1 ))
-        (( LATTICE_CMD_SELECTED < 0 )) && LATTICE_CMD_SELECTED=0
+        (( off < 0 )) && off=0
+        (( off > max )) && off=$max
+        LATTICE_CMD_OFFSET=$off
+        LATTICE_CMD_MANUAL_SCROLL=1
         return 0
     fi
     (( y >= 2 && y < 2 + LATTICE_CMD_BODY )) || return 0
     row=$(( LATTICE_CMD_OFFSET + y - 2 ))
     (( row >= 0 && row < ${#LATTICE_CMD_VIEW[@]} )) || return 0
+    LATTICE_CMD_MANUAL_SCROLL=0
     LATTICE_CMD_SELECTED=$row
     idx=${LATTICE_CMD_VIEW[row]}
 
@@ -365,6 +429,7 @@ lattice_handle_commands_mouse ()
 lattice_handle_commands_key ()
 {
     local key=$1 idx q
+    LATTICE_CMD_MANUAL_SCROLL=0
     if (( LATTICE_CMD_SEARCH )) ; then
         case "$key" in
         p|D|R)
@@ -478,13 +543,96 @@ lattice_handle_commands_key ()
     (( LATTICE_CMD_SELECTED < 0 )) && LATTICE_CMD_SELECTED=0
 }
 
+lattice_handle_history_mouse ()
+{
+    local seq=${1:3}
+    [[ "${1: -1}" == 'M' ]] || return 0
+    seq=${seq%[Mm]}
+    local b x y row offset body total now
+    IFS=';' read -r b x y <<< "$seq"
+    [[ "$b" =~ ^[0-9]+$ && "$x" =~ ^[0-9]+$ && "$y" =~ ^[0-9]+$ ]] || return 0
+    (( b & 32 )) && return 0
+
+    if (( b >= 64 )) ; then
+        body=$(( LATTICE_ROWS - 3 ))
+        (( body < 1 )) && body=1
+        total=${#LATTICE_HISTORY_VIEW[@]}
+        local off=${LATTICE_HISTORY_OFFSET:-0}
+        local max=$(( total - body ))
+        (( max < 0 )) && max=0
+        if (( b == 64 )) ; then
+            off=$(( off - 3 ))
+        else
+            off=$(( off + 3 ))
+        fi
+        (( off < 0 )) && off=0
+        (( off > max )) && off=$max
+        LATTICE_HISTORY_OFFSET=$off
+        LATTICE_HISTORY_MANUAL_SCROLL=1
+        return 0
+    fi
+
+    body=$(( LATTICE_ROWS - 3 ))
+    (( body < 1 )) && body=1
+    (( y >= 2 && y < 2 + body )) || return 0
+    total=${#LATTICE_HISTORY_VIEW[@]}
+    (( total > 0 )) || return 0
+    offset=${LATTICE_HISTORY_OFFSET:-0}
+    (( offset < 0 )) && offset=0
+    (( offset > total - body )) && offset=$(( total - body ))
+    (( offset < 0 )) && offset=0
+    row=$(( offset + y - 2 ))
+    (( row >= 0 && row < total )) || return 0
+    LATTICE_HISTORY_MANUAL_SCROLL=0
+    LATTICE_HISTORY_SELECTED=$row
+
+    if (( (b & 3) == 2 )) ; then
+        lattice_history_show_preview
+        return 0
+    fi
+    (( (b & 3) == 0 )) || return 0
+
+    now=${EPOCHREALTIME:-0}
+    now=${now//[!0-9]/}
+    if [[ "${LATTICE_MOUSE_LAST_MODE:-}" == 'history' ]] &&
+       (( LATTICE_MOUSE_LAST_TS > 0 &&
+          LATTICE_MOUSE_LAST_ROW == row &&
+          now - LATTICE_MOUSE_LAST_TS <= 900000 )) ; then
+        LATTICE_MOUSE_LAST_TS=0
+        LATTICE_MOUSE_LAST_ROW=-1
+        lattice_history_rerun && LATTICE_MODE='tree'
+    else
+        LATTICE_MOUSE_LAST_TS=$now
+        LATTICE_MOUSE_LAST_ROW=$row
+        LATTICE_MOUSE_LAST_MODE='history'
+        lattice_status "selected: ${LATTICE_HISTORY_CMDS[${LATTICE_HISTORY_VIEW[row]}]}"
+    fi
+}
+
 lattice_handle_history_key ()
 {
     local key=$1 q
+    LATTICE_HISTORY_MANUAL_SCROLL=0
     if (( LATTICE_HISTORY_SEARCH )) ; then
         case "$key" in
-        $'\033[A'|$'\020'|'k') LATTICE_HISTORY_SELECTED=$((LATTICE_HISTORY_SELECTED-1)) ;;
-        $'\033[B'|$'\016'|'j') LATTICE_HISTORY_SELECTED=$((LATTICE_HISTORY_SELECTED+1)) ;;
+        p|D|R)
+            lattice_history_set_query "${LATTICE_HISTORY_QUERY}$key"
+            LATTICE_HISTORY_SELECTED=0
+            _lattice_select_clamp $(( ${#LATTICE_HISTORY_VIEW[@]} - 1 ))
+            return 0
+            ;;
+        esac
+    fi
+    if (( LATTICE_HISTORY_SEARCH )) ; then
+        case "$key" in
+        $'\033[A'|$'\020') LATTICE_HISTORY_SELECTED=$((LATTICE_HISTORY_SELECTED-1)) ;;
+        $'\033[B'|$'\016') LATTICE_HISTORY_SELECTED=$((LATTICE_HISTORY_SELECTED+1)) ;;
+        $'\033[H'|$'\033[1~'|$'\033[7~'|$'\033OH')
+            LATTICE_HISTORY_SELECTED=0
+            ;;
+        $'\033[F'|$'\033[4~'|$'\033[8~'|$'\033OF')
+            LATTICE_HISTORY_SELECTED=$(( ${#LATTICE_HISTORY_VIEW[@]} - 1 ))
+            ;;
         $'\033')
             LATTICE_HISTORY_SEARCH=0
             lattice_history_set_query ''
@@ -528,9 +676,17 @@ lattice_handle_history_key ()
     case "$key" in
     j|$'\033[B'|$'\016') LATTICE_HISTORY_SELECTED=$((LATTICE_HISTORY_SELECTED+1)) ;;
     k|$'\033[A'|$'\020'|$'\013') LATTICE_HISTORY_SELECTED=$((LATTICE_HISTORY_SELECTED-1)) ;;
+    $'\033[H'|$'\033[1~'|$'\033[7~'|$'\033OH')
+        LATTICE_HISTORY_SELECTED=0
+        LATTICE_HISTORY_OFFSET=0
+        ;;
+    $'\033[F'|$'\033[4~'|$'\033[8~'|$'\033OF')
+        LATTICE_HISTORY_SELECTED=$(( ${#LATTICE_HISTORY_VIEW[@]} - 1 ))
+        ;;
     $'\r')
         lattice_history_rerun && LATTICE_MODE='tree'
         ;;
+    p) lattice_history_show_preview ;;
     '/') _lattice_history_prompt ;;
     $'\033'|q)
         LATTICE_HISTORY_SEARCH=0
@@ -590,7 +746,11 @@ lattice_handle_key ()
                 LATTICE_SNAPSHOT_OPEN=0
             elif (( (mbcode & 3) == 0 )) ; then
                 LATTICE_SNAPSHOT_OPEN=0
-                lattice_handle_commands_mouse "$key"
+                case "$LATTICE_MODE" in
+                commands) lattice_handle_commands_mouse "$key" ;;
+                history) lattice_handle_history_mouse "$key" ;;
+                tree) lattice_handle_tree_mouse "$key" ;;
+                esac
             fi
             return 0
             ;;
@@ -614,7 +774,13 @@ lattice_handle_key ()
             lattice_handle_commands_key "$key"
         fi
         ;;
-    history)  lattice_handle_history_key "$key" ;;
+    history)
+        if [[ "$key" == $'\033[<'* ]] ; then
+            lattice_handle_history_mouse "$key"
+        else
+            lattice_handle_history_key "$key"
+        fi
+        ;;
     help)     lattice_handle_help_key "$key" ;;
     esac
 }

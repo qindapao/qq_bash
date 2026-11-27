@@ -9,13 +9,18 @@ declare -ga LATTICE_HISTORY_TIMES=()
 declare -ga LATTICE_HISTORY_DIRS=()
 declare -ga LATTICE_HISTORY_IDS=()
 declare -ga LATTICE_HISTORY_VIEW=()
+declare -gA LATTICE_HISTORY_ROW_CACHE=()
 declare -ga LATTICE_RECENT_CMDS=()
 LATTICE_HISTORY_QUERY=''
 declare -i LATTICE_HISTORY_NEXT=1
 declare -i LATTICE_RECENT_SELECTED=0
 LATTICE_RECENT_LIMIT=${LATTICE_RECENT_LIMIT:-8}
-LATTICE_HISTORY_LIMIT=${LATTICE_HISTORY_LIMIT:-1000}
+LATTICE_HISTORY_LIMIT=${LATTICE_HISTORY_LIMIT:-500}
+LATTICE_HISTORY_TRIM_BATCH=${LATTICE_HISTORY_TRIM_BATCH:-50}
 (( LATTICE_HISTORY_LIMIT < 1 )) && LATTICE_HISTORY_LIMIT=1
+(( LATTICE_HISTORY_TRIM_BATCH < 1 )) && LATTICE_HISTORY_TRIM_BATCH=1
+(( LATTICE_HISTORY_TRIM_BATCH > LATTICE_HISTORY_LIMIT )) && \
+    LATTICE_HISTORY_TRIM_BATCH=$LATTICE_HISTORY_LIMIT
 
 lattice_history_rewrite ()
 {
@@ -39,7 +44,11 @@ lattice_history_trim ()
 {
     local total=${#LATTICE_HISTORY_CMDS[@]} drop
     (( total <= LATTICE_HISTORY_LIMIT )) && return 0
-    drop=$(( total - LATTICE_HISTORY_LIMIT ))
+    # Rewrite in batches instead of rewriting the whole TSV on every command
+    # once the cap is reached. The visible count still never exceeds the cap.
+    drop=$(( total - LATTICE_HISTORY_LIMIT + LATTICE_HISTORY_TRIM_BATCH - 1 ))
+    (( drop < 1 )) && drop=1
+    (( drop >= total )) && drop=$(( total - 1 ))
     LATTICE_HISTORY_IDS=("${LATTICE_HISTORY_IDS[@]:drop}")
     LATTICE_HISTORY_TIMES=("${LATTICE_HISTORY_TIMES[@]:drop}")
     LATTICE_HISTORY_DIRS=("${LATTICE_HISTORY_DIRS[@]:drop}")
@@ -165,5 +174,35 @@ lattice_history_rerun ()
     lattice_executor_send "$cmd" || return $?
     lattice_history_add "$cmd" "$LATTICE_DIR"
     lattice_status "sent from history: $cmd" ok
+    return 0
+}
+
+lattice_history_show_preview ()
+{
+    local vi=${LATTICE_HISTORY_SELECTED:-0} idx
+    idx=${LATTICE_HISTORY_VIEW[vi]:-}
+    [[ -n "$idx" ]] || {
+        lattice_status 'no history entry selected' error
+        return 1
+    }
+    LATTICE_SNAPSHOT_TEXT="COMMAND
+${LATTICE_HISTORY_CMDS[idx]}"
+    LATTICE_SNAPSHOT_SCROLL=0
+    LATTICE_SNAPSHOT_OPEN=1
+    return 0
+}
+
+lattice_recent_show_preview ()
+{
+    local idx=${LATTICE_RECENT_SELECTED:-0} cmd
+    cmd=${LATTICE_RECENT_CMDS[idx]:-}
+    [[ -n "$cmd" ]] || {
+        lattice_status 'no recent command selected' error
+        return 1
+    }
+    LATTICE_SNAPSHOT_TEXT="COMMAND
+$cmd"
+    LATTICE_SNAPSHOT_SCROLL=0
+    LATTICE_SNAPSHOT_OPEN=1
     return 0
 }

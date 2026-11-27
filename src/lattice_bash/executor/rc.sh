@@ -3,6 +3,10 @@
 PROMPT_DIRTRIM=2
 PS1='\[\e[1;34m\]\w\[\e[0m\]\[\e[1;32m\]\$\[\e[0m\] '
 
+# Lattice sends commands with tmux paste-buffer -p. The executor must opt into
+# bracketed paste, otherwise the ESC[200~/ESC[201~ markers are read as text.
+bind 'set enable-bracketed-paste on' 2>/dev/null || true
+
 # Open a path or a grep-style file:line token in the editor.
 eg ()
 {

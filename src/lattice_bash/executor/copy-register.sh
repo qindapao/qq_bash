@@ -21,8 +21,8 @@ rm -f -- "$value_file"
 preview=${value//$'\n'/ }
 preview=${preview//$'\r'/ }
 preview=${preview//$'\t'/ }
-if (( ${#preview} > 5 )) ; then
-    preview=${preview:0:5}...
+if (( ${#preview} > 10 )) ; then
+    preview="...${preview: -10}"
 fi
 printf '%s' "$preview" > "$state/wb-clip" || exit 1
 tmp=$(mktemp "$state/wb-register-$key.XXXXXX") || exit 1

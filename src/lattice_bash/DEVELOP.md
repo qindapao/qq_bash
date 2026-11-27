@@ -387,11 +387,18 @@ Mouse coordinate mapping uses the **current render offset**:
 ```text
 row = LATTICE_CMD_OFFSET + y - 2
 row = LATTICE_TREE_OFFSET + y - 2
+row = history offset + y - 2
 ```
 
-The offset is preserved while the selected row remains visible. Only when the
-selection leaves the visible window does it scroll. This prevents a click on a
-visible middle row from jumping the list.
+The recent panel occupies the bottom rows of the tree view. Left-click selects,
+double-click reruns, and right-click previews the full command. The recent
+panel is fully visible, so wheel events leave its selection alone. In tree,
+command and history lists the wheel scrolls the viewport only; the selected
+entry does not change, and a one-page list ignores the wheel. In history mode
+left-click selects, double-click reruns, and `p` or right-click previews the
+full command. A preview popup routes a click back to the mode that opened it.
+Keyboard navigation clears the manual scroll flag and brings the selection
+back into view.
 
 ### 6.6 Render modes
 
@@ -698,7 +705,7 @@ wb-register-C
 wb-clip
 ```
 
-`wb-clip` stores only the five-character preview, never the full clipboard.
+`wb-clip` stores only the ten-character preview, never the full clipboard.
 Full clipboard content is read on demand into memory for `{{WB_CLIP}}`
 expansion; it is not persisted by the cache writer. Registers intentionally
 store their full values because the user explicitly placed them there.
@@ -708,10 +715,11 @@ store their full values because the user explicitly placed them there.
 - `Ctrl-b v` refreshes only the `WB_CLIP` preview;
 - commands referencing `{{WB_CLIP}}` read and cache the clipboard once.
 
-The status-left worker reads the register files and renders `CLIP A B C` with
-the first five characters plus `...` when longer. This keeps the TUI render
-path free of clipboard calls and per-key file work. External clipboard changes
-are intentionally not polled.
+The status-left worker reads the register files and renders
+`DIR A B C FILE CLIP`. `CLIP` and the registers show the last ten characters
+with a leading `...` when longer. Empty values are omitted. This keeps the TUI
+render path free of clipboard calls and per-key file work. External clipboard
+changes are intentionally not polled.
 
 Clipboard reads use a 2-second inner timeout and a 3-second outer
 `--kill-after=1` guard. Timeout/discard is a failure: partial temp data is
@@ -727,12 +735,14 @@ prompt plus the final command line.
 Default limits:
 
 ```text
-history entries  1000
+history entries  500
 recent commands  8
 ```
 
-`LATTICE_HISTORY_LIMIT` changes the history cap. Oldest entries are pruned and
-the TSV is atomically rewritten.
+`LATTICE_HISTORY_LIMIT` changes the history cap. Oldest entries are pruned in
+batches: when the cap is exceeded, `LATTICE_HISTORY_TRIM_BATCH` entries are
+dropped and the TSV is atomically rewritten once, instead of rewriting the
+whole file after every command.
 
 ---
 
@@ -1006,11 +1016,19 @@ Measured on the development machine (MSYS2/UCRT64, tmux):
 History performance matters:
 
 ```text
-history is capped at 1000 entries by default
+history is capped at 500 entries by default
 recent panel is capped at 8 unique commands
+history rows are cached by command text and terminal width
 ```
 
+The history row cache is capped at 4096 entries. A wheel event only changes the
+viewport offset; it does not rebuild the view or move the selection.
+
 Important optimization history:
+
+* History rows are cached after `_lattice_fit`; without the cache a full
+  history frame re-measured every visible command.
+* History is trimmed in batches, not rewritten after every command once full.
 
 * The first command-row cache removed repeated CJK width calculation.
 * The command-row cache is capped at 4096 entries and cleared on width changes.

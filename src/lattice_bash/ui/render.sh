@@ -149,10 +149,12 @@ lattice_render_tree ()
     (( offset < 0 )) && offset=0
     (( offset > total - body )) && offset=$(( total - body ))
     (( offset < 0 )) && offset=0
-    if (( LATTICE_TREE_SELECTED < offset )) ; then
-        offset=$LATTICE_TREE_SELECTED
-    elif (( LATTICE_TREE_SELECTED >= offset + body )) ; then
-        offset=$(( LATTICE_TREE_SELECTED - body + 1 ))
+    if (( ! LATTICE_TREE_MANUAL_SCROLL )) ; then
+        if (( LATTICE_TREE_SELECTED < offset )) ; then
+            offset=$LATTICE_TREE_SELECTED
+        elif (( LATTICE_TREE_SELECTED >= offset + body )) ; then
+            offset=$(( LATTICE_TREE_SELECTED - body + 1 ))
+        fi
     fi
     LATTICE_TREE_OFFSET=$offset
     LATTICE_TREE_BODY=$body
@@ -217,10 +219,12 @@ lattice_render_commands ()
     (( offset < 0 )) && offset=0
     (( offset > total - body )) && offset=$(( total - body ))
     (( offset < 0 )) && offset=0
-    if (( LATTICE_CMD_SELECTED < offset )) ; then
-        offset=$LATTICE_CMD_SELECTED
-    elif (( LATTICE_CMD_SELECTED >= offset + body )) ; then
-        offset=$(( LATTICE_CMD_SELECTED - body + 1 ))
+    if (( ! LATTICE_CMD_MANUAL_SCROLL )) ; then
+        if (( LATTICE_CMD_SELECTED < offset )) ; then
+            offset=$LATTICE_CMD_SELECTED
+        elif (( LATTICE_CMD_SELECTED >= offset + body )) ; then
+            offset=$(( LATTICE_CMD_SELECTED - body + 1 ))
+        fi
     fi
     LATTICE_CMD_OFFSET=$offset
     LATTICE_CMD_BODY=$body
@@ -298,7 +302,7 @@ lattice_render_commands ()
 
 lattice_render_history ()
 {
-    local i row idx cmd line q maxq
+    local i row idx cmd line q maxq key
     if (( LATTICE_HISTORY_SEARCH )) ; then
         q=${LATTICE_HISTORY_QUERY}
         maxq=$(( LATTICE_COLS - 16 ))
@@ -312,16 +316,36 @@ lattice_render_history ()
     fi
     local body=$(( LATTICE_ROWS - 3 ))
     (( body < 1 )) && body=1
-    local offset=0
-    (( LATTICE_HISTORY_SELECTED >= body )) && offset=$(( LATTICE_HISTORY_SELECTED - body + 1 ))
+    local offset=${LATTICE_HISTORY_OFFSET:-0}
+    (( offset < 0 )) && offset=0
+    (( offset > ${#LATTICE_HISTORY_VIEW[@]} - body )) && \
+        offset=$(( ${#LATTICE_HISTORY_VIEW[@]} - body ))
+    (( offset < 0 )) && offset=0
+    if (( ! LATTICE_HISTORY_MANUAL_SCROLL )) ; then
+        if (( LATTICE_HISTORY_SELECTED < offset )) ; then
+            offset=$LATTICE_HISTORY_SELECTED
+        elif (( LATTICE_HISTORY_SELECTED >= offset + body )) ; then
+            offset=$(( LATTICE_HISTORY_SELECTED - body + 1 ))
+        fi
+    fi
+    LATTICE_HISTORY_OFFSET=$offset
 
     for ((row=0;row<body;row++)); do
         idx=$(( offset + row ))
         if (( idx < ${#LATTICE_HISTORY_VIEW[@]} )) ; then
             i=${LATTICE_HISTORY_VIEW[idx]}
             cmd=${LATTICE_HISTORY_CMDS[i]}
-            _lattice_fit "  $cmd" "$LATTICE_COLS"
-            line=$REPLY
+            key="$LATTICE_COLS:$cmd"
+            if [[ -n "${LATTICE_HISTORY_ROW_CACHE[$key]+x}" ]] ; then
+                line=${LATTICE_HISTORY_ROW_CACHE[$key]}
+            else
+                _lattice_fit "  $cmd" "$LATTICE_COLS"
+                line=$REPLY
+                if (( ${#LATTICE_HISTORY_ROW_CACHE[@]} >= 4096 )) ; then
+                    LATTICE_HISTORY_ROW_CACHE=()
+                fi
+                LATTICE_HISTORY_ROW_CACHE[$key]=$line
+            fi
             if (( idx == LATTICE_HISTORY_SELECTED )) ; then
                 line="$LATTICE_C_REV> ${line:2}$LATTICE_C_RESET"
             fi
@@ -333,7 +357,7 @@ lattice_render_history ()
     if (( LATTICE_HISTORY_SEARCH )) ; then
         _lattice_footer " ${LATTICE_STATUS} " '[SEARCH] type filter ↑↓ Enter Esc '
     else
-        _lattice_footer " ${LATTICE_STATUS} " '[HISTORY] j/k Enter / Esc '
+        _lattice_footer " ${LATTICE_STATUS} " '[HISTORY] j/k Enter p / Esc '
     fi
 }
 
@@ -517,6 +541,8 @@ lattice_render_help ()
         'Enter           send command; palette stays open'
         'Esc             exit palette (no direct command keys)'
         'H               command history'
+        'Home/End        first/last history entry'
+        'p               preview selected history/recent command'
         'Ctrl-r          focus recent commands (then 1-8 or Enter)'
         '/               search history (inside history)'
         'R               reload commands.conf'

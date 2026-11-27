@@ -91,25 +91,40 @@ lattice_search_status_end ()
 lattice_status_left_worker ()
 {
     local file=$1 stop=$2 parent=$PPID last='' want base key value
+    local dir file_path tag tag2
     while [[ ! -e "$stop" ]] && kill -0 "$parent" 2>/dev/null ; do
         base=''
         IFS= read -r base < "$file" 2>/dev/null || base=''
-        want=$base
-
-        lattice_file_preview "$LATTICE_CLIP_CACHE_FILE"
-        value=$REPLY
-        if [[ -n "$value" ]] ; then
-            lattice_preview_head "$value"
-            want+="  CLIP $REPLY"
+        dir=''
+        file_path=''
+        if [[ "$base" == DIR$'\t'* ]] ; then
+            IFS=$'\t' read -r tag dir tag2 file_path <<< "$base"
+        elif [[ -n "$base" ]] ; then
+            # Backward-compatible read of the old one-line base format.
+            dir=${base# DIR }
+            if [[ "$dir" == *'  FILE '* ]] ; then
+                file_path=${dir##*'  FILE '}
+                dir=${dir%%'  FILE '*}
+            fi
         fi
+
+        want=''
+        [[ -n "$dir" ]] && want+=" DIR $dir"
         for key in A B C ; do
             lattice_register_file "$key"
-            lattice_file_preview "$REPLY"
+            lattice_file_preview "$REPLY" 512
             value=$REPLY
             [[ -n "$value" ]] || continue
-            lattice_preview_head "$value"
+            lattice_preview_tail "$value"
             want+="  $key $REPLY"
         done
+        [[ -n "$file_path" ]] && want+="  FILE $file_path"
+
+        lattice_file_preview "$LATTICE_CLIP_CACHE_FILE" 64
+        value=$REPLY
+        if [[ -n "$value" ]] ; then
+            want+="  CLIP $value"
+        fi
 
         want=${want//#/##}
         if [[ "$want" != "$last" ]] ; then
@@ -161,8 +176,7 @@ lattice_status_left_update ()
        (( ${LATTICE_ENTRY_IS_DIR[idx]:-0} == 0 )) ; then
         file="${dir%/}/${LATTICE_ENTRIES[idx]}"
     fi
-    left=" DIR ${dir}"
-    [[ -n "$file" ]] && left+="  FILE ${file}"
+    left="DIR"$'\t'"$dir"$'\t'"FILE"$'\t'"$file"
     [[ "$left" == "$LATTICE_STATUS_LEFT_TEXT" ]] && return 0
     LATTICE_STATUS_LEFT_TEXT=$left
 
