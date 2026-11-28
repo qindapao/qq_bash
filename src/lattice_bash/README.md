@@ -515,8 +515,8 @@ addressable as:
 
 The final literal command is stored in history, so it can be rerun directly.
 
-All arguments after the snapshot are parameters. They may be written
-separately:
+All arguments after the snapshot are parameters. Pass one argument per
+parameter:
 
 ```bash
 lattice_command 'grep in target' 'dir' 'pane' \
@@ -525,14 +525,22 @@ lattice_command 'grep in target' 'dir' 'pane' \
   'PATTERN' 'TARGET_DIR=.'
 ```
 
-or as one whitespace-separated argument:
+The default is everything after the first `=`, kept verbatim. Spaces need
+quoting at the config level; ANSI-C defaults can be written directly:
 
 ```bash
-lattice_command 'grep in target' 'dir' 'pane' \
-  'grep -nHE --color=auto -- {{PATTERN}} {{TARGET_DIR}}' \
-  '搜索指定目录' \
-  'PATTERN TARGET_DIR=.'
+lattice_command 'defaults' 'dir' 'pane' \
+  'printf "%s\n" {{A}} {{B}}' \
+  '' \
+  'A=hello world' B=$'a\tb'
 ```
+
+There is no second escaping layer: `B=$'a\tb'` already reaches Lattice as a
+real tab. Do not use a real newline as a default; the parameter form is
+single-line.
+
+Do not combine multiple parameter declarations into one string; one argument
+is one parameter.
 
 Placeholders must be outside single/double quotes:
 
@@ -558,6 +566,36 @@ lattice_command 'same twice' 'dir' 'pane' \
   '' \
   'A'
 ```
+
+Raw placeholders use square brackets:
+
+```text
+[{NAME}]
+```
+
+The value is inserted verbatim, without `@Q`. Any command containing a raw
+placeholder is forced to insert-only: it is never run automatically, it is
+recorded in history as preview text, and focus moves to the executor for
+review. Values are not validated, and may come from parameters or dynamic
+values.
+
+Use raw placeholders for globs and shell brace expansion:
+
+```bash
+lattice_command 'list txt' 'dir' 'pane' \
+  'printf "%s\n" [{PATTERN}]' \
+  '' \
+  'PATTERN'
+
+lattice_command 'brace range' 'dir' 'pane' \
+  'echo {[{START}]..[{END}]}' \
+  '' \
+  'START' 'END'
+```
+
+Do not write `{{{NAME}}}`: it is not valid and would be parsed as a malformed
+normal placeholder. A pattern that is not a complete `[{NAME}]` token, such as
+JSON `[{"a":1}]`, remains literal.
 
 Snapshot text is display-only and is never placeholder-expanded.
 

@@ -471,11 +471,10 @@ paste only, then focus the executor. Insert-only commands are not written to
 history. This is the supported escape hatch for interactive programs (SSH,
 REPLs, prompts): the TUI delivers a skeleton and the user finishes it.
 
-Also accepted as one whitespace-separated string:
-
-```bash
-... 'PATTERN TARGET_DIR=.'
-```
+Each parameter is one separate argument. The default is everything after the
+first `=`, kept verbatim. Spaces need config-level quoting; `B=$'a\tb'` can be
+written directly and already arrives as a real tab. The form is single-line, so
+real newlines are not suitable defaults.
 
 Empty snapshot:
 
@@ -646,6 +645,12 @@ declared. `WB_ROOT/WB_DIR/WB_FILE/WB_CLIP/WB_A/WB_B/WB_C` are reserved and
 cannot be parameter names. Unknown names abort dispatch. A placeholder may
 appear multiple times; every occurrence gets the same value. Snapshot text is
 display-only and is not expanded.
+
+`[{NAME}]` is the raw form: the value is inserted verbatim without `@Q`, so it
+can provide globs or shell brace syntax. It always forces preview insertion,
+never auto-runs, and enters history as preview text. Values are not validated.
+The parser accepts only a complete `[{NAME}]` token; other bracketed text, such
+as JSON `[{"a":1}]`, remains literal.
 
 ### 8.3 Expansion and quoting
 

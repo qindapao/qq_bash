@@ -454,9 +454,19 @@ lattice_render_snapshot_popup ()
             _lattice_pad "$REPLY" "$inner"
             line="│ $REPLY │"
         fi
-        printf -v line '\033[%d;%dH%s\033[0m' "$((top+row))" "$left" "$line"
+        printf -v line '\033[%d;%dH%s\033[0m\033[K' "$((top+row))" "$left" "$line"
         LATTICE_FRAME+=("$line")
     done
+}
+
+_lattice_form_visible ()
+{
+    local s=$1
+    s=${s//$'\t'/'\t'}
+    s=${s//$'\n'/'\n'}
+    s=${s//$'\r'/'\r'}
+    s=${s//$'\033'/'\e'}
+    REPLY=$s
 }
 
 lattice_render_form_popup ()
@@ -468,10 +478,12 @@ lattice_render_form_popup ()
     for ((i=0;i<${#LATTICE_FORM_LABELS[@]};i++)); do
         label=${LATTICE_FORM_LABELS[i]}
         value=${LATTICE_FORM_VALUES[i]:-}
-        rows+=("${label}: ${value}")
+        _lattice_form_visible "$value"
+        rows+=("${label}: ${REPLY}")
         if (( i == LATTICE_FORM_INDEX )) ; then
             local cursor=${LATTICE_FORM_CURSORS[i]:-${#value}}
-            str_display_width "${label}: ${value:0:cursor}"
+            _lattice_form_visible "${label}: ${value:0:cursor}"
+            str_display_width "$REPLY"
             cursor_prefix_width=$REPLY
             cursor_row=$(( i + 3 ))
         fi
@@ -511,7 +523,7 @@ lattice_render_form_popup ()
                 line="$LATTICE_C_REV$line$LATTICE_C_RESET"
             fi
         fi
-        printf -v line '\033[0m\033[%d;%dH%s\033[0m' "$((top+i))" "$left" "$line"
+        printf -v line '\033[0m\033[%d;%dH%s\033[0m\033[K' "$((top+i))" "$left" "$line"
         LATTICE_FRAME+=("$line")
     done
     if (( cursor_row > 0 )) ; then

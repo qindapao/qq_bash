@@ -426,7 +426,7 @@ NAME=def  -> default value def
 
 最终的字面命令会存入历史，因此可以直接重新运行。
 
-快照之后的所有实参都按参数处理。它们可以分开书写：
+快照之后的所有实参都按参数处理，一个实参一个参数：
 
 ```bash
 lattice_command 'grep in target' 'dir' 'pane' \
@@ -435,14 +435,18 @@ lattice_command 'grep in target' 'dir' 'pane' \
   'PATTERN' 'TARGET_DIR=.'
 ```
 
-也可以写成一个以空白分隔的参数：
+第一个 `=` 之后的全部内容都是默认值，原样保留。空格在配置层需要加引号；ANSI-C 默认值可以直接写：
 
 ```bash
-lattice_command 'grep in target' 'dir' 'pane' \
-  'grep -nHE --color=auto -- {{PATTERN}} {{TARGET_DIR}}' \
-  '搜索指定目录' \
-  'PATTERN TARGET_DIR=.'
+lattice_command 'defaults' 'dir' 'pane' \
+  'printf "%s\n" {{A}} {{B}}' \
+  '' \
+  'A=hello world' B=$'a\tb'
 ```
+
+没有第二层转义：`B=$'a\tb'` 到 Lattice 时已经是真实制表符。不要把真实换行写进默认值；参数表单是单行输入。
+
+不要把多个参数声明塞进一个字符串；一个实参就是一个参数。
 
 占位符必须位于单/双引号之外：
 
@@ -465,6 +469,30 @@ lattice_command 'same twice' 'dir' 'pane' \
   '' \
   'A'
 ```
+
+裸写占位符使用方括号：
+
+```text
+[{NAME}]
+```
+
+值会原样插入，不加 `@Q`。任何包含裸写占位符的命令都会强制变成仅插入：绝不自动执行，会以预览文本进入历史，并把焦点切到执行器供审查。值不做校验，可以来自参数或动态变量。
+
+裸写占位符用于 glob 和 shell 花括号展开：
+
+```bash
+lattice_command 'list txt' 'dir' 'pane' \
+  'printf "%s\n" [{PATTERN}]' \
+  '' \
+  'PATTERN'
+
+lattice_command 'brace range' 'dir' 'pane' \
+  'echo {[{START}]..[{END}]}' \
+  '' \
+  'START' 'END'
+```
+
+不要写 `{{{NAME}}}`：它不是合法语法，会被当成畸形的普通占位符。不是完整 `[{NAME}]` 标记的文本，例如 JSON `[{"a":1}]`，会保持字面量。
 
 快照文本仅用于显示，永远不会做占位符展开。
 
