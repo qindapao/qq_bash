@@ -129,9 +129,11 @@ _split_tokens_fast ()
 # @ret 0=OK  4=X_RET_ENUM_KEY_IS_INVALID
 _split_tokens ()
 {
+    # Keep at most 8 local slots. Bash rehashes its local variable table when
+    # it grows past this point; the option-localization marker (`-`) and IFS
+    # count toward the budget. body/tokens_str are branch-exclusive.
     local -n w_tokens=$1 ; w_tokens=()
-    local is_insertion_semantics=${3:-0} token ext_pat extglob=0 ret=$X_RET_ENUM_OK
-    local - IFS=$X
+    local token ext_pat extglob=0 ret=$X_RET_ENUM_OK - IFS=$X
 
     [[ -n "$2" ]] || return $X_RET_ENUM_OK
 
@@ -167,7 +169,8 @@ _split_tokens ()
         done
     fi
 
-    if ((is_insertion_semantics)) ; then
+    # 插入语义中才用()
+    if ((${3:-0})) ; then
         ext_pat='@({?*}|<?*>|\[@(0|[1-9]*([0-9])|-[1-9]*([0-9]))\]|\(@(0|[1-9]*([0-9]))\))'
     else
         ext_pat='@({?*}|<?*>|\[@(0|[1-9]*([0-9])|-[1-9]*([0-9]))\])'
