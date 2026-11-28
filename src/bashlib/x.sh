@@ -261,13 +261,13 @@ _negative_token_to_positive ()
         return $X_RET_ENUM_OK
     }
 
-    REPLY=
     local -i n=${1:1:-1}
     (( -n > $2 )) && {
+        REPLY=
         die ERR "node:$3(token:${1@Q}) index:${n} is out of index."
         return $X_RET_ENUM_KEY_OUT_OF_INDEX
     }
-    REPLY="${1:0:1}$(( $2 + n ))${1: -1}"
+    REPLY="[$(( $2 + n ))]"
     return $X_RET_ENUM_OK
 }
 
