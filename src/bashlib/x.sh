@@ -323,23 +323,16 @@ _x_tree_is_valid ()
 #-------------------------------------------------------------------------------
 
 # 将 '()' 主键语义转为 '[]' 索引语义（用于 x_qinserts 的前缀归一化）。
+# 前置条件：$1 是已校验的物理 token 串；合法 token 中只有 '(n)' 以 ')' 结束。
+# 先加 $X 前缀再替换，这样首个 token 不需要单独的“行首”分支；最后去掉前缀。
 # @in  $1=token 串
 # @out REPLY=转换后的 token 串
 # @ret 0
 _tokens_insert_to_overwrite ()
 {
-    REPLY=
-    local tokens_str=$1
-    [[ -z "$tokens_str" ]] && return $X_RET_ENUM_OK
-    local -a tokens=()
-    local token
-    while [[ -n "$tokens_str" ]] ; do
-        token=${tokens_str%%"$X"*}
-        [[ "${token:0:1}" == '(' ]] && token="[${token:1:-1}]"
-        tokens+=("$token")
-        tokens_str="${tokens_str#*"$X"}"
-    done
-    printf -v REPLY "%s$X" "${tokens[@]}"
+    [[ "$1" != *')'$X* ]] && { REPLY=$1 ; return $X_RET_ENUM_OK ; }
+
+    REPLY=$X$1 REPLY=${REPLY//"$X("/"$X["} REPLY=${REPLY//")$X"/"]$X"} REPLY=${REPLY#"$X"}
     return $X_RET_ENUM_OK
 }
 
