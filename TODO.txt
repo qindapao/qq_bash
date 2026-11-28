@@ -46,6 +46,45 @@
         - 决策：先不修；只有真实使用中确实造成误判或操作错误时再处理。
 
 ===============================================================================
+Bash 5.4 发布后验证（观察项，不排期）
+
+来源：bash.git devel 分支，2026-11 快照。5.4 尚未发布，以下只做发布后验证，
+不要提前改代码，也不要把 devel 行为当稳定契约。
+
+1. kvpair_split / 关联数组复合赋值
+    - 新 shopt kvpair_split 默认开启。
+    - declare -A a=(k1 v1 k2 v2) 的 word splitting 语义变了。
+    - 重点验证 xo.sh 里的：
+        declare -gA "${cls}Obj=(${cur_obj[*]@K})"
+      @K 自带引号，理论上安全，但必须跑完整 xo 测试。
+    - 同时检查 local -A、declare -gA、空 key、含空格/换行的 key/value。
+    - 这是兼容性验证，不要假设“更快”。
+
+2. NON_RECURSIVE_LISTS
+    - devel 默认用显式栈执行命令列表，替代递归实现。
+    - 重点验证：长命令列表、深层复合命令、函数、trap、set -e、子 shell。
+    - 观察：深递归脚本是否不再栈溢出；普通脚本性能差异应很小。
+    - 不依赖该实现细节写代码。
+
+3. loadassoc / rev / help -L
+    - loadassoc、rev 是 loadable builtin，不是默认可用。
+    - help -L 是便利功能。
+    - 不把它们加入运行时依赖；最多在文档里作为可选提示。
+
+4. 既有 5.3 特性复核
+    - BASH_MONOSECONDS：可用于单调计时，替代 EPOCHREALTIME 的时钟回拨风险。
+    - GLOBSORT：可用于控制 pathname expansion 排序，但不要依赖它做业务排序。
+    - ${ command; }：无 fork 命令替换，可作为 5.3+ 的可选快路径。
+    - compgen -V：项目已经在用，继续确认 5.4 行为不变。
+
+5. 发布后完整回归
+    - ./test.sh
+    - test/bashlib/test_x.sh
+    - test/bashlib/test_xo_*.sh
+    - Lattice 手动启动、命令发送、参数表单、历史、Recent、tree。
+    - 重点看 declare -A、nameref、local -、set -u、CR/MSYS2 行为。
+
+===============================================================================
 历史 backlog：strafe_bash（2026-11-17 至 11-24，游戏暂停，仅作参考）
 
 ===============================================================================
