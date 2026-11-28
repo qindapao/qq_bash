@@ -130,14 +130,22 @@ _split_tokens_fast ()
 _split_tokens ()
 {
     local -n w_tokens=$1 ; w_tokens=()
-    local is_insertion_semantics=${3:-0} token
+    local is_insertion_semantics=${3:-0} token ext_pat extglob=0 ret=$X_RET_ENUM_OK
+    local - IFS=$X
 
     [[ -n "$2" ]] || return $X_RET_ENUM_OK
 
-    # 非空 token 串必须带尾部分隔符；`*"$X"` 是“以 X 结尾”，不是“包含 X”。
-    if [[ "$2" != *"$X" ]] ; then
+    # Non-empty is already handled above. Check leading/adjacent separators
+    # before splitting; the final branch rejects a missing trailing X. The
+    # "$X"-only case is covered by the leading check.
+    case "$2" in
+    "$X"*|*"$X$X"*)
+        die ERR "key:${2@Q} is invalid!"
         return $X_RET_ENUM_KEY_IS_INVALID
-    fi
+        ;;
+    *"$X") : ;;
+    *) return $X_RET_ENUM_KEY_IS_INVALID ;;
+    esac
 
     if ((${#X}==1)) ; then
         # 单 token 不走数组 word splitting，避免 set -f/local IFS 的固定开销。
@@ -145,7 +153,7 @@ _split_tokens ()
         if [[ "$body" != *"$X"* ]] ; then
             w_tokens=("$body")
         else
-            _split_tokens_fast "$1" "$2" || return $?
+            set -f ; w_tokens=($2)
         fi
     else
         # 多字符分隔符：保留逐段提取的扩展路径。
@@ -159,34 +167,23 @@ _split_tokens ()
         done
     fi
 
-    for token in "${w_tokens[@]}" ; do
-        ((${#token}<=2)) && return $X_RET_ENUM_KEY_IS_INVALID
-        case "$token" in
-        '{'*'}'|'<'*'>')  : ;;
-        '['*']')
-            str_is_decimal_int "${token:1:-1}" || {
-                die ERR "key:${2@Q} is invalid!"
-                return $X_RET_ENUM_KEY_IS_INVALID
-            }
-            ;;
-        '('*')')
-            # Must have insertion semantics and must be a positive integer
-            ((is_insertion_semantics)) || {
-                die ERR "now are not in insertion semantics. key:${2@Q} is invalid!"
-                return $X_RET_ENUM_KEY_IS_INVALID
-            }
-            str_is_decimal_positive_int "${token:1:-1}" || {
-                die ERR "key:${2@Q} is invalid!"
-                return $X_RET_ENUM_KEY_IS_INVALID
-            }
-            ;;
-        *)  die ERR "key:${2@Q} is invalid!"
-            return $X_RET_ENUM_KEY_IS_INVALID
-            ;;
-        esac
-    done
+    if ((is_insertion_semantics)) ; then
+        ext_pat='@({?*}|<?*>|\[@(0|[1-9]*([0-9])|-[1-9]*([0-9]))\]|\(@(0|[1-9]*([0-9]))\))'
+    else
+        ext_pat='@({?*}|<?*>|\[@(0|[1-9]*([0-9])|-[1-9]*([0-9]))\])'
+    fi
 
-    return $X_RET_ENUM_OK
+    # Validation joins tokens with an empty IFS; do not leave X as the join
+    # separator, or every multi-token key would retain separators.
+    IFS=
+    shopt -q extglob || { shopt -s extglob ; extglob=1 ; }
+    if [[ -n "${w_tokens[*]//$ext_pat/}" ]] ; then
+        die ERR "key:${2@Q} is invalid!"
+        ret=$X_RET_ENUM_KEY_IS_INVALID
+    fi
+
+    ((extglob)) && shopt -u extglob
+    return $ret
 }
 
 #-------------------------------------------------------------------------------
