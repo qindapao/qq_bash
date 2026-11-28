@@ -254,20 +254,20 @@ tr_resolve_physical_token ()
 # @ret 0=OK  5=X_RET_ENUM_KEY_OUT_OF_INDEX
 _negative_token_to_positive ()
 {
+    # Most callers pass a non-negative index; a literal-prefix glob avoids
+    # substring extraction and local -i on that path.
+    [[ "$1" != '[-'* ]] && {
+        REPLY=$1
+        return $X_RET_ENUM_OK
+    }
+
     REPLY=
-    # local tr_token=$1 tr_array_len=$2 tr_node=$3
-    local -i tr_token_abs=${1:1:-1}
-    if ((${1:1:-1}<0)) ; then
-        ((tr_token_abs=-tr_token_abs))
-        ((tr_token_abs>$2)) && {
-            die ERR "node:$3(token:${1@Q}) index:${1:1:-1} is out of index."
-            return $X_RET_ENUM_KEY_OUT_OF_INDEX
-        }
-        ((tr_token_abs=$2-tr_token_abs))
-        REPLY="${1:0:1}$tr_token_abs${1: -1}"
-    else
-        REPLY="$1"
-    fi
+    local -i n=${1:1:-1}
+    (( -n > $2 )) && {
+        die ERR "node:$3(token:${1@Q}) index:${1:1:-1} is out of index."
+        return $X_RET_ENUM_KEY_OUT_OF_INDEX
+    }
+    REPLY="${1:0:1}$(( $2 + n ))${1: -1}"
     return $X_RET_ENUM_OK
 }
 
