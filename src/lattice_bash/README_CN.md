@@ -225,15 +225,16 @@ $EDITOR ~/.lattice/env.d/72a9e8a6-0709-41fa-bdad-f5bbaa3cc9d8.conf
 
 ```bash
 # ~/.lattice/env.d/<machine-id>.conf
-LATTICE_EDITOR=/d/programes/vim/vim91/gvim.exe
-LATTICE_OPEN_CMD='/d/programes/vim/vim91/gvim.exe --remote-silent'
+LATTICE_EDITOR=gvim
+# 可选：仅当编辑器需要非默认参数时设置。
+LATTICE_OPEN_CMD='gvim --remote-silent'
 ```
 
 典型的公共文件：
 
 ```bash
 # ~/.lattice/env.conf
-LATTICE_EDITOR=/d/programes/vim/vim91/gvim.exe
+LATTICE_EDITOR=vim
 ```
 
 修改这些文件后重启 Lattice：
@@ -299,18 +300,21 @@ LATTICE_EDITOR=/tmp/test-editor lattice
 大多数用户只需要这些：
 
 ```text
-LATTICE_EDITOR          editor binary; default gvim
-LATTICE_RECENT_LIMIT    recent-command count; default 10
-LATTICE_ROOT            optional initial tree root
+LATTICE_EDITOR          编辑器名称或路径；默认按 PATH 顺序：
+                        vim, vim.exe, gvim, gvim.exe
+LATTICE_RECENT_LIMIT    最近命令数量；默认 10
+LATTICE_ROOT            可选的初始树根目录
 ```
 
-`LATTICE_OPEN_CMD` 是高级覆盖项。默认情况下它由以下方式推导：
+`LATTICE_OPEN_CMD` 是高级覆盖项。默认根据选中的编辑器推导：
 
-```bash
-LATTICE_OPEN_CMD="$LATTICE_EDITOR --remote-silent"
+```text
+vim / vim.exe        -> <editor>
+gvim / gvim.exe      -> <editor> --remote-silent
 ```
 
-只有在编辑器需要不同参数时才显式设置它。
+不内置任何机器相关路径。如果四个候选都不在 `PATH`，请显式设置
+`LATTICE_EDITOR`。
 
 其他一切都是内部使用或面向开发的：
 
@@ -338,7 +342,7 @@ LATTICE_MACHINE_ID      testing override
 
 ```bash
 # ~/.lattice/env.d/<machine-id>.conf
-LATTICE_EDITOR=/d/programes/vim/vim91/gvim.exe
+LATTICE_EDITOR=gvim
 ```
 
 不要把所有内部变量都暴露为用户可调项。如果某个路径或会话很重要，请优先使用 CLI（`--root`、`--config`、`--session`）。
@@ -361,7 +365,7 @@ LATTICE_EDITOR=/d/programes/vim/vim91/gvim.exe
 
 ```bash
 lattice_command 'cd here' 'dir'  'pane' 'cd {{WB_DIR}}'
-lattice_command 'view'    'file' 'pane' 'gvim {{WB_FILE}}'
+lattice_command 'view'    'file' 'pane' 'vim {{WB_FILE}}'
 lattice_command 'diff A C' 'dir' 'pane' 'diff -u {{WB_A}} {{WB_C}}'
 ```
 
@@ -935,7 +939,10 @@ eg path/to/file:42
 eg path/to/file
 ```
 
-`eg` 使用 `LATTICE_EDITOR`（默认 gvim）和 `--remote-silent +LINE`。诸如 `path/file.sh:42: pattern` 的 grep 行会被正确解析；相对路径相对于执行器的当前目录解析。
+`eg` 使用 `LATTICE_EDITOR`（PATH 顺序：`vim`、`vim.exe`、`gvim`、
+`gvim.exe`），只有 `gvim`/`gvim.exe` 才追加 `--remote-silent +LINE`。
+诸如 `path/file.sh:42: pattern` 的 grep 行会被正确解析；相对路径相对于
+执行器的当前目录解析。
 
 鼠标工作流：
 

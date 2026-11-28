@@ -22,5 +22,16 @@ eg ()
         printf 'eg: not a file: %s\n' "$file" >&2
         return 1
     fi
-    "${LATTICE_EDITOR:-gvim}" --remote-silent +"$line" "$file" >/dev/null 2>&1 &
+    if [[ -z "${LATTICE_EDITOR:-}" ]] ; then
+        printf 'eg: LATTICE_EDITOR is not set\n' >&2
+        return 1
+    fi
+    case "${LATTICE_EDITOR##*/}" in
+    gvim|gvim.exe)
+        "${LATTICE_EDITOR}" --remote-silent +"$line" "$file" >/dev/null 2>&1 &
+        ;;
+    *)
+        "${LATTICE_EDITOR}" +"$line" "$file"
+        ;;
+    esac
 }

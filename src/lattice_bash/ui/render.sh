@@ -461,12 +461,23 @@ lattice_render_snapshot_popup ()
 
 _lattice_form_visible ()
 {
-    local s=$1
-    s=${s//$'\t'/'\t'}
-    s=${s//$'\n'/'\n'}
-    s=${s//$'\r'/'\r'}
-    s=${s//$'\033'/'\e'}
-    REPLY=$s
+    local s=$1 out='' ch i esc
+    for ((i=0;i<${#s};i++)); do
+        ch=${s:i:1}
+        case "$ch" in
+        $'\t') out+='\t' ;;
+        $'\n') out+='\n' ;;
+        $'\r') out+='\r' ;;
+        $'\033') out+='\e' ;;
+        $'\177') out+='\x7f' ;;
+        [[:cntrl:]])
+            printf -v esc '\\x%02x' "'$ch"
+            out+=$esc
+            ;;
+        *) out+=$ch ;;
+        esac
+    done
+    REPLY=$out
 }
 
 lattice_render_form_popup ()
@@ -545,7 +556,7 @@ lattice_render_help ()
         'Home / End      first / last entry'
         'Ctrl-n/p move even while searching'
         '/               filter file and directory names'
-        'Enter           enter directory / open file in gvim'
+        'Enter           enter directory / open file in editor'
         'h / Backspace   parent directory'
         'r               refresh tree'
         '.               toggle hidden files'

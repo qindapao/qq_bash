@@ -259,15 +259,16 @@ Typical machine file:
 
 ```bash
 # ~/.lattice/env.d/<machine-id>.conf
-LATTICE_EDITOR=/d/programes/vim/vim91/gvim.exe
-LATTICE_OPEN_CMD='/d/programes/vim/vim91/gvim.exe --remote-silent'
+LATTICE_EDITOR=gvim
+# Optional: only when the editor needs non-default arguments.
+LATTICE_OPEN_CMD='gvim --remote-silent'
 ```
 
 Typical common file:
 
 ```bash
 # ~/.lattice/env.conf
-LATTICE_EDITOR=/d/programes/vim/vim91/gvim.exe
+LATTICE_EDITOR=vim
 ```
 
 Restart Lattice after changing these files:
@@ -336,18 +337,22 @@ wins over both files.
 Most users only need these:
 
 ```text
-LATTICE_EDITOR          editor binary; default gvim
+LATTICE_EDITOR          editor name or path; default PATH order:
+                        vim, vim.exe, gvim, gvim.exe
 LATTICE_RECENT_LIMIT    recent-command count; default 10
 LATTICE_ROOT            optional initial tree root
 ```
 
-`LATTICE_OPEN_CMD` is an advanced override. By default it is derived:
+`LATTICE_OPEN_CMD` is an advanced override. By default it is derived from the
+selected editor:
 
-```bash
-LATTICE_OPEN_CMD="$LATTICE_EDITOR --remote-silent"
+```text
+vim / vim.exe        -> <editor>
+gvim / gvim.exe      -> <editor> --remote-silent
 ```
 
-Set it explicitly only when the editor needs different arguments.
+No machine-specific path is built in. If none of the four candidates is on
+`PATH`, set `LATTICE_EDITOR` explicitly.
 
 Everything else is internal or for development:
 
@@ -381,7 +386,7 @@ Normal machine file:
 
 ```bash
 # ~/.lattice/env.d/<machine-id>.conf
-LATTICE_EDITOR=/d/programes/vim/vim91/gvim.exe
+LATTICE_EDITOR=gvim
 ```
 
 Do not expose every internal variable as a user knob. If a path or session
@@ -405,7 +410,7 @@ Before sending, Lattice replaces each placeholder with a shell-quoted literal:
 
 ```bash
 lattice_command 'cd here' 'dir'  'pane' 'cd {{WB_DIR}}'
-lattice_command 'view'    'file' 'pane' 'gvim {{WB_FILE}}'
+lattice_command 'view'    'file' 'pane' 'vim {{WB_FILE}}'
 lattice_command 'diff A C' 'dir' 'pane' 'diff -u {{WB_A}} {{WB_C}}'
 ```
 
@@ -1126,9 +1131,10 @@ eg path/to/file:42
 eg path/to/file
 ```
 
-`eg` uses `LATTICE_EDITOR` (default gvim) and `--remote-silent +LINE`.
-A grep line such as `path/file.sh:42: pattern` is parsed correctly; relative
-paths resolve against the executor's current directory.
+`eg` uses `LATTICE_EDITOR` (PATH order: `vim`, `vim.exe`, `gvim`, `gvim.exe`)
+and adds `--remote-silent +LINE` only for `gvim`/`gvim.exe`. A grep line such as
+`path/file.sh:42: pattern` is parsed correctly; relative paths resolve against
+the executor's current directory.
 
 For the mouse workflow:
 

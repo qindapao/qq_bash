@@ -40,7 +40,11 @@ if [[ ! -f "$file" ]] ; then
     exit 1
 fi
 
-editor=${LATTICE_EDITOR:-gvim}
+editor=${LATTICE_EDITOR:-}
+if [[ -z "$editor" ]] ; then
+    tmux display-message "LATTICE_EDITOR is not set" 2>/dev/null || true
+    exit 1
+fi
 if [[ "$editor" == */* ]] ; then
     if [[ ! -x "$editor" ]] ; then
         tmux display-message "editor not executable: $editor" 2>/dev/null || true
@@ -51,10 +55,30 @@ elif ! command -v "$editor" >/dev/null 2>&1 ; then
     exit 1
 fi
 
+case "${editor##*/}" in
+gvim|gvim.exe) editor_args=(--remote-silent) ;;
+*) editor_args=() ;;
+esac
+
+# A terminal editor belongs in the executor pane; detaching it with stdin
+# /dev/null only makes it exit immediately.
+if (( ${#editor_args[@]} == 0 )) ; then
+    session=$(tmux display-message -p '#{session_name}' 2>/dev/null) || exit 1
+    pane=$(tmux list-panes -t "$session" -F '#{pane_id} #{@lattice_role}' 2>/dev/null |
+        awk '$2 == "executor" { print $1; exit }')
+    if [[ -n "$pane" ]] ; then
+        printf -v open_cmd '%q +%q %q' "$editor" "$line" "$file"
+        tmux send-keys -t "$pane" -l "$open_cmd" 2>/dev/null || exit 1
+        tmux send-keys -t "$pane" Enter 2>/dev/null || exit 1
+        exit 0
+    fi
+    exit 1
+fi
+
 # run-shell/tmux may close the command's stdio immediately. Detach the GUI and
 # give it /dev/null on stdin.
 if command -v setsid >/dev/null 2>&1 ; then
-    nohup setsid "$editor" --remote-silent +"$line" "$file" </dev/null >/dev/null 2>&1 &
+    nohup setsid "$editor" "${editor_args[@]}" +"$line" "$file" </dev/null >/dev/null 2>&1 &
 else
-    nohup "$editor" --remote-silent +"$line" "$file" </dev/null >/dev/null 2>&1 &
+    nohup "$editor" "${editor_args[@]}" +"$line" "$file" </dev/null >/dev/null 2>&1 &
 fi

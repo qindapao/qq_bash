@@ -681,7 +681,22 @@ lattice_command_expand ()
 
 lattice_registry_dispatch_index ()
 {
-    local idx=$1
+    local idx=$1 now active
+    if [[ -n "${TMUX_PANE:-}" ]] ; then
+        active=$(lattice_tmux_quick display-message -p -t "$TMUX_PANE" '#{pane_active}' 2>/dev/null)
+        # The TUI can still receive queued keystrokes after focus moved to the
+        # executor. An inactive TUI must never open a form or dispatch.
+        [[ "$active" == 1 ]] || return 0
+    fi
+    if (( LATTICE_SUPPRESS_DISPATCH_UNTIL )) ; then
+        now=${EPOCHREALTIME:-0}
+        now=${now//[!0-9]/}
+        if (( now > 0 && now < LATTICE_SUPPRESS_DISPATCH_UNTIL )) ; then
+            lattice_status 'input settling; try again' error
+            return 1
+        fi
+        LATTICE_SUPPRESS_DISPATCH_UNTIL=0
+    fi
     if [[ -n "${LATTICE_CMD_PARAMS[idx]:-}" ]] ; then
         lattice_registry_start_params "$idx"
     else
@@ -704,13 +719,31 @@ lattice_registry_run_index ()
     raw_ok=${LATTICE_EXPAND_RAW:-0}
     (( preview )) && submit=insert
 
+    # For insert-only commands, move focus to the executor before sending.
+    # Otherwise a fast Enter can still be consumed by the still-active TUI and
+    # re-open the parameter form.
+    if [[ "$submit" == 'insert' ]] ; then
+        # A form may still be the last rendered frame. Repaint without it
+        # before focus moves to the executor, otherwise the left pane can keep
+        # showing a stale parameter form while the user is typing on the right.
+        if declare -F lattice_render >/dev/null ; then
+            lattice_render
+        fi
+        lattice_tmux_focus_executor 2>/dev/null || true
+        # Once the executor owns focus, every key already queued for the TUI
+        # must be discarded, not just a command dispatch.
+        [[ -n "${TMUX_PANE:-}" ]] && LATTICE_INPUT_BLOCKED=1
+    fi
     lattice_executor_send "$cmd" "${LATTICE_CMD_TARGETS[idx]:-pane}" "$submit" || return $?
     if [[ "$submit" == 'insert' ]] ; then
+        local now=${EPOCHREALTIME:-0}
+        now=${now//[!0-9]/}
+        (( now > 0 )) && LATTICE_SUPPRESS_ENTER_UNTIL=$(( now + 500000 ))
+        (( now > 0 )) && LATTICE_SUPPRESS_DISPATCH_UNTIL=$(( now + 500000 ))
         if [[ "${LATTICE_CMD_NAMES[idx]}" != @* ]] &&
            (( preview )) && (( quoted_ok || raw_ok )) ; then
             lattice_history_add "$cmd" "$LATTICE_DIR"
         fi
-        lattice_tmux_focus_executor 2>/dev/null || true
         if (( preview )) ; then
             if (( raw_ok )) ; then
                 lattice_status "raw placeholder: review; press Enter to run" error

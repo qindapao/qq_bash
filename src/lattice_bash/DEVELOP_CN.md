@@ -858,11 +858,14 @@ explicit environment
 ### 12.4 编辑器默认值
 
 ```text
-LATTICE_EDITOR   default gvim
-LATTICE_OPEN_CMD default "$LATTICE_EDITOR --remote-silent"
+LATTICE_EDITOR   PATH 中 vim、vim.exe、gvim、gvim.exe 的第一个
+LATTICE_OPEN_CMD 推导：
+  vim/vim.exe       -> "$LATTICE_EDITOR"
+  gvim/gvim.exe     -> "$LATTICE_EDITOR --remote-silent"
 ```
 
-机器专用的绝对路径应放在机器环境文件中，而不是仓库里。
+不内置任何机器相关路径。如果候选都不在 `PATH`，请在机器环境文件中显式设置
+`LATTICE_EDITOR`。
 
 ---
 

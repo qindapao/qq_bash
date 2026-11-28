@@ -996,12 +996,14 @@ launcher. Do not point `LATTICE_CONFIG` back into the repository.
 ### 12.4 Editor defaults
 
 ```text
-LATTICE_EDITOR   default gvim
-LATTICE_OPEN_CMD default "$LATTICE_EDITOR --remote-silent"
+LATTICE_EDITOR   first of vim, vim.exe, gvim, gvim.exe on PATH
+LATTICE_OPEN_CMD derived:
+  vim/vim.exe       -> "$LATTICE_EDITOR"
+  gvim/gvim.exe     -> "$LATTICE_EDITOR --remote-silent"
 ```
 
-Machine-specific absolute paths belong in the machine env file, not in the
-repository.
+No machine-specific path is built in. If none of the candidates is on `PATH`,
+set `LATTICE_EDITOR` explicitly in the machine env file.
 
 ---
 

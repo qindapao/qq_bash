@@ -708,7 +708,26 @@ lattice_handle_help_key ()
 
 lattice_handle_key ()
 {
-    local key=$1
+    local key=$1 now active
+    # Focus moved to the executor: discard every key already queued for this
+    # pane until the user actually returns to the TUI.
+    if (( LATTICE_INPUT_BLOCKED )) ; then
+        if [[ -n "${TMUX_PANE:-}" ]] ; then
+            active=$(lattice_tmux_quick display-message -p -t "$TMUX_PANE" '#{pane_active}' 2>/dev/null)
+            [[ "$active" == 1 ]] || return 0
+        fi
+        LATTICE_INPUT_BLOCKED=0
+    fi
+    # The insert path switches focus to the executor, but an Enter already
+    # queued for this pane can still arrive afterwards and reopen the form.
+    if [[ "$key" == $'\r' ]] && (( LATTICE_SUPPRESS_ENTER_UNTIL )) ; then
+        now=${EPOCHREALTIME:-0}
+        now=${now//[!0-9]/}
+        if (( now > 0 && now < LATTICE_SUPPRESS_ENTER_UNTIL )) ; then
+            return 0
+        fi
+        LATTICE_SUPPRESS_ENTER_UNTIL=0
+    fi
     # Ctrl-g is the explicit "quit Lattice and close its session" key.
     # Ctrl-b d remains detach. Plain q is intentionally not a quit key.
     if [[ "$key" == $'\007' ]] ; then

@@ -373,13 +373,26 @@ lattice_tmux_send ()
     # If the executor is in copy/view mode, paste would be consumed by that
     # mode instead of reaching the shell prompt. Leave the mode first.
     lattice_tmux_quick copy-mode -q -t "$target" 2>/dev/null || true
-    # set-buffer + paste-buffer -p preserves special characters and avoids
-    # send-keys interpreting them as key names.
+    # A previous send or a manual line edit may have left text in the readline
+    # buffer. A TUI command must replace that line, not append to it.
+    lattice_tmux_quick send-keys -t "$target" C-a C-k 2>/dev/null || true
+    # set-buffer + paste-buffer preserves special characters and avoids
+    # send-keys interpreting them as key names. Bracketed paste is only needed
+    # for embedded newlines; using it for ordinary one-line commands makes the
+    # transport depend on the executor's readline setting, and a disabled
+    # setting leaks ESC[200~/ESC[201~ into the command line.
     printf '%s' "$cmd" | lattice_tmux_quick load-buffer - 2>/dev/null || {
         lattice_tmux_quick set-buffer -- "$cmd" || return 1
     }
-    lattice_tmux_quick paste-buffer -p -d -t "$target" || return 1
+    if [[ "$cmd" == *$'\n'* ]] ; then
+        lattice_tmux_quick paste-buffer -p -d -t "$target" || return 1
+    else
+        lattice_tmux_quick paste-buffer -d -t "$target" || return 1
+    fi
     [[ "$submit" == 'insert' ]] && return 0
+    # paste-buffer writes through the tmux server asynchronously; give the
+    # executor pty one scheduling tick to consume the line before Enter.
+    sleep 0.03
     lattice_tmux_quick send-keys -t "$target" Enter || return 1
     return 0
 }

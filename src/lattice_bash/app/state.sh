@@ -72,8 +72,36 @@ LATTICE_ORDER_FILE=${LATTICE_ORDER_FILE:-"$LATTICE_STATE_DIR/command-order.tsv"}
 LATTICE_USER_COMMANDS_FILE=${LATTICE_USER_COMMANDS_FILE:-"$LATTICE_STATE_DIR/commands.user.conf"}
 LATTICE_DISABLED_FILE=${LATTICE_DISABLED_FILE:-"$LATTICE_STATE_DIR/commands.disabled"}
 LATTICE_EXECUTOR_RC=${LATTICE_EXECUTOR_RC:-"$LATTICE_HOME/executor/rc.sh"}
-LATTICE_EDITOR=${LATTICE_EDITOR:-gvim}
-LATTICE_OPEN_CMD=${LATTICE_OPEN_CMD:-"$LATTICE_EDITOR --remote-silent"}
+lattice_editor_default ()
+{
+    local candidate
+    for candidate in vim vim.exe gvim gvim.exe ; do
+        if command -v "$candidate" >/dev/null 2>&1 ; then
+            REPLY=$candidate
+            return 0
+        fi
+    done
+    REPLY=''
+}
+
+lattice_editor_remote_args ()
+{
+    case "${1##*/}" in
+    gvim|gvim.exe) REPLY='--remote-silent' ;;
+    *) REPLY='' ;;
+    esac
+}
+
+LATTICE_EDITOR=${LATTICE_EDITOR:-}
+if [[ -z "$LATTICE_EDITOR" ]] ; then
+    lattice_editor_default
+    LATTICE_EDITOR=$REPLY
+fi
+if [[ -z "${LATTICE_OPEN_CMD:-}" ]] ; then
+    lattice_editor_remote_args "$LATTICE_EDITOR"
+    LATTICE_OPEN_CMD=${LATTICE_EDITOR}
+    [[ -n "$REPLY" ]] && LATTICE_OPEN_CMD+=" $REPLY"
+fi
 LATTICE_REGISTER_A_FILE=${LATTICE_REGISTER_A_FILE:-"$LATTICE_STATE_DIR/wb-register-A"}
 LATTICE_REGISTER_B_FILE=${LATTICE_REGISTER_B_FILE:-"$LATTICE_STATE_DIR/wb-register-B"}
 LATTICE_REGISTER_C_FILE=${LATTICE_REGISTER_C_FILE:-"$LATTICE_STATE_DIR/wb-register-C"}
@@ -98,6 +126,9 @@ LATTICE_TREE_MANUAL_SCROLL=0
 LATTICE_CMD_MANUAL_SCROLL=0
 LATTICE_HISTORY_OFFSET=0
 LATTICE_HISTORY_MANUAL_SCROLL=0
+LATTICE_SUPPRESS_ENTER_UNTIL=0
+LATTICE_SUPPRESS_DISPATCH_UNTIL=0
+LATTICE_INPUT_BLOCKED=0
 LATTICE_MOUSE_LAST_TS=0
 LATTICE_MOUSE_LAST_ROW=-1
 LATTICE_MOUSE_LAST_MODE=''
