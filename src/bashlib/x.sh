@@ -146,7 +146,9 @@ _split_tokens ()
         return $X_RET_ENUM_KEY_IS_INVALID
         ;;
     *"$X") : ;;
-    *) return $X_RET_ENUM_KEY_IS_INVALID ;;
+    *)
+        die ERR "key:${2@Q} is invalid!"
+        return $X_RET_ENUM_KEY_IS_INVALID ;;
     esac
 
     if ((${#X}==1)) ; then
