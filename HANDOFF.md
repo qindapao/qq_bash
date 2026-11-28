@@ -1,4 +1,328 @@
-# HANDOFF — qq_bash（给下一位接手的 AI / 新会话）
+# HANDOFF — Lattice / qq_bash（2026-11-28）
+
+> 给下一位接手的 AI 或新会话。
+> 先读这个文件，再读 `CONSTITUTION.md`、`DEVELOP.md`、`TODO.txt`。
+> 当前主线是 Lattice + qq_bash 基础库；
+> 文件后半部分是 strafe_bash 游戏时期的历史手稿，保留作参考。
+
+---
+
+## 称呼与协作
+
+```text
+用户             老铁
+本会话 AI        震天雷 / 雷总
+家里的 AI        轰天炮 / 炮总
+```
+
+用户平时叫“老铁”，也会直接叫“雷总”或“炮总”。
+
+老铁会同时和两个 AI 协作：雷总在当前的会话里推进，炮总在另一台环境里做另一部分。
+两边不要假设对方拥有当前上下文；重要结论、契约、失败案例写进这份手稿，下一次接手先读这里。
+
+---
+
+## 0. 第一件事
+
+```bash
+pwd
+git log --oneline -12
+git status --short
+bash --version
+```
+
+不要先动代码。
+
+当前状态要以 `git status` 为准。用户的暂存区可能已有内容，**不要执行**：
+
+```text
+git add
+git restore --staged
+git reset
+git stash
+git checkout -- <file>
+```
+
+只改工作区，让用户能通过 `git diff` 逐条 review。
+
+---
+
+## 1. 项目地图
+
+```text
+src/bashlib/
+  grammar.sh   Bash 能力探测
+  str.sh       字符串、转义、数字校验
+  var.sh       变量/数组判定
+  array.sh     数组工具
+  float.sh     浮点工具
+  x.sh         x 树核心：路径、token、插入、删除、遍历、dump
+  xe.sh        x 扩展：graft、flat、leaf/tree push/pop/shift
+  xj.sh        x 的 JSON 层
+  xo.sh        xo 对象系统：类、对象池、mixin、生命周期
+
+src/lattice_bash/
+  lattice.sh   启动器：创建 tmux session / TUI / executor
+  app/         全局状态
+  cmd/         命令注册、历史、tmux 发送、执行器
+  fs/          文件树
+  ui/          渲染、事件、表单
+  executor/    执行器 rc、剪贴板、打开文件/目录
+  config/      默认命令与用户命令示例
+
+src/strafe_bash/
+  游戏本体，暂时搁浅；保留用于回归和未来继续。
+```
+
+`qq_bash` 不是“Lattice 仓库”，它是纯 Bash 的基础库与工具集合；  
+Lattice 是它目前最完整的真实应用。
+
+---
+
+## 2. 运行与测试
+
+Lattice：
+
+```bash
+./src/lattice_bash/lattice.sh
+```
+
+测试：
+
+```bash
+./test.sh
+```
+
+聚焦测试：
+
+```bash
+cd test/bashlib
+bash test_x.sh
+bash test_xo_obj_mixin.sh
+```
+
+已知环境性失败不要乱修：
+
+```text
+test_bash_coproc.sh       缺 bc
+test_x.sh                 需要 bash 5.3 + gobolt；Git Bash 5.2 可能跳过
+test_bash_array.sh        负载高时计时断言会假失败
+```
+
+---
+
+## 3. 不可破坏的契约
+
+### 3.1 输入所有权
+
+```text
+active pane = executor
+  -> TUI 不能执行任何排队按键
+  -> 不能打开表单
+  -> 不能派发命令
+```
+
+Lattice 用 `LATTICE_INPUT_BLOCKED` + `pane_active` 检查保证这一点。  
+焦点已经切到执行器时，左边残留的 Enter 不允许重新打开参数框。
+
+### 3.2 命令发送
+
+顺序必须是：
+
+```text
+copy-mode -q
+C-a C-k              清空执行器当前 readline 行
+paste-buffer
+等待 pty 消化
+Enter（仅 run 模式）
+```
+
+不要恢复“直接 paste 后立刻 Enter”的写法。
+
+### 3.3 编辑器
+
+```text
+LATTICE_EDITOR 显式配置优先
+  > env.conf / env.d/<machine>.conf
+  > PATH 顺序：vim, vim.exe, gvim, gvim.exe
+```
+
+`LATTICE_OPEN_CMD` 显式配置优先；否则：
+
+```text
+vim/vim.exe    -> editor
+gvim/gvim.exe  -> editor --remote-silent
+```
+
+不要在代码里写死 `/d/programes/...`。
+
+### 3.4 x 树
+
+```text
+token 分隔符是 $X = $'\034'
+物理 key 必须非空、不以 X 开头、不含 XX、以 X 结尾
+```
+
+`_split_tokens` 的局部槽位预算：
+
+```text
+w_tokens token ext_pat extglob ret - IFS
++ body 或 tokens_str（互斥）
+= 最多 8 个
+```
+
+`local - IFS=$X` 同时局部化 IFS 和 shell 选项，函数内 `set -f` 会在返回时恢复。  
+不要拆成 `local IFS=$X`，否则 noglob 会泄漏。
+
+### 3.5 性能
+
+任何 Lattice/基础库改动都不能让性能变差。  
+至少做到：
+
+```text
+不在热路径 fork
+不每键/每帧创建临时数组
+有测量再改
+性能数字标注 CPU 型号
+```
+
+---
+
+## 4. 最近的真实问题
+
+这些是实际踩过的，不要再犯：
+
+```text
+TUI 不是 pane 主进程 -> 用 exec 启动
+同步 run-shell 冻结 tmux -> run-shell -b
+executor 粘贴被 copy mode 吃掉 -> copy-mode -q
+literal [200~ -> bracketed paste / 清空行
+参数默认值被空格拆开 -> 一个实参一个参数
+表单显示被真实 Tab 污染 -> 转义控制字符 + ESC[K
+快速 Enter 重开表单 -> TUI inactive 时禁止派发
+发送到已有输入行 -> C-a C-k
+粘贴与 Enter 竞争 -> paste 后短暂等待
+```
+
+---
+
+## 5. 当前已知边界
+
+```text
+SSH 普通命令可发送，但本地 WB_* 上下文和执行器路径不适用
+多 session 的全局 tmux 绑定/状态仍未完全隔离
+真实换行不适合作为单行表单默认值
+终端编辑器在不同终端里的行为仍需实际验证
+Lattice 的 UI 细节仍在真实使用中收口
+```
+
+不要把这些包装成“已完成”。
+
+---
+
+## 5.1 当前 backlog
+
+当前只做真实使用中重复出现的问题：
+
+```text
+[P0] 输入所有权 / 焦点 / 排队键
+[P1] 已知边界：多 session、SSH、终端编辑器
+[P2] x / xo 的契约与必要清理
+[P3] 文档、双语同步、交接手稿
+```
+
+strafe_bash 已暂停，`TODO.txt` 后半部分的游戏性能项只作历史参考，不排期。
+
+---
+
+## 6. 心路历程
+
+这个项目不是从“我要做一个框架”开始的。
+
+最早是 `strafe_bash`：一个用纯 Bash 写的终端弹幕游戏。  
+为了游戏需要数据、对象、路径和 JSON，才逐步长出 `x`、`xo`、`xe`、`xj`。  
+后来发现这套基础能力本身就有价值，于是有了 Lattice。
+
+中间有很多次“看起来能跑，但状态不对”：
+
+```text
+焦点在执行器，TUI 还在吃键
+命令已经发送，readline 还留着旧行
+表单已关闭，画面还停在旧帧
+配置写死路径，换一台机器就坏
+```
+
+这些问题单看都不大，但会破坏信任。  
+所以这个项目真正的标准不是“功能多”，而是：
+
+```text
+状态可解释
+按键不丢失
+失败不静默
+性能可测量
+边界写清楚
+```
+
+用户是首席体验官，也是架构所有者。  
+他会用真实操作把问题逼出来，也会在实现失控时喊停。  
+AI 的价值是把判断快速变成代码，不是替用户拥有项目。
+
+### 6.1 为什么现在 code free
+
+连续几周高强度死磕之后，老铁明确说要停一段时间。
+
+不是因为项目没意思，而是因为：
+
+```text
+晚上睡觉脑子里还在跑代码
+同一个问题反复在脑内重放
+再继续加功能，判断力会先于体力耗尽
+```
+
+这时候继续写，很容易把“还能改”误当成“应该改”。
+
+所以现在的策略是：
+
+```text
+真实使用优先
+不为了体验而体验
+只修能稳定复现、会重复打断工作流的问题
+```
+
+只有真正的恶性问题才例外：
+
+```text
+数据丢失
+安全问题
+稳定复现的卡死
+会破坏项目文件的错误
+```
+
+其余问题先记下来，不在疲劳状态下现场重构。
+
+code free 不是停止思考，而是停止用意志力硬推。  
+让项目进入真实使用，让问题自己浮出来；这比继续在疲劳里找边角 BUG 更有价值。
+
+老铁、雷总、炮总都需要这个停顿。  
+项目不是靠某一天写得多，而是靠长期还能继续写。
+
+---
+
+## 7. 接手时建议的开场
+
+1. 读 `CONSTITUTION.md`；
+2. 读 `DEVELOP.md` 的 Lattice / x / xo / 性能章节；
+3. 读本文件第 3 节，确认不可破坏的契约；
+4. 看 `git status`，不要动暂存区；
+5. 问用户这次要解决什么，不要主动加功能；
+6. 改完给统一 commit message，不要自动提交。
+
+> 最后：先量，再改；先保状态，再谈优雅。
+
+---
+
+# 附录：strafe_bash 历史手稿（2026-11-24）
+
 
 > 这是个"交接文件"。老铁（项目作者，GitHub：qindapao）周末可能换一台电脑开新会话，
 > 新会话里的你没有本次对话的上下文。先读完这个文件，再读 `CONSTITUTION.md`、
