@@ -37,7 +37,7 @@ lattice_screen_done ()
 
 _lattice_fit ()
 {
-    local s=$1 n=$2 width target out used ch w i
+    local s=$1 n=$2 width=${3:-} target out used ch w i
     if [[ "$s" != *[![:ascii:]]* ]] ; then
         if (( ${#s} <= n )) ; then
             REPLY=$s
@@ -48,7 +48,9 @@ _lattice_fit ()
         fi
         return
     fi
-    str_display_width "$s"; width=$REPLY
+    if [[ -z "$width" ]] ; then
+        str_display_width "$s"; width=$REPLY
+    fi
     if (( width <= n )) ; then
         REPLY=$s
         return
@@ -86,7 +88,7 @@ _lattice_pad ()
         str_display_width "$s"; used=$REPLY
     fi
     if (( used >= width )) ; then
-        _lattice_fit "$s" "$width"
+        _lattice_fit "$s" "$width" "$used"
         return
     fi
     printf -v spaces '%*s' "$((width - used))" ''
@@ -373,7 +375,11 @@ _lattice_wrap_line ()
     local text=$1 width=$2 line='' used=0 ch w i
     for ((i=0;i<${#text};i++)); do
         ch=${text:i:1}
-        str_display_width "$ch"; w=$REPLY
+        case "$ch" in
+        [[:cntrl:]]) w=0 ;;
+        [[:ascii:]]) w=1 ;;
+        *) str_display_width "$ch"; w=$REPLY ;;
+        esac
         if (( ${#line} > 0 && used + w > width )) ; then
             LATTICE_SNAPSHOT_WRAP+=("$line")
             line=$ch
