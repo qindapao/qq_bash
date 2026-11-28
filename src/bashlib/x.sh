@@ -348,15 +348,17 @@ _tokens_insert_to_overwrite ()
 # @ret 0=OK  7=X_RET_ENUM_KEY_IS_NULL
 x_key_is_invalid ()
 {
-    if [[ "$1" == "$X"* ]] ||
-        [[ "$1" == *"$X$X"* ]] ||
-        [[ "$1" == "$X" ]] ||
-        [[ "$1" != *"$X" ]] ; then
+    case "$1" in
+    "$X"*|*"$X$X"*)
         die ERR "key:${1@Q} is null or invalid!"
         return $X_RET_ENUM_KEY_IS_NULL
-    else
-        return $X_RET_ENUM_OK
-    fi
+        ;;
+    *"$X") return $X_RET_ENUM_OK ;;
+    *)
+        die ERR "key:${1@Q} is null or invalid!"
+        return $X_RET_ENUM_KEY_IS_NULL
+        ;;
+    esac
 }
 
 #-------------------------------------------------------------------------------

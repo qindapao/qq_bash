@@ -1893,13 +1893,14 @@ xo_obj_mixin_add ()
     # 对象当前没有任何动态 Mixin：先清掉可能残留的旧路由（具名句柄重用场景）
     [[ -z "$list" ]] && _xo_obj_mixin_drop_table "$obj"
 
-    local mixin methods m seen=
+    local mixin methods m
+    local -A seen=()
     for mixin in "$@" ; do
         # 同一次调用里重复列同一个名字没有意义（add 是集合并集语义）：一次性能力被重复
         # 列出会连放两次（例如两条电网），属于写错。去重后 add A A 等价于 add A；
         # 想让它再触发一次，请在另一次调用里 add（那时它已经不在名单里了）。
-        [[ " $seen " == *" $mixin "* ]] && continue
-        seen+=" $mixin"
+        [[ -n "${seen[$mixin]+_}" ]] && continue
+        seen[$mixin]=1
 
         # 每轮重新读名单：_init 里允许自卸（一次性能力放完就删自己），列表会变
         list=${_om["{OBJMIX}$X"]}
