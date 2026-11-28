@@ -232,7 +232,7 @@ tr_resolve_physical_token ()
     if [[ "${tr_token:0:1}${tr_token: -1}" == '<>' ]] ; then
         local -a "tr_child_ids=(${tr_t[$3.s]})"
 
-        array_index "${tr_token}" ${tr_child_ids[@]} ; local -i tr_index=$REPLY
+        array_index "${tr_token}" "${tr_child_ids[@]}" ; local -i tr_index=$REPLY
 
         ((tr_index==-1)) && {
             die ERR "node:$3(token:${tr_token@Q}) can not find index."
