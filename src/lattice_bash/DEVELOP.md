@@ -1,3 +1,5 @@
+English | [简体中文](DEVELOP_CN.md)
+
 # Lattice — Developer Notes
 
 Status: **v1.0.0.0**  

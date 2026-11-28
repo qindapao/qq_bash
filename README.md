@@ -1,3 +1,5 @@
+English | [简体中文](README_CN.md)
+
 # qq_bash
 
 **A pure-Bash toolkit — and an `xo` object-system validation game built with it.**

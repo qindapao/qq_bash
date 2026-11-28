@@ -1,3 +1,5 @@
+English | [简体中文](DEVELOP_CN.md)
+
 # DEVELOP — qq_bash internals
 
 Development notes for `qq_bash`: what the project is for, how `xo` and `x` work,

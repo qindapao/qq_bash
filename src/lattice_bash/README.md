@@ -1,3 +1,5 @@
+English | [简体中文](README_CN.md)
+
 # lattice_bash
 
 A pure-Bash TUI workbench for tmux. Browse files and dispatch configured quick
@@ -917,6 +919,32 @@ recent commands   10
 
 The oldest history entries are pruned when the limit is exceeded.
 `LATTICE_HISTORY_LIMIT` changes the history cap for advanced use.
+
+## Running over SSH
+
+The preferred deployment is to copy Lattice to the remote machine, install
+`tmux` there if needed, and run the TUI remotely:
+
+```text
+local terminal -> ssh -> remote tmux -> Lattice TUI + executor
+```
+
+Running `ssh` inside the executor is also possible. Commands are pasted into
+the SSH pty and execute on the remote shell, but all context values were
+expanded locally:
+
+```text
+WB_ROOT / WB_DIR / WB_FILE    local paths
+WB_A / WB_B / WB_C            local register values
+WB_CLIP                       local clipboard
+LATTICE_OPEN_CMD              local editor path
+```
+
+So `pwd`, `ls`, and `git status` work, while `diff A B`, opening files, or any
+template using local paths will usually fail remotely. Bracketed paste must
+also be enabled in the remote shell; otherwise `ESC[200~`/`ESC[201~` can appear
+as literal text. Use the existing SSH command skeleton (`@ssh`) and run the
+remote TUI for full functionality.
 
 ## Copying output / interacting with the executor
 
